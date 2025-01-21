@@ -7,6 +7,7 @@ import LoginImage from "./login-image.svg";
 import ImportFileImage from "./import-file.svg";
 import EmptySubjectMaterial from "./empty-subject-material.svg";
 import SubjectDefaultImage from './subject-default-image.svg';
+import EmptyModulesImage from './empty_modules_image.svg'
 
 export {
   SSDC_Logo,
@@ -17,5 +18,6 @@ export {
   LoginImage,
   ImportFileImage,
   EmptySubjectMaterial,
-  SubjectDefaultImage
+  SubjectDefaultImage,
+  EmptyModulesImage
 };

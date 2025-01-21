@@ -3,8 +3,29 @@ import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore
 import { useEffect } from "react";
 import { Subject, SubjectCard } from "./subject-card";
 
+const subjectsDummy = [
+    { 
+        id: "123",
+        name: "Biology",
+        code: null,
+        credit: null,
+        imageId: null,
+        createdAt: null,
+        updatedAt: null
+    },
+    { 
+        id: "124",
+        name: "Chemistry",
+        code: null,
+        credit: null,
+        imageId: null,
+        createdAt: null,
+        updatedAt: null
+    },
+]
+
 export const SubjectMaterial = () => {
-    const subjects: Subject[] = [];
+    const subjects: Subject[] = subjectsDummy;
     const {setNavHeading} = useNavHeadingStore();
     
       useEffect(()=>{
@@ -19,7 +40,7 @@ export const SubjectMaterial = () => {
                     <div>No subjects have been added yet.</div>
                 </div>
             ) : (
-                <div className="grid grid-cols-4 gap-10">
+                <div className="grid grid-cols-2 w-full gap-4 ">
                     {subjects.map((subject) => (
                         <SubjectCard
                             key={subject.id}

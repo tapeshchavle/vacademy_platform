@@ -1,0 +1,54 @@
+import { useRouter } from "@tanstack/react-router";
+
+export interface ModuleType {
+    name: string;
+    description: string;
+    imageUrl?: string;
+}
+
+
+export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}) => {
+
+    
+    const router = useRouter();
+    const moduleName = module.name.toLowerCase().replace(/\s+/g, "-");
+    const handleCardClick = () => {
+        console.log(moduleName)
+        router.navigate({
+            to: `/study-library/subjects/${subject}/${moduleName}`,
+        });
+    };
+
+    return(
+        <div onClick={handleCardClick} className="cursor-pointer">
+        <div
+            className={`flex w-[370px] flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6 shadow-md`}
+        >
+            <div className="flex items-center justify-between text-h2 font-semibold">
+                <div>{module.name}</div>
+            </div>
+
+            {module.imageUrl ? (
+                <img
+                    src={module.imageUrl}
+                    alt={module.name}
+                    className="h-[300px] w-full rounded-lg object-cover"
+                />
+            ) : (
+                <div className="flex h-[200px] w-full items-center justify-center rounded-lg bg-neutral-100">
+                    <span className="text-neutral-400">No Image</span>
+                </div>
+            )}
+
+            <div className="flex gap-2 text-title font-semibold">
+                <div className="text-primary-500">0</div>
+                <div>Chapters</div>
+            </div>
+
+            <div className="flex items-center justify-between">
+                <div className="text-body text-neutral-500">{module.description}</div>
+            </div>
+        </div>
+    </div>
+    )
+}

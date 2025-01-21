@@ -21,6 +21,7 @@ import { Route as StudyLibrarySubjectsSubjectIndexImport } from './routes/study-
 import { Route as AssessmentExaminationAssessmentIdIndexImport } from './routes/assessment/examination/$assessmentId/index'
 import { Route as AssessmentExaminationAssessmentIdAssessmentPreviewImport } from './routes/assessment/examination/$assessmentId/assessmentPreview'
 import { Route as AssessmentExaminationAssessmentIdLearnerLiveTestImport } from './routes/assessment/examination/$assessmentId/LearnerLiveTest'
+import { Route as StudyLibrarySubjectsSubjectModuleIndexImport } from './routes/study-library/subjects/$subject/$module/index'
 
 // Create/Update Routes
 
@@ -87,6 +88,13 @@ const AssessmentExaminationAssessmentIdLearnerLiveTestRoute =
   AssessmentExaminationAssessmentIdLearnerLiveTestImport.update({
     id: '/assessment/examination/$assessmentId/LearnerLiveTest',
     path: '/assessment/examination/$assessmentId/LearnerLiveTest',
+    getParentRoute: () => rootRoute,
+  } as any)
+
+const StudyLibrarySubjectsSubjectModuleIndexRoute =
+  StudyLibrarySubjectsSubjectModuleIndexImport.update({
+    id: '/study-library/subjects/$subject/$module/',
+    path: '/study-library/subjects/$subject/$module/',
     getParentRoute: () => rootRoute,
   } as any)
 
@@ -164,6 +172,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudyLibrarySubjectsSubjectIndexImport
       parentRoute: typeof rootRoute
     }
+    '/study-library/subjects/$subject/$module/': {
+      id: '/study-library/subjects/$subject/$module/'
+      path: '/study-library/subjects/$subject/$module'
+      fullPath: '/study-library/subjects/$subject/$module'
+      preLoaderRoute: typeof StudyLibrarySubjectsSubjectModuleIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -180,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
   '/study-library/subjects/$subject': typeof StudyLibrarySubjectsSubjectIndexRoute
+  '/study-library/subjects/$subject/$module': typeof StudyLibrarySubjectsSubjectModuleIndexRoute
 }
 
 export interface FileRoutesByTo {
@@ -193,6 +209,7 @@ export interface FileRoutesByTo {
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
   '/study-library/subjects/$subject': typeof StudyLibrarySubjectsSubjectIndexRoute
+  '/study-library/subjects/$subject/$module': typeof StudyLibrarySubjectsSubjectModuleIndexRoute
 }
 
 export interface FileRoutesById {
@@ -207,6 +224,7 @@ export interface FileRoutesById {
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId/': typeof AssessmentExaminationAssessmentIdIndexRoute
   '/study-library/subjects/$subject/': typeof StudyLibrarySubjectsSubjectIndexRoute
+  '/study-library/subjects/$subject/$module/': typeof StudyLibrarySubjectsSubjectModuleIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -222,6 +240,7 @@ export interface FileRouteTypes {
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId'
     | '/study-library/subjects/$subject'
+    | '/study-library/subjects/$subject/$module'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/dashboard'
@@ -234,6 +253,7 @@ export interface FileRouteTypes {
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId'
     | '/study-library/subjects/$subject'
+    | '/study-library/subjects/$subject/$module'
   id:
     | '__root__'
     | '/dashboard/'
@@ -246,6 +266,7 @@ export interface FileRouteTypes {
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId/'
     | '/study-library/subjects/$subject/'
+    | '/study-library/subjects/$subject/$module/'
   fileRoutesById: FileRoutesById
 }
 
@@ -260,6 +281,7 @@ export interface RootRouteChildren {
   AssessmentExaminationAssessmentIdAssessmentPreviewRoute: typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   AssessmentExaminationAssessmentIdIndexRoute: typeof AssessmentExaminationAssessmentIdIndexRoute
   StudyLibrarySubjectsSubjectIndexRoute: typeof StudyLibrarySubjectsSubjectIndexRoute
+  StudyLibrarySubjectsSubjectModuleIndexRoute: typeof StudyLibrarySubjectsSubjectModuleIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -276,6 +298,8 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentExaminationAssessmentIdIndexRoute:
     AssessmentExaminationAssessmentIdIndexRoute,
   StudyLibrarySubjectsSubjectIndexRoute: StudyLibrarySubjectsSubjectIndexRoute,
+  StudyLibrarySubjectsSubjectModuleIndexRoute:
+    StudyLibrarySubjectsSubjectModuleIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -297,7 +321,8 @@ export const routeTree = rootRoute
         "/assessment/examination/$assessmentId/LearnerLiveTest",
         "/assessment/examination/$assessmentId/assessmentPreview",
         "/assessment/examination/$assessmentId/",
-        "/study-library/subjects/$subject/"
+        "/study-library/subjects/$subject/",
+        "/study-library/subjects/$subject/$module/"
       ]
     },
     "/dashboard/": {
@@ -329,6 +354,9 @@ export const routeTree = rootRoute
     },
     "/study-library/subjects/$subject/": {
       "filePath": "study-library/subjects/$subject/index.tsx"
+    },
+    "/study-library/subjects/$subject/$module/": {
+      "filePath": "study-library/subjects/$subject/$module/index.tsx"
     }
   }
 }

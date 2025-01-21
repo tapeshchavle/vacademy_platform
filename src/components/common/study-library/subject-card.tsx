@@ -1,6 +1,5 @@
 import { SubjectDefaultImage } from "@/assets/svgs";
 import { useRouter } from "@tanstack/react-router";
-import { DotsSixVertical } from "phosphor-react";
 
 export interface Subject {
     id: string;
@@ -38,16 +37,15 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
     };
 
     return(
-        <div onClick={handleCardClick} className="cursor-pointer">
+        <div onClick={handleCardClick} className="cursor-pointer w-full">
             <div
-                className={`relative flex size-[100px] flex-col items-center justify-center gap-4 border-neutral-500 bg-neutral-50 p-4 shadow-md`}
+                className={`relative flex flex-col items-center justify-center gap-4 border-neutral-500 bg-neutral-50 p-4 shadow-md w-full`}
             >
-                <DotsSixVertical className="absolute right-4 top-4 size-6 cursor-pointer" />
                 {imageUrl ? (
                     <img
                         src={imageUrl}
                         alt={subject.name}
-                        className={`h-[80px] w-[80px]`}
+                        className={``}
                     />
                 ) : (
                     <SubjectDefaultImage
