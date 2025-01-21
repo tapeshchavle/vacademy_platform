@@ -1,5 +1,4 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useState } from "react";
 import {
   MagnifyingGlass,
   Bell,
