@@ -15,7 +15,7 @@ export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}
     const handleCardClick = () => {
         console.log(moduleName)
         router.navigate({
-            to: `/study-library/subjects/${subject}/${moduleName}`,
+            to: `/study-library/subjects/${subject}/modules`,
         });
     };
 
