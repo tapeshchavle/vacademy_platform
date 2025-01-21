@@ -8,47 +8,117 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { createFileRoute } from '@tanstack/react-router'
-
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-
-// Create Virtual Routes
-
-const AboutLazyImport = createFileRoute('/about')()
-const IndexLazyImport = createFileRoute('/')()
+import { Route as LoginIndexImport } from './routes/login/index'
+import { Route as DashboardIndexImport } from './routes/dashboard/index'
+import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
+import { Route as AssessmentExaminationIndexImport } from './routes/assessment/examination/index'
+import { Route as AssessmentExaminationAssessmentIdIndexImport } from './routes/assessment/examination/$assessmentId/index'
+import { Route as AssessmentExaminationAssessmentIdAssessmentPreviewImport } from './routes/assessment/examination/$assessmentId/assessmentPreview'
+import { Route as AssessmentExaminationAssessmentIdLearnerLiveTestImport } from './routes/assessment/examination/$assessmentId/LearnerLiveTest'
 
 // Create/Update Routes
 
-const AboutLazyRoute = AboutLazyImport.update({
-  id: '/about',
-  path: '/about',
+const LoginIndexRoute = LoginIndexImport.update({
+  id: '/login/',
+  path: '/login/',
   getParentRoute: () => rootRoute,
-} as any).lazy(() => import('./routes/about.lazy').then((d) => d.Route))
+} as any)
 
-const IndexLazyRoute = IndexLazyImport.update({
-  id: '/',
-  path: '/',
+const DashboardIndexRoute = DashboardIndexImport.update({
+  id: '/dashboard/',
+  path: '/dashboard/',
   getParentRoute: () => rootRoute,
-} as any).lazy(() => import('./routes/index.lazy').then((d) => d.Route))
+} as any)
+
+const LoginForgotPasswordIndexRoute = LoginForgotPasswordIndexImport.update({
+  id: '/login/forgot-password/',
+  path: '/login/forgot-password/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AssessmentExaminationIndexRoute = AssessmentExaminationIndexImport.update(
+  {
+    id: '/assessment/examination/',
+    path: '/assessment/examination/',
+    getParentRoute: () => rootRoute,
+  } as any,
+)
+
+const AssessmentExaminationAssessmentIdIndexRoute =
+  AssessmentExaminationAssessmentIdIndexImport.update({
+    id: '/assessment/examination/$assessmentId/',
+    path: '/assessment/examination/$assessmentId/',
+    getParentRoute: () => rootRoute,
+  } as any)
+
+const AssessmentExaminationAssessmentIdAssessmentPreviewRoute =
+  AssessmentExaminationAssessmentIdAssessmentPreviewImport.update({
+    id: '/assessment/examination/$assessmentId/assessmentPreview',
+    path: '/assessment/examination/$assessmentId/assessmentPreview',
+    getParentRoute: () => rootRoute,
+  } as any)
+
+const AssessmentExaminationAssessmentIdLearnerLiveTestRoute =
+  AssessmentExaminationAssessmentIdLearnerLiveTestImport.update({
+    id: '/assessment/examination/$assessmentId/LearnerLiveTest',
+    path: '/assessment/examination/$assessmentId/LearnerLiveTest',
+    getParentRoute: () => rootRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexLazyImport
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardIndexImport
       parentRoute: typeof rootRoute
     }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutLazyImport
+    '/login/': {
+      id: '/login/'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/assessment/examination/': {
+      id: '/assessment/examination/'
+      path: '/assessment/examination'
+      fullPath: '/assessment/examination'
+      preLoaderRoute: typeof AssessmentExaminationIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/login/forgot-password/': {
+      id: '/login/forgot-password/'
+      path: '/login/forgot-password'
+      fullPath: '/login/forgot-password'
+      preLoaderRoute: typeof LoginForgotPasswordIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/assessment/examination/$assessmentId/LearnerLiveTest': {
+      id: '/assessment/examination/$assessmentId/LearnerLiveTest'
+      path: '/assessment/examination/$assessmentId/LearnerLiveTest'
+      fullPath: '/assessment/examination/$assessmentId/LearnerLiveTest'
+      preLoaderRoute: typeof AssessmentExaminationAssessmentIdLearnerLiveTestImport
+      parentRoute: typeof rootRoute
+    }
+    '/assessment/examination/$assessmentId/assessmentPreview': {
+      id: '/assessment/examination/$assessmentId/assessmentPreview'
+      path: '/assessment/examination/$assessmentId/assessmentPreview'
+      fullPath: '/assessment/examination/$assessmentId/assessmentPreview'
+      preLoaderRoute: typeof AssessmentExaminationAssessmentIdAssessmentPreviewImport
+      parentRoute: typeof rootRoute
+    }
+    '/assessment/examination/$assessmentId/': {
+      id: '/assessment/examination/$assessmentId/'
+      path: '/assessment/examination/$assessmentId'
+      fullPath: '/assessment/examination/$assessmentId'
+      preLoaderRoute: typeof AssessmentExaminationAssessmentIdIndexImport
       parentRoute: typeof rootRoute
     }
   }
@@ -57,38 +127,88 @@ declare module '@tanstack/react-router' {
 // Create and export the route tree
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexLazyRoute
-  '/about': typeof AboutLazyRoute
+  '/dashboard': typeof DashboardIndexRoute
+  '/login': typeof LoginIndexRoute
+  '/assessment/examination': typeof AssessmentExaminationIndexRoute
+  '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
+  '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
+  '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
+  '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexLazyRoute
-  '/about': typeof AboutLazyRoute
+  '/dashboard': typeof DashboardIndexRoute
+  '/login': typeof LoginIndexRoute
+  '/assessment/examination': typeof AssessmentExaminationIndexRoute
+  '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
+  '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
+  '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
+  '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
-  '/': typeof IndexLazyRoute
-  '/about': typeof AboutLazyRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/login/': typeof LoginIndexRoute
+  '/assessment/examination/': typeof AssessmentExaminationIndexRoute
+  '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
+  '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
+  '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
+  '/assessment/examination/$assessmentId/': typeof AssessmentExaminationAssessmentIdIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about'
+  fullPaths:
+    | '/dashboard'
+    | '/login'
+    | '/assessment/examination'
+    | '/login/forgot-password'
+    | '/assessment/examination/$assessmentId/LearnerLiveTest'
+    | '/assessment/examination/$assessmentId/assessmentPreview'
+    | '/assessment/examination/$assessmentId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about'
-  id: '__root__' | '/' | '/about'
+  to:
+    | '/dashboard'
+    | '/login'
+    | '/assessment/examination'
+    | '/login/forgot-password'
+    | '/assessment/examination/$assessmentId/LearnerLiveTest'
+    | '/assessment/examination/$assessmentId/assessmentPreview'
+    | '/assessment/examination/$assessmentId'
+  id:
+    | '__root__'
+    | '/dashboard/'
+    | '/login/'
+    | '/assessment/examination/'
+    | '/login/forgot-password/'
+    | '/assessment/examination/$assessmentId/LearnerLiveTest'
+    | '/assessment/examination/$assessmentId/assessmentPreview'
+    | '/assessment/examination/$assessmentId/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
-  IndexLazyRoute: typeof IndexLazyRoute
-  AboutLazyRoute: typeof AboutLazyRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+  LoginIndexRoute: typeof LoginIndexRoute
+  AssessmentExaminationIndexRoute: typeof AssessmentExaminationIndexRoute
+  LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
+  AssessmentExaminationAssessmentIdLearnerLiveTestRoute: typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
+  AssessmentExaminationAssessmentIdAssessmentPreviewRoute: typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
+  AssessmentExaminationAssessmentIdIndexRoute: typeof AssessmentExaminationAssessmentIdIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexLazyRoute: IndexLazyRoute,
-  AboutLazyRoute: AboutLazyRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+  LoginIndexRoute: LoginIndexRoute,
+  AssessmentExaminationIndexRoute: AssessmentExaminationIndexRoute,
+  LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
+  AssessmentExaminationAssessmentIdLearnerLiveTestRoute:
+    AssessmentExaminationAssessmentIdLearnerLiveTestRoute,
+  AssessmentExaminationAssessmentIdAssessmentPreviewRoute:
+    AssessmentExaminationAssessmentIdAssessmentPreviewRoute,
+  AssessmentExaminationAssessmentIdIndexRoute:
+    AssessmentExaminationAssessmentIdIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -101,15 +221,35 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
-        "/",
-        "/about"
+        "/dashboard/",
+        "/login/",
+        "/assessment/examination/",
+        "/login/forgot-password/",
+        "/assessment/examination/$assessmentId/LearnerLiveTest",
+        "/assessment/examination/$assessmentId/assessmentPreview",
+        "/assessment/examination/$assessmentId/"
       ]
     },
-    "/": {
-      "filePath": "index.lazy.tsx"
+    "/dashboard/": {
+      "filePath": "dashboard/index.tsx"
     },
-    "/about": {
-      "filePath": "about.lazy.tsx"
+    "/login/": {
+      "filePath": "login/index.tsx"
+    },
+    "/assessment/examination/": {
+      "filePath": "assessment/examination/index.tsx"
+    },
+    "/login/forgot-password/": {
+      "filePath": "login/forgot-password/index.tsx"
+    },
+    "/assessment/examination/$assessmentId/LearnerLiveTest": {
+      "filePath": "assessment/examination/$assessmentId/LearnerLiveTest.tsx"
+    },
+    "/assessment/examination/$assessmentId/assessmentPreview": {
+      "filePath": "assessment/examination/$assessmentId/assessmentPreview.tsx"
+    },
+    "/assessment/examination/$assessmentId/": {
+      "filePath": "assessment/examination/$assessmentId/index.tsx"
     }
   }
 }

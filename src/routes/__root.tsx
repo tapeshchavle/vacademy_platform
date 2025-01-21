@@ -1,20 +1,38 @@
-import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/router-devtools";
+import { QueryClient } from "@tanstack/react-query";
+import { createRootRouteWithContext, Outlet, redirect } from "@tanstack/react-router";
+import React, { Suspense } from "react";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
-export const Route = createRootRoute({
-  component: () => (
-    <>
-      <div className="p-2 flex gap-2">
-        <Link to="/" className="[&.active]:font-bold">
-          Home
-        </Link>{" "}
-        <Link to="/about" className="[&.active]:font-bold">
-          About
-        </Link>
-      </div>
-      <hr />
-      <Outlet />
-      <TanStackRouterDevtools />
-    </>
-  ),
+const TanStackRouterDevtools =
+    process.env.NODE_ENV === "production"
+        ? () => null // Render nothing in production
+        : React.lazy(() =>
+              // Lazy load in development
+              import("@tanstack/router-devtools").then((res) => ({
+                  default: res.TanStackRouterDevtools,
+              })),
+          );
+
+export const Route = createRootRouteWithContext<{
+    queryClient: QueryClient;
+}>()({
+    beforeLoad: ({ location }) => {
+        if (location.pathname === "/") {
+            throw redirect({
+                to: "/login",
+            });
+        }
+    },
+
+    component: () => (
+        <>
+            <Outlet />
+
+            {/* Development tools */}
+            <Suspense>
+                <TanStackRouterDevtools />
+            </Suspense>
+            <ReactQueryDevtools initialIsOpen={false} />
+        </>
+    ),
 });
