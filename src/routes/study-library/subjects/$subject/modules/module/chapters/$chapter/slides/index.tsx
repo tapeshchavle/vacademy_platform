@@ -9,6 +9,7 @@ import { truncateString } from '@/lib/reusable/truncateString'
 import { ChapterSidebarSlides } from '@/components/common/study-library/module-material/chapter-material/slide-material/chapter-sidebar-slides'
 import { useNavHeadingStore } from '@/stores/layout-container/useNavHeadingStore'
 import { CaretLeft } from 'phosphor-react'
+import { SlideMaterial } from '@/components/common/study-library/module-material/chapter-material/slide-material/slide-material'
 
 interface ChapterSearchParams {
   moduleName?: string
@@ -135,7 +136,7 @@ function Chapters() {
 
   return (
     <LayoutContainer sidebarComponent={SidebarComponent}>
-      Welcome to Chapter material page
+       <SlideMaterial />
     </LayoutContainer>
   )
 }
