@@ -21,6 +21,7 @@ export const Route = createFileRoute(
 
 function ModuleMaterialPage() {
   const { subject } = Route.useParams()
+  const {moduleName} = Route.useSearch();
 
   //Sidebar component
   const { open } = useSidebar()
@@ -33,8 +34,8 @@ function ModuleMaterialPage() {
   const navigate = useNavigate()
   const handleSubjectRoute = () => {
     navigate({
-      to: '..',
-      params: {},
+      to: '/study-library/subjects/$subject/modules',
+      params: {subject},
       search: {},
       hash: '',
     })
@@ -50,7 +51,7 @@ function ModuleMaterialPage() {
           {subject}
         </p>
         <ChevronRightIcon className={`size-4 ${open ? 'visible' : 'hidden'}`} />
-        <p className="cursor-pointer text-primary-500"></p>
+        <p className="cursor-pointer text-primary-500">{moduleName}</p>
       </div>
       {data.map((obj, key) => (
         <div

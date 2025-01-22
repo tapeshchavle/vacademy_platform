@@ -48,8 +48,8 @@ function Chapters() {
 
   const handleModuleRoute = () => {
     navigate({
-      to: '..',
-      params: {},
+      to: '/study-library/subjects/$subject/modules/module/chapters',
+      params: {subject},
       search: { moduleName },
       hash: '',
     })
