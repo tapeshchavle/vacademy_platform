@@ -1,6 +1,7 @@
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { ChapterType } from "./chapters";
-import { FileDoc, FilePdf, Video } from "@phosphor-icons/react";
+import { BookOpenText, Video } from "@phosphor-icons/react";
+import { CheckCircle } from "phosphor-react";
 
 interface ChapterCardProps {
     chapter: ChapterType;
@@ -27,23 +28,20 @@ export const ChapterCard = ({ chapter }: ChapterCardProps) => {
                 <div className="flex items-center justify-between text-subtitle font-semibold">
                     <div>{chapter.name}</div>
                 </div>
-                <div className="flex gap-4 text-title font-semibold">
-                    <div className="flex items-center gap-2">
-                        <FilePdf />
-                        <div className="text-primary-500">{chapter.resourceCount?.ebooks || 0}</div>
+                <div className="flex items-center justify-between">
+                    <div className="flex gap-10 text-title font-semibold">
+                        <div className="flex items-center gap-2">
+                            <BookOpenText />
+                            <div className="text-primary-500">{chapter.resourceCount?.ebooks || 0}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Video />
+                            <div className="text-primary-500">{chapter.resourceCount?.videos || 0}</div>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <FileDoc />
-                        <div className="text-primary-500">{chapter.resourceCount?.videos || 0}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Video />
-                        <div className="text-primary-500">{chapter.resourceCount?.videos || 0}</div>
-                    </div>
+                    <CheckCircle size={25} weight="fill" className="text-success-600" />
                 </div>
             </div>
-
-            
         </div>
     );
 };

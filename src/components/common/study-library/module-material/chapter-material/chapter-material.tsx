@@ -7,10 +7,9 @@ import { Chapters, ChapterType } from "./chapters";
 
 interface ChapterMaterialProps {
     subject: string;
-    module: string | undefined;
 }
 
-export const ChapterMaterial = ({ subject, module }: ChapterMaterialProps) => {
+export const ChapterMaterial = ({ subject }: ChapterMaterialProps) => {
     const router = useRouter();
     const { setNavHeading } = useNavHeadingStore();
 
@@ -18,7 +17,6 @@ export const ChapterMaterial = ({ subject, module }: ChapterMaterialProps) => {
     const handleBackClick = () => {
         router.navigate({
             to: `/study-library/subjects/${subject}/modules`,
-            search: { moduleName: module }
         });
     };
 
@@ -43,8 +41,8 @@ export const ChapterMaterial = ({ subject, module }: ChapterMaterialProps) => {
             }
         },
          {
-            name: "Refraction",
-            description: "Details about refraction and light in physics",
+            name: "Human Eye",
+            description: "Details about Human Eye and light in physics",
             resourceCount: {
                 ebooks: 3,
                 videos: 4

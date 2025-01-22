@@ -1,11 +1,14 @@
 import { LayoutContainer } from '@/components/common/layout-container/layout-container'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { SearchInput } from '@/components/common/search-input'
 import { ChevronRightIcon } from '@radix-ui/react-icons'
 import { SidebarFooter, useSidebar } from '@/components/ui/sidebar'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MagnifyingGlass } from '@phosphor-icons/react'
 import { truncateString } from '@/lib/reusable/truncateString'
+import { ChapterSidebarSlides } from '@/components/common/study-library/module-material/chapter-material/slide-material/chapter-sidebar-slides'
+import { useNavHeadingStore } from '@/stores/layout-container/useNavHeadingStore'
+import { CaretLeft } from 'phosphor-react'
 
 interface ChapterSearchParams {
   moduleName?: string
@@ -58,6 +61,28 @@ function Chapters() {
 
   const trucatedChapterName = truncateString(chapterParam, 9)
 
+  const router = useRouter();
+    const { setNavHeading } = useNavHeadingStore();
+
+
+    const handleBackClick = () => {
+        router.navigate({
+            to: `/study-library/subjects/${subject}/modules/module`,
+            search: {moduleName}
+        });
+    };
+
+    const heading = (
+        <div className="flex items-center gap-4">
+            <CaretLeft onClick={handleBackClick} className="cursor-pointer" />
+            <div>{subject}</div>
+        </div>
+    );
+
+    useEffect(() => {
+        setNavHeading(heading);
+    }, []);
+
   const SidebarComponent = (
     <div className="flex w-full flex-col items-center">
       <div
@@ -101,6 +126,7 @@ function Chapters() {
               }}
             />
           )}
+          <ChapterSidebarSlides />
         </div>
       </div>
       <SidebarFooter className="absolute bottom-0 flex w-full items-center justify-center py-10"></SidebarFooter>

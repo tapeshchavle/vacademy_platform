@@ -12,7 +12,6 @@ export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}
 
     const handleCardClick = () => {
         const moduleName = module.name.toLowerCase().replace(/\s+/g, "-");
-        console.log(moduleName);
     
         // Navigate to the new route with the moduleName query parameter
         router.navigate({
@@ -25,7 +24,7 @@ export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}
     return(
         <div onClick={handleCardClick} className="cursor-pointer">
         <div
-            className={`flex w-[370px] flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6 shadow-md`}
+            className={`flex w-[340px] flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6 shadow-md`}
         >
             <div className="flex items-center justify-between text-h2 font-semibold">
                 <div>{module.name}</div>

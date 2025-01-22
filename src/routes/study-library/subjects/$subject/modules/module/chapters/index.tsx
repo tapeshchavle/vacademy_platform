@@ -21,10 +21,6 @@ export const Route = createFileRoute(
 
 function ModuleMaterialPage() {
   const { subject } = Route.useParams()
-  const search = Route.useSearch() // No type argument here
-
-  // Access the `module` query parameter safely
-  const module = search?.moduleName
 
   //Sidebar component
   const { open } = useSidebar()
@@ -72,7 +68,7 @@ function ModuleMaterialPage() {
 
   return (
     <LayoutContainer sidebarComponent={SidebarComponent}>
-      <ChapterMaterial subject={subject} module={module} />
+      <ChapterMaterial subject={subject} />
     </LayoutContainer>
   )
 }
