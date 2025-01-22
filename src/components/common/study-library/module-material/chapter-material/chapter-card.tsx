@@ -1,3 +1,4 @@
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { ChapterType } from "./chapters";
 import { FileDoc, FilePdf, Video } from "@phosphor-icons/react";
 
@@ -7,9 +8,18 @@ interface ChapterCardProps {
 
 export const ChapterCard = ({ chapter }: ChapterCardProps) => {
 
-    // const router = useRouter();
-    // const navigate = useNavigate();
-    const handleCardClick = () => {};
+    const router = useRouter();
+    const navigate = useNavigate();
+
+    const handleCardClick = () => {
+        const currentPath = router.state.location.pathname;
+        const formatterChapterName = chapter.name.replace(/\s+/g, "-");
+        const currentSearch = router.state.location.search;
+        navigate({ 
+            to: `${currentPath}/${formatterChapterName}`,
+            search: { moduleName: currentSearch.moduleName }
+         });
+    };
 
     return (
         <div onClick={handleCardClick} className="w-full cursor-pointer">

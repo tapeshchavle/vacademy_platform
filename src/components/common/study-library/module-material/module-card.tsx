@@ -6,18 +6,21 @@ export interface ModuleType {
     imageUrl?: string;
 }
 
-
 export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}) => {
 
-    
     const router = useRouter();
-    const moduleName = module.name.toLowerCase().replace(/\s+/g, "-");
+
     const handleCardClick = () => {
-        console.log(moduleName)
+        const moduleName = module.name.toLowerCase().replace(/\s+/g, "-");
+        console.log(moduleName);
+    
+        // Navigate to the new route with the moduleName query parameter
         router.navigate({
-            to: `/study-library/subjects/${subject}/modules`,
+            to: `/study-library/subjects/${subject}/modules/module`,
+            search: { moduleName }, // Add moduleName as a query parameter
         });
     };
+    
 
     return(
         <div onClick={handleCardClick} className="cursor-pointer">

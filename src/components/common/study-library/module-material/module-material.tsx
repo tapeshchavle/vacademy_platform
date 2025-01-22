@@ -10,10 +10,10 @@ const moduleDummyData: ModuleType[] = [
         name: "Live Sessions",
         description: "All live sessions are present here"
     },
-        {
-            name: "Live Sessions",
-            description: "All live sessions are present here"
-        },
+    {
+        name: "NCERT",
+        description: "All NCERT chapters are present here"
+    },
 ]
 
 export const ModuleMaterial = ({subject}:{subject:string}) => {
