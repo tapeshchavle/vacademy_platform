@@ -95,33 +95,38 @@ const convertToSeconds = (timeStr: string): number => {
     };
 
     const createActivity = useCallback(() => {
-        if (currentTimestamps.current.length === 0) return;
-        
         const videoId = extractVideoId(videoUrl);
-        
-        const activity = {
+        const endTime = videoEndTime.current || new Date().toISOString();
+        const duration = calculateDuration(currentTimestamps.current);
+        const percentageWatched = calculatePercentageWatched(
+            currentTimestamps.current,
+            playerRef.current?.getDuration() || 0
+        );
+    
+        const newActivity = {
             activity_id: activityId.current,
             source: 'youtube',
             source_id: videoId,
             start_time: videoStartTime.current,
-            end_time: videoEndTime.current || new Date().toISOString(),
-            duration: calculateDuration(currentTimestamps.current),
+            end_time: endTime,
+            duration,
             timestamps: currentTimestamps.current,
-            percentage_watched: calculatePercentageWatched(
-                currentTimestamps.current,
-                playerRef.current?.getDuration() || 0
-            ),
+            percentage_watched: percentageWatched,
             sync_status: 'STALE' as const
         };
     
-        addActivity(activity);
-        currentTimestamps.current = [];
-    }, [videoUrl, addActivity]); 
-
-   useEffect(() => {
-       const interval = setInterval(createActivity, 120000); // 2 minutes
-       return () => clearInterval(interval);
-   }, [createActivity]);
+        // Update existing activity or create a new one
+        addActivity(newActivity, true); // Pass `true` to indicate it's an update
+    }, [videoUrl, addActivity]);
+    
+    useEffect(() => {
+        const interval = setInterval(() => {
+            createActivity();
+        }, 120000); // 2 minutes for API call syncs
+    
+        return () => clearInterval(interval);
+    }, [createActivity]);
+    
 
    useEffect(() => {
        const videoId = extractVideoId(videoUrl);

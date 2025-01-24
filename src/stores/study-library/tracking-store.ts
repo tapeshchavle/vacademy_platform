@@ -24,10 +24,10 @@ const TrackingDataSchema = z.object({
 });
 
 interface TrackingStore {
- trackingData: z.infer<typeof TrackingDataSchema>;
- addActivity: (activity: z.infer<typeof ActivitySchema>) => Promise<void>;
- syncActivities: () => Promise<void>;
- getStoredActivities: () => Promise<void>;
+  trackingData: z.infer<typeof TrackingDataSchema>;
+  addActivity: (activity: z.infer<typeof ActivitySchema>, isUpdate?: boolean) => Promise<void>;
+  syncActivities: () => Promise<void>;
+  getStoredActivities: () => Promise<void>;
 }
 
 const STORAGE_KEY = 'video_tracking_data';
@@ -42,73 +42,82 @@ const loadFromStorage = async () => {
  }
 };
 
+// export const useTrackingStore = create<TrackingStore>((set, get) => ({
 export const useTrackingStore = create<TrackingStore>((set) => ({
- trackingData: { data: [] },
+  trackingData: { data: [] },
+  
 
- addActivity: async (activity) => {
-   try {
-     set((state) => {
-       const newState = {
-         trackingData: { data: [...state.trackingData.data, activity] }
-       };
-       Preferences.set({
-         key: STORAGE_KEY,
-         value: JSON.stringify(newState.trackingData)
-       });
-       return newState;
-     });
-   } catch (error) {
-     console.error('Failed to add activity:', error);
-     throw error;
-   }
- },
+  addActivity: async (activity, isUpdate = false) => {
+    try {
+        set((state) => {
+            const existingActivityIndex = state.trackingData.data.findIndex(
+                (item) => item.activity_id === activity.activity_id
+            );
 
- syncActivities: async () => {
-   try {
-     set((state) => {
-    //    const activitiesToSync = state.trackingData.data.filter(
-    //      activity => activity.sync_status === 'STALE'
-    //    );
+            let updatedData;
+            if (existingActivityIndex !== -1 && isUpdate) {
+                const existingActivity = state.trackingData.data[existingActivityIndex];
 
-       // Future API implementation here
-       // const response = await api.post('/tracking', activitiesToSync);
-       
-       const updatedActivities = state.trackingData.data.map(activity => ({
-         ...activity,
-         sync_status: 'SYNCED' as const
-       }));
+                updatedData = [...state.trackingData.data];
+                updatedData[existingActivityIndex] = {
+                    ...existingActivity,
+                    end_time: activity.end_time,
+                    duration: activity.duration,
+                    percentage_watched: activity.percentage_watched,
+                    sync_status: 'STALE',
+                    timestamps: Array.from(
+                        new Set([
+                            ...existingActivity.timestamps.map((t) => JSON.stringify(t)),
+                            ...activity.timestamps.map((t) => JSON.stringify(t))
+                        ])
+                    ).map((t) => JSON.parse(t))
+                };
+            } else {
+                updatedData = [...state.trackingData.data, activity];
+            }
 
-       const newState = {
-         trackingData: { data: updatedActivities }
-       };
+            Preferences.set({
+                key: STORAGE_KEY,
+                value: JSON.stringify({ data: updatedData })
+            });
 
-       Preferences.set({
-         key: STORAGE_KEY,
-         value: JSON.stringify(newState.trackingData)
-       });
+            return { trackingData: { data: updatedData } };
+        });
+    } catch (error) {
+        console.error('Failed to add/update activity:', error);
+        throw error;
+    }
+},
 
-       return newState;
-     });
-   } catch (error) {
-     console.error('Failed to sync activities:', error);
-     throw error;
-   }
- },
 
- getStoredActivities: async () => {
-   try {
-     const storedData = await loadFromStorage();
-     set({ trackingData: storedData });
-   } catch (error) {
-     console.error('Failed to get stored activities:', error);
-     throw error;
-   }
- }
+  syncActivities: async () => {
+      try {
+          set((state) => {
+              const updatedActivities = state.trackingData.data.map((activity) => ({
+                  ...activity,
+                  sync_status: 'SYNCED' as const
+              }));
+
+              Preferences.set({
+                  key: STORAGE_KEY,
+                  value: JSON.stringify({ data: updatedActivities })
+              });
+
+              return { trackingData: { data: updatedActivities } };
+          });
+      } catch (error) {
+          console.error('Failed to sync activities:', error);
+          throw error;
+      }
+  },
+
+  getStoredActivities: async () => {
+      try {
+          const storedData = await loadFromStorage();
+          set({ trackingData: storedData });
+      } catch (error) {
+          console.error('Failed to get stored activities:', error);
+          throw error;
+      }
+  }
 }));
-
-// Initialize store with stored data
-loadFromStorage().then((data) => {
- useTrackingStore.setState({ trackingData: data });
-});
-
-export type { ActivitySchema };
