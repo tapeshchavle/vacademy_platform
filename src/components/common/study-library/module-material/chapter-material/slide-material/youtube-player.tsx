@@ -53,9 +53,9 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const playerContainerRef = useRef<HTMLDivElement>(null);
    const activityId = useRef(uuidv4());
    const currentTimestamps = useRef<Array<{start: string, end: string}>>([]);
-//    const lastStateTime = useRef<string>(new Date().toISOString());
-    const videoStartTime = useRef<string>('');
-    const videoEndTime = useRef<string>('');
+//    const [timestamps, setTimestamps] = useState<Array<{start: string, end: string}>>([]);
+   const videoStartTime = useRef<string>('');
+   const videoEndTime = useRef<string>('');
 
    const extractVideoId = (url: string): string => {
        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -65,26 +65,26 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
 
    const calculateDuration = (timestamps: Array<{start: string, end: string}>) => {
         return timestamps.reduce((total, curr) => {
-            if (!curr.end) return total;
+            if (!curr.end) return total; // Skip if there's no end time
             const startSeconds = convertToSeconds(curr.start);
             const endSeconds = convertToSeconds(curr.end);
             return total + (endSeconds - startSeconds);
         }, 0).toString();
     };
 
-const convertToSeconds = (timeStr: string): number => {
-    const parts = timeStr.split(':');
-    const minutes = parseInt(parts[0]);
-    const seconds = parseInt(parts[1]);
-    return minutes * 60 + seconds;
-};
+    const convertToSeconds = (timeStr: string): number => {
+        const parts = timeStr.split(':');
+        const minutes = parseInt(parts[0]);
+        const seconds = parseInt(parts[1]);
+        return minutes * 60 + seconds;
+    };
 
-   const calculatePercentageWatched = (timestamps: Array<{start: string, end: string}>, totalDuration: number) => {
-       const watchedDuration = parseInt(calculateDuration(timestamps));
-       return ((watchedDuration / (totalDuration * 1000)) * 100).toFixed(2);
-   };
+    const calculatePercentageWatched = (timestamps: Array<{start: string, end: string}>, totalDuration: number) => {
+        const watchedDuration = parseInt(calculateDuration(timestamps));
+        return ((watchedDuration / (totalDuration * 1000)) * 100).toFixed(2);
+    };
 
-   const formatVideoTime = (seconds: number): string => {
+    const formatVideoTime = (seconds: number): string => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const secs = Math.floor(seconds % 60);
@@ -128,7 +128,7 @@ const convertToSeconds = (timeStr: string): number => {
     }, [createActivity]);
     
 
-   useEffect(() => {
+    useEffect(() => {
        const videoId = extractVideoId(videoUrl);
        if (!videoId) return;
 
@@ -155,33 +155,39 @@ const convertToSeconds = (timeStr: string): number => {
                        console.log("Player ready");
                    },
                    onStateChange: (event) => {
-                    const now = new Date().toISOString();
-                    const currentTime = player.getCurrentTime();
-                    
-                    if (event.data === window.YT.PlayerState.PLAYING) {
-                        if (!videoStartTime.current) {
-                            videoStartTime.current = now;
-                        }
-                        
-                        const lastTimestamp = currentTimestamps.current[currentTimestamps.current.length - 1];
-                        // If last timestamp exists and has no end time, update it with previous position
-                        if (lastTimestamp && !lastTimestamp.end) {
-                            lastTimestamp.end = formatVideoTime(currentTime);
-                        }
-                        
-                        currentTimestamps.current.push({ 
-                            start: formatVideoTime(currentTime),
-                            end: ''
-                        });
-                    } else if (event.data === window.YT.PlayerState.PAUSED || 
-                            event.data === window.YT.PlayerState.ENDED) {
-                        const lastTimestamp = currentTimestamps.current[currentTimestamps.current.length - 1];
-                        if (lastTimestamp && !lastTimestamp.end) {
-                            lastTimestamp.end = formatVideoTime(currentTime);
-                            videoEndTime.current = now;
-                        }
-                    }
-                }
+                       const now = new Date().toISOString();
+                       const currentTime = player.getCurrentTime();
+                       
+                       if (event.data === window.YT.PlayerState.PLAYING) {
+                           if (!videoStartTime.current) {
+                               videoStartTime.current = now;
+                           }
+                           
+                           // Add a new timestamp for the current time
+                           currentTimestamps.current.push({ 
+                               start: formatVideoTime(currentTime),
+                               end: ''
+                           });
+                           // Update the state to trigger re-render
+                        //    setTimestamps([...currentTimestamps.current]);
+
+                           // Immediately create activity with the updated timestamps
+                           createActivity();
+
+                       } else if (event.data === window.YT.PlayerState.PAUSED || 
+                                  event.data === window.YT.PlayerState.ENDED) {
+                           const lastTimestamp = currentTimestamps.current[currentTimestamps.current.length - 1];
+                           if (lastTimestamp && !lastTimestamp.end) {
+                               lastTimestamp.end = formatVideoTime(currentTime);
+                               videoEndTime.current = now;
+
+                               // Update the state to trigger re-render
+                            //    setTimestamps([...currentTimestamps.current]);
+                               // Immediately create activity with the updated timestamps
+                               createActivity();
+                           }
+                       }
+                   }
                },
            });
            playerRef.current = player;
@@ -195,16 +201,17 @@ const convertToSeconds = (timeStr: string): number => {
        };
    }, [videoUrl, createActivity]);
 
-   useEffect(() => {
-    useTrackingStore.getState().getStoredActivities();
-}, []);
-
-
    return (
        <div className="aspect-video w-full">
            <div ref={playerContainerRef} />
+           {/* Optionally render the timestamps for debugging */}
+           {/* <div>
+               <h3>Timestamps:</h3>
+               <pre>{JSON.stringify(timestamps, null, 2)}</pre>
+           </div> */}
        </div>
    );
 };
 
 export default YouTubePlayer;
+
