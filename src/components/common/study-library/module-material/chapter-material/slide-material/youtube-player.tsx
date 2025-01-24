@@ -96,30 +96,30 @@
             : `${minutes}:${secs.toString().padStart(2, '0')}`;
         };
 
-        const createActivity = useCallback(() => {
-            const videoId = extractVideoId(videoUrl);
-            const endTime = videoEndTime.current || new Date().toISOString();
-            const duration = calculateDuration(currentTimestamps.current);
-            const percentageWatched = calculatePercentageWatched(
-                currentTimestamps.current,
-                playerRef.current?.getDuration() || 0
-            );
+        // const createActivity = useCallback(() => {
+        //     const videoId = extractVideoId(videoUrl);
+        //     const endTime = videoEndTime.current || new Date().toISOString();
+        //     const duration = calculateDuration(currentTimestamps.current);
+        //     const percentageWatched = calculatePercentageWatched(
+        //         currentTimestamps.current,
+        //         playerRef.current?.getDuration() || 0
+        //     );
         
-            const newActivity = {
-                activity_id: activityId.current,
-                source: 'youtube',
-                source_id: videoId,
-                start_time: videoStartTime.current,
-                end_time: endTime,
-                duration,
-                timestamps: currentTimestamps.current,
-                percentage_watched: percentageWatched,
-                sync_status: 'STALE' as const
-            };
+        //     const newActivity = {
+        //         activity_id: activityId.current,
+        //         source: 'youtube',
+        //         source_id: videoId,
+        //         start_time: videoStartTime.current,
+        //         end_time: endTime,
+        //         duration,
+        //         timestamps: currentTimestamps.current,
+        //         percentage_watched: percentageWatched,
+        //         sync_status: 'STALE' as const
+        //     };
         
-            // Update existing activity or create a new one
-            addActivity(newActivity, true); // Pass `true` to indicate it's an update
-        }, [videoUrl, addActivity]);
+        //     // Update existing activity or create a new one
+        //     addActivity(newActivity, true); // Pass `true` to indicate it's an update
+        // }, [videoUrl, addActivity]);
 
         const startTimer = useCallback(() => {
             if (timerRef.current) return;
@@ -137,18 +137,37 @@
             }
         }, []);
         
-        useEffect(() => {
-            const interval = setInterval(() => {
-                createActivity();
-            }, 120000); // 2 minutes for API call syncs
+        // useEffect(() => {
+        //     const interval = setInterval(() => {
+        //         createActivity();
+        //     }, 120000); // 2 minutes for API call syncs
         
-            return () => clearInterval(interval);
-        }, [createActivity]);
+        //     return () => clearInterval(interval);
+        // }, [createActivity]);
         
        
-        useEffect(()=>{
-            console.log("elapsedTime: ", elapsedTime)
-        }, [elapsedTime])
+        useEffect(() => {
+            // Create and update activity whenever elapsedTime changes
+            const videoId = extractVideoId(videoUrl);
+            const endTime = videoEndTime.current || new Date().toISOString();
+            
+            const newActivity = {
+                activity_id: activityId.current,
+                source: 'youtube',
+                source_id: videoId,
+                start_time: videoStartTime.current,
+                end_time: endTime,
+                duration: elapsedTime.toString(),
+                timestamps: currentTimestamps.current,
+                percentage_watched: calculatePercentageWatched(
+                    currentTimestamps.current,
+                    playerRef.current?.getDuration() || 0
+                ),
+                sync_status: 'STALE' as const
+            };
+        
+            addActivity(newActivity, true);
+        }, [elapsedTime]);
 
 
         useEffect(() => {
@@ -202,7 +221,7 @@
                                 videoEndTime.current = now;
                     
                                 // Immediately create activity with the updated timestamps
-                            createActivity();
+                            // createActivity();
                             }
                         }
                     }
@@ -213,12 +232,13 @@
         };
 
         return () => {
-            createActivity();
+            // createActivity();
             if (playerRef.current) {
                 playerRef.current.destroy();
             }
         };
-    }, [videoUrl, createActivity]);
+    // }, [videoUrl, createActivity]);
+    }, [videoUrl]);
 
     useEffect(() => {
         return () => {
