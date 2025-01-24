@@ -1,59 +1,58 @@
-    import React, { useEffect, useRef, useCallback, useState } from "react";
-    import { v4 as uuidv4 } from 'uuid';
-    import { useTrackingStore } from "@/stores/study-library/tracking-store";
+import React, { useEffect, useRef, useCallback, useState } from "react";
+import { v4 as uuidv4 } from 'uuid';
+import { useTrackingStore } from "@/stores/study-library/tracking-store";
 
-    interface YTPlayer {
-    destroy(): void;
-    getCurrentTime(): number;
-    getDuration(): number;
-    }
+interface YTPlayer {
+destroy(): void;
+getCurrentTime(): number;
+getDuration(): number;
+}
 
-    declare global {
-    interface Window {
-        onYouTubeIframeAPIReady: () => void;
-        YT: {
-            Player: new (
-                container: HTMLElement | string,
-                options: {
-                    height?: string | number;
-                    width?: string | number;
-                    videoId?: string;
-                    playerVars?: {
-                        autoplay?: number;
-                        controls?: number;
-                        showinfo?: number;
-                        rel?: number;
-                        [key: string]: any;
-                    };
-                    events?: {
-                        onReady?: (event: any) => void;
-                        onStateChange?: (event: any) => void;
-                        [key: string]: any;
-                    };
-                }
-            ) => YTPlayer;
-            PlayerState: {
-                PLAYING: number;
-                PAUSED: number;
-                ENDED: number;
-                BUFFERING: number;
-            };
+declare global {
+interface Window {
+    onYouTubeIframeAPIReady: () => void;
+    YT: {
+        Player: new (
+            container: HTMLElement | string,
+            options: {
+                height?: string | number;
+                width?: string | number;
+                videoId?: string;
+                playerVars?: {
+                    autoplay?: number;
+                    controls?: number;
+                    showinfo?: number;
+                    rel?: number;
+                    [key: string]: any;
+                };
+                events?: {
+                    onReady?: (event: any) => void;
+                    onStateChange?: (event: any) => void;
+                    [key: string]: any;
+                };
+            }
+        ) => YTPlayer;
+        PlayerState: {
+            PLAYING: number;
+            PAUSED: number;
+            ENDED: number;
+            BUFFERING: number;
         };
-    }
-    }
+    };
+}
+}
 
-    interface YouTubePlayerProps {
+interface YouTubePlayerProps {
     videoUrl: string;
     videoTitle?: string;
-    }
+}
 
-    export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
+export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
     const { addActivity } = useTrackingStore();
     const playerRef = useRef<YTPlayer | null>(null);
     const playerContainerRef = useRef<HTMLDivElement>(null);
     const activityId = useRef(uuidv4());
     const currentTimestamps = useRef<Array<{start: string, end: string}>>([]);
-    //    const [timestamps, setTimestamps] = useState<Array<{start: string, end: string}>>([]);
     const videoStartTime = useRef<string>('');
     const videoEndTime = useRef<string>('');
     const [elapsedTime, setElapsedTime] = useState(0);
@@ -65,112 +64,63 @@
         return (match && match[2] && match[2].length === 11) ? match[2] : "";
     };
 
-    const calculateDuration = (timestamps: Array<{start: string, end: string}>) => {
-            return timestamps.reduce((total, curr) => {
-                if (!curr.end) return total; // Skip if there's no end time
-                const startSeconds = convertToSeconds(curr.start);
-                const endSeconds = convertToSeconds(curr.end);
-                return total + (endSeconds - startSeconds);
-            }, 0).toString();
-        };
+    const calculatePercentageWatched = ( totalDuration: number) => {
+        const watchedDuration = elapsedTime;
+        return ((watchedDuration / (totalDuration)) * 100).toFixed(2);
+    };
 
-        const convertToSeconds = (timeStr: string): number => {
-            const parts = timeStr.split(':');
-            const minutes = parseInt(parts[0]);
-            const seconds = parseInt(parts[1]);
-            return minutes * 60 + seconds;
-        };
+    const formatVideoTime = (seconds: number): string => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        
+        return hours > 0 
+        ? `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        : `${minutes}:${secs.toString().padStart(2, '0')}`;
+    };
 
-        const calculatePercentageWatched = (timestamps: Array<{start: string, end: string}>, totalDuration: number) => {
-            const watchedDuration = parseInt(calculateDuration(timestamps));
-            return ((watchedDuration / (totalDuration)) * 100).toFixed(2);
-        };
+    const startTimer = useCallback(() => {
+        if (timerRef.current) return;
+        timerRef.current = setInterval(() => {
+            setElapsedTime(prev => {
+                return prev + 1;
+            });
+        }, 1000);
+    }, []);
+    
 
-        const formatVideoTime = (seconds: number): string => {
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = Math.floor(seconds % 60);
-            
-            return hours > 0 
-            ? `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-            : `${minutes}:${secs.toString().padStart(2, '0')}`;
-        };
-
-        // const createActivity = useCallback(() => {
-        //     const videoId = extractVideoId(videoUrl);
-        //     const endTime = videoEndTime.current || new Date().toISOString();
-        //     const duration = calculateDuration(currentTimestamps.current);
-        //     const percentageWatched = calculatePercentageWatched(
-        //         currentTimestamps.current,
-        //         playerRef.current?.getDuration() || 0
-        //     );
-        
-        //     const newActivity = {
-        //         activity_id: activityId.current,
-        //         source: 'youtube',
-        //         source_id: videoId,
-        //         start_time: videoStartTime.current,
-        //         end_time: endTime,
-        //         duration,
-        //         timestamps: currentTimestamps.current,
-        //         percentage_watched: percentageWatched,
-        //         sync_status: 'STALE' as const
-        //     };
-        
-        //     // Update existing activity or create a new one
-        //     addActivity(newActivity, true); // Pass `true` to indicate it's an update
-        // }, [videoUrl, addActivity]);
-
-        const startTimer = useCallback(() => {
-            if (timerRef.current) return;
-            timerRef.current = setInterval(() => {
-                setElapsedTime(prev => {
-                    return prev + 1;
-                });
-            }, 1000);
-        }, []);
-        
-        const stopTimer = useCallback(() => {
-            if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-            }
-        }, []);
-        
-        // useEffect(() => {
-        //     const interval = setInterval(() => {
-        //         createActivity();
-        //     }, 120000); // 2 minutes for API call syncs
-        
-        //     return () => clearInterval(interval);
-        // }, [createActivity]);
+    const stopTimer = useCallback(() => {
+        if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        }
+    }, []);
         
        
-        useEffect(() => {
-            // Create and update activity whenever elapsedTime changes
-            const videoId = extractVideoId(videoUrl);
-            const endTime = videoEndTime.current || new Date().toISOString();
-            
-            const newActivity = {
-                activity_id: activityId.current,
-                source: 'youtube',
-                source_id: videoId,
-                start_time: videoStartTime.current,
-                end_time: endTime,
-                duration: elapsedTime.toString(),
-                timestamps: currentTimestamps.current,
-                percentage_watched: calculatePercentageWatched(
-                    currentTimestamps.current,
-                    playerRef.current?.getDuration() || 0
-                ),
-                sync_status: 'STALE' as const
-            };
+    useEffect(() => {
+        // Create and update activity whenever elapsedTime changes
+        const videoId = extractVideoId(videoUrl);
+        const endTime = videoEndTime.current || new Date().toISOString();
         
-            addActivity(newActivity, true);
-        }, [elapsedTime]);
+        const newActivity = {
+            activity_id: activityId.current,
+            source: 'youtube',
+            source_id: videoId,
+            start_time: videoStartTime.current,
+            end_time: endTime,
+            duration: elapsedTime.toString(),
+            timestamps: currentTimestamps.current,
+            percentage_watched: calculatePercentageWatched(
+                playerRef.current?.getDuration() || 0
+            ),
+            sync_status: 'STALE' as const
+        };
+    
+        addActivity(newActivity, true);
+    }, [elapsedTime]);
 
 
-        useEffect(() => {
+    useEffect(() => {
         const videoId = extractVideoId(videoUrl);
         if (!videoId) return;
 
@@ -220,8 +170,6 @@
                                 lastTimestamp.end = formatVideoTime(currentTime);
                                 videoEndTime.current = now;
                     
-                                // Immediately create activity with the updated timestamps
-                            // createActivity();
                             }
                         }
                     }
@@ -232,12 +180,10 @@
         };
 
         return () => {
-            // createActivity();
             if (playerRef.current) {
                 playerRef.current.destroy();
             }
         };
-    // }, [videoUrl, createActivity]);
     }, [videoUrl]);
 
     useEffect(() => {
@@ -249,14 +195,9 @@
     return (
         <div className="aspect-video w-full">
             <div ref={playerContainerRef} />
-            {/* Optionally render the timestamps for debugging */}
-            {/* <div>
-                <h3>Timestamps:</h3>
-                <pre>{JSON.stringify(timestamps, null, 2)}</pre>
-            </div> */}
         </div>
     );
-    };
+};
 
-    export default YouTubePlayer;
+export default YouTubePlayer;
 
