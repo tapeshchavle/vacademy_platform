@@ -81,7 +81,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
 
     const calculatePercentageWatched = (timestamps: Array<{start: string, end: string}>, totalDuration: number) => {
         const watchedDuration = parseInt(calculateDuration(timestamps));
-        return ((watchedDuration / (totalDuration * 1000)) * 100).toFixed(2);
+        return ((watchedDuration / (totalDuration)) * 100).toFixed(2);
     };
 
     const formatVideoTime = (seconds: number): string => {
