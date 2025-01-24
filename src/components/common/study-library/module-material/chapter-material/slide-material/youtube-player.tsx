@@ -195,6 +195,11 @@ const convertToSeconds = (timeStr: string): number => {
        };
    }, [videoUrl, createActivity]);
 
+   useEffect(() => {
+    useTrackingStore.getState().getStoredActivities();
+}, []);
+
+
    return (
        <div className="aspect-video w-full">
            <div ref={playerContainerRef} />
