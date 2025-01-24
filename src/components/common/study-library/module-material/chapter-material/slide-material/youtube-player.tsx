@@ -154,40 +154,43 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                    onReady: () => {
                        console.log("Player ready");
                    },
-                   onStateChange: (event) => {
-                       const now = new Date().toISOString();
-                       const currentTime = player.getCurrentTime();
-                       
-                       if (event.data === window.YT.PlayerState.PLAYING) {
-                           if (!videoStartTime.current) {
-                               videoStartTime.current = now;
-                           }
-                           
-                           // Add a new timestamp for the current time
-                           currentTimestamps.current.push({ 
-                               start: formatVideoTime(currentTime),
-                               end: ''
-                           });
-                           // Update the state to trigger re-render
-                        //    setTimestamps([...currentTimestamps.current]);
-
-                           // Immediately create activity with the updated timestamps
-                           createActivity();
-
-                       } else if (event.data === window.YT.PlayerState.PAUSED || 
-                                  event.data === window.YT.PlayerState.ENDED) {
-                           const lastTimestamp = currentTimestamps.current[currentTimestamps.current.length - 1];
-                           if (lastTimestamp && !lastTimestamp.end) {
-                               lastTimestamp.end = formatVideoTime(currentTime);
-                               videoEndTime.current = now;
-
-                               // Update the state to trigger re-render
-                            //    setTimestamps([...currentTimestamps.current]);
-                               // Immediately create activity with the updated timestamps
-                               createActivity();
-                           }
-                       }
-                   }
+                onStateChange: (event) => {
+                    const now = new Date().toISOString();
+                    const currentTime = player.getCurrentTime();
+                
+                    if (event.data === window.YT.PlayerState.PLAYING) {
+                        if (!videoStartTime.current) {
+                            videoStartTime.current = now;
+                        }
+                
+                        // Check if there is an existing timestamp and if it is not ended
+                        const lastTimestamp = currentTimestamps.current[currentTimestamps.current.length - 1];
+                        if (lastTimestamp && !lastTimestamp.end) {
+                            // Update the end time of the last timestamp to the current time
+                            lastTimestamp.end = formatVideoTime(currentTime);
+                            // createActivity();
+                            console.log("timestamp: ", formatVideoTime(currentTime));
+                        }
+                
+                        // Add a new timestamp for the current time
+                        currentTimestamps.current.push({
+                            start: formatVideoTime(currentTime),
+                            end: ''
+                        });
+                
+                    } else if (event.data === window.YT.PlayerState.PAUSED || 
+                               event.data === window.YT.PlayerState.ENDED) {
+                        const lastTimestamp = currentTimestamps.current[currentTimestamps.current.length - 1];
+                        if (lastTimestamp && !lastTimestamp.end) {
+                            lastTimestamp.end = formatVideoTime(currentTime);
+                            videoEndTime.current = now;
+                
+                            // Immediately create activity with the updated timestamps
+                            createActivity();
+                        }
+                    }
+                }
+                
                },
            });
            playerRef.current = player;
