@@ -70,6 +70,7 @@ export const useTrackingStore = create<TrackingStore>((set) => ({
                     updatedData = [...existingActivities];
                     updatedData[existingActivityIndex] = {
                         ...existingActivity,
+                        start_time: activity.start_time,
                         end_time: activity.end_time,
                         duration: activity.duration,
                         percentage_watched: activity.percentage_watched,
