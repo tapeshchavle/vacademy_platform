@@ -34,12 +34,15 @@ export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}
                 <img
                     src={module.imageUrl}
                     alt={module.name}
-                    className="h-[300px] w-full rounded-lg object-cover"
+                    className="h-[200px] w-full rounded-lg object-cover"
                 />
             ) : (
                 <div className="flex h-[200px] w-full items-center justify-center rounded-lg bg-neutral-100">
                     <span className="text-neutral-400">No Image</span>
                 </div>
+                // <div className="w-full flex items-center justify-center">
+                // <SubjectDefaultImage />
+                // </div>
             )}
 
             <div className="flex flex-col gap-2">

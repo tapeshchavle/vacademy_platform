@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
 import { SplashScreenProps } from "../../../../types/loginTypes";
-import { SsdcLogo_Login } from "@/assets/svgs";
+// import { SsdcLogo_Login } from "@/assets/svgs";
 import { useEffect } from "react";
-
+import Logo from "@/svgs/ssdc-logo.svg"
 
 export const SplashScreen = ({ children }: SplashScreenProps) => {
   useEffect(() => {
@@ -42,12 +42,13 @@ export const SplashScreen = ({ children }: SplashScreenProps) => {
           ease: "easeInOut",
         }}
       >
-        <motion.img
+        {/* <motion.img
           src={SsdcLogo_Login}
           alt="logo"
           style={{ width: "20vw", height: "20vh" }} // Matches HeaderLogo size
           className="object-contain"
-        />
+        /> */}
+        <Logo />
       </motion.div>
 
       {/* Content Section */}

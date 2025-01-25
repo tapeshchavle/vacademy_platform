@@ -11,7 +11,9 @@ import { SidebarStateType } from "../../../../types/layout-container-types";
 import { SidebarItem } from "./sidebar-item";
 import { SidebarItemsData } from "./utils";
 import "./scrollbarStyle.css";
-import { SsdcLogo_Login } from "@/assets/svgs";
+// import { SsdcLogo_Login } from "@/assets/svgs";
+import Logo from "@/svgs/ssdc-logo.svg"
+
 
 export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.ReactNode }) => {
   const { state }: SidebarStateType = useSidebar();
@@ -29,7 +31,8 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
                           state == "expanded" ? "pl-4" : "pl-0"
                       }`}
                   >
-                      <img src={SsdcLogo_Login} alt="logo" />
+                      {/* <img src={SsdcLogo_Login} alt="logo" /> */}
+                      <Logo />
                       <SidebarGroup
                           className={`text-[18px] font-semibold text-primary-500 group-data-[collapsible=icon]:hidden`}
                       >
