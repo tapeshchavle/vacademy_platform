@@ -58,6 +58,8 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const [elapsedTime, setElapsedTime] = useState(0);
    const timerRef = useRef<NodeJS.Timeout | null>(null);
    const currentStartTimeRef = useRef('');
+//    const [timestampDuration, setTimestampDuration] = useState(0);
+   const timestampDurationRef = useRef(0);
 
    const extractVideoId = (url: string): string => {
        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -80,10 +82,20 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
            : `${minutes}:${secs.toString().padStart(2, '0')}`;
    };
 
+   const convertTimeToSeconds = (formattedTime: string): number => {
+        const parts = formattedTime.split(':');
+        if (parts.length === 2) {
+            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        }
+        return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+    };
+
    const startTimer = useCallback(() => {
        if (timerRef.current) return;
        timerRef.current = setInterval(() => {
            setElapsedTime(prev => prev + 1);
+        //    setTimestampDuration(prev => prev + 1);
+           timestampDurationRef.current += 1
        }, 1000);
    }, []);
 
@@ -144,23 +156,38 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                    onStateChange: (event) => {
                        const now = new Date().toISOString();
                        const currentTime = player.getCurrentTime();
-                   
+
+                       
                        if (event.data === window.YT.PlayerState.PLAYING) {
                            startTimer();
                            
                            if (!videoStartTime.current) {
                                videoStartTime.current = now;
-                           }
-                           currentStartTimeRef.current = formatVideoTime(currentTime);
-                   
-                       } else if (event.data === window.YT.PlayerState.PAUSED || 
-                           event.data === window.YT.PlayerState.ENDED) {
-                           stopTimer();
-                           videoEndTime.current = now;
-                           currentTimestamps.current.push({
-                               start: currentStartTimeRef.current,
-                               end: formatVideoTime(currentTime)
-                           });
+                            }
+                            currentStartTimeRef.current = formatVideoTime(currentTime);
+                            console.log("play state")
+                            
+                        } else if (event.data === window.YT.PlayerState.PAUSED || 
+                            event.data === window.YT.PlayerState.ENDED) {
+                                stopTimer();
+                                videoEndTime.current = now;
+
+                                const currentStartTimeInSeconds = convertTimeToSeconds(currentStartTimeRef.current);
+                                const endTimeInSeconds = currentStartTimeInSeconds+timestampDurationRef.current
+                                const endTimeStamp = formatVideoTime(endTimeInSeconds);
+
+                                console.log("currentStartTime: ", currentStartTimeRef.current); 
+                                console.log("end time formatted: ",  endTimeStamp);
+                                // console.log("wrong end time: ", formatVideoTime(currentTime));
+
+                                currentTimestamps.current.push({
+                                    start: currentStartTimeRef.current,
+                                    end: endTimeStamp
+                                });
+                            // setTimestampDuration(0);
+                            currentStartTimeRef.current = formatVideoTime(currentTime);
+                            console.log("updated start time: ", currentStartTimeRef.current )
+                            timestampDurationRef.current = 0;
                        }
                    }
                },
