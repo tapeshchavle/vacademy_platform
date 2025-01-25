@@ -1,9 +1,12 @@
+
+
 import React, { useEffect, useRef, useState } from "react";
 import { Viewer } from "@react-pdf-viewer/core";
 import { Worker } from "@react-pdf-viewer/core";
 import { DocumentLoadEvent, PageChangeEvent } from "@react-pdf-viewer/core";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import { usePDFStore } from "@/types/study-library/pdf-store";
+import { v4 as uuidv4 } from 'uuid';
 
 // Plugin imports
 import { attachmentPlugin } from "@react-pdf-viewer/attachment";
@@ -26,111 +29,152 @@ import { themePlugin } from "@react-pdf-viewer/theme";
 import { thumbnailPlugin } from "@react-pdf-viewer/thumbnail";
 import { toolbarPlugin } from "@react-pdf-viewer/toolbar";
 import { zoomPlugin } from "@react-pdf-viewer/zoom";
-
-// Style imports
+import { useTrackingStore } from "./trackingStore2";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 
 interface PDFViewerProps {
-    documentId?: string;
+   documentId?: string;
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
     const { pdfUrl } = usePDFStore();
+    const { addActivity } = useTrackingStore();
     const [currentPage, setCurrentPage] = useState<number>(0);
+    const [totalPages, setTotalPages] = useState(0);
     const pageStartTime = useRef<Date>(new Date());
-    const defaultPdfUrl =
-        "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf";
+    const activityId = useRef(uuidv4());
+    const startTime = useRef(new Date().toISOString());
+    const pageViews = useRef<Array<{
+        page: number, 
+        duration: number
+    }>>([]);
 
-    // Plugin instances
-    const attachmentPluginInstance = attachmentPlugin();
-    const bookmarkPluginInstance = bookmarkPlugin();
-    const defaultLayoutPluginInstance = defaultLayoutPlugin();
-    const dropPluginInstance = dropPlugin();
-    const fullScreenPluginInstance = fullScreenPlugin();
-    const getFilePluginInstance = getFilePlugin();
-    const highlightPluginInstance = highlightPlugin();
-    const localeSwitcherPluginInstance = localeSwitcherPlugin();
-    const openPluginInstance = openPlugin();
-    const pageNavigationPluginInstance = pageNavigationPlugin();
-    const printPluginInstance = printPlugin();
-    const propertiesPluginInstance = propertiesPlugin();
-    const rotatePluginInstance = rotatePlugin();
-    const scrollModePluginInstance = scrollModePlugin();
-    const searchPluginInstance = searchPlugin();
-    const selectionModePluginInstance = selectionModePlugin();
-    const themePluginInstance = themePlugin();
-    const thumbnailPluginInstance = thumbnailPlugin();
-    const toolbarPluginInstance = toolbarPlugin();
-    const zoomPluginInstance = zoomPlugin();
+   const defaultPdfUrl = "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf";
 
-    useEffect(() => {
-        return () => {
-            const exitTime = new Date();
-            const timeSpent = exitTime.getTime() - pageStartTime.current.getTime();
-            const timeSpentInSeconds = Math.round(timeSpent / 1000);
+   // Plugin instances
+   const attachmentPluginInstance = attachmentPlugin();
+   const bookmarkPluginInstance = bookmarkPlugin();
+   const defaultLayoutPluginInstance = defaultLayoutPlugin();
+   const dropPluginInstance = dropPlugin();
+   const fullScreenPluginInstance = fullScreenPlugin();
+   const getFilePluginInstance = getFilePlugin();
+   const highlightPluginInstance = highlightPlugin();
+   const localeSwitcherPluginInstance = localeSwitcherPlugin();
+   const openPluginInstance = openPlugin();
+   const pageNavigationPluginInstance = pageNavigationPlugin();
+   const printPluginInstance = printPlugin();
+   const propertiesPluginInstance = propertiesPlugin();
+   const rotatePluginInstance = rotatePlugin();
+   const scrollModePluginInstance = scrollModePlugin();
+   const searchPluginInstance = searchPlugin();
+   const selectionModePluginInstance = selectionModePlugin();
+   const themePluginInstance = themePlugin();
+   const thumbnailPluginInstance = thumbnailPlugin();
+   const toolbarPluginInstance = toolbarPlugin();
+   const zoomPluginInstance = zoomPlugin();
 
-            console.log("Component unmounting - Final page stats:", {
+   useEffect(() => {
+    return () => {
+        const now = new Date();
+        const duration = Math.round((now.getTime() - pageStartTime.current.getTime()) / 1000);
+        
+        if (duration >= 1) {
+            pageViews.current.push({
                 page: currentPage,
-                enteredAt: pageStartTime.current.toISOString(),
-                exitedAt: exitTime.toISOString(),
-                timeSpentOnPage: `${timeSpentInSeconds} seconds`,
+                duration
             });
-        };
-    }, [currentPage]);
 
-    const handleDocumentLoad = (e: DocumentLoadEvent): void => {
-        console.log("PDF loaded!", {
-            numberOfPages: e.doc.numPages,
-            documentId: documentId,
-            timeOpened: new Date().toISOString(),
+            const percentageRead = ((new Set(pageViews.current.map(v => v.page)).size) / totalPages * 100).toFixed(2);
+
+            addActivity({
+                activity_id: activityId.current,
+                source: 'pdf',
+                source_id: documentId || '',
+                start_time: startTime.current,
+                end_time: now.toISOString(),
+                duration: duration.toString(),
+                page_views: pageViews.current,
+                percentage_read: percentageRead,
+                sync_status: 'STALE'
+            }, true);
+        }
+    };
+}, [currentPage, documentId, totalPages, addActivity]);
+
+   const handleDocumentLoad = (e: DocumentLoadEvent) => {
+       setTotalPages(e.doc.numPages);
+       pageStartTime.current = new Date();
+       console.log("PDF loaded!", {
+           numberOfPages: e.doc.numPages,
+           documentId: documentId,
+           timeOpened: new Date().toISOString(),
+       });
+   };
+
+   const handlePageChange = (e: PageChangeEvent) => {
+    const now = new Date();
+    const duration = Math.round((now.getTime() - pageStartTime.current.getTime()) / 1000);
+
+    if (duration >= 1) {
+        pageViews.current.push({
+            page: currentPage,
+            duration
         });
-    };
 
-    const handlePageChange = (e: PageChangeEvent): void => {
-        const exitTime = new Date();
-        const timeSpent = exitTime.getTime() - pageStartTime.current.getTime();
-        const timeSpentInSeconds = Math.round(timeSpent / 1000);
+        const percentageRead = ((new Set(pageViews.current.map(v => v.page)).size) / totalPages * 100).toFixed(2);
 
-        if (timeSpentInSeconds >= 10) console.log("Call API");
+        addActivity({
+            activity_id: activityId.current,
+            source: 'pdf',
+            source_id: documentId || '',
+            start_time: startTime.current,
+            end_time: now.toISOString(),
+            duration: duration.toString(),
+            page_views: pageViews.current,
+            percentage_read: percentageRead,
+            sync_status: 'STALE'
+        }, true);
+    }
 
-        setCurrentPage(e.currentPage);
-        pageStartTime.current = new Date();
-    };
+    setCurrentPage(e.currentPage);
+    pageStartTime.current = now;
+       
+   };
 
-    return (
-        <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-            <div className="h-full w-full">
-                <Viewer
-                    fileUrl={pdfUrl || defaultPdfUrl}
-                    onDocumentLoad={handleDocumentLoad}
-                    onPageChange={handlePageChange}
-                    plugins={[
-                        attachmentPluginInstance,
-                        bookmarkPluginInstance,
-                        defaultLayoutPluginInstance,
-                        dropPluginInstance,
-                        fullScreenPluginInstance,
-                        getFilePluginInstance,
-                        highlightPluginInstance,
-                        localeSwitcherPluginInstance,
-                        openPluginInstance,
-                        pageNavigationPluginInstance,
-                        printPluginInstance,
-                        propertiesPluginInstance,
-                        rotatePluginInstance,
-                        scrollModePluginInstance,
-                        searchPluginInstance,
-                        selectionModePluginInstance,
-                        themePluginInstance,
-                        thumbnailPluginInstance,
-                        toolbarPluginInstance,
-                        zoomPluginInstance,
-                    ]}
-                />
-            </div>
-        </Worker>
-    );
+   return (
+       <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+           <div className="h-full w-full">
+               <Viewer
+                   fileUrl={pdfUrl || defaultPdfUrl}
+                   onDocumentLoad={handleDocumentLoad}
+                   onPageChange={handlePageChange}
+                   plugins={[
+                       attachmentPluginInstance,
+                       bookmarkPluginInstance,
+                       defaultLayoutPluginInstance,
+                       dropPluginInstance,
+                       fullScreenPluginInstance,
+                       getFilePluginInstance,
+                       highlightPluginInstance,
+                       localeSwitcherPluginInstance,
+                       openPluginInstance,
+                       pageNavigationPluginInstance,
+                       printPluginInstance,
+                       propertiesPluginInstance,
+                       rotatePluginInstance,
+                       scrollModePluginInstance,
+                       searchPluginInstance,
+                       selectionModePluginInstance,
+                       themePluginInstance,
+                       thumbnailPluginInstance,
+                       toolbarPluginInstance,
+                       zoomPluginInstance,
+                   ]}
+               />
+           </div>
+       </Worker>
+   );
 };
 
 export default PDFViewer;
