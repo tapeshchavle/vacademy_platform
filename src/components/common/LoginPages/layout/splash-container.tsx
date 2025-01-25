@@ -3,6 +3,7 @@ import { SplashScreenProps } from "../../../../types/loginTypes";
 import { SsdcLogo_Login } from "@/assets/svgs";
 import { useEffect } from "react";
 
+
 export const SplashScreen = ({ children }: SplashScreenProps) => {
   useEffect(() => {
     // Disable scrolling while splash screen is active

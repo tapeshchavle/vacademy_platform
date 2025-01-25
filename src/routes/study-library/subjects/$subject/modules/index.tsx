@@ -12,7 +12,7 @@ function RouteComponent() {
 
   return (
     <LayoutContainer>
-      <ModuleMaterial subject={subject} />
+      <ModuleMaterial subject={subject.charAt(0).toUpperCase() + subject.slice(1)} />
     </LayoutContainer>
   )
 }

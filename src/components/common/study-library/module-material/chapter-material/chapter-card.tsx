@@ -1,6 +1,6 @@
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { ChapterType } from "./chapters";
-import { BookOpenText, Video } from "@phosphor-icons/react";
+import { BookOpenText, PlayCircle  } from "@phosphor-icons/react";
 import { CheckCircle } from "phosphor-react";
 
 interface ChapterCardProps {
@@ -24,22 +24,22 @@ export const ChapterCard = ({ chapter }: ChapterCardProps) => {
 
     return (
         <div onClick={handleCardClick} className="w-full cursor-pointer">
-            <div className="flex w-full flex-col justify-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 p-3 shadow-md">
-                <div className="flex items-center justify-between text-subtitle font-semibold">
+            <div className="flex w-full flex-col justify-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 p-4">
+                <div className="flex items-center justify-between text-body font-semibold">
                     <div>{chapter.name}</div>
                 </div>
                 <div className="flex items-center justify-between">
-                    <div className="flex gap-10 text-title font-semibold">
+                    <div className="flex gap-4 text-body font-semibold">
                         <div className="flex items-center gap-2">
                             <BookOpenText />
                             <div className="text-primary-500">{chapter.resourceCount?.ebooks || 0}</div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Video />
+                            <PlayCircle  />
                             <div className="text-primary-500">{chapter.resourceCount?.videos || 0}</div>
                         </div>
                     </div>
-                    <CheckCircle size={25} weight="fill" className="text-success-600" />
+                    <CheckCircle size={20} weight="fill" className="text-success-600 " />
                 </div>
             </div>
         </div>

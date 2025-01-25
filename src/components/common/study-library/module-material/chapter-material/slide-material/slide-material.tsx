@@ -52,19 +52,19 @@ export const SlideMaterial = () => {
 
     return (
         <div className="flex w-full flex-col" ref={selectionRef}>
-            <div className="-mx-8 -my-8 flex items-center justify-between gap-6 border-b border-neutral-300 px-8 py-4">
+            <div className="-mx-8 -my-3 flex items-center justify-between gap-6 border-b border-neutral-300 px-8 py-2">
                 {isEditing ? (
                     <input
                         type="text"
                         value={heading}
                         onChange={handleHeadingChange}
                         onBlur={saveHeading}
-                        className="w-full text-h3 font-semibold text-neutral-600 focus:outline-none"
+                        className="w-full text-subtitle font-semibold text-neutral-600 focus:outline-none"
                         autoFocus
                     />
                 ) : (
                     <h3
-                        className="text-h3 font-semibold text-neutral-600"
+                        className="text-subtitle font-semibold text-neutral-600"
                         onClick={() => setIsEditing(true)}
                     >
                         {heading || "No content selected"}
@@ -72,9 +72,9 @@ export const SlideMaterial = () => {
                 )}
             </div>
             <div
-                className={`mx-auto mt-14 ${
+                className={`mx-auto mt-8 ${
                     activeItem?.type == "pdf" ? "h-[calc(100vh-200px)]" : "h-full"
-                } w-full overflow-hidden px-10`}
+                } w-full overflow-hidden `}
             >
                 {renderContent()}
             </div>

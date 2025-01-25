@@ -24,9 +24,9 @@ export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}
     return(
         <div onClick={handleCardClick} className="cursor-pointer">
         <div
-            className={`flex w-[340px] flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6 shadow-md`}
+            className={`flex w-[340px] flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6 `}
         >
-            <div className="flex items-center justify-between text-h2 font-semibold">
+            <div className="flex items-center justify-between text-title font-semibold">
                 <div>{module.name}</div>
             </div>
 
@@ -42,13 +42,15 @@ export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}
                 </div>
             )}
 
-            <div className="flex gap-2 text-title font-semibold">
-                <div className="text-primary-500">0</div>
-                <div>Chapters</div>
-            </div>
+            <div className="flex flex-col gap-2">
+                <div className="flex gap-2 text-subtitle font-semibold">
+                    <div className="text-primary-500">0</div>
+                    <div>Chapters</div>
+                </div>
 
-            <div className="flex items-center justify-between">
-                <div className="text-body text-neutral-500">{module.description}</div>
+                <div className="flex items-center justify-between">
+                    <div className="text-caption text-neutral-500">{module.description}</div>
+                </div>
             </div>
         </div>
     </div>

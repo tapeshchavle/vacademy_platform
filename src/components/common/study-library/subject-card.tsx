@@ -37,9 +37,9 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
     };
 
     return(
-        <div onClick={handleCardClick} className="cursor-pointer w-full">
+        <div onClick={handleCardClick} className="cursor-pointer w-full ">
             <div
-                className={`relative flex flex-col items-center justify-center gap-4 border-neutral-500 bg-neutral-50 p-4 shadow-md w-full`}
+                className={`relative flex flex-col items-center justify-center gap-4 border rounded-lg border-neutral-200 bg-neutral-50 p-4  w-full`}
             >
                 {imageUrl ? (
                     <img
@@ -52,7 +52,7 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
                     />
                 )}
                 <div className="flex items-center justify-between gap-5">
-                    <div className="text-h2 font-semibold">{subject.name}</div>
+                    <div className="text-body font-semibold">{subject.name}</div>
                 </div>
             </div>
         </div>

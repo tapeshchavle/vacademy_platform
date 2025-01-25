@@ -29,8 +29,8 @@ export const ModuleMaterial = ({subject}:{subject:string}) => {
     };
 
     const heading = (
-        <div className="flex items-center gap-4">
-            <CaretLeft onClick={handleBackClick} className="cursor-pointer" />
+        <div className="flex items-center gap-2">
+            <CaretLeft onClick={handleBackClick} className="cursor-pointer size-5" />
             <div>{subject}</div>
         </div>
     );

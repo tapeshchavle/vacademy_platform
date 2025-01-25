@@ -29,7 +29,7 @@ export const SubjectMaterial = () => {
     const {setNavHeading} = useNavHeadingStore();
     
       useEffect(()=>{
-        setNavHeading("Subjects")
+        setNavHeading("Study Library")
       }, [])
 
     return(
