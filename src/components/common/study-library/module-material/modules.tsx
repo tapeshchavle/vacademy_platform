@@ -3,6 +3,8 @@ import { ModuleCard, ModuleType } from "./module-card"
 
 
 export const Modules = ({modules, subject }:{modules: ModuleType[], subject: string}) => {
+
+
     return(
         <div className=" w-full flex flex-col items-center justify-center">
         {!modules.length && (
@@ -11,7 +13,7 @@ export const Modules = ({modules, subject }:{modules: ModuleType[], subject: str
                     <div>No Modules have been added yet.</div>
                 </div>
             )}
-            <div className="grid grid-cols-1 gap-6">
+            <div className={`grid grid-cols-1 md:grid-cols-2  gap-6 w-full`}>
                 {modules.map((module, index) => (
                     <ModuleCard
                         key={index}

@@ -1,3 +1,4 @@
+import { useSidebar } from "@/components/ui/sidebar";
 import { useRouter } from "@tanstack/react-router";
 
 export interface ModuleType {
@@ -9,6 +10,7 @@ export interface ModuleType {
 export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}) => {
 
     const router = useRouter();
+    const {open} = useSidebar();
 
     const handleCardClick = () => {
         const moduleName = module.name.toLowerCase().replace(/\s+/g, "-");
@@ -24,7 +26,7 @@ export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}
     return(
         <div onClick={handleCardClick} className="cursor-pointer">
         <div
-            className={`flex w-[340px] flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6 `}
+            className={`flex w-[340px] ${open?"md:w-[270px]":"md:w-[340px]"} flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6 `}
         >
             <div className="flex items-center justify-between text-title font-semibold">
                 <div>{module.name}</div>

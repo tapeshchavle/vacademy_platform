@@ -2,6 +2,7 @@ import { EmptySubjectMaterial } from "@/assets/svgs";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { useEffect } from "react";
 import { Subject, SubjectCard } from "./subject-card";
+import { useSidebar } from "@/components/ui/sidebar";
 
 const subjectsDummy = [
     { 
@@ -27,6 +28,7 @@ const subjectsDummy = [
 export const SubjectMaterial = () => {
     const subjects: Subject[] = subjectsDummy;
     const {setNavHeading} = useNavHeadingStore();
+    const {open} = useSidebar();
     
       useEffect(()=>{
         setNavHeading("Study Library")
@@ -40,7 +42,7 @@ export const SubjectMaterial = () => {
                     <div>No subjects have been added yet.</div>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 w-full gap-4 ">
+                <div className={`grid grid-cols-2 ${open?"md:grid-cols-3":"md:grid-cols-4"} w-full gap-4 `}>
                     {subjects.map((subject) => (
                         <SubjectCard
                             key={subject.id}

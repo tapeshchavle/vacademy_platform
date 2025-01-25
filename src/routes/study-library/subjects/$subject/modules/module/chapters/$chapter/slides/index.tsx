@@ -85,13 +85,13 @@ function Chapters() {
     }, []);
 
   const SidebarComponent = (
-    <div className="flex w-full flex-col items-center">
+    <div className="flex w-full flex-col items-center mt-10">
       <div
         className={`flex w-full flex-col gap-6 ${open ? 'px-6' : 'px-6'} -mt-10`}
       >
         <div className="flex flex-wrap items-center gap-1 text-neutral-500">
           <p
-            className={`cursor-pointer ${open ? 'visible' : 'hidden'}`}
+            className={`cursor-pointer ${open ? 'visible' : 'hidden'} text-subtitle`}
             onClick={handleSubjectRoute}
           >
             {subject}
@@ -100,7 +100,7 @@ function Chapters() {
             className={`size-4 ${open ? 'visible' : 'hidden'}`}
           />
           <p
-            className={`cursor-pointer ${open ? 'visible' : 'hidden'}`}
+            className={`cursor-pointer ${open ? 'visible' : 'hidden'} text-subtitle`}
             onClick={handleModuleRoute}
           >
             {moduleName}
@@ -108,7 +108,7 @@ function Chapters() {
           <ChevronRightIcon
             className={`size-4 ${open ? 'visible' : 'hidden'}`}
           />
-          <p className="cursor-pointer text-primary-500">
+          <p className="cursor-pointer text-primary-500 text-subtitle">
             {open ? chapterParam : trucatedChapterName}
           </p>
         </div>

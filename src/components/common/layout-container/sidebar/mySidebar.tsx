@@ -21,18 +21,20 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
   return (
       <Sidebar collapsible="icon">
           <SidebarContent
-              className={`sidebar-content flex flex-col gap-14 border-r-2 border-r-neutral-300 bg-primary-50 py-10 ${
+              className={`sidebar-content flex flex-col gap-5 border-r-2 border-r-neutral-300 bg-primary-50 py-10 ${
                   state == "expanded" ? "w-[307px]" : "w-28"
               }`}
           >
               <SidebarHeader className="">
                   <div
-                      className={`flex items-center justify-center gap-2 ${
+                      className={`flex items-center justify-center  ${
                           state == "expanded" ? "pl-4" : "pl-0"
                       }`}
                   >
                       {/* <img src={SsdcLogo_Login} alt="logo" /> */}
-                      <Logo />
+                      <div className="-mb-3">
+                        <Logo />
+                      </div>
                       <SidebarGroup
                           className={`text-[18px] font-semibold text-primary-500 group-data-[collapsible=icon]:hidden`}
                       >

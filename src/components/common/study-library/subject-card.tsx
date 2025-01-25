@@ -37,7 +37,7 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
     };
 
     return(
-        <div onClick={handleCardClick} className="cursor-pointer w-full ">
+        <div onClick={handleCardClick} className="cursor-pointer w-full md:w-fit ">
             <div
                 className={`relative flex flex-col items-center justify-center gap-4 border rounded-lg border-neutral-200 bg-neutral-50 p-4  w-full`}
             >

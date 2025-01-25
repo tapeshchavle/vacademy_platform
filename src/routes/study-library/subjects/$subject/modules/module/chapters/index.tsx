@@ -45,13 +45,13 @@ function ModuleMaterialPage() {
     <div className={`flex w-full flex-col gap-6 ${open ? 'px-10' : 'px-6'}`}>
       <div className="flex flex-wrap items-center gap-1 text-neutral-500">
         <p
-          className={`cursor-pointer ${open ? 'visible' : 'hidden'}`}
+          className={`cursor-pointer ${open ? 'visible' : 'hidden'} text-subtitle`}
           onClick={handleSubjectRoute}
         >
           {subject}
         </p>
-        <ChevronRightIcon className={`size-4 ${open ? 'visible' : 'hidden'}`} />
-        <p className="cursor-pointer text-primary-500">{moduleName}</p>
+        <ChevronRightIcon className={`size-4 ${open ? 'visible' : 'hidden'} text-subtitle`} />
+        <p className="cursor-pointer text-primary-500 text-subtitle">{moduleName}</p>
       </div>
       {data.map((obj, key) => (
         <div
