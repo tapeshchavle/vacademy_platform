@@ -42,7 +42,7 @@ export const SubjectMaterial = () => {
                     <div>No subjects have been added yet.</div>
                 </div>
             ) : (
-                <div className={`grid grid-cols-2 ${open?"md:grid-cols-3":"md:grid-cols-4"} w-full gap-4 `}>
+                <div className={`grid grid-cols-2 ${open?"sm:grid-cols-2 md-tablets:grid-cols-3":"sm:grid-cols-3 md-tablets:grid-cols-4"} w-full gap-4 `}>
                     {subjects.map((subject) => (
                         <SubjectCard
                             key={subject.id}

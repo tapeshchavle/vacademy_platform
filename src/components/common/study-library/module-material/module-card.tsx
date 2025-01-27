@@ -1,6 +1,7 @@
 import { useSidebar } from "@/components/ui/sidebar";
 import { useRouter } from "@tanstack/react-router";
 
+
 export interface ModuleType {
     name: string;
     description: string;
@@ -24,9 +25,9 @@ export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}
     
 
     return(
-        <div onClick={handleCardClick} className="cursor-pointer">
+        <div onClick={handleCardClick} className="cursor-pointer w-full items-center flex justify-center">
         <div
-            className={`flex w-[340px] ${open?"md:w-[270px]":"md:w-[340px]"} flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6 `}
+            className={`flex w-[310px] xs:w-[340px] sm:w-full ${open?"md-tablet:w-[270px]":"md-tablet:w-[340px]"} flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6`}
         >
             <div className="flex items-center justify-between text-title font-semibold">
                 <div>{module.name}</div>
