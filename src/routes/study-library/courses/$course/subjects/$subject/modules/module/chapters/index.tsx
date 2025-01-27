@@ -9,7 +9,7 @@ interface ModuleSearchParams {
 }
 
 export const Route = createFileRoute(
-  '/study-library/subjects/$subject/modules/module/chapters/',
+  '/study-library/courses/subjects/$subject/modules/module/chapters/',
 )({
   component: ModuleMaterialPage,
   validateSearch: (search: Record<string, unknown>): ModuleSearchParams => {
@@ -21,7 +21,7 @@ export const Route = createFileRoute(
 
 function ModuleMaterialPage() {
   const { subject } = Route.useParams()
-  const {moduleName} = Route.useSearch();
+  const { moduleName } = Route.useSearch()
 
   //Sidebar component
   const { open } = useSidebar()
@@ -35,7 +35,7 @@ function ModuleMaterialPage() {
   const handleSubjectRoute = () => {
     navigate({
       to: '/study-library/subjects/$subject/modules',
-      params: {subject},
+      params: { subject },
       search: {},
       hash: '',
     })
@@ -50,8 +50,12 @@ function ModuleMaterialPage() {
         >
           {subject}
         </p>
-        <ChevronRightIcon className={`size-4 ${open ? 'visible' : 'hidden'} text-subtitle`} />
-        <p className="cursor-pointer text-primary-500 text-subtitle">{moduleName}</p>
+        <ChevronRightIcon
+          className={`size-4 ${open ? 'visible' : 'hidden'} text-subtitle`}
+        />
+        <p className="cursor-pointer text-primary-500 text-subtitle">
+          {moduleName}
+        </p>
       </div>
       {data.map((obj, key) => (
         <div

@@ -16,7 +16,7 @@ interface ChapterSearchParams {
 }
 
 export const Route = createFileRoute(
-  '/study-library/subjects/$subject/modules/module/chapters/$chapter/slides/',
+  '/study-library/courses/subjects/$subject/modules/module/chapters/$chapter/slides/',
 )({
   component: Chapters,
   validateSearch: (search: Record<string, unknown>): ChapterSearchParams => {
@@ -50,7 +50,7 @@ function Chapters() {
   const handleModuleRoute = () => {
     navigate({
       to: '/study-library/subjects/$subject/modules/module/chapters',
-      params: {subject},
+      params: { subject },
       search: { moduleName },
       hash: '',
     })
@@ -62,27 +62,26 @@ function Chapters() {
 
   const trucatedChapterName = truncateString(chapterParam, 9)
 
-  const router = useRouter();
-    const { setNavHeading } = useNavHeadingStore();
+  const router = useRouter()
+  const { setNavHeading } = useNavHeadingStore()
 
+  const handleBackClick = () => {
+    router.navigate({
+      to: `/study-library/subjects/${subject}/modules/module`,
+      search: { moduleName },
+    })
+  }
 
-    const handleBackClick = () => {
-        router.navigate({
-            to: `/study-library/subjects/${subject}/modules/module`,
-            search: {moduleName}
-        });
-    };
+  const heading = (
+    <div className="flex items-center gap-2">
+      <CaretLeft onClick={handleBackClick} className="cursor-pointer size-5" />
+      <div>{subject}</div>
+    </div>
+  )
 
-    const heading = (
-        <div className="flex items-center gap-2">
-            <CaretLeft onClick={handleBackClick} className="cursor-pointer size-5" />
-            <div>{subject}</div>
-        </div>
-    );
-
-    useEffect(() => {
-        setNavHeading(heading);
-    }, []);
+  useEffect(() => {
+    setNavHeading(heading)
+  }, [])
 
   const SidebarComponent = (
     <div className="flex w-full flex-col items-center mt-10">
@@ -136,7 +135,7 @@ function Chapters() {
 
   return (
     <LayoutContainer sidebarComponent={SidebarComponent}>
-       <SlideMaterial />
+      <SlideMaterial />
     </LayoutContainer>
   )
 }
