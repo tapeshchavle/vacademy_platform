@@ -27,7 +27,7 @@ import { themePlugin } from "@react-pdf-viewer/theme";
 import { thumbnailPlugin } from "@react-pdf-viewer/thumbnail";
 import { toolbarPlugin } from "@react-pdf-viewer/toolbar";
 import { zoomPlugin } from "@react-pdf-viewer/zoom";
-import { useTrackingStore } from "./trackingStore2";
+import { useTrackingStore } from "../../../../../../stores/study-library/pdf-tracking-store";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 

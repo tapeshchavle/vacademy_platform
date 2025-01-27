@@ -1,36 +1,9 @@
 import { create } from 'zustand';
-import { z } from 'zod';
 import { Preferences } from '@capacitor/preferences';
-
-// Define schemas using zod for validation
-const TimestampSchema = z.object({
-    start: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/),
-    end: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/)
-});
-
-const ActivitySchema = z.object({
-    activity_id: z.string(),
-    source: z.string(),
-    source_id: z.string(),
-    start_time: z.string(),
-    end_time: z.string(),
-    duration: z.string(),
-    timestamps: z.array(TimestampSchema),
-    percentage_watched: z.string(),
-    sync_status: z.enum(['SYNCED', 'STALE'])
-});
-
-const TrackingDataSchema = z.object({
-    data: z.array(ActivitySchema)
-});
-
-// Define the TrackingStore interface
-interface TrackingStore {
-    trackingData: z.infer<typeof TrackingDataSchema>;
-    addActivity: (activity: z.infer<typeof ActivitySchema>, isUpdate?: boolean) => Promise<void>;
-    syncActivities: () => Promise<void>;
-    getStoredActivities: () => Promise<void>;
-}
+import { TrackingStore } from '@/schemas/study-library/video-tracking';
+import { TrackingDataSchema } from '@/schemas/study-library/video-tracking';
+import { z } from 'zod';
+import { ActivitySchema } from '@/schemas/study-library/video-tracking';
 
 const STORAGE_KEY = 'video_tracking_data';
 

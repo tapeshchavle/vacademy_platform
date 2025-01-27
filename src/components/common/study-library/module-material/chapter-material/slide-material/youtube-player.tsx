@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { v4 as uuidv4 } from 'uuid';
-import { useTrackingStore } from "@/stores/study-library/tracking-store";
+import { useTrackingStore } from "@/stores/study-library/youtube-video-tracking-store";
 
 interface YTPlayer {
    destroy(): void;
@@ -58,7 +58,6 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const [elapsedTime, setElapsedTime] = useState(0);
    const timerRef = useRef<NodeJS.Timeout | null>(null);
    const currentStartTimeRef = useRef('');
-//    const [timestampDuration, setTimestampDuration] = useState(0);
    const timestampDurationRef = useRef(0);
 
    const extractVideoId = (url: string): string => {
@@ -108,6 +107,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    }, []);
 
    const calculateNetDuration = (timestamps: Array<{start: string, end: string}>): number => {
+    
     if (timestamps.length === 0) return 0;
 
     // Convert timestamps to seconds for easier calculation

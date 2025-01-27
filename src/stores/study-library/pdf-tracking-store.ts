@@ -1,34 +1,10 @@
 import { create } from 'zustand';
 import { z } from 'zod';
 import { Preferences } from '@capacitor/preferences';
+import { TrackingDataSchema } from '@/schemas/study-library/pdf-tracking';
+import { ActivitySchema } from '@/schemas/study-library/pdf-tracking';
 
-const TimestampSchema = z.object({
-   start: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/),
-   end: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/)
-});
-
-const PageViewSchema = z.object({
-    page: z.number(),
-    duration: z.number()
-});
-
-const ActivitySchema = z.object({
-   activity_id: z.string(),
-   source: z.string(),
-   source_id: z.string(),
-   start_time: z.string(),
-   end_time: z.string(),
-   duration: z.string(),
-   timestamps: z.array(TimestampSchema).optional(),
-   page_views: z.array(PageViewSchema).optional(),
-   percentage_watched: z.string().optional(),
-   percentage_read: z.string().optional(),
-   sync_status: z.enum(['SYNCED', 'STALE'])
-});
-
-const TrackingDataSchema = z.object({
-   data: z.array(ActivitySchema)
-});
+const STORAGE_KEY = 'pdf_tracking_data';
 
 interface TrackingStore {
    trackingData: z.infer<typeof TrackingDataSchema>;
@@ -37,7 +13,6 @@ interface TrackingStore {
    getStoredActivities: () => Promise<void>;
 }
 
-const STORAGE_KEY = 'pdf_tracking_data';
 
 const loadFromStorage = async (): Promise<z.infer<typeof TrackingDataSchema>> => {
    try {
