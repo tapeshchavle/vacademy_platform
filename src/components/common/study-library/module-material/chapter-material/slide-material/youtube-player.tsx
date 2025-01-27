@@ -68,9 +68,10 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    };
 
    const calculatePercentageWatched = (totalDuration: number) => {
-       const watchedDuration = elapsedTime;
-       return ((watchedDuration / (totalDuration)) * 100).toFixed(2);
-   };
+        const netDuration = calculateNetDuration(currentTimestamps.current);
+        console.log("netDuration: ", netDuration);
+        return ((netDuration / totalDuration) * 100).toFixed(2);
+    };
 
    const formatVideoTime = (seconds: number): string => {
        const hours = Math.floor(seconds / 3600);
@@ -105,6 +106,43 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
            timerRef.current = null;
        }
    }, []);
+
+   const calculateNetDuration = (timestamps: Array<{start: string, end: string}>): number => {
+    if (timestamps.length === 0) return 0;
+
+    // Convert timestamps to seconds for easier calculation
+    const ranges = timestamps.map(t => ({
+        start: convertTimeToSeconds(t.start),
+        end: convertTimeToSeconds(t.end)
+    }));
+
+    // Sort ranges by start time
+    ranges.sort((a, b) => a.start - b.start);
+
+    // Merge overlapping ranges
+    const mergedRanges = ranges.reduce((merged, current) => {
+        if (merged.length === 0) {
+            return [current];
+        }
+
+        const lastRange = merged[merged.length - 1];
+        if (current.start <= lastRange.end) {
+            // Overlapping range - merge them
+            lastRange.end = Math.max(lastRange.end, current.end);
+            return merged;
+        } else {
+            // Non-overlapping range - add to list
+            return [...merged, current];
+        }
+    }, [] as Array<{start: number, end: number}>);
+
+    // Calculate total duration from merged ranges
+    const totalDuration = mergedRanges.reduce((sum, range) => {
+        return sum + (range.end - range.start);
+    }, 0);
+
+    return totalDuration;
+};
 
    useEffect(() => {
        const videoId = extractVideoId(videoUrl);
