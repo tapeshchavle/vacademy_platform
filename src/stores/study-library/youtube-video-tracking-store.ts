@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { Preferences } from '@capacitor/preferences';
-import { TrackingStore } from '@/schemas/study-library/video-tracking';
-import { TrackingDataSchema } from '@/schemas/study-library/video-tracking';
+import { TrackingStore } from '@/schemas/study-library/youtube-video-tracking-schema';
+import { TrackingDataSchema } from '@/schemas/study-library/youtube-video-tracking-schema';
 import { z } from 'zod';
-import { ActivitySchema } from '@/schemas/study-library/video-tracking';
+import { ActivitySchema } from '@/schemas/study-library/youtube-video-tracking-schema';
 
 const STORAGE_KEY = 'video_tracking_data';
 

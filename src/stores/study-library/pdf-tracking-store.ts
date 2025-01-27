@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { z } from 'zod';
 import { Preferences } from '@capacitor/preferences';
-import { TrackingDataSchema } from '@/schemas/study-library/pdf-tracking';
-import { ActivitySchema } from '@/schemas/study-library/pdf-tracking';
+import { TrackingDataSchema } from '@/schemas/study-library/pdf-tracking-schema';
+import { ActivitySchema } from '@/schemas/study-library/pdf-tracking-schema';
 
 const STORAGE_KEY = 'pdf_tracking_data';
 
