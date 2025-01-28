@@ -27,7 +27,7 @@ const subjectsDummy = [
     },
 ]
 
-export const SubjectMaterial = () => {
+export const SubjectMaterial = ({course}:{course:string}) => {
     const subjects: Subject[] = subjectsDummy;
     const {setNavHeading} = useNavHeadingStore();
     const {open} = useSidebar();
@@ -35,7 +35,8 @@ export const SubjectMaterial = () => {
 
     const handleBackClick = () => {
         router.navigate({
-            to: `/study-library/courses`
+            to: `/study-library/courses/$course/levels`,
+            params: {course: course}
         })
     };
 

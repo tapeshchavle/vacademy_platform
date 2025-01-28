@@ -1,7 +1,7 @@
 import { SubjectDefaultImage } from "@/assets/svgs";
 import { useRouter } from "@tanstack/react-router";
 
-export interface CourseType {
+export interface LevelType {
     id: string;
     name: string;
     code: string | null;
@@ -11,11 +11,11 @@ export interface CourseType {
     updatedAt: string | null;
 }
 
-interface CourseCardProps {
-    course: CourseType;
+interface LevelCardProps {
+    level: LevelType;
 }
 
-export const CourseCard = ({ course }: CourseCardProps) => {
+export const LevelCard = ({ level }: LevelCardProps) => {
     
     const router = useRouter();
     const imageUrl = undefined
@@ -29,12 +29,12 @@ export const CourseCard = ({ course }: CourseCardProps) => {
             return;
         }
 
-        const formatterCourseName = course.name.replace(/\s+/g, "-");
+        const formatterLevelName = level.name.replace(/\s+/g, "-");
         const currentPath = router.state.location.pathname;
 
         router.navigate({
-            to: `${currentPath}/$course/levels`,
-            params: {course: formatterCourseName}
+            to: `${currentPath}/$level/subjects`,
+            params: {level: formatterLevelName}
         });
     };
 
@@ -46,7 +46,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
                 {imageUrl ? (
                     <img
                         src={imageUrl}
-                        alt={course.name}
+                        alt={level.name}
                         className={``}
                     />
                 ) : (
@@ -54,7 +54,7 @@ export const CourseCard = ({ course }: CourseCardProps) => {
                     />
                 )}
                 <div className="flex items-center justify-between gap-5">
-                    <div className="text-body font-semibold">{course.name}</div>
+                    <div className="text-body font-semibold">{level.name}</div>
                 </div>
             </div>
         </div>

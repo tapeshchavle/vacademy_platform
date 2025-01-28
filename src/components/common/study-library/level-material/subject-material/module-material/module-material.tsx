@@ -16,7 +16,7 @@ const moduleDummyData: ModuleType[] = [
     },
 ]
 
-export const ModuleMaterial = ({subject, course}:{subject:string; course:string}) => {
+export const ModuleMaterial = ({subject, level, course}:{subject:string; level:string; course:string}) => {
 
     const {setNavHeading} = useNavHeadingStore();
     const router = useRouter();
@@ -24,8 +24,8 @@ export const ModuleMaterial = ({subject, course}:{subject:string; course:string}
 
     const handleBackClick = () => {
         router.navigate({
-            to: `/study-library/courses/$course/subjects`,
-            params: {course: course}
+            to: `/study-library/courses/$course/levels/$level/subjects`,
+            params: {course: course, level: level}
         })
     };
 
