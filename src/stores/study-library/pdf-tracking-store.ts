@@ -48,7 +48,7 @@ export const useTrackingStore = create<TrackingStore>((set) => ({
                            start_time: activity.start_time,
                            end_time: activity.end_time,
                            duration: activity.duration,
-                           percentage_watched: activity.percentage_watched,
+                           total_pages_read: activity.total_pages_read,
                            sync_status: 'STALE',
                            timestamps: Array.from(
                                new Set([
@@ -63,7 +63,7 @@ export const useTrackingStore = create<TrackingStore>((set) => ({
                            start_time: activity.start_time,
                            end_time: activity.end_time,
                            duration: activity.duration,
-                           percentage_read: activity.percentage_read,
+                           total_pages_read: activity.total_pages_read,
                            sync_status: 'STALE',
                            page_views: activity.page_views
                        };

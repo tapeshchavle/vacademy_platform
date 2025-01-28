@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import { useTrackingStore } from "@/stores/study-library/youtube-video-tracking-store";
+import { getISTTime } from "./utils";
 
 interface YTPlayer {
    destroy(): void;
@@ -146,7 +147,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
 
    useEffect(() => {
        const videoId = extractVideoId(videoUrl);
-       const endTime = videoEndTime.current || new Date().toISOString();
+       const endTime = videoEndTime.current || getISTTime();
        
        const newActivity = {
            activity_id: activityId.current,
@@ -192,7 +193,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                        console.log("Player ready");
                    },
                    onStateChange: (event) => {
-                       const now = new Date().toISOString();
+                       const now = getISTTime();
                        const currentTime = player.getCurrentTime();
 
                        

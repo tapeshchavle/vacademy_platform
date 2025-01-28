@@ -30,6 +30,7 @@ import { zoomPlugin } from "@react-pdf-viewer/zoom";
 import { useTrackingStore } from "@/stores/study-library/pdf-tracking-store";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
+import { getISTTime } from "./utils";
 
 interface PDFViewerProps {
    documentId?: string;
@@ -42,15 +43,16 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
     const [totalPages, setTotalPages] = useState(0);
     const pageStartTime = useRef<Date>(new Date());
     const activityId = useRef(uuidv4());
-    const startTime = useRef(new Date().toISOString());
+    const startTime = useRef(getISTTime());
     const pageViews = useRef<Array<{
         page: number, 
         duration: number
     }>>([]);
     const [elapsedTime, setElapsedTime] = useState(0);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const totalPagesReadRef = useRef<number>(0);
 
-    const defaultPdfUrl = "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf";
+    const defaultPdfUrl = "https://vacademy-media-storage.s3.ap-south-1.amazonaws.com/c70f40a5-e4d3-4b6c-a498-e612d0d4b133/PDF_DOCUMENTS/6a99e32c-9895-42fc-9e70-7afa237498d2-project_report.docx.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250128T085555Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86399&X-Amz-Credential=AKIA3ISBV4TNOKWJM7FQ%2F20250128%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Signature=f43a50ae25b066b4a6226f4393df1f9cb9165ce8859b71b2069429173517aac7";
 
     // Plugin instances
     const attachmentPluginInstance = attachmentPlugin();
@@ -98,20 +100,21 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
 
     // Update activity in real-time when elapsedTime changes
     useEffect(() => {
-        const now = new Date();
-        const percentageRead = ((new Set(pageViews.current.map(v => v.page)).size) / totalPages * 100).toFixed(2);
+        totalPagesReadRef.current = new Set(pageViews.current.map(v => v.page)).size;
+        console.log("total_pages_read: ", totalPagesReadRef.current)
 
         addActivity({
             activity_id: activityId.current,
             source: 'pdf',
             source_id: documentId || '',
             start_time: startTime.current,
-            end_time: now.toISOString(),
+            end_time: getISTTime(),
             duration: elapsedTime.toString(),
             page_views: pageViews.current,
-            percentage_read: percentageRead,
+            total_pages_read: totalPagesReadRef.current,
             sync_status: 'STALE'
         }, true);
+
     }, [elapsedTime, documentId, totalPages, addActivity]);
 
     const handleDocumentLoad = (e: DocumentLoadEvent) => {
@@ -128,7 +131,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
         const now = new Date();
         const duration = Math.round((now.getTime() - pageStartTime.current.getTime()) / 1000);
 
-        if (duration >= 1) {
+        if (duration >= 10) {
             pageViews.current.push({
                 page: currentPage,
                 duration

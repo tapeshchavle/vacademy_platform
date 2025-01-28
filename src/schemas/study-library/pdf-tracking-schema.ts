@@ -19,8 +19,7 @@ export const ActivitySchema = z.object({
     duration: z.string(),
     timestamps: z.array(TimestampSchema).optional(),
     page_views: z.array(PageViewSchema).optional(),
-    percentage_watched: z.string().optional(),
-    percentage_read: z.string().optional(),
+    total_pages_read: z.number().optional(),
     sync_status: z.enum(['SYNCED', 'STALE'])
  });
  
