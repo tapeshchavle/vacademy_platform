@@ -7,17 +7,19 @@ import { Chapters, ChapterType } from "./chapters";
 
 interface ChapterMaterialProps {
     subject: string;
+    course: string
 }
 
-export const ChapterMaterial = ({ subject }: ChapterMaterialProps) => {
+export const ChapterMaterial = ({ subject, course }: ChapterMaterialProps) => {
     const router = useRouter();
     const { setNavHeading } = useNavHeadingStore();
 
 
     const handleBackClick = () => {
         router.navigate({
-            to: `/study-library/subjects/${subject}/modules`,
-        });
+            to: `/study-library/courses/$course/subjects/$subject/modules`,
+            params: {subject: subject, course: course}
+        })
     };
 
     const heading = (

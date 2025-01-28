@@ -30,9 +30,10 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
         }
 
         const subjectRoute = subject.name.toLowerCase().replace(/\s+/g, "-");
+        const currentPath = router.state.location.pathname;
 
         router.navigate({
-            to: `/study-library/subjects/${subjectRoute}`,
+            to: `${currentPath}/${subjectRoute}`,
         });
     };
 

@@ -8,17 +8,17 @@ export interface ModuleType {
     imageUrl?: string;
 }
 
-export const ModuleCard = ({module, subject}:{module:ModuleType; subject:string}) => {
+export const ModuleCard = ({module}:{module:ModuleType; subject?:string}) => {
 
     const router = useRouter();
     const {open} = useSidebar();
 
     const handleCardClick = () => {
         const moduleName = module.name.toLowerCase().replace(/\s+/g, "-");
-    
+        const currentPath = router.state.location.pathname;
         // Navigate to the new route with the moduleName query parameter
         router.navigate({
-            to: `/study-library/subjects/${subject}/modules/module`,
+            to: `${currentPath}/module`,
             search: { moduleName }, // Add moduleName as a query parameter
         });
     };

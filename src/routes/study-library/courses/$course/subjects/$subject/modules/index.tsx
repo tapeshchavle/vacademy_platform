@@ -1,20 +1,21 @@
 import { LayoutContainer } from '@/components/common/layout-container/layout-container'
-import { ModuleMaterial } from '@/components/common/study-library/module-material/module-material'
+import { ModuleMaterial } from '@/components/common/study-library/subject-material/module-material/module-material'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute(
-  '/study-library/courses/subjects/$subject/modules/',
+  '/study-library/courses/$course/subjects/$subject/modules/',
 )({
   component: RouteComponent,
 })
 
 function RouteComponent() {
-  const { subject } = Route.useParams()
+  const { subject, course } = Route.useParams()
 
   return (
     <LayoutContainer>
       <ModuleMaterial
         subject={subject.charAt(0).toUpperCase() + subject.slice(1)}
+        course={course}
       />
     </LayoutContainer>
   )

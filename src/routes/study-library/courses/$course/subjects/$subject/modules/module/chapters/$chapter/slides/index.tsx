@@ -6,17 +6,16 @@ import { SidebarFooter, useSidebar } from '@/components/ui/sidebar'
 import { useEffect, useState } from 'react'
 import { MagnifyingGlass } from '@phosphor-icons/react'
 import { truncateString } from '@/lib/reusable/truncateString'
-import { ChapterSidebarSlides } from '@/components/common/study-library/module-material/chapter-material/slide-material/chapter-sidebar-slides'
 import { useNavHeadingStore } from '@/stores/layout-container/useNavHeadingStore'
 import { CaretLeft } from 'phosphor-react'
-import { SlideMaterial } from '@/components/common/study-library/module-material/chapter-material/slide-material/slide-material'
-
+import { ChapterSidebarSlides } from '@/components/common/study-library/subject-material/module-material/chapter-material/slide-material/chapter-sidebar-slides'
+import { SlideMaterial } from '@/components/common/study-library/subject-material/module-material/chapter-material/slide-material/slide-material'
 interface ChapterSearchParams {
   moduleName?: string
 }
 
 export const Route = createFileRoute(
-  '/study-library/courses/subjects/$subject/modules/module/chapters/$chapter/slides/',
+  '/study-library/courses/$course/subjects/$subject/modules/module/chapters/$chapter/slides/',
 )({
   component: Chapters,
   validateSearch: (search: Record<string, unknown>): ChapterSearchParams => {
@@ -28,7 +27,7 @@ export const Route = createFileRoute(
 
 function Chapters() {
   const params = Route.useParams()
-  const { subject, chapter: chapterParam } = Route.useParams()
+  const { course, subject, chapter: chapterParam } = Route.useParams()
   const search = Route.useSearch()
   const moduleName = search.moduleName
   const [inputSearch, setInputSearch] = useState('')
@@ -38,8 +37,9 @@ function Chapters() {
 
   const handleSubjectRoute = () => {
     navigate({
-      to: '/study-library/subjects/$subject',
+      to: '/study-library/courses/$course/subjects/$subject',
       params: {
+        course: params.course,
         subject: params.subject,
       },
       search: {},
@@ -49,8 +49,8 @@ function Chapters() {
 
   const handleModuleRoute = () => {
     navigate({
-      to: '/study-library/subjects/$subject/modules/module/chapters',
-      params: { subject },
+      to: '/study-library/courses/$course/subjects/$subject/modules/module/chapters',
+      params: { course, subject },
       search: { moduleName },
       hash: '',
     })
@@ -67,7 +67,7 @@ function Chapters() {
 
   const handleBackClick = () => {
     router.navigate({
-      to: `/study-library/subjects/${subject}/modules/module`,
+      to: `/study-library/courses/${course}/subjects/${subject}/modules/module`,
       search: { moduleName },
     })
   }

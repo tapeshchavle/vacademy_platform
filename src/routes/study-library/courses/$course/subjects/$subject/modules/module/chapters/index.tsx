@@ -2,14 +2,13 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { LayoutContainer } from '@/components/common/layout-container/layout-container'
 import { useSidebar } from '@/components/ui/sidebar'
 import { ChevronRightIcon } from '@radix-ui/react-icons'
-import { ChapterMaterial } from '@/components/common/study-library/module-material/chapter-material/chapter-material'
-
+import { ChapterMaterial } from '@/components/common/study-library/subject-material/module-material/chapter-material/chapter-material'
 interface ModuleSearchParams {
   moduleName?: string
 }
 
 export const Route = createFileRoute(
-  '/study-library/courses/subjects/$subject/modules/module/chapters/',
+  '/study-library/courses/$course/subjects/$subject/modules/module/chapters/',
 )({
   component: ModuleMaterialPage,
   validateSearch: (search: Record<string, unknown>): ModuleSearchParams => {
@@ -20,7 +19,7 @@ export const Route = createFileRoute(
 })
 
 function ModuleMaterialPage() {
-  const { subject } = Route.useParams()
+  const { subject, course } = Route.useParams()
   const { moduleName } = Route.useSearch()
 
   //Sidebar component
@@ -34,8 +33,8 @@ function ModuleMaterialPage() {
   const navigate = useNavigate()
   const handleSubjectRoute = () => {
     navigate({
-      to: '/study-library/subjects/$subject/modules',
-      params: { subject },
+      to: '/study-library/courses/$course/subjects/$subject/modules',
+      params: { course, subject },
       search: {},
       hash: '',
     })
@@ -73,7 +72,7 @@ function ModuleMaterialPage() {
 
   return (
     <LayoutContainer sidebarComponent={SidebarComponent}>
-      <ChapterMaterial subject={subject} />
+      <ChapterMaterial subject={subject} course={course} />
     </LayoutContainer>
   )
 }
