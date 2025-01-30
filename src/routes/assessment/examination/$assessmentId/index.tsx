@@ -14,8 +14,8 @@ export const Route = createFileRoute('/assessment/examination/$assessmentId/')({
 })
 const assessmentPreview  = true
 function RouteComponent() {
-  return <AssessmentPreview />
-  // return <InstructionPage assessment={dummyAssessment[0]} />
+  // return <AssessmentPreview />
+  return <InstructionPage assessment={dummyAssessment[0]} />
   // return <AssessmentInterface assessmentData={assessments[0]} />
   // return <dummyAssessment />
   // return <AssessmentWrapper/>

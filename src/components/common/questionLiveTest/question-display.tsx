@@ -1,13 +1,12 @@
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
-import { Flag, X, AlertCircle } from 'lucide-react';
-import { useAssessmentStore } from '@/stores/assessment-store';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useState, useEffect } from 'react';
-import { Checkbox } from '@/components/ui/checkbox';
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Flag, X, AlertCircle } from "lucide-react";
+import { useAssessmentStore } from "@/stores/assessment-store";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useState, useEffect } from "react";
 
 export function QuestionDisplay() {
   const {
@@ -84,7 +83,7 @@ export function QuestionDisplay() {
     if (isDisabled) return;
 
     const newAnswer =
-      currentQuestion.questionType === 'MCQ (Multiple Correct)'
+      currentQuestion.questionType === "MCQ (Multiple Correct)"
         ? currentAnswer.includes(optionId)
           ? currentAnswer.filter((id) => id !== optionId)
           : [...currentAnswer, optionId]
@@ -96,7 +95,10 @@ export function QuestionDisplay() {
   const formatTime = (ms: number) => {
     const minutes = Math.floor(ms / 60000);
     const seconds = Math.floor((ms % 60000) / 1000);
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+      2,
+      "0"
+    )}`;
   };
 
   return (
@@ -130,7 +132,7 @@ export function QuestionDisplay() {
           <Button
             variant="outline"
             size="sm"
-            className={isMarkedForReview ? 'text-orange-500' : ''}
+            className={isMarkedForReview ? "text-orange-500" : ""}
             onClick={() => markForReview(currentQuestion.questionId)}
             disabled={isDisabled}
           >
@@ -165,7 +167,7 @@ export function QuestionDisplay() {
         {currentQuestion.options.map((option) => (
           <div
             key={option.optionId}
-            className="flex items-center space-x-2 rounded-lg border p-4 hover:bg-accent w-full"
+            className="flex items-center space-x-2 rounded-lg border p-4  w-full"
           >
             <Checkbox
               id={option.optionId}

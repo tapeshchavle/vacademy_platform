@@ -36,9 +36,6 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
     assessmentDuration,
   } = assessment;
 
-  // const handleJoinAssessment = () => {
-  //   navigate({ to: `/assessment/examination/${assessmentId}` });
-  // };
   const handleJoinAssessment = () => {
     navigate({ to: `/assessment/examination/${assessmentId}` });
 };
