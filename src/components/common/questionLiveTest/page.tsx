@@ -25,7 +25,7 @@ export const dummyAssessment = {
   assessmentInstruction: `1. Attempt All Questions: Answer all questions. Ensure accuracy and completeness in each response.`,
   assessmentPreview: {
     checked: true,
-    Duration: "00:30",
+    Duration: "40:30",
   },
   canSwitchSections: true,
   sections: [

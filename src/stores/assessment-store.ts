@@ -464,8 +464,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
           questionTimers,
           entireTestTimer,
           sectionTimers,
-          tabSwitchCount: jsonApiResponse.otherDetails.tabSwitchCount,
-          announcements: jsonApiResponse.otherDetails.announcements,
         }
       })
     }

@@ -29,13 +29,15 @@ export function Navbar() {
     sectionTimers,
     submitAssessment,
     updateEntireTestTimer,
+    tabSwitchCount,
+    incrementTabSwitchCount,
+    entireTestTimer,
   } = useAssessmentStore();
-  
+
   const navigate = useNavigate();
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showTimesUpModal, setShowTimesUpModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
-  const [warningCount, setWarningCount] = useState(0);
   interface HelpType {
     type: "instructions" | "alerts" | "reattempt" | "time" | null;
   }
@@ -53,7 +55,8 @@ export function Navbar() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        setWarningCount((prev) => prev + 1);
+        // setWarningCount((prev) => prev + 1);
+        incrementTabSwitchCount();
         setShowWarningModal(true);
       }
     };
@@ -70,7 +73,7 @@ export function Navbar() {
   useEffect(() => {
     const updateEntireTimeLeft = () => {
       const { entireTestTimer } = useAssessmentStore.getState();
-      setEntireTimeLeft(formatTime(entireTestTimer));
+      setEntireTimeLeft(entireTestTimer);
     };
 
     updateEntireTimeLeft();
@@ -108,7 +111,7 @@ export function Navbar() {
 
   const handleWarningClose = () => {
     setShowWarningModal(false);
-    if (warningCount >= 3) {
+    if (tabSwitchCount >= 3) {
       handleSubmit();
     }
   };
@@ -171,7 +174,7 @@ export function Navbar() {
         <AlertDialogContent>
           <AlertDialogDescription>
             Warning: You are attempting to leave the test environment. This is
-            warning {warningCount} of 3. If you attempt to leave again, your
+            warning {tabSwitchCount} of 3. If you attempt to leave again, your
             test will be automatically submitted.
           </AlertDialogDescription>
           <AlertDialogAction onClick={handleWarningClose}>
