@@ -1,9 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UpcomingAssessment } from "../-utils.ts/dummyData";
+// import { UpcomingAssessment } from "../-utils.ts/dummyData";
 import { assessmentTypes } from "@/types/assessment";
 
-const ScheduleTestTabList = ({ selectedTab }: { selectedTab: string }) => {
+const ScheduleTestTabList = ({
+  selectedTab,
+  totalAssessments,
+}: {
+  selectedTab: string;
+  totalAssessments: number;
+}) => {
   return (
     <TabsList className="inline-flex h-auto justify-start gap-4 rounded-none border-b !bg-transparent p-0">
       <TabsTrigger
@@ -23,7 +29,7 @@ const ScheduleTestTabList = ({ selectedTab }: { selectedTab: string }) => {
           className="rounded-[10px] bg-primary-500 p-0 px-2 text-[9px] text-white"
           variant="outline"
         >
-          {8}
+          {totalAssessments}
         </Badge>
       </TabsTrigger>
       <TabsTrigger
@@ -43,7 +49,7 @@ const ScheduleTestTabList = ({ selectedTab }: { selectedTab: string }) => {
           className="rounded-[10px] bg-primary-500 p-0 px-2 text-[9px] text-white"
           variant="outline"
         >
-          {UpcomingAssessment.length}
+          {totalAssessments}
         </Badge>
       </TabsTrigger>
       <TabsTrigger
@@ -63,7 +69,7 @@ const ScheduleTestTabList = ({ selectedTab }: { selectedTab: string }) => {
           className="rounded-[10px] bg-primary-500 p-0 px-2 text-[9px] text-white"
           variant="outline"
         >
-          {UpcomingAssessment.length}
+          {totalAssessments}
         </Badge>
       </TabsTrigger>
     </TabsList>

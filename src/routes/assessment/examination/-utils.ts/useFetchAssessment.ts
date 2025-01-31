@@ -1,8 +1,9 @@
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { toast } from "sonner";
-import { Assessment_List_Filter } from "@/constants/urls";
+import { Assessment_List_Filter, ASSESSMENT_PREVIEW } from "@/constants/urls";
 import { Preferences } from "@capacitor/preferences";
-import {assessmentTypes}  from '@/types/assessment'
+import { assessmentTypes } from "@/types/assessment";
+import { Storage } from "@capacitor/storage";
 
 const getStoredDetails = async () => {
   const studentData = await Preferences.get({ key: "StudentDetails" });
@@ -55,6 +56,73 @@ export const fetchAssessmentData = async (
   } catch (error) {
     console.error("Error fetching assessments:", error);
     // toast.error("Failed to fetch assessments.");
+  } finally {
+    // setLoading(false);
+  }
+};
+
+export const fetchPreviewData = async (assessment_id: string) => {
+  try {
+    const { student, institute } = await getStoredDetails();
+    if (!student || !institute) {
+      toast.error("Missing student or institute details.");
+      return;
+    }
+    const getStudentDetails = async () => {
+      const storedData = await Storage.get({ key: "StudentDetails" });
+
+      if (storedData.value) {
+        try {
+          const parsedData = await JSON.parse(storedData.value);
+          console.log(parsedData);
+          console.log(parsedData.package_session_id);
+          return parsedData;
+        } catch (error) {
+          return "";
+        }
+      }
+    };
+    const getInstituteId = async () => {
+      const institute_id_value = await Storage.get({ key: "InstituteId" });
+
+      if (institute_id_value.value) {
+        return institute_id_value.value;
+      }
+    };
+
+    const institute_id = await getInstituteId();
+    console.log(institute_id);
+    const student_details = await getStudentDetails();
+    console.log(student_details);
+    const requestBody = {
+      username: student_details.username,
+      user_id: student_details.user_id,
+      email: student_details.email,
+      full_name: student_details.full_name,
+      mobile_number: student_details.mobile_number,
+      file_id: null,
+      guardian_email: student_details.parents_email,
+      guardian_mobile_number: student_details.parents_mobile_number,
+      reattempt_count: 3,
+    };
+
+    const response = await authenticatedAxiosInstance.post(
+      `${ASSESSMENT_PREVIEW}`,
+      requestBody,
+      {
+        params: {
+          batch_ids: student_details.package_session_id,
+          instituteId: institute_id,
+          assessment_id: assessment_id,
+        },
+      }
+    );
+    console.log(response);
+    await Storage.set({ key: "Assessment_questions", value: JSON.stringify(response.data) });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching assessments:", error);
+    toast.error("Failed to fetch assessments.");
   } finally {
     // setLoading(false);
   }
