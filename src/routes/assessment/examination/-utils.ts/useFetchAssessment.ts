@@ -1,6 +1,10 @@
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { toast } from "sonner";
-import { Assessment_List_Filter, ASSESSMENT_PREVIEW } from "@/constants/urls";
+import {
+  Assessment_List_Filter,
+  ASSESSMENT_PREVIEW,
+  START_ASSESSMENT,
+} from "@/constants/urls";
 import { Preferences } from "@capacitor/preferences";
 import { assessmentTypes } from "@/types/assessment";
 import { Storage } from "@capacitor/storage";
@@ -15,6 +19,28 @@ const getStoredDetails = async () => {
     : null;
 
   return { student, institute };
+};
+
+const getStartAssessmentDetails = async () => {
+  const InstructionID_and_AboutID = await Preferences.get({
+    key: "InstructionID_and_AboutID",
+  });
+  const assessment_questions = await Preferences.get({
+    key: "Assessment_questions",
+  });
+
+  const assessment = InstructionID_and_AboutID.value
+    ? JSON.parse(InstructionID_and_AboutID.value)
+    : null;
+  const questions = assessment_questions.value
+    ? JSON.parse(assessment_questions.value)
+    : null;
+
+  return {
+    assessment_id: assessment.assessment_id,
+    user_id: questions.assessment_user_registration_id,
+    attempt_id: questions.attempt_id,
+  };
 };
 
 export const fetchAssessmentData = async (
@@ -118,11 +144,41 @@ export const fetchPreviewData = async (assessment_id: string) => {
       }
     );
     console.log(response);
-    await Storage.set({ key: "Assessment_questions", value: JSON.stringify(response.data) });
+    await Storage.set({
+      key: "Assessment_questions",
+      value: JSON.stringify(response.data),
+    });
     return response.data;
   } catch (error) {
     console.error("Error fetching assessments:", error);
     toast.error("Failed to fetch assessments.");
+  } finally {
+    // setLoading(false);
+  }
+};
+
+export const startAssessment = async () => {
+  try {
+    const { assessment_id, user_id, attempt_id } = await getStartAssessmentDetails();
+
+    const requestBody = {
+      assessment_id: assessment_id,
+      user_registration_id: user_id,
+      attempt_id: attempt_id,
+    };
+
+    const response = await authenticatedAxiosInstance.post(
+      `${START_ASSESSMENT}`,
+      requestBody
+    );
+    await Storage.set({
+      key: "server_start_end_time",
+      value: JSON.stringify(response.data),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching assessments:", error);
+    // toast.error("Failed to fetch assessments.");
   } finally {
     // setLoading(false);
   }

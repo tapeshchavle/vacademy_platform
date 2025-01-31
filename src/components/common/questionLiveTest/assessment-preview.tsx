@@ -1,14 +1,23 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
+// import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 import { MyButton } from "@/components/design-system/button";
 import { dummyAssessment } from "./page";
+import { useRouter } from "@tanstack/react-router";
+import {startAssessment} from '@/routes/assessment/examination/-utils.ts/useFetchAssessment'
 
 export function AssessmentPreview() {
+  const router = useRouter();
+  const currentPath = router.state.location.pathname; 
+
+  const newPath = currentPath.replace(/\/[^/]+$/, "/LearnerLiveTest");
+
+  // Navigate to the new path
+  
   const { assessment } = useAssessmentStore();
   const { setAssessment } = useAssessmentStore();
   const [activeSection, setActiveSection] = useState(0);
@@ -25,9 +34,7 @@ export function AssessmentPreview() {
 
   useEffect(() => {
     if (timeLeft <= 0) {
-      navigate({
-        to: "/assessment/examination/$assessmentId/LearnerLiveTest/",
-      });
+      router.navigate({ to: newPath });
       return;
     }
 
@@ -45,7 +52,11 @@ export function AssessmentPreview() {
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
-
+  const handleStartAssessment = async()=>{
+    const data = await startAssessment()
+    console.log(data)
+    router.navigate({ to: newPath });
+  }
   return (
     <div className="flex flex-col w-full bg-gray-50">
       {/* Navbar with Timer */}
@@ -136,9 +147,7 @@ export function AssessmentPreview() {
           
           <MyButton
             onClick={() =>
-              navigate({
-                to: "/assessment/examination/$assessmentId/LearnerLiveTest/",
-              })
+              handleStartAssessment()
             }
             buttonType="primary"
             scale="large"
