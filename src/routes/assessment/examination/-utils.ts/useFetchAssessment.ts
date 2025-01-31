@@ -6,7 +6,13 @@ import {
   START_ASSESSMENT,
 } from "@/constants/urls";
 import { Preferences } from "@capacitor/preferences";
-import { assessmentTypes } from "@/types/assessment";
+import {
+  assessmentTypes,
+  AssessmentPreviewData,
+//   Section_dto,
+//   Question_dto,
+  Section,
+} from "@/types/assessment";
 import { Storage } from "@capacitor/storage";
 
 const getStoredDetails = async () => {
@@ -41,6 +47,30 @@ const getStartAssessmentDetails = async () => {
     user_id: questions.assessment_user_registration_id,
     attempt_id: questions.attempt_id,
   };
+};
+
+const transformData = (data: AssessmentPreviewData) => {
+    const sectionMap: Section[] = [];
+
+    // Initialize sections
+    data.section_dtos.forEach((section) => {
+      sectionMap.push({...section , questions : []});
+    });
+
+    // Group questions by section_id
+    data.question_preview_dto_list.forEach((question) => {
+      const section = sectionMap.find((sec) => sec.id === question.section_id);
+      if (section) {
+        section.questions.push(question);
+      }
+    });
+
+    return {
+      preview_total_time: data.preview_total_time,
+      sections: Object.values(sectionMap),
+      attempt_id: data.attempt_id,
+      assessment_user_registration_id: data.assessment_user_registration_id,
+    };
 };
 
 export const fetchAssessmentData = async (
@@ -144,9 +174,11 @@ export const fetchPreviewData = async (assessment_id: string) => {
       }
     );
     console.log(response);
+    const transfomredData = transformData(response.data);
+    console.log(transfomredData)
     await Storage.set({
       key: "Assessment_questions",
-      value: JSON.stringify(response.data),
+      value: JSON.stringify(transfomredData),
     });
     return response.data;
   } catch (error) {

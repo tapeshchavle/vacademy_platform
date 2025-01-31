@@ -12,23 +12,115 @@ export interface Question {
   options: Option[];
 }
 
-export interface Section {
-  assesmentDuration: string;
-  subject: string;
-  sectionDesc: string;
-  sectionDuration: string;
-  negativeMarking: {
-    checked: boolean;
-    value: string;
+export interface Question_dto {
+  question_id: string;
+  parent_rich_text: string | null;
+  question: {
+    id: string;
+    type: string;
+    content: string;
   };
-  partialMarking: boolean;
-  cutoffMarking: {
-    checked: boolean;
-    value: string;
+  section_id: string;
+  question_duration: number;
+  question_order: number;
+  marking_json: {
+    type: string;
+    data: {
+      totalMark: string;
+      negativeMark: string;
+      negativeMarkingPercentage: number;
+      partialMarking: number;
+      partialMarkingPercentage: number;
+    };
   };
-  totalMark: string;
-  questions: Question[];
+  evaluation_json: {
+    type: string;
+    data: {
+      correctOptionIds: string[];
+    };
+  };
+  question_type: string;
+  options: Option_dto[];
 }
+
+interface Option_dto {
+  id: string;
+  preview_id: string | null;
+  question_id: string;
+  text: {
+    id: string;
+    type: string;
+    content: string;
+  };
+  media_id: string | null;
+  option_order: number | null;
+  created_on: string;
+  updated_on: string;
+}
+
+export interface Section_dto {
+  id: string;
+  name: string;
+  description: {
+    id: string;
+    type: string;
+    content: string;
+  };
+  section_type: string | null;
+  duration: number | null;
+  total_marks: number;
+  cutoff_marks: number;
+  section_order: number;
+  problem_randomization: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+export interface Section {
+  id: string;
+  name: string;
+  description: {
+    id: string;
+    type: string;
+    content: string;
+  };
+  section_type: string | null;
+  duration: number | null;
+  total_marks: number;
+  cutoff_marks: number;
+  section_order: number;
+  problem_randomization: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  questions:Question_dto[];
+}
+
+export interface AssessmentPreviewData {
+  preview_total_time: number;
+  question_preview_dto_list: Question_dto[];
+  section_dtos:Section_dto[]
+  attempt_id: string;
+  assessment_user_registration_id: string;
+}
+
+// export interface Section {
+//   assesmentDuration: string;
+//   subject: string;
+//   sectionDesc: string;
+//   sectionDuration: string;
+//   negativeMarking: {
+//     checked: boolean;
+//     value: string;
+//   };
+//   partialMarking: boolean;
+//   cutoffMarking: {
+//     checked: boolean;
+//     value: string;
+//   };
+//   totalMark: string;
+//   questions: Question[];
+// }
 
 export type Assessment = {
   assessment_id: string;
