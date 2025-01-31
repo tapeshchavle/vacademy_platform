@@ -14,6 +14,7 @@ import {
   AlertDialogOverlay,
 } from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
+import { Storage } from "@capacitor/storage";
 
 interface AssessmentProps {
   assessmentInfo: Assessment;
@@ -46,7 +47,11 @@ export const AssessmentCard = ({
     }
   }
 
-  const handleJoinAssessment = () => {
+  const handleJoinAssessment = async () => {
+    await Storage.set({
+      key: "InstructionID_and_AboutID",
+      value: JSON.stringify(assessmentInfo),
+    });
     navigate({ to: `/assessment/examination/${assessmentInfo.assessment_id}` });
   };
 
