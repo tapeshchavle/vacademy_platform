@@ -30,20 +30,33 @@ export interface Section {
   questions: Question[];
 }
 
-export interface Assessment {
-  assessmentId: string;
-  title: string;
-  mode: string;
+export type Assessment = {
+  assessment_id: string;
+  name: string;
+  about_id: string | null;
+  instruction_id: string;
+  play_mode: string;
+  evaluation_type: string;
+  submission_type: string;
+  duration: number;
+  assessment_visibility: string;
   status: string;
-  startDate: string;
-  endDate: string;
-  assessmentDuration: string;
-  subject: string;
-  assessmentInstruction: string;
-  assessmentPreview: string;
-  canSwitchSections: boolean;
-  sections: Section[];
-}
+  registration_close_date: string | null;
+  registration_open_date: string | null;
+  expected_participants: number | null;
+  cover_file_id: string | null;
+  bound_start_time: string;
+  bound_end_time: string;
+  created_at: string;
+  updated_at: string;
+  recent_attempt_status: string | null;
+  recent_attempt_start_date: string | null;
+  assessment_attempts: number;
+  user_attempts: number | null;
+  preview_time: number;
+  last_attempt_id: string | null;
+  assessment_user_registration_id: string | null;
+};
 
 export interface QuestionState {
   isAnswered: boolean;
@@ -51,3 +64,8 @@ export interface QuestionState {
   isMarkedForReview: boolean;
 }
 
+export enum assessmentTypes {
+  LIVE = "LIVE",
+  UPCOMING = "UPCOMING",
+  PAST = "PAST",
+}
