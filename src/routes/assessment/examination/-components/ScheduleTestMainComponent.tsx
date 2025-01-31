@@ -26,6 +26,9 @@ export const ScheduleTestMainComponent = () => {
   const [totalLivePage, setTotalLivePage] = useState(0);
   const [totalUpcomingPage, setTotalUpcomingPage] = useState(0);
   const [totalPastPage, setTotalPastPage] = useState(0);
+  const [totalLiveAssessment, setTotalLiveAssessment] = useState(0);
+  const [totalUpcomingAssessment, setTotalUpcomingAssessment] = useState(0);
+  const [totalPastAssessment, setTotalPastAssessment] = useState(0);
   const [UpcomingAssessmentList, setUpcomingAssessmentList] = useState<
     Assessment[]
   >([]);
@@ -78,6 +81,7 @@ export const ScheduleTestMainComponent = () => {
         .then((data) => {
           setLiveAssessmentList(data?.content);
           setTotalLivePage(data?.total_pages);
+          setTotalLiveAssessment(data?.total_elements);
           setLoading(false);
         })
         .catch((error) => {
@@ -101,6 +105,7 @@ export const ScheduleTestMainComponent = () => {
         .then((data) => {
           setUpcomingAssessmentList(data?.content);
           setTotalUpcomingPage(data?.total_pages);
+          setTotalUpcomingAssessment(data?.total_elements);
           setLoading(false);
         })
         .catch((error) => {
@@ -122,6 +127,7 @@ export const ScheduleTestMainComponent = () => {
           console.log(data?.content);
           setPastAssessmentList(data?.content);
           setTotalPastPage(data?.total_pages);
+          setTotalPastAssessment(data?.total_elements);
           setLoading(false);
         })
         .catch((error) => {
@@ -135,13 +141,30 @@ export const ScheduleTestMainComponent = () => {
     };
   }, [currentPastPage]);
 
+  const totalAssessments = () => {
+    switch (selectedTab) {
+      case assessmentTypes.LIVE:
+        return totalLiveAssessment;
+        break;
+        case assessmentTypes.UPCOMING:
+          return totalUpcomingAssessment;
+        break;
+      case assessmentTypes.PAST:
+        return totalPastAssessment;
+        break;
+    }
+  };
+
   return (
     <>
       <div className="items-center gap-4 min-h-full">
         <Tabs value={selectedTab} onValueChange={handleTabChange}>
           <div className="items-center justify-center gap-5 pb-5">
             <div className="flex flex-wrap gap-5 pb-5">
-              <ScheduleTestTabList selectedTab={selectedTab} />
+              <ScheduleTestTabList
+                selectedTab={selectedTab}
+                totalAssessments={totalAssessments()}
+              />
             </div>
           </div>
           <TabsContent
