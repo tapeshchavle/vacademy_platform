@@ -21,8 +21,8 @@ export function Footer({ onToggleSidebar }: FooterProps) {
 
   if (!assessment) return null
 
-  const currentSectionQuestions = assessment.sections[currentSection].questions
-  const currentIndex = currentSectionQuestions.findIndex(q => q.questionId === currentQuestion?.questionId)
+  const currentSectionQuestions = assessment.section_dtos[currentSection].question_preview_dto_list
+  const currentIndex = currentSectionQuestions.findIndex(q => q.question_id === currentQuestion?.question_id)
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0
 
   const handlePrevQuestion = () => {
@@ -37,9 +37,14 @@ export function Footer({ onToggleSidebar }: FooterProps) {
     } else {
       // If this is the last question of the section, move to next section if available
       const nextSection = currentSection + 1
-      if (nextSection < assessment.sections.length && !sectionTimers[nextSection]?.timeLeft === 0) {
-        setCurrentSection(nextSection)
-        setCurrentQuestion(assessment.sections[nextSection].questions[0])
+      if (
+        nextSection < assessment.section_dtos.length &&
+        (sectionTimers[nextSection]?.timeLeft ?? -1) !== 0
+      ) {
+        setCurrentSection(nextSection);
+        setCurrentQuestion(
+          assessment.section_dtos[nextSection].question_preview_dto_list[0]
+        );
       }
     }
   }
@@ -72,7 +77,7 @@ export function Footer({ onToggleSidebar }: FooterProps) {
           onClick={handleNextQuestion}
           disabled={
             (currentIndex === currentSectionQuestions.length - 1 && 
-             currentSection === assessment.sections.length - 1) || 
+             currentSection === assessment.section_dtos.length - 1) || 
             isTimeUp
           }
         >

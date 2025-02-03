@@ -1,4 +1,4 @@
-import Image from "next/image";
+// import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,7 +6,11 @@ import { Flag, X, AlertCircle } from "lucide-react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import {
+  distribution_duration_types,
+  QUESTION_TYPES,
+} from "@/types/assessment";
 
 export function QuestionDisplay() {
   const {
@@ -25,28 +29,28 @@ export function QuestionDisplay() {
   } = useAssessmentStore();
 
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
+  console.log(currentQuestion);
 
   useEffect(() => {
-    if (!currentQuestion || !assessment?.testDuration.questionWiseDuration)
+    if (
+      !currentQuestion ||
+      assessment?.distribution_duration !== distribution_duration_types.QUESTION
+    )
       return;
 
     const timer = setInterval(() => {
-      const timeLeft = questionTimers[currentQuestion.questionId];
+      const timeLeft = questionTimers[currentQuestion.question_id];
       if (timeLeft > 0) {
-        updateQuestionTimer(currentQuestion.questionId, timeLeft - 1000);
+        // console.log('here')
+        updateQuestionTimer(currentQuestion.question_id, timeLeft - 1000);
       } else {
+        // console.log('next question')
         moveToNextQuestion();
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [
-    currentQuestion,
-    assessment,
-    questionTimers,
-    updateQuestionTimer,
-    moveToNextQuestion,
-  ]);
+  }, [currentQuestion?.question_id]);
 
   if (!currentQuestion) {
     return (
@@ -72,24 +76,33 @@ export function QuestionDisplay() {
     );
   }
 
-  const currentAnswer = answers[currentQuestion.questionId] || [];
+  const currentAnswer = answers[currentQuestion.question_id] || [];
   const isMarkedForReview =
-    questionStates[currentQuestion.questionId]?.isMarkedForReview;
+    questionStates[currentQuestion.question_id]?.isMarkedForReview;
   const isDisabled =
-    questionStates[currentQuestion.questionId]?.isDisabled ||
-    questionTimers[currentQuestion.questionId] === 0;
+    questionStates[currentQuestion.question_id]?.isDisabled ||
+    questionTimers[currentQuestion.question_id] === 0;
 
   const handleAnswerChange = (optionId: string) => {
     if (isDisabled) return;
 
     const newAnswer =
-      currentQuestion.questionType === "MCQ (Multiple Correct)"
+      currentQuestion.question_type === QUESTION_TYPES.MCQM
         ? currentAnswer.includes(optionId)
           ? currentAnswer.filter((id) => id !== optionId)
           : [...currentAnswer, optionId]
         : [optionId];
 
-    setAnswer(currentQuestion.questionId, newAnswer);
+    setAnswer(currentQuestion.question_id, newAnswer);
+  };
+  const calculateMarkingScheme = (marking_json: string) => {
+    try {
+      const marking_scheme = JSON.parse(marking_json);
+      return marking_scheme; // Ensure the JSON contains a number or string
+    } catch (error) {
+      console.error("Error parsing marking_json:", error);
+      return 0; // Default value in case of an error
+    }
   };
 
   const formatTime = (ms: number) => {
@@ -108,24 +121,25 @@ export function QuestionDisplay() {
           <div className="flex items-baseline gap-5 sm:mb-2">
             <div className="flex items-baseline gap-8">
               <span className="text-lg text-gray-700">
-                Question {currentQuestion.questionId.slice(1)}
+                Question {currentQuestion.question_id.slice(1)}
               </span>
               <span className="text-base text-gray-600">
-                {currentQuestion.questionMark} Marks
+                {calculateMarkingScheme(currentQuestion.marking_json).totalMark} Marks
               </span>
             </div>
 
             <div className="flex items-center gap-2">
-              {assessment?.testDuration.questionWiseDuration && (
+              {assessment?.distribution_duration ===
+                distribution_duration_types.QUESTION && (
                 <span className="text-base text-orange-500">
-                  {formatTime(questionTimers[currentQuestion.questionId])}
+                  {formatTime(questionTimers[currentQuestion.question_id])}
                 </span>
               )}
             </div>
           </div>
 
           <p className="text-lg text-gray-800">
-            {currentQuestion.questionName}
+            {currentQuestion.question.content}
           </p>
         </div>
         <div className="flex gap-2 mt-4 md:mt-4 sm:mt-0 w-full sm:w-auto justify-between">
@@ -133,7 +147,7 @@ export function QuestionDisplay() {
             variant="outline"
             size="sm"
             className={isMarkedForReview ? "text-orange-500" : ""}
-            onClick={() => markForReview(currentQuestion.questionId)}
+            onClick={() => markForReview(currentQuestion.question_id)}
             disabled={isDisabled}
           >
             <Flag className="mr-2 h-4 w-4" />
@@ -142,7 +156,7 @@ export function QuestionDisplay() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => clearResponse(currentQuestion.questionId)}
+            onClick={() => clearResponse(currentQuestion.question_id)}
             disabled={currentAnswer.length === 0 || isDisabled}
           >
             <X className="mr-2 h-4 w-4" />
@@ -151,35 +165,35 @@ export function QuestionDisplay() {
         </div>
       </div>
 
-      {currentQuestion.imageDetails &&
+      {/* {currentQuestion.imageDetails &&
         currentQuestion.imageDetails.length > 0 && (
           <div className="relative h-64 w-full mt-4">
-            {/* <Image
+            <Image
             src="/placeholder.svg"
             alt="Question diagram"
             fill
             className="object-contain"
-          /> */}
+          />
           </div>
-        )}
+        )} */}
 
       <div className="space-y-4">
         {currentQuestion.options.map((option) => (
           <div
-            key={option.optionId}
+            key={option.id}
             className="flex items-center space-x-2 rounded-lg border p-4  w-full"
           >
             <Checkbox
-              id={option.optionId}
-              checked={currentAnswer.includes(option.optionId)}
-              onCheckedChange={() => handleAnswerChange(option.optionId)}
+              id={option.id}
+              checked={currentAnswer.includes(option.id)}
+              onCheckedChange={() => handleAnswerChange(option.id)}
               disabled={isDisabled}
             />
             <Label
-              htmlFor={option.optionId}
+              htmlFor={option.id}
               className="flex-grow cursor-pointer"
             >
-              {option.optionName}
+              {option.text.content}
             </Label>
           </div>
         ))}
