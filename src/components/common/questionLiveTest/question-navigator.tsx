@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { ViewToggle } from "./view-toggle";
 import { QuestionListView } from "./question-list-view";
+import { QuestionDto , QuestionState} from "@/types/assessment";
 
 interface QuestionNavigatorProps {
   onClose: () => void;
@@ -26,11 +27,11 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
 
   if (!assessment) return null;
 
-  const currentSectionQuestions = assessment.sections[currentSection].questions;
+  const currentSectionQuestions = assessment.section_dtos[currentSection].question_preview_dto_list;
 
-  const handleQuestionClick = (question: Question) => {
+  const handleQuestionClick = (question: QuestionDto) => {
     setCurrentQuestion(question);
-    setQuestionState(question.questionId, { isVisited: true });
+    setQuestionState(question.question_id, { isVisited: true });
     onClose();
   };
 
@@ -51,7 +52,7 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
     };
 
     currentSectionQuestions.forEach((question) => {
-      const state = questionStates[question.questionId];
+      const state = questionStates[question.question_id];
       if (state) {
         if (state.isAnswered && state.isMarkedForReview) {
           counts["Answered & Marked for review"]++;
@@ -116,11 +117,11 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
         {view === "grid" ? (
           <div className="grid grid-cols-5 gap-2 p-1 px-4">
             {currentSectionQuestions.map((question, index) => {
-              const state = questionStates[question.questionId];
+              const state = questionStates[question.question_id];
               const isActive =
-                currentQuestion?.questionId === question.questionId;
+                currentQuestion?.question_id === question.question_id;
               return (
-                <div key={question.questionId} className="relative">
+                <div key={question.question_id} className="relative">
                   <Button
                     variant="outline"
                     size="sm"
@@ -141,7 +142,8 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
             })}
           </div>
         ) : (
-          <QuestionListView onQuestionClick={handleQuestionClick} />
+          // <QuestionListView onQuestionClick={handleQuestionClick} />
+          <QuestionListView />
         )}
       </ScrollArea>
     </div>

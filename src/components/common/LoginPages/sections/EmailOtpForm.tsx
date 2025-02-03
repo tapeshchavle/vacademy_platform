@@ -76,6 +76,47 @@ export function EmailLogin({
       axios.post(LOGIN_OTP, data),
     onSuccess: async (response) => {
       // handleUserAuthentication(response.data);
+      // try {
+      //   // Store tokens in Capacitor Storage
+      //   await setTokenInStorage(
+      //     TokenKey.accessToken,
+      //     response.data.accessToken
+      //   );
+      //   await setTokenInStorage(
+      //     TokenKey.refreshToken,
+      //     response.data.refreshToken
+      //   );
+
+      //   const decodedData = await getTokenDecodedData(
+      //     response.data.accessToken
+      //   );
+      //   const authorities = decodedData.authorities;
+      //   const userId = decodedData.user;
+      //   const authorityKeys = authorities ? Object.keys(authorities) : [];
+
+      //   if (authorityKeys.length > 1) {
+      //     navigate({ to: "/institute-selection" });
+      //   } else {
+      //     const instituteId = authorityKeys[0];
+      //     try {
+      //     await fetchAndStoreInstituteDetails(instituteId, userId);
+      //     } catch (error) {
+      //       console.error("Error fetching institute details:", error);
+      //     }
+
+      //     try {
+      //       await fetchAndStoreStudentDetails(instituteId, userId);
+      //     } catch (error) {
+      //       console.error("Failed to fetch student details:", error);
+      //       toast.error("Failed to fetch student details");
+      //     }
+
+      //     navigate({ to: "/dashboard" });
+      //   }
+      // } catch (error) {
+      //   console.error("Error processing decoded data:", error);
+      // }
+
       try {
         // Store tokens in Capacitor Storage
         await setTokenInStorage(
@@ -87,30 +128,44 @@ export function EmailLogin({
           response.data.refreshToken
         );
 
-        const decodedData = await getTokenDecodedData(
-          response.data.accessToken
-        );
-        const authorities = decodedData.authorities;
-        const userId = decodedData.user;
+        // Decode token to get user data
+        const decodedData = await getTokenDecodedData(response.data.accessToken);
+
+        // Check authorities in decoded data
+        const authorities = decodedData?.authorities;
+        const userId = decodedData?.user;
         const authorityKeys = authorities ? Object.keys(authorities) : [];
 
         if (authorityKeys.length > 1) {
+          // Redirect to InstituteSelection if multiple authorities are found
           navigate({ to: "/institute-selection" });
         } else {
-          const instituteId = authorityKeys[0];
-          try {
-          await fetchAndStoreInstituteDetails(instituteId, userId);
-          } catch (error) {
-            console.error("Error fetching institute details:", error);
+          // Get the single institute ID
+          const instituteId = authorities
+            ? Object.keys(authorities)[0]
+            : undefined;
+
+          if (instituteId && userId) {
+            try {
+              await fetchAndStoreInstituteDetails(instituteId, userId);
+            } catch (error) {
+              console.error("Error fetching institute details:", error);
+            }
+          } else {
+            console.error("Institute ID or User ID is undefined");
           }
 
           try {
-            await fetchAndStoreStudentDetails(instituteId, userId);
+            if (instituteId && userId) {
+              await fetchAndStoreStudentDetails(instituteId, userId);
+            } else {
+              console.error("Institute ID or User ID is undefined");
+            }
           } catch (error) {
             console.error("Failed to fetch student details:", error);
             toast.error("Failed to fetch student details");
           }
-
+          // Navigate after successful fetch
           navigate({ to: "/dashboard" });
         }
       } catch (error) {
@@ -131,7 +186,7 @@ export function EmailLogin({
     sendOtpMutation.mutate(data.email);
   };
 
-  const onOtpSubmit = (data: OtpFormValues) => {
+  const onOtpSubmit = () => {
     const otpArray = otpForm.getValues().otp;
     if (otpArray.every((val) => val !== "")) {
       verifyOtpMutation.mutate({

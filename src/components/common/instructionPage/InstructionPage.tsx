@@ -1,9 +1,9 @@
-import React from "react";
-import { AssessmentInstructions } from "@/components/common/instructionPage/AssessmentInstructions";
-import { SectionDetails } from "@/components/common/instructionPage/SectionDetails";
+// import React from "react";
+// import { AssessmentInstructions } from "@/components/common/instructionPage/AssessmentInstructions";
+// import { SectionDetails } from "@/components/common/instructionPage/SectionDetails";
 import AssessmentStartModal from "./StartAssessment";
-import Navbar from "@/components/common/instructionPage/AssessmentNavbar";
-import { Separator } from "@/components/ui/separator";
+// import Navbar from "@/components/common/instructionPage/AssessmentNavbar";
+// import { Separator } from "@/components/ui/separator";
 
 // Export interfaces so they can be imported by other components
 export interface Section {
@@ -45,34 +45,32 @@ export interface InstructionPageProps {
   assessment: Assessment;
 }
 
-const InstructionPage: React.FC<InstructionPageProps> = ({
-  assessment,
-}: InstructionPageProps) => {
+const InstructionPage = () => {
   // Validate required props
-  if (!assessment || !assessment.sections) {
-    return <div>Error: Assessment data is missing</div>;
-  }
+  // if (!assessment || !assessment.sections) {
+  //   return <div>Error: Assessment data is missing</div>;
+  // }
 
   return (
     <div className="min-h-screen relative">
       <div className="fixed top-0 w-full z-50">
-        <Navbar title={assessment.title} />
+        {/* <Navbar title={assessment.title} /> */}
       </div>
       
       <main className="pt-24 pb-16 p-4 lg:p-8 lg:pt-24 lg:pb-16">
-        <AssessmentInstructions
+        {/* <AssessmentInstructions
           instructions={assessment.assessmentInstruction}
           duration={assessment.assessmentDuration}
           preview={assessment.assessmentPreview}
           canSwitchSections={assessment.canSwitchSections}
-        />
+        /> */}
         
-        {assessment.sections.map((section: Section) => (
+        {/* {assessment.section_dtos.map((section: Section) => (
           <div key={section.id} className="section-container">
             <Separator orientation="horizontal" className="my-4" />
             <SectionDetails section={section} />
           </div>
-        ))}
+        ))} */}
         
         <div className="fixed bottom-0 left-0 right-0 bg-white z-50">
           <div className="pb-4 px-4">

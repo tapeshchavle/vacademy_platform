@@ -82,14 +82,14 @@ export function Navbar() {
     return () => clearInterval(timer);
   }, []);
 
-  const formatTime = (timeInSeconds) => {
+  const formatTime = (timeInSeconds: number) => {
     // Calculate hours, minutes, and seconds directly from seconds
     const hours = Math.floor(timeInSeconds / 3600);
     const minutes = Math.floor((timeInSeconds % 3600) / 60);
     const seconds = timeInSeconds % 60;
 
     // Pad with zeros if needed
-    const padNumber = (num) => num.toString().padStart(2, "0");
+    const padNumber = (num: number) => num.toString().padStart(2, "0");
 
     return `${padNumber(hours)}:${padNumber(minutes)}:${padNumber(seconds)}`;
   };
@@ -120,7 +120,7 @@ export function Navbar() {
 
   return (
     <>
-      <div className="sticky top-0 z-50 flex bg-primary-50 h-16 items-center justify-between border-b bg-background px-4">
+      <div className="sticky top-0 z-50 flex bg-primary-50 h-16 items-center justify-between border-b px-4">
         <div className="flex items-center gap-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -145,7 +145,7 @@ export function Navbar() {
           </DropdownMenu>
         </div>
         <div className="">
-        {entireTestTimer && (
+          {entireTestTimer && (
             <div className="flex items-center gap-2 text-lg  justify-center">
               <div className="flex items-center space-x-1">
                 {formatTime(entireTestTimer)
@@ -156,9 +156,7 @@ export function Navbar() {
                         {time}
                       </span>
                       {index < array.length - 1 && (
-                        <span className="absolute right-[-4px] text-lg">
-                          :
-                        </span>
+                        <span className="absolute right-[-4px] text-lg">:</span>
                       )}
                     </div>
                   ))}
@@ -167,7 +165,6 @@ export function Navbar() {
           )}
         </div>
         <div className="flex items-center gap-4">
-          
           <MyButton
             type="submit"
             scale="medium"

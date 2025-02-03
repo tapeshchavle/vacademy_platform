@@ -22,7 +22,6 @@ export const PauseIcon = ({ className = '', size = 24 }) => {
 
 
 import React from 'react';
-import { Pause } from 'lucide-react';
 import { Check } from 'lucide-react';
 
 export type StatusMode = 'ONLINE' | 'OFFLINE';

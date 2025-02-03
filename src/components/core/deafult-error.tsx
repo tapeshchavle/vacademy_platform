@@ -1,4 +1,4 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { useRouter } from "@tanstack/react-router";
 import { Helmet } from "react-helmet";
 import { Button } from "../ui/button";
 
@@ -30,10 +30,10 @@ function RootErrorComponent() {
 
                     <div className="mt-8 flex justify-center gap-5 text-base-white">
                         <Button asChild variant="default" className="h-10 min-w-32">
-                            <Link>Return Home</Link>
+                            <div>Return Home</div>
                         </Button>
                         <Button asChild variant="default" className="h-10 min-w-32">
-                            <Link onClick={() => router.history.back()}>Go Back</Link>
+                            <div onClick={() => router.history.back()}>Go Back</div>
                         </Button>
                     </div>
                 </div>

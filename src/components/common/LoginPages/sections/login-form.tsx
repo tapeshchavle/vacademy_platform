@@ -4,8 +4,8 @@ import { SplashScreen } from "@/components/common/LoginPages/layout/splash-conta
 import { useAnimationStore } from "@/stores/login/animationStore";
 import { Heading } from "@/components/common/LoginPages/ui/heading";
 import { MyButton } from "@/components/design-system/button";
-import { loginSchema } from "@/schemas/login/login";
-import { z } from "zod";
+// import { loginSchema } from "@/schemas/login/login";
+// import { z } from "zod";
 import { TokenKey } from "@/constants/auth/tokens";
 import { useNavigate } from "@tanstack/react-router";
 import HeaderLogo from "../ui/header_logo";
@@ -16,7 +16,7 @@ import {
 } from "@/lib/auth/sessionUtility";
 import { EmailLogin } from "./EmailOtpForm";
 import { UsernameLogin } from "./UsernamePasswordForm";
-type FormValues = z.infer<typeof loginSchema>;
+// type FormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const { hasSeenAnimation, setHasSeenAnimation } = useAnimationStore();

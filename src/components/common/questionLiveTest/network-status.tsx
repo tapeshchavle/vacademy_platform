@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Network } from "@capacitor/network";
 import { Wifi, WifiOff } from "lucide-react";
+import type { PluginListenerHandle } from "@capacitor/core"; 
 
 const NetworkStatus = () => {
   const [isOnline, setIsOnline] = useState(true);
@@ -16,20 +17,30 @@ const NetworkStatus = () => {
 
     checkNetworkStatus();
 
-    const listener = Network.addListener("networkStatusChange", (status) => {
-      setIsOnline(status.connected);
-      setShowAlert(true);
-      
-      // Auto-hide the online notification after 5 seconds
-      if (status.connected) {
-        setTimeout(() => setShowAlert(false), 2000);
-      }
-    });
+    let listener: PluginListenerHandle | null = null; // Explicitly type the listener
+
+    const setupListener = async () => {
+      listener = await Network.addListener("networkStatusChange", (status) => {
+        setIsOnline(status.connected);
+        setShowAlert(true);
+
+        // Auto-hide the online notification after 2 seconds
+        if (status.connected) {
+          setTimeout(() => setShowAlert(false), 2000);
+        }
+      });
+    };
+
+    setupListener();
 
     return () => {
-      listener.remove();
+      if (listener) {
+        listener.remove();
+      }
     };
   }, []);
+
+  
 
   if (!showAlert) return null;
 

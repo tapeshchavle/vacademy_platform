@@ -255,6 +255,9 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.5
         version: 18.3.5(@types/react@18.3.18)
+      '@types/react-helmet':
+        specifier: ^6.1.11
+        version: 6.1.11
       '@types/react-i18next':
         specifier: ^8.1.0
         version: 8.1.0(i18next@24.2.2(typescript@5.6.3))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -1995,6 +1998,9 @@ packages:
     resolution: {integrity: sha512-P4t6saawp+b/dFrUr2cvkVsfvPguwsxtH6dNIYRllMsefqFzkZk5UIjzyDOv5g1dXIPdG4Sp1yCR4Z6RCUsG/Q==}
     peerDependencies:
       '@types/react': ^18.0.0
+
+  '@types/react-helmet@6.1.11':
+    resolution: {integrity: sha512-0QcdGLddTERotCXo3VFlUSWO3ztraw8nZ6e3zJSgG7apwV5xt+pJUS8ewPBqT4NYB1optGLprNQzFleIY84u/g==}
 
   '@types/react-i18next@8.1.0':
     resolution: {integrity: sha512-d4xhcjX5b3roNMObRNMfb1HinHQlQLPo8xlDj60dnHeeAw2bBymR2cy/l1giJpHzo/ZFgSvgVUvIWr4kCrenCg==}
@@ -5378,6 +5384,10 @@ snapshots:
       parchment: 1.1.4
 
   '@types/react-dom@18.3.5(@types/react@18.3.18)':
+    dependencies:
+      '@types/react': 18.3.18
+
+  '@types/react-helmet@6.1.11':
     dependencies:
       '@types/react': 18.3.18
 

@@ -181,7 +181,16 @@ const isTokenExpired = (token: string | null): boolean => {
 // Decode token data
 const getTokenDecodedData = (token: string | null): IAccessToken | undefined => {
     if (isNullOrEmptyOrUndefined(token)) {
-        return;
+        return {
+            user: "",
+            email: "",
+            is_root_user: false,
+            authorities: {},
+            username: "",
+            sub: "",
+            iat: 0,
+            exp: 0,
+        }
     }
     const tokenData: IAccessToken = jwtDecode(token);
     return tokenData;

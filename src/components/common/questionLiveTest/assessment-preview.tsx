@@ -3,44 +3,49 @@
 import { useState, useEffect } from "react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-// import { Button } from "@/components/ui/button";
 import { useNavigate } from "@tanstack/react-router";
 import { MyButton } from "@/components/design-system/button";
-import { dummyAssessment } from "./page";
 import { useRouter } from "@tanstack/react-router";
-import {startAssessment} from '@/routes/assessment/examination/-utils.ts/useFetchAssessment'
+import { startAssessment } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
 import { Storage } from "@capacitor/storage";
+import { AssessmentPreviewData } from "@/types/assessment";
 
 export function AssessmentPreview() {
   const router = useRouter();
-  const currentPath = router.state.location.pathname; 
+  const currentPath = router.state.location.pathname;
 
   const newPath = currentPath.replace(/\/[^/]+$/, "/LearnerLiveTest");
 
   // Navigate to the new path
-  
+
   const { assessment } = useAssessmentStore();
   const { setAssessment } = useAssessmentStore();
   const [activeSection, setActiveSection] = useState(0);
   const [timeLeft, setTimeLeft] = useState(() => {
-    const [minutes, seconds] =
-      dummyAssessment.assessmentPreview.Duration.split(":").map(Number);
-    return minutes * 60 + seconds;
+    return (assessment?.preview_total_time ? assessment.preview_total_time : 0) * 60 ;
   });
   const navigate = useNavigate();
 
-  useEffect( () => {
-
+  useEffect(() => {
     const setAssessmentData = async () => {
-    // setAssessment(dummyAssessment);
-    const { value } = await Storage.get({ key: "Assessment_questions" });
-    const parsedData = await JSON.parse(value);
-    setAssessment(parsedData);
-    }
-    setAssessmentData()
+      try {
+        const { value } = await Storage.get({ key: "Assessment_questions" });
 
-  });
+        if (!value) {
+          console.warn("No assessment data found in storage.");
+          return;
+        }
 
+        const parsedData: AssessmentPreviewData = JSON.parse(value);
+        console.log("Parsed Data:", parsedData);
+        setAssessment(parsedData);
+      } catch (error) {
+        console.error("Error parsing assessment data:", error);
+      }
+    };
+
+    setAssessmentData();
+  }, []);
   useEffect(() => {
     if (timeLeft <= 0) {
       router.navigate({ to: newPath });
@@ -56,22 +61,43 @@ export function AssessmentPreview() {
 
   if (!assessment) return null;
 
+  const calculateMarkingScheme = (marking_json: string) => {
+    try {
+      const marking_scheme = JSON.parse(marking_json);
+      return marking_scheme; // Ensure the JSON contains a number or string
+    } catch (error) {
+      console.error("Error parsing marking_json:", error);
+      return 0; // Default value in case of an error
+    }
+  };
+
+  const QuestionContent = ({ content }: { content: string }) => {
+    return <div dangerouslySetInnerHTML={{ __html: content }} />;
+  };
+//  function parseHtmlToString(html: string) {
+//     const doc = new DOMParser().parseFromString(html, "text/html");
+//     return doc.body.textContent || doc.body.innerText || "";
+//   }
+  // const calculateTotalMarks = async(marking_shceme)=>{
+  //   return marking_shceme.totalMarks;
+  // }
+
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
-  const handleStartAssessment = async()=>{
-    const data = await startAssessment()
-    console.log(data)
+  const handleStartAssessment = async () => {
+    const data = await startAssessment();
+    console.log(data);
     router.navigate({ to: newPath });
-  }
+  };
   return (
     <div className="flex flex-col w-full bg-gray-50">
       {/* Navbar with Timer */}
       <div className="sticky  top-0 z-20 bg-white border-b">
         <div className="flex flex-col bg-primary-50 sm:flex-row items-center justify-between p-4">
-          <h1 className="text-base font-semibold">{assessment.title}</h1>
+          {/* <h1 className="text-base font-semibold">{assessment.title}</h1> */}
           <div className="flex items-center gap-2  mt-2 sm:mt-0 lg:mr-10 md:mr-10">
             {formatTime(timeLeft)
               .split(":")
@@ -90,9 +116,9 @@ export function AssessmentPreview() {
         <div className="sticky top-0 z-10 bg-white border-b">
           <div className="flex overflow-x-auto items-center justify-between p-4 pb-0">
             <div className="flex flex-nowrap items-center space-x-4">
-              {assessment.sections.map((section, index) => (
+              {assessment.section_dtos?.map((section, index) => (
                 <button
-                  key={index}
+                  key={section.id}
                   onClick={() => setActiveSection(index)}
                   className={`px-4 py-2 text-sm rounded-t-lg ${
                     activeSection === index
@@ -112,21 +138,25 @@ export function AssessmentPreview() {
 
       {/* Main content */}
       <ScrollArea className="flex-1  p-4 sm:p-6">
-        {assessment.sections[activeSection].questions.map((question, idx) => (
-          <div
-            key={question.questionId}
-            className="mb-8 bg-white rounded-lg p-4 sm:p-6 shadow-sm"
-          >
-            <div className="flex flex-row  gap-2 mb-4">
-              <span className="text-sm text-gray-500">Question {idx + 1}</span>
-              <span className="text-sm text-gray-500 items-end">
-                {question.questionMark} Marks
-              </span>
-            </div>
+        {assessment.section_dtos[activeSection].question_preview_dto_list.map(
+          (question, idx) => (
+            <div
+              key={question.question_id}
+              className="mb-8 bg-white rounded-lg p-4 sm:p-6 shadow-sm"
+            >
+              <div className="flex flex-row  gap-2 mb-4">
+                <span className="text-sm text-gray-500">
+                  Question {idx + 1}
+                </span>
+                <span className="text-sm text-gray-500 items-end">
+                  {calculateMarkingScheme(question.marking_json).data.totalMark}{" "}
+                  Marks
+                </span>
+              </div>
 
-            <p className="text-base mb-4">{question.questionName}</p>
+              <p className="text-base mb-4">{question.question.content}</p>
 
-            {question.questionImage && (
+              {/* {question.questionImage && (
               <div className="mb-4">
                 <img
                   src={question.questionImage}
@@ -134,30 +164,29 @@ export function AssessmentPreview() {
                   className="max-w-full rounded-lg"
                 />
               </div>
-            )}
+            )} */}
 
-            <div className="space-y-3">
-              {question.options.map((option) => (
-                <div
-                  key={option.optionId}
-                  className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                >
-                  {option.optionName}
-                </div>
-              ))}
+              <div className="space-y-3">
+                {question.options.map((option) => (
+                  <div
+                    key={option.id}
+                    className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                  >
+                    {/* {parseHtmlToString(option.text.content)} */}
+                    <QuestionContent content={option.text.content} />
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        )}
       </ScrollArea>
 
       {/* Footer */}
       <div className="sticky bg-primary-50 bottom-0 p-4 bg-white border-t">
         <div className="flex  justify-center">
-          
           <MyButton
-            onClick={() =>
-              handleStartAssessment()
-            }
+            onClick={() => handleStartAssessment()}
             buttonType="primary"
             scale="large"
             layoutVariant="default"

@@ -36,9 +36,10 @@ export enum assessmentTypes {
   UPCOMING = "UPCOMING",
   PAST = "PAST",
 }
+
 export interface AssessmentPreviewData {
   preview_total_time: number;
-  can_switch_section: string;
+  can_switch_section: boolean;
   distribution_duration: distribution_duration_types;
   duration: number;
   section_dtos: SectionDto[];
@@ -65,11 +66,13 @@ export interface SectionDto {
   updated_at: string; // ISO date string
   question_preview_dto_list: QuestionDto[];
 }
+
 export interface Description {
   id: string;
   type: string;
   content: string;
 }
+
 export interface QuestionDto {
   question_id: string;
   parent_rich_text: RichText;
@@ -79,15 +82,25 @@ export interface QuestionDto {
   question_order: number;
   marking_json: string;
   evaluation_json: string;
-  question_type: string;
+  question_type: QUESTION_TYPES;
   options: Option[];
   options_with_explanation: OptionWithExplanation[];
 }
+export enum QUESTION_TYPES {
+  MCQS = "MCQS",
+  MCQM = "MCQM",
+  Integer = "Integer",
+  TRUE_OR_FALSE ="True or False",
+  MATCH = "Match the following",
+  SHORT = "Short answer",
+};
+
 export interface RichText {
   id: string;
   type: string;
   content: string;
 }
+
 export interface Option {
   id: string;
   preview_id: string;
@@ -98,6 +111,7 @@ export interface Option {
   created_on: string;
   updated_on: string;
 }
+
 export interface OptionWithExplanation extends Option {
   explanation_text: RichText;
 }
