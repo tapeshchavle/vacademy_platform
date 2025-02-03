@@ -16,8 +16,8 @@ import { AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import useAlertsStore from "@/stores/alerts-store";
-import SectionDetails from "../common/instructionPage/SectionDetails";
-import { AssessmentInstructions } from "../common/instructionPage/AssessmentInstructions";
+// import SectionDetails from "../common/instructionPage/SectionDetails";
+// import { AssessmentInstructions } from "../common/instructionPage/AssessmentInstructions";
 
 interface HelpModalProps {
   open: boolean;
@@ -28,8 +28,10 @@ interface HelpModalProps {
 export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
   const [reason, setReason] = useState("");
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-  const { assessment, currentSection } = useAssessmentStore();
-  const { alerts, requests, addRequest } = useAlertsStore();
+  // const { assessment, currentSection } = useAssessmentStore();
+  // const { alerts, requests, addRequest } = useAlertsStore();
+  const { alerts } = useAlertsStore();
+  const { assessment } = useAssessmentStore();
 
   const getTitle = () => {
     switch (type) {
@@ -48,8 +50,9 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
     switch (type) {
       case "instructions":
         if (!assessment) return null;
-        const currentSectionInstructions =
-          assessment.section_dtos[currentSection] || "";
+        // const currentSectionInstructions =
+        //   assessment.section_dtos[currentSection] || "";
+        console.log(assessment);
         return (
           // <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
           //   {/* <p>{assessment.assessmentInstruction}</p> */}

@@ -33,7 +33,7 @@ export default function Page() {
       clearInterval(saveInterval)
       saveState() 
     }
-})
+},[])
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 

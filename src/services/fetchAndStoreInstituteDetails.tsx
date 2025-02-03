@@ -22,7 +22,7 @@ interface InstituteDetails {
     sub_module_description: string;
   }>;
   batches_for_sessions: null;
-  subjects: any[];
+  subjects: string[];
 }
 
 export const fetchAndStoreInstituteDetails = async (

@@ -116,7 +116,7 @@ export function AssessmentPreview() {
         <div className="sticky top-0 z-10 bg-white border-b">
           <div className="flex overflow-x-auto items-center justify-between p-4 pb-0">
             <div className="flex flex-nowrap items-center space-x-4">
-              {assessment.section_dtos.map((section, index) => (
+              {assessment.section_dtos?.map((section, index) => (
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(index)}
