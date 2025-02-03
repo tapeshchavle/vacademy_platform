@@ -9,6 +9,7 @@ import { MyButton } from "@/components/design-system/button";
 import { dummyAssessment } from "./page";
 import { useRouter } from "@tanstack/react-router";
 import {startAssessment} from '@/routes/assessment/examination/-utils.ts/useFetchAssessment'
+import { Storage } from "@capacitor/storage";
 
 export function AssessmentPreview() {
   const router = useRouter();
@@ -28,9 +29,17 @@ export function AssessmentPreview() {
   });
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setAssessment(dummyAssessment);
-  }, [setAssessment]);
+  useEffect( () => {
+
+    const setAssessmentData = async () => {
+    // setAssessment(dummyAssessment);
+    const { value } = await Storage.get({ key: "Assessment_questions" });
+    const parsedData = await JSON.parse(value);
+    setAssessment(parsedData);
+    }
+    setAssessmentData()
+
+  });
 
   useEffect(() => {
     if (timeLeft <= 0) {

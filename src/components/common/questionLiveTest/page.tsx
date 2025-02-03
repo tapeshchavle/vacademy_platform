@@ -238,11 +238,11 @@ export default function Page() {
   useEffect(() => {
     const initializeAssessment = async () => {
       await loadState()
-      const currentState = useAssessmentStore.getState()
+      // const currentState = useAssessmentStore.getState()
 
-      if (!currentState.assessment) {
-        setAssessment(dummyAssessment)
-      }
+      // if (!currentState.assessment) {
+      //   setAssessment(dummyAssessment)
+      // }
     }
 
     initializeAssessment()
@@ -255,7 +255,7 @@ export default function Page() {
       clearInterval(saveInterval)
       saveState() 
     }
-  }, [])
+})
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 

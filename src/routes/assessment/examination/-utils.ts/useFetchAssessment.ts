@@ -8,12 +8,14 @@ import {
 import { Preferences } from "@capacitor/preferences";
 import {
   assessmentTypes,
-  AssessmentPreviewData,
+  // AssessmentPreviewData,
 //   Section_dto,
 //   Question_dto,
-  Section,
+  // Section,
 } from "@/types/assessment";
 import { Storage } from "@capacitor/storage";
+// import { set } from "zod";
+import  setAssessment  from "@/stores/assessment-store";
 
 const getStoredDetails = async () => {
   const studentData = await Preferences.get({ key: "StudentDetails" });
@@ -49,29 +51,6 @@ const getStartAssessmentDetails = async () => {
   };
 };
 
-const transformData = (data: AssessmentPreviewData) => {
-    const sectionMap: Section[] = [];
-
-    // Initialize sections
-    data.section_dtos.forEach((section) => {
-      sectionMap.push({...section , questions : []});
-    });
-
-    // Group questions by section_id
-    data.question_preview_dto_list.forEach((question) => {
-      const section = sectionMap.find((sec) => sec.id === question.section_id);
-      if (section) {
-        section.questions.push(question);
-      }
-    });
-
-    return {
-      preview_total_time: data.preview_total_time,
-      sections: Object.values(sectionMap),
-      attempt_id: data.attempt_id,
-      assessment_user_registration_id: data.assessment_user_registration_id,
-    };
-};
 
 export const fetchAssessmentData = async (
   pageNo: number,
@@ -134,7 +113,7 @@ export const fetchPreviewData = async (assessment_id: string) => {
           console.log(parsedData.package_session_id);
           return parsedData;
         } catch (error) {
-          return "";
+          console.error("Error parsing student details:", error);
         }
       }
     };
@@ -174,12 +153,13 @@ export const fetchPreviewData = async (assessment_id: string) => {
       }
     );
     console.log(response);
-    const transfomredData = transformData(response.data);
-    console.log(transfomredData)
+    // const transfomredData = transformData(response.data);
+    // console.log(transfomredData)
     await Storage.set({
       key: "Assessment_questions",
       value: JSON.stringify(response.data),
     });
+    setAssessment(response.data); 
     return response.data;
   } catch (error) {
     console.error("Error fetching assessments:", error);
