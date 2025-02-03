@@ -49,7 +49,7 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
       case "instructions":
         if (!assessment) return null;
         const currentSectionInstructions =
-          assessment.sections[currentSection] || "";
+          assessment.section_dtos[currentSection] || "";
         return (
           // <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
           //   {/* <p>{assessment.assessmentInstruction}</p> */}
@@ -64,7 +64,7 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
           <div className="">
 
           
-          {open && type === "instructions" && (
+          {/* {open && type === "instructions" && (
             <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
               <AssessmentInstructions
                 instructions={assessment?.assessmentInstruction}
@@ -72,7 +72,7 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
               <p>Current Section Instructions:</p>
               <SectionDetails section={assessment?.sections[currentSection]} />
             </div>
-          )}
+          )} */}
           </div>
           
         );
@@ -123,7 +123,7 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
             <Button
               className="w-full bg-orange-500 hover:bg-orange-600"
               onClick={() => {
-                addRequest(type, reason);
+                // addRequest(type, reason);
                 setReason("");
                 setShowSuccessDialog(true);
               }}

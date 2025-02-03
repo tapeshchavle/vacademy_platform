@@ -9,13 +9,12 @@ import { Preferences } from "@capacitor/preferences";
 import {
   assessmentTypes,
   // AssessmentPreviewData,
-//   Section_dto,
-//   Question_dto,
+  //   Section_dto,
+  //   Question_dto,
   // Section,
 } from "@/types/assessment";
 import { Storage } from "@capacitor/storage";
-// import { set } from "zod";
-import  setAssessment  from "@/stores/assessment-store";
+import setAssessment from "@/stores/assessment-store";
 
 const getStoredDetails = async () => {
   const studentData = await Preferences.get({ key: "StudentDetails" });
@@ -51,6 +50,19 @@ const getStartAssessmentDetails = async () => {
   };
 };
 
+const getDuration = async ()=>{
+  const InstructionID_and_AboutID = await Preferences.get({
+    key: "InstructionID_and_AboutID",
+  });
+  const assessment = InstructionID_and_AboutID.value
+    ? JSON.parse(InstructionID_and_AboutID.value)
+    : null;
+  return {
+    can_switch_section: assessment.can_switch_section,
+    duration: assessment.duration,
+    distribution_duration: assessment.distribution_duration,
+  };
+}
 
 export const fetchAssessmentData = async (
   pageNo: number,
@@ -152,14 +164,17 @@ export const fetchPreviewData = async (assessment_id: string) => {
         },
       }
     );
-    console.log(response);
-    // const transfomredData = transformData(response.data);
-    // console.log(transfomredData)
-    await Storage.set({
-      key: "Assessment_questions",
-      value: JSON.stringify(response.data),
-    });
-    setAssessment(response.data); 
+
+    if (response.status === 200) {
+      console.log(response);
+      const durationData = getDuration();
+      // console.log(transfomredData)
+      await Storage.set({
+        key: "Assessment_questions",
+        value: JSON.stringify({ ...response.data, ...durationData }),
+      });
+      setAssessment({...response.data , ...durationData});
+    }
     return response.data;
   } catch (error) {
     console.error("Error fetching assessments:", error);
@@ -171,7 +186,8 @@ export const fetchPreviewData = async (assessment_id: string) => {
 
 export const startAssessment = async () => {
   try {
-    const { assessment_id, user_id, attempt_id } = await getStartAssessmentDetails();
+    const { assessment_id, user_id, attempt_id } =
+      await getStartAssessmentDetails();
 
     const requestBody = {
       assessment_id: assessment_id,
@@ -183,11 +199,14 @@ export const startAssessment = async () => {
       `${START_ASSESSMENT}`,
       requestBody
     );
-    await Storage.set({
-      key: "server_start_end_time",
-      value: JSON.stringify(response.data),
-    });
-    return response.data;
+    if(response.status === 200){
+      await Storage.set({
+        key: "server_start_end_time",
+        value: JSON.stringify(response.data),
+      });
+      return response.data;
+    }
+  
   } catch (error) {
     console.error("Error fetching assessments:", error);
     // toast.error("Failed to fetch assessments.");

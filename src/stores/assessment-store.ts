@@ -1,7 +1,12 @@
 
 import { create } from "zustand"
 import { Storage } from "@capacitor/storage"
-import type { Assessment, Question, QuestionState } from "../types/assessment"
+import {
+  QuestionState,
+  AssessmentPreviewData,
+  distribution_duration_types,
+  QuestionDto,
+} from "../types/assessment";
 
 interface SectionTimer {
   timeLeft: number
@@ -10,40 +15,40 @@ interface SectionTimer {
 }
 
 interface AssessmentStore {
-  assessment: Assessment | null
-  currentSection: number
-  currentQuestion: Question | null
-  questionStates: Record<string, QuestionState>
-  answers: Record<string, string[]>
-  sectionTimers: Record<number, SectionTimer>
-  questionTimers: Record<string, number>
-  setAssessment: (assessment: Assessment) => void
-  setCurrentSection: (sectionIndex: number) => void
-  setCurrentQuestion: (question: Question) => void
-  setQuestionState: (questionId: string, state: Partial<QuestionState>) => void
-  setAnswer: (questionId: string, answerId: string[]) => void
-  markForReview: (questionId: string) => void
-  clearResponse: (questionId: string) => void
-  updateSectionTimer: (sectionIndex: number, timeLeft: number) => void
-  updateQuestionTimer: (questionId: string, timeLeft: number) => void
-  toggleSectionTimer: (sectionIndex: number, isRunning: boolean) => void
-  isSubmitted: boolean
-  submitAssessment: () => void
-  findNextAvailableSection: () => number | null
-  moveToNextAvailableSection: () => void
-  moveToNextQuestion: () => void
-  entireTestTimer: number
-  setEntireTestTimer: (time: number) => void
-  updateEntireTestTimer: () => void
-  isSectionComplete: (sectionIndex: number) => boolean
-  isSectionAvailable: (sectionIndex: number) => boolean
-  tabSwitchCount: number
-  incrementTabSwitchCount: () => void
-  saveState: () => Promise<void>
-  loadState: () => Promise<void>
-  questionStartTime: Record<string, number>
-  setQuestionStartTime: (questionId: string, startTime: number) => void
-  calculateTimeTaken: (questionId: string) => number
+  assessment: AssessmentPreviewData | null;
+  currentSection: number;
+  currentQuestion: QuestionDto | null;
+  questionStates: Record<string, QuestionState>;
+  answers: Record<string, string[]>;
+  sectionTimers: Record<number, SectionTimer>;
+  questionTimers: Record<string, number>;
+  setAssessment: (assessment: AssessmentPreviewData) => void;
+  setCurrentSection: (sectionIndex: number) => void;
+  setCurrentQuestion: (question: QuestionDto) => void;
+  setQuestionState: (questionId: string, state: Partial<QuestionState>) => void;
+  setAnswer: (questionId: string, answerId: string[]) => void;
+  markForReview: (questionId: string) => void;
+  clearResponse: (questionId: string) => void;
+  updateSectionTimer: (sectionIndex: number, timeLeft: number) => void;
+  updateQuestionTimer: (questionId: string, timeLeft: number) => void;
+  toggleSectionTimer: (sectionIndex: number, isRunning: boolean) => void;
+  isSubmitted: boolean;
+  submitAssessment: () => void;
+  findNextAvailableSection: () => number | null;
+  moveToNextAvailableSection: () => void;
+  moveToNextQuestion: () => void;
+  entireTestTimer: number;
+  setEntireTestTimer: (time: number) => void;
+  updateEntireTestTimer: () => void;
+  isSectionComplete: (sectionIndex: number) => boolean;
+  isSectionAvailable: (sectionIndex: number) => boolean;
+  tabSwitchCount: number;
+  incrementTabSwitchCount: () => void;
+  saveState: () => Promise<void>;
+  loadState: () => Promise<void>;
+  questionStartTime: Record<string, number>;
+  setQuestionStartTime: (questionId: string, startTime: number) => void;
+  calculateTimeTaken: (questionId: string) => number;
 }
 
 export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
@@ -57,43 +62,46 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
 
   setAssessment: (assessment) =>
     set((state) => {
-      if (!assessment || !assessment.sections) {
+      if (!assessment || !assessment.section_dtos) {
         console.error("Invalid assessment object:", assessment)
         return state
       }
-
+      const currentQuestion: QuestionDto = assessment.section_dtos[0].question_preview_dto_list[0]
       const questionStates: Record<string, QuestionState> = {}
       const sectionTimers: Record<number, SectionTimer> = {}
       const questionTimers: Record<string, number> = {}
       const questionStartTime: Record<string, number> = {}
 
-      assessment.sections.forEach((section, index) => {
-        if (assessment.testDuration.sectionWiseDuration) {
-          const [minutes, seconds] = section.sectionDuration.split(":").map(Number)
+      assessment.section_dtos.forEach((section, index) => {
+        if (assessment.distribution_duration === distribution_duration_types.SECTION ) {
+          const minutes = section.duration;
           sectionTimers[index] = {
-            timeLeft: (minutes * 60 + seconds) * 1000,
-            isRunning: !assessment.canSwitchSections ? index === 0 : false,
+            timeLeft: minutes * 60 * 1000,
+            isRunning: !assessment.can_switch_section ? index === 0 : false,
             hasStarted: index === 0,
-          }
+          };
         }
 
-        section.questions.forEach((question) => {
-          questionStates[question.questionId] = {
+        section.question_preview_dto_list.forEach((question) => {
+          questionStates[question.question_id] = {
             isAnswered: false,
             isVisited: false,
             isMarkedForReview: false,
             isDisabled: false,
           }
 
-          if (assessment.testDuration.questionWiseDuration && question.questionDuration) {
-            const [minutes, seconds] = question.questionDuration.split(":").map(Number)
-            questionTimers[question.questionId] = (minutes * 60 + seconds) * 1000
+          if (
+            assessment.distribution_duration ===
+            distribution_duration_types.QUESTION
+          ) {
+            const minutes = question.question_duration;
+            questionTimers[question.question_id] =
+              (minutes * 60) * 1000;
           }
         })
       })
 
-      // const [hours, minutes] = assessment.testDuration.entireTestDuration
-      const entireTestTimer = assessment.testDuration.entireTestDuration * 60 
+      const entireTestTimer = assessment.duration * 60; 
 
       return {
         assessment,
@@ -102,6 +110,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         questionTimers,
         entireTestTimer,
         currentSection: 0,
+        currentQuestion,
         questionStartTime,
       }
     }),
@@ -110,18 +119,18 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     set((state) => {
       if (!state.assessment) return {}
 
-      if (!state.assessment.canSwitchSections) {
+      if (!state.assessment.can_switch_section) {
         const previousSectionsComplete = [...Array(sectionIndex)].every(
-          (_, idx) => state.sectionTimers[idx]?.timeLeft === 0,
-        )
-        if (!previousSectionsComplete) return {}
+          (_, idx) => state.sectionTimers[idx]?.timeLeft === 0
+        );
+        if (!previousSectionsComplete) return {};
       }
 
       const updatedTimers = { ...state.sectionTimers }
       Object.keys(updatedTimers).forEach((key) => {
         const idx = Number(key)
-        if (!state.assessment?.canSwitchSections) {
-          updatedTimers[idx].isRunning = idx === sectionIndex
+        if (!state.assessment?.can_switch_section) {
+          updatedTimers[idx].isRunning = idx === sectionIndex;
         }
       })
 
@@ -136,14 +145,14 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       currentQuestion: question,
       questionStates: {
         ...state.questionStates,
-        [question.questionId]: {
-          ...state.questionStates[question.questionId],
+        [question.question_id]: {
+          ...state.questionStates[question.question_id],
           isVisited: true,
         },
       },
       questionStartTime: {
         ...state.questionStartTime,
-        [question.questionId]: Date.now(),
+        [question.question_id]: Date.now(),
       },
     })),
 
@@ -192,7 +201,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
 
   updateSectionTimer: (sectionIndex, timeLeft) =>
     set((state) => {
-      if (!state.assessment?.testDuration.sectionWiseDuration) {
+      if (state.assessment?.distribution_duration !== distribution_duration_types.SECTION) {
         return {}
       }
 
@@ -208,7 +217,9 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         const nextSectionIndex = state.findNextAvailableSection()
         if (nextSectionIndex !== null) {
           updatedTimers[nextSectionIndex].isRunning = true
-          const firstQuestion = state.assessment?.sections[nextSectionIndex].questions[0]
+          const firstQuestion =
+            state.assessment?.section_dtos[nextSectionIndex]
+              .question_preview_dto_list[0];
 
           return {
             sectionTimers: updatedTimers,
@@ -254,7 +265,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     const state = get()
     if (!state.assessment) return null
 
-    for (let i = state.currentSection + 1; i < state.assessment.sections.length; i++) {
+    for (let i = state.currentSection + 1; i < state.assessment.section_dtos.length; i++) {
       if (state.sectionTimers[i]?.timeLeft > 0 && !state.isSectionComplete(i)) {
         return i
       }
@@ -273,46 +284,55 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     const state = get()
     if (!state.assessment) return
 
-    if (state.assessment.testDuration.sectionWiseDuration) {
-      const currentSectionTimer = state.sectionTimers[state.currentSection]
+    if (
+      state.assessment?.distribution_duration ===
+      distribution_duration_types.SECTION
+    ) {
+      const currentSectionTimer = state.sectionTimers[state.currentSection];
 
-      if (!state.assessment.canSwitchSections && currentSectionTimer?.timeLeft > 0) {
-        return
+      if (
+        !state.assessment.can_switch_section &&
+        currentSectionTimer?.timeLeft > 0
+      ) {
+        return;
       }
 
-      const updatedTimers = { ...state.sectionTimers }
+      const updatedTimers = { ...state.sectionTimers };
       if (updatedTimers[state.currentSection]) {
-        updatedTimers[state.currentSection].timeLeft = 0
-        updatedTimers[state.currentSection].isRunning = false
+        updatedTimers[state.currentSection].timeLeft = 0;
+        updatedTimers[state.currentSection].isRunning = false;
       }
 
-      let nextSection = state.currentSection + 1
-      while (nextSection < state.assessment.sections.length) {
+      let nextSection = state.currentSection + 1;
+      while (nextSection < state.assessment.section_dtos.length) {
         if (updatedTimers[nextSection]?.timeLeft > 0) {
-          updatedTimers[nextSection].isRunning = true
+          updatedTimers[nextSection].isRunning = true;
 
           set({
             currentSection: nextSection,
             sectionTimers: updatedTimers,
-          })
+          });
 
-          const firstQuestion = state.assessment.sections[nextSection].questions[0]
+          const firstQuestion =
+            state.assessment.section_dtos[nextSection].question_preview_dto_list[0];
           if (firstQuestion) {
-            state.setCurrentQuestion(firstQuestion)
+            state.setCurrentQuestion(firstQuestion);
           }
-          return
+          return;
         }
-        nextSection++
+        nextSection++;
       }
     } else {
-      const nextSection = state.currentSection + 1
-      if (nextSection < state.assessment.sections.length) {
-        set({ currentSection: nextSection })
-        const firstQuestion = state.assessment.sections[nextSection].questions[0]
+      const nextSection = state.currentSection + 1;
+      if (nextSection < state.assessment.section_dtos.length) {
+        set({ currentSection: nextSection });
+        const firstQuestion =
+          state.assessment.section_dtos[nextSection]
+            .question_preview_dto_list[0];
         if (firstQuestion) {
-          state.setCurrentQuestion(firstQuestion)
+          state.setCurrentQuestion(firstQuestion);
         }
-        return
+        return;
       }
     } 
 
@@ -326,8 +346,9 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     const { assessment, currentSection, currentQuestion } = state
     if (!assessment || !currentQuestion) return
 
-    const currentSectionQuestions = assessment.sections[currentSection].questions
-    const currentIndex = currentSectionQuestions.findIndex((q) => q.questionId === currentQuestion.questionId)
+    const currentSectionQuestions =
+      assessment.section_dtos[currentSection].question_preview_dto_list;
+    const currentIndex = currentSectionQuestions.findIndex((q) => q.question_id === currentQuestion.question_id)
 
     if (currentIndex < currentSectionQuestions.length - 1) {
       state.setCurrentQuestion(currentSectionQuestions[currentIndex + 1])
@@ -342,12 +363,12 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     const state = get()
     if (!state.assessment) return false
 
-    const section = state.assessment.sections[sectionIndex]
+    const section = state.assessment.section_dtos[sectionIndex]
     if (!section) return false
 
     return (
       state.sectionTimers[sectionIndex]?.timeLeft === 0 ||
-      section.questions.every((question) => state.questionStates[question.questionId]?.isAnswered)
+      section.question_preview_dto_list.every((question) => state.questionStates[question.question_id]?.isAnswered)
     )
   },
 
@@ -355,12 +376,15 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     const state = get()
     if (!state.assessment) return false
 
-    if (!state.assessment.testDuration.sectionWiseDuration) {
-      return true
+    if (
+      state.assessment?.distribution_duration !==
+      distribution_duration_types.SECTION
+    ) {
+      return true;
     }
 
-    if (state.assessment.canSwitchSections) {
-      return state.sectionTimers[sectionIndex]?.timeLeft > 0
+    if (state.assessment.can_switch_section) {
+      return state.sectionTimers[sectionIndex]?.timeLeft > 0;
     }
 
     return (
