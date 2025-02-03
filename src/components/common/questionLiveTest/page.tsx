@@ -17,7 +17,7 @@ export const dummyAssessment = {
   startDate: "13/10/2024, 11:15 AM",
   endDate: "15/10/2024, 08:30 PM",
   testDuration: {
-    entireTestDuration: "02:01",
+    entireTestDuration: 15,
     sectionWiseDuration: true,
     questionWiseDuration: true,
   },
@@ -72,7 +72,96 @@ export const dummyAssessment = {
             { optionId: "O003", optionName: "Lens" },
             { optionId: "O004", optionName: "Retina" },
           ],
+        },
+        {
+          questionType: "MCQ (Single Correct)",
+          questionId: "Q003",
+          questionName:
+            "Which part of the eye controls the amount of light entering it?",
+          questionMark: "2",
+          questionDuration: "01:03",
+          imageDetails: [],
+          options: [
+            { optionId: "O001", optionName: "Cornea" },
+            { optionId: "O002", optionName: "Iris" },
+            { optionId: "O003", optionName: "Lens" },
+            { optionId: "O004", optionName: "Retina" },
+          ],
+        },
+        {
+          questionType: "MCQ (Single Correct)",
+          questionId: "Q004",
+          questionName:
+            "Which part of the eye controls the amount of light entering it?",
+          questionMark: "2",
+          questionDuration: "01:03",
+          imageDetails: [],
+          options: [
+            { optionId: "O001", optionName: "Cornea" },
+            { optionId: "O002", optionName: "Iris" },
+            { optionId: "O003", optionName: "Lens" },
+            { optionId: "O004", optionName: "Retina" },
+          ],
+        },
+        {
+          questionType: "MCQ (Single Correct)",
+          questionId: "Q005",
+          questionName:
+            "Which part of the eye controls the amount of light entering it?",
+          questionMark: "2",
+          questionDuration: "01:03",
+          imageDetails: [],
+          options: [
+            { optionId: "O001", optionName: "Cornea" },
+            { optionId: "O002", optionName: "Iris" },
+            { optionId: "O003", optionName: "Lens" },
+            { optionId: "O004", optionName: "Retina" },
+          ],
+        },
+        {
+          questionType: "MCQ (Single Correct)",
+          questionId: "Q006",
+          questionName:
+            "Which part of the eye controls the amount of light entering it?",
+          questionMark: "2",
+          questionDuration: "01:03",
+          imageDetails: [],
+          options: [
+            { optionId: "O001", optionName: "Cornea" },
+            { optionId: "O002", optionName: "Iris" },
+            { optionId: "O003", optionName: "Lens" },
+            { optionId: "O004", optionName: "Retina" },
+          ],
+        },
+        {
+          questionType: "MCQ (Single Correct)",
+          questionId: "Q007",
+          questionName:
+            "Which part of the eye controls the amount of light entering it?",
+          questionMark: "2",
+          questionDuration: "01:03",
+          imageDetails: [],
+          options: [
+            { optionId: "O001", optionName: "Cornea" },
+            { optionId: "O002", optionName: "Iris" },
+            { optionId: "O003", optionName: "Lens" },
+            { optionId: "O004", optionName: "Retina" },
+          ],
         },        
+        {
+          questionType: "MCQ (Single Correct)",
+          questionId: "Q008",
+          questionName: "What does the retina contain?",
+          questionMark: "2",
+          questionDuration: "01:00",
+          imageDetails: [],
+          options: [
+            { optionId: "O001", optionName: "Photoreceptor cells" },
+            { optionId: "O002", optionName: "Ciliary muscles" },
+            { optionId: "O003", optionName: "Optic nerves" },
+            { optionId: "O004", optionName: "Corneal cells" },
+          ],
+        },
         {
           questionType: "MCQ (Single Correct)",
           questionId: "Q009",
@@ -139,7 +228,6 @@ export const dummyAssessment = {
     },
   ],
 };
-
 
 
 

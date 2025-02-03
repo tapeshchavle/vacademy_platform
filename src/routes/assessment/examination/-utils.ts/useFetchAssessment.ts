@@ -178,7 +178,7 @@ export const fetchPreviewData = async (assessment_id: string) => {
     console.log(transfomredData)
     await Storage.set({
       key: "Assessment_questions",
-      value: JSON.stringify(transfomredData),
+      value: JSON.stringify(response.data),
     });
     return response.data;
   } catch (error) {
