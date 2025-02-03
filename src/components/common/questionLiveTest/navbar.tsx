@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { HelpModal } from "@/components/modals/help-modals";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { SubmitModal } from "@/components/modals/submit-modal";
-import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -20,8 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HelpCircle } from "lucide-react";
 import { TimesUpModal } from "@/components/modals/times-up-modal";
-import { dummyAssessment } from "./page";
-import { App } from "@capacitor/app";
+import { MyButton } from "@/components/design-system/button";
 
 export function Navbar() {
   const {
@@ -29,17 +28,21 @@ export function Navbar() {
     sectionTimers,
     submitAssessment,
     updateEntireTestTimer,
+    tabSwitchCount,
+    incrementTabSwitchCount,
+    entireTestTimer,
+    setEntireTestTimer,
   } = useAssessmentStore();
-  
+
   const navigate = useNavigate();
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showTimesUpModal, setShowTimesUpModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
-  const [warningCount, setWarningCount] = useState(0);
-  const [helpType, setHelpType] = useState<
-    "instructions" | "alerts" | "reattempt" | "time" | null
-  >(null);
-  const [entireTimeLeft, setEntireTimeLeft] = useState<string | null>(null);
+  interface HelpType {
+    type: "instructions" | "alerts" | "reattempt" | "time" | null;
+  }
+
+  const [helpType, setHelpType] = useState<HelpType["type"]>(null);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -49,7 +52,8 @@ export function Navbar() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        setWarningCount((prev) => prev + 1);
+        // setWarningCount((prev) => prev + 1);
+        incrementTabSwitchCount();
         setShowWarningModal(true);
       }
     };
@@ -66,7 +70,7 @@ export function Navbar() {
   useEffect(() => {
     const updateEntireTimeLeft = () => {
       const { entireTestTimer } = useAssessmentStore.getState();
-      setEntireTimeLeft(formatTime(entireTestTimer));
+      setEntireTestTimer(entireTestTimer);
     };
 
     updateEntireTimeLeft();
@@ -78,11 +82,16 @@ export function Navbar() {
     return () => clearInterval(timer);
   }, []);
 
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+  const formatTime = (timeInSeconds) => {
+    // Calculate hours, minutes, and seconds directly from seconds
+    const hours = Math.floor(timeInSeconds / 3600);
+    const minutes = Math.floor((timeInSeconds % 3600) / 60);
+    const seconds = timeInSeconds % 60;
+
+    // Pad with zeros if needed
+    const padNumber = (num) => num.toString().padStart(2, "0");
+
+    return `${padNumber(hours)}:${padNumber(minutes)}:${padNumber(seconds)}`;
   };
 
   if (!assessment) return null;
@@ -93,7 +102,7 @@ export function Navbar() {
 
   const handleSubmit = () => {
     submitAssessment();
-        navigate({
+    navigate({
       to: "/assessment/examination",
     });
   };
@@ -104,14 +113,14 @@ export function Navbar() {
 
   const handleWarningClose = () => {
     setShowWarningModal(false);
-    if (warningCount >= 3) {
+    if (tabSwitchCount >= 3) {
       handleSubmit();
     }
   };
 
   return (
     <>
-      <div className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-background px-4">
+      <div className="sticky top-0 z-50 flex bg-primary-50 h-16 items-center justify-between border-b bg-background px-4">
         <div className="flex items-center gap-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -135,19 +144,39 @@ export function Navbar() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex items-center gap-4">
-          {assessment?.testDuration.entireTestDuration && entireTimeLeft && (
-            <div className="flex items-center gap-2 text-lg font-mono">
-              <span>{entireTimeLeft}</span>
+        <div className="">
+        {entireTestTimer && (
+            <div className="flex items-center gap-2 text-lg  justify-center">
+              <div className="flex items-center space-x-1">
+                {formatTime(entireTestTimer)
+                  .split(":")
+                  .map((time, index, array) => (
+                    <div key={index} className="relative flex items-center">
+                      <span className="border border-gray-400 px-2 py-1 rounded">
+                        {time}
+                      </span>
+                      {index < array.length - 1 && (
+                        <span className="absolute right-[-4px] text-lg">
+                          :
+                        </span>
+                      )}
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
-          <Button
-            variant="default"
+        </div>
+        <div className="flex items-center gap-4">
+          
+          <MyButton
+            type="submit"
+            scale="medium"
+            buttonType="primary"
+            layoutVariant="default"
             onClick={() => setShowSubmitModal(true)}
-            className="bg-orange-500 hover:bg-orange-600"
           >
             Submit
-          </Button>
+          </MyButton>
         </div>
       </div>
 
@@ -167,7 +196,7 @@ export function Navbar() {
         <AlertDialogContent>
           <AlertDialogDescription>
             Warning: You are attempting to leave the test environment. This is
-            warning {warningCount} of 3. If you attempt to leave again, your
+            warning {tabSwitchCount} of 3. If you attempt to leave again, your
             test will be automatically submitted.
           </AlertDialogDescription>
           <AlertDialogAction onClick={handleWarningClose}>

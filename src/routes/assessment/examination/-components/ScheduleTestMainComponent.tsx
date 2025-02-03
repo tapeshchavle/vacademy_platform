@@ -1,22 +1,17 @@
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-// import { EmptyScheduleTest } from "@/svgs";
 import { useEffect, useState } from "react";
 import ScheduleTestTabList from "./ScheduleTestTabList";
-// import { scheduleTestTabsData } from "@/constants/dummy-data";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
-// import LiveAssessmentList from "./LiveAssessmentList";
-// import dummyUpcomingList from "./upcomingAssessments";
 import { assessmentTypes } from "@/types/assessment";
-// import { useMutation } from "@tanstack/react-query";
 import { fetchAssessmentData } from "../-utils.ts/useFetchAssessment";
 import { Assessment } from "@/types/assessment";
 import { AssessmentCard } from "../-components/AssessmentCard";
 import { MyPagination } from "@/components/design-system/pagination";
+import { EmptyScheduleTest } from "@/svgs";
 
 export const ScheduleTestMainComponent = () => {
   const { setNavHeading } = useNavHeadingStore();
   const [loading, setLoading] = useState(true);
-  // const [pageNo, setPageNo] = useState(0);
   const [liveAssessmentList, setLiveAssessmentList] = useState<Assessment[]>(
     []
   );
@@ -26,9 +21,6 @@ export const ScheduleTestMainComponent = () => {
   const [totalLivePage, setTotalLivePage] = useState(0);
   const [totalUpcomingPage, setTotalUpcomingPage] = useState(0);
   const [totalPastPage, setTotalPastPage] = useState(0);
-  const [totalLiveAssessment, setTotalLiveAssessment] = useState(0);
-  const [totalUpcomingAssessment, setTotalUpcomingAssessment] = useState(0);
-  const [totalPastAssessment, setTotalPastAssessment] = useState(0);
   const [UpcomingAssessmentList, setUpcomingAssessmentList] = useState<
     Assessment[]
   >([]);
@@ -39,35 +31,7 @@ export const ScheduleTestMainComponent = () => {
   const [selectedTab, setSelectedTab] = useState<assessmentTypes>(
     assessmentTypes.LIVE
   );
-  // const getFilteredData = useMutation({
-  //   mutationFn: ({
-  //     pageNo,
-  //     pageSize,
-  //     assessmentType,
-  //   }: {
-  //     pageNo: number;
-  //     pageSize: number;
-  //     assessmentType: assessmentTypes;
-  //   }) => fetchAssessmentData(pageNo, pageSize, assessmentType),
-  //   onSuccess: ({ data, assessmentType }) => {
-  //     console.log(data, selectedTab);
-  //     switch (assessmentType) {
-  //       case assessmentTypes.LIVE:
-  //         setLiveAssessmentList(data?.content);
-  //         break;
-  //       case assessmentTypes.UPCOMING:
-  //         setUpcomingAssessmentList(data?.content);
-  //         break;
-  //       case assessmentTypes.PAST:
-  //         console.log(data?.content);
-  //         setPastAssessmentList(data?.content);
-  //         break;
-  //     }
-  //   },
-  //   onError: (error: unknown) => {
-  //     throw error;
-  //   },
-  // });
+  
   const handleTabChange = (value: string) => {
     setSelectedTab(value as assessmentTypes);
   };
@@ -81,7 +45,6 @@ export const ScheduleTestMainComponent = () => {
         .then((data) => {
           setLiveAssessmentList(data?.content);
           setTotalLivePage(data?.total_pages);
-          setTotalLiveAssessment(data?.total_elements);
           setLoading(false);
         })
         .catch((error) => {
@@ -105,7 +68,6 @@ export const ScheduleTestMainComponent = () => {
         .then((data) => {
           setUpcomingAssessmentList(data?.content);
           setTotalUpcomingPage(data?.total_pages);
-          setTotalUpcomingAssessment(data?.total_elements);
           setLoading(false);
         })
         .catch((error) => {
@@ -127,7 +89,6 @@ export const ScheduleTestMainComponent = () => {
           console.log(data?.content);
           setPastAssessmentList(data?.content);
           setTotalPastPage(data?.total_pages);
-          setTotalPastAssessment(data?.total_elements);
           setLoading(false);
         })
         .catch((error) => {
@@ -141,30 +102,13 @@ export const ScheduleTestMainComponent = () => {
     };
   }, [currentPastPage]);
 
-  const totalAssessments = () => {
-    switch (selectedTab) {
-      case assessmentTypes.LIVE:
-        return totalLiveAssessment;
-        break;
-        case assessmentTypes.UPCOMING:
-          return totalUpcomingAssessment;
-        break;
-      case assessmentTypes.PAST:
-        return totalPastAssessment;
-        break;
-    }
-  };
-
   return (
     <>
       <div className="items-center gap-4 min-h-full">
         <Tabs value={selectedTab} onValueChange={handleTabChange}>
           <div className="items-center justify-center gap-5 pb-5">
             <div className="flex flex-wrap gap-5 pb-5">
-              <ScheduleTestTabList
-                selectedTab={selectedTab}
-                totalAssessments={totalAssessments()}
-              />
+              <ScheduleTestTabList selectedTab={selectedTab} />
             </div>
           </div>
           <TabsContent
@@ -172,73 +116,92 @@ export const ScheduleTestMainComponent = () => {
             value={assessmentTypes.LIVE}
             className="rounded-xl bg-neutral-50 flex flex-col gap-3"
           >
-            {liveAssessmentList &&
-              liveAssessmentList.length > 0 &&
-              liveAssessmentList.map((assessment, index) => {
-                return (
+            {liveAssessmentList && liveAssessmentList.length > 0 ? (
+              <>
+                {liveAssessmentList.map((assessment, index) => (
                   <AssessmentCard
                     key={`${index}-${assessmentTypes.LIVE}`}
                     assessmentInfo={assessment}
                     assessmentType={assessmentTypes.LIVE}
                   />
-                );
-              })}
-            {liveAssessmentList && liveAssessmentList.length > 0 && (
-              <MyPagination
-                currentPage={currentLivePage}
-                totalPages={totalLivePage}
-                onPageChange={setCurrentLivePage}
-              ></MyPagination>
+                ))}
+                <MyPagination
+                  currentPage={currentLivePage}
+                  totalPages={totalLivePage}
+                  onPageChange={setCurrentLivePage}
+                />
+              </>
+            ) : (
+              // Empty state when no live assessments are available
+              <div className="flex h-screen flex-col items-center justify-center">
+                <img src={EmptyScheduleTest} alt="No Live Tests Available" />
+                <span className="text-neutral-600">
+                  No tests are currently live.
+                </span>
+              </div>
             )}
           </TabsContent>
+
           <TabsContent
             key={assessmentTypes.UPCOMING}
             value={assessmentTypes.UPCOMING}
             className="rounded-xl bg-neutral-50 flex flex-col gap-3"
           >
-            {UpcomingAssessmentList &&
-              UpcomingAssessmentList.length > 0 &&
-              UpcomingAssessmentList.map((assessment, index) => {
-                return (
+            {UpcomingAssessmentList && UpcomingAssessmentList.length > 0 ? (
+              <>
+                {UpcomingAssessmentList.map((assessment, index) => (
                   <AssessmentCard
                     key={`${index}-${assessmentTypes.UPCOMING}`}
                     assessmentInfo={assessment}
                     assessmentType={assessmentTypes.UPCOMING}
                   />
-                );
-              })}
-            {UpcomingAssessmentList && UpcomingAssessmentList.length > 0 && (
-              <MyPagination
-                currentPage={currentUpcomingPage}
-                totalPages={totalUpcomingPage}
-                onPageChange={setCurrentUpcomingPage}
-              ></MyPagination>
+                ))}
+                <MyPagination
+                  currentPage={currentUpcomingPage}
+                  totalPages={totalUpcomingPage}
+                  onPageChange={setCurrentUpcomingPage}
+                />
+              </>
+            ) : (
+              // Empty state when no data is available
+              <div className="flex h-screen flex-col items-center justify-center">
+                <img src={EmptyScheduleTest} alt="No Tests Available" />
+                <span className="text-neutral-600">
+                  No upcoming tests scheduled.
+                </span>
+              </div>
             )}
           </TabsContent>
+
           <TabsContent
             key={assessmentTypes.PAST}
             value={assessmentTypes.PAST}
             className="rounded-xl bg-neutral-50 flex flex-col gap-3"
           >
-            {PastAssessmentList &&
-              PastAssessmentList.length > 0 &&
-              PastAssessmentList.map((assessment, index) => {
-                return (
+            {PastAssessmentList && PastAssessmentList.length > 0 ? (
+              <>
+                {PastAssessmentList.map((assessment, index) => (
                   <AssessmentCard
                     key={`${index}-${assessmentTypes.PAST}`}
                     assessmentInfo={assessment}
                     assessmentType={assessmentTypes.PAST}
                   />
-                );
-              })}
-            {PastAssessmentList && PastAssessmentList.length > 0 && (
-              <MyPagination
-                currentPage={currentPastPage}
-                totalPages={totalPastPage}
-                onPageChange={setCurrentPastPage}
-              ></MyPagination>
+                ))}
+                <MyPagination
+                  currentPage={currentPastPage}
+                  totalPages={totalPastPage}
+                  onPageChange={setCurrentPastPage}
+                />
+              </>
+            ) : (
+              // Empty state when no past assessments are available
+              <div className="flex h-screen flex-col items-center justify-center">
+                <img src={EmptyScheduleTest} alt="No Past Tests Available" />
+                <span className="text-neutral-600">
+                  No previous tests available.
+                </span>
+              </div>
             )}
-            {/* <div className="flex-1 items-end">Pagination will be hrere</div> */}
           </TabsContent>
         </Tabs>
       </div>
