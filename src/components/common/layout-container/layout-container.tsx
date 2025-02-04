@@ -3,7 +3,6 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { Navbar } from "./top-navbar.tsx/navbar";
 import { cn } from "@/lib/utils";
 import React from "react";
-import { AppSidebar } from "./top-navbar.tsx/testsidebar";
 export const LayoutContainer = ({
     children,
     className,

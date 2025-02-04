@@ -1,7 +1,7 @@
 'use client'
 import { cn } from '@/lib/utils'
 import { useAssessmentStore } from '@/stores/assessment-store'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import {distribution_duration_types} from "@/types/assessment";
 
 export function SectionTabs() {
@@ -16,7 +16,7 @@ export function SectionTabs() {
   } = useAssessmentStore()
 
   // Track if the current section's time is ending
-  const [showEndButton, setShowEndButton] = useState(false)
+  // const [showEndButton, setShowEndButton] = useState(false)
 
   useEffect(() => {
     if (assessment?.distribution_duration !== distribution_duration_types.SECTION) return
@@ -29,12 +29,12 @@ export function SectionTabs() {
         
         // Show end button when 1 minute is remaining for the current section
         if (currentTimer.timeLeft <= 60000 && !assessment?.can_switch_section) {
-          setShowEndButton(true);
+          // setShowEndButton(true);
         }
       } else if (!assessment?.can_switch_section) {
         // Automatically move to next section when time ends if switching is disabled
         moveToNextAvailableSection()
-        setShowEndButton(false)
+        // setShowEndButton(false)
       }
     }, 1000)
     
@@ -64,7 +64,7 @@ export function SectionTabs() {
     // Set current section timer to 0
     updateSectionTimer(currentSection, 0)
     moveToNextAvailableSection()
-    setShowEndButton(false)
+    // setShowEndButton(false)
   }
 
   const formatTime = (ms: number) => {
@@ -75,7 +75,7 @@ export function SectionTabs() {
 
   return (
     <div className="flex gap-2 px-4 py-2 border-b bg-white overflow-x-auto">
-      {assessment.section_dtos.map((section, index) => {
+      {assessment?.section_dtos?.map((section, index) => {
         const timer = sectionTimers[index]
         const isTimeUp = timer?.timeLeft === 0
         const isActive = currentSection === index
@@ -86,7 +86,7 @@ export function SectionTabs() {
             .every((_, i) => sectionTimers[i]?.timeLeft === 0);
 
         return (
-          <div key={index} className="flex items-center">
+          <div key={section.id} className="flex items-center">
             <button
               onClick={() => handleSectionChange(index)}
               disabled={!isAvailable || isTimeUp}

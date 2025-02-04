@@ -1,10 +1,5 @@
-import { useEffect, useState } from "react";
-import { SplashScreen } from "@/components/common/LoginPages/layout/splash-container";
-import { useAnimationStore } from "@/stores/login/animationStore";
-import { Heading } from "@/components/common/LoginPages/ui/heading";
 import { MyInput } from "@/components/design-system/input";
 import { MyButton } from "@/components/design-system/button";
-import { Link } from "@tanstack/react-router";
 import { loginSchema } from "@/schemas/login/login";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -13,23 +8,22 @@ import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { loginUser } from "@/hooks/login/login-button";
-import { Storage } from "@capacitor/storage";
 import { TokenKey } from "@/constants/auth/tokens";
 import { useNavigate } from "@tanstack/react-router";
-import HeaderLogo from "../ui/header_logo";
 
-import { isNullOrEmptyOrUndefined } from "@/lib/utils";
 import {
-  getInstituteIdFromStorage,
   getTokenDecodedData,
-  getTokenFromStorage,
-  setInstituteIdInStorage,
   setTokenInStorage,
 } from "@/lib/auth/sessionUtility";
 import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
+import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
 type FormValues = z.infer<typeof loginSchema>;
 
-export function UsernameLogin({ onSwitchToEmail }) {
+interface UsernameLoginProps {
+  onSwitchToEmail: () => void;
+}
+
+export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
   const navigate = useNavigate();
 
   const form = useForm<FormValues>({
@@ -40,7 +34,7 @@ export function UsernameLogin({ onSwitchToEmail }) {
     },
     mode: "onTouched",
   });
-  
+
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
       loginUser(values.username, values.password),
@@ -55,8 +49,8 @@ export function UsernameLogin({ onSwitchToEmail }) {
           const decodedData = await getTokenDecodedData(response.accessToken);
 
           // Check authorities in decoded data
-          const authorities = decodedData.authorities;
-          const userId = decodedData.user;
+          const authorities = decodedData?.authorities;
+          const userId = decodedData?.user;
           const authorityKeys = authorities ? Object.keys(authorities) : [];
 
           if (authorityKeys.length > 1) {
@@ -64,18 +58,30 @@ export function UsernameLogin({ onSwitchToEmail }) {
             navigate({ to: "/institute-selection" });
           } else {
             // Get the single institute ID
-            const instituteId = Object.keys(authorities)[0];
+            const instituteId = authorities ? Object.keys(authorities)[0] : undefined;
 
-            // await fetchAndStoreInstituteDetails(instituteId, userId);
-            const details = await fetchAndStoreInstituteDetails(
-              instituteId,
-              userId
-            );
-
-            if (details) {
-              // Navigate after successful fetch
-              navigate({ to: "/dashboard" });
+            if (instituteId && userId) {
+              try {
+                await fetchAndStoreInstituteDetails(instituteId, userId);
+              } catch (error) {
+                console.error("Error fetching institute details:", error);
+              }
+            } else {
+              console.error("Institute ID or User ID is undefined");
             }
+
+            try {
+              if (instituteId && userId) {
+                await fetchAndStoreStudentDetails(instituteId, userId);
+              } else {
+                console.error("Institute ID or User ID is undefined");
+              }
+            } catch (error) {
+              console.error("Failed to fetch student details:", error);
+              toast.error("Failed to fetch student details");
+            }
+            // Navigate after successful fetch
+            navigate({ to: "/dashboard" });
           }
         } catch (error) {
           console.error("Error processing decoded data:", error);

@@ -19,11 +19,17 @@ export function Footer({ onToggleSidebar }: FooterProps) {
     sectionTimers
   } = useAssessmentStore()
 
-  if (!assessment) return null
+  if (!assessment || !assessment.section_dtos || !assessment.section_dtos[currentSection]) return null;
 
-  const currentSectionQuestions = assessment.section_dtos[currentSection].question_preview_dto_list
-  const currentIndex = currentSectionQuestions.findIndex(q => q.question_id === currentQuestion?.question_id)
-  const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0
+const currentSectionQuestions =
+  assessment.section_dtos[currentSection]?.question_preview_dto_list || [];
+
+const currentIndex = currentSectionQuestions.findIndex(
+  (q) => q.question_id === currentQuestion?.question_id
+);
+
+const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
+
 
   const handlePrevQuestion = () => {
     if (currentIndex > 0) {

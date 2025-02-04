@@ -1,5 +1,5 @@
 import { SidebarItemsType } from "../../../../types/layout-container-types";
-import { House, Users, BookOpen, Scroll } from "@phosphor-icons/react";
+import { House, BookOpen, Scroll } from "@phosphor-icons/react";
 
 export const SidebarItemsData: SidebarItemsType[] = [
     {

@@ -3,6 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Flag } from 'lucide-react'
 // import Image from 'next/image'
 import { useAssessmentStore } from '@/stores/assessment-store'
+import { QuestionDto, QuestionState } from '@/types/assessment'
 
 export function QuestionListView() {
   const { 
@@ -17,13 +18,13 @@ export function QuestionListView() {
 
   if (!assessment) return null
 
-  const currentSectionQuestions = assessment.sections[currentSection].questions
+  const currentSectionQuestions = assessment.section_dtos[currentSection].question_preview_dto_list
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0
 
-  const handleQuestionClick = (question: Question) => {
+  const handleQuestionClick = (question: QuestionDto) => {
     if (isTimeUp) return
     setCurrentQuestion(question)
-    setQuestionState(question.questionId, { isVisited: true })
+    setQuestionState(question.question_id, { isVisited: true })
   }
 
   const getQuestionClass = (state: QuestionState) => {
@@ -36,12 +37,12 @@ export function QuestionListView() {
     <ScrollArea className="h-full pb-16">
       <div className="space-y-2 p-4">
         {currentSectionQuestions.map((question, index) => {
-          const state = questionStates[question.questionId]
-          const isActive = currentQuestion?.questionId === question.questionId
+          const state = questionStates[question.question_id]
+          const isActive = currentQuestion?.question_id === question.question_id
           
           return (
             <div
-              key={question.questionId}
+              key={question.question_id}
               className={cn(
                 "relative rounded-lg border p-4 transition-colors",
                 !isTimeUp && "cursor-pointer hover:bg-accent/50",
@@ -56,24 +57,24 @@ export function QuestionListView() {
                   <span className="font-medium">{index + 1}</span>
                   <span className="text-sm text-muted-foreground">
                     {/* MCQ (Single Correct) */}
-                    {question.questionType}
+                    {question.question_type}
                   </span>
                 </div>
                 {state?.isMarkedForReview && (
                   <Flag className="h-4 w-4 text-orange-500" />
                 )}
               </div>
-              <div className="text-sm line-clamp-2">{question.questionName}</div>
-              {question.imageDetails && question.imageDetails.length > 0 && (
+              <div className="text-sm line-clamp-2">{question.question.content}</div>
+              {/* {question.imageDetails && question.imageDetails.length > 0 && (
                 <div className="mt-2 relative h-20">
-                  {/* <Image
+                  <Image
                     src="/placeholder.svg"
                     alt="Question preview"
                     fill
                     className="object-contain"
-                  /> */}
+                  />
                 </div>
-              )}
+              )} */}
             </div>
           )
         })}

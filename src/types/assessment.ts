@@ -25,14 +25,12 @@ export type Assessment = {
   last_attempt_id: string | null;
   assessment_user_registration_id: string | null;
 };
-
 export interface QuestionState {
   isAnswered: boolean;
   isVisited: boolean;
   isMarkedForReview: boolean;
   isDisabled:boolean;
 }
-
 export enum assessmentTypes {
   LIVE = "LIVE",
   UPCOMING = "UPCOMING",

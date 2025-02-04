@@ -1,6 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import { UpcomingAssessment } from "../-utils.ts/dummyData";
 import { assessmentTypes } from "@/types/assessment";
 
 const ScheduleTestTabList = ({

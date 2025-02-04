@@ -11,7 +11,7 @@ import { EmptyScheduleTest } from "@/svgs";
 
 export const ScheduleTestMainComponent = () => {
   const { setNavHeading } = useNavHeadingStore();
-  const [loading, setLoading] = useState(true);
+  // const [loading, // setLoading] = useState(true);
   const [liveAssessmentList, setLiveAssessmentList] = useState<Assessment[]>(
     []
   );
@@ -39,17 +39,17 @@ export const ScheduleTestMainComponent = () => {
     setNavHeading("Assessment");
   }, []);
   useEffect(() => {
-    setLoading(true);
+    // setLoading(true);
     const timeoutId = setTimeout(() => {
       fetchAssessmentData(currentLivePage, pageSize, assessmentTypes.LIVE)
         .then((data) => {
           setLiveAssessmentList(data?.content);
           setTotalLivePage(data?.total_pages);
-          setLoading(false);
+          // setLoading(false);
         })
         .catch((error) => {
           console.error(error);
-          setLoading(false);
+          // // setLoading(false);
         });
     }, 0);
 
@@ -58,7 +58,7 @@ export const ScheduleTestMainComponent = () => {
     };
   }, [currentLivePage]);
   useEffect(() => {
-    setLoading(true);
+    // setLoading(true);
     const timeoutId = setTimeout(() => {
       fetchAssessmentData(
         currentUpcomingPage,
@@ -68,11 +68,11 @@ export const ScheduleTestMainComponent = () => {
         .then((data) => {
           setUpcomingAssessmentList(data?.content);
           setTotalUpcomingPage(data?.total_pages);
-          setLoading(false);
+          // setLoading(false);
         })
         .catch((error) => {
           console.error(error);
-          setLoading(false);
+          // setLoading(false);
         });
     }, 0);
 
@@ -81,7 +81,7 @@ export const ScheduleTestMainComponent = () => {
     };
   }, [currentUpcomingPage]);
   useEffect(() => {
-    setLoading(true);
+    // setLoading(true);
     const timeoutId = setTimeout(() => {
       fetchAssessmentData(currentPastPage, pageSize, assessmentTypes.PAST)
         .then((data) => {
@@ -89,11 +89,11 @@ export const ScheduleTestMainComponent = () => {
           console.log(data?.content);
           setPastAssessmentList(data?.content);
           setTotalPastPage(data?.total_pages);
-          setLoading(false);
+          // setLoading(false);
         })
         .catch((error) => {
           console.error(error);
-          setLoading(false);
+          // setLoading(false);
         });
     }, 0);
 
@@ -108,7 +108,7 @@ export const ScheduleTestMainComponent = () => {
         <Tabs value={selectedTab} onValueChange={handleTabChange}>
           <div className="items-center justify-center gap-5 pb-5">
             <div className="flex flex-wrap gap-5 pb-5">
-              <ScheduleTestTabList selectedTab={selectedTab} />
+              <ScheduleTestTabList selectedTab={selectedTab} totalAssessments={selectedTab.length} />
             </div>
           </div>
           <TabsContent
