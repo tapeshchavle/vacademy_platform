@@ -52,7 +52,7 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
         if (!assessment) return null;
         // const currentSectionInstructions =
         //   assessment.section_dtos[currentSection] || "";
-        console.log(assessment);
+        // console.log(assessment);
         return (
           // <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
           //   {/* <p>{assessment.assessmentInstruction}</p> */}
