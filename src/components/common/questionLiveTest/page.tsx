@@ -14,19 +14,16 @@ export default function Page() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   useEffect(() => {
+    console.log('main component')
     const initializeAssessment = async () => {
       console.log('loading state variables')
       await loadState()
-      // const currentState = useAssessmentStore.getState()
-
-      // if (!currentState.assessment) {
-      //   setAssessment(dummyAssessment)
-      // }
     }
 
     initializeAssessment()
 
     const saveInterval = setInterval(() => {
+      console.log('saving after interval')
       saveState()
     }, 1000)
 

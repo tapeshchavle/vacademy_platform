@@ -1,7 +1,8 @@
 import { StatusCheck } from "@/components/design-system/chips";
 import { SectionDto } from "@/types/assessment";
+import {parseHtmlToString} from "@/lib/utils"
 
-export const SectionDetails = ( section : SectionDto) => {
+export const SectionDetails = ({ section }: { section: SectionDto }) => {
   return (
     <div className="w-full mb-4">
       <div className="space-y-6">
@@ -14,7 +15,9 @@ export const SectionDetails = ( section : SectionDto) => {
             <div className="font-semibold ">
               <p className="font-bold">Section Description:</p>
             </div>
-            <div className="text-gray-700">{section.description.content}</div>
+            <div className="text-gray-700">
+              {parseHtmlToString(section.description.content)}
+            </div>
           </div>
 
           <div className="text-sm text-gray-600">
@@ -25,29 +28,27 @@ export const SectionDetails = ( section : SectionDto) => {
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm text-gray-600">
+            {/* <div className="flex items-center justify-between text-sm text-gray-600">
               <div>
-                {/* <span className="font-bold">Negative Marking: </span>
+                <span className="font-bold">Negative Marking: </span>
                 {section..checked
                   ? section.negativeMarking.value
-                  : "No"} */}
+                  : "No"}
               </div>
               {section.cutoff_marks && <StatusCheck />}
-            </div>
+            </div> */}
 
             <div className="flex items-center justify-between text-sm text-gray-600">
-              <div>
+              {/* <div>
                 <p className="font-bold">Partial Marking</p>
-              </div>
+              </div> */}
               {/* {section. && <StatusCheck />} */}
             </div>
 
             <div className="flex items-center justify-between text-sm text-gray-600">
               <div>
                 <span className="font-bold">Cut off marks: </span>
-                {section.cutoff_marks
-                  ? section.cutoff_marks
-                  : "NA"}
+                {section.cutoff_marks ? section.cutoff_marks : "NA"}
               </div>
               {section.cutoff_marks && <StatusCheck />}
             </div>
