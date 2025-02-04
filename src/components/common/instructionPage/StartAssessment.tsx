@@ -18,8 +18,8 @@ const AssessmentStartModal = () => {
     setIsOpen(false);
   };
   const handleNavigation = async () => {
-    const data = await fetchPreviewData(assessmentId);
-    console.log(data);
+    await fetchPreviewData(assessmentId);
+    // console.log(data);
     navigate({
       to: `/assessment/examination/${assessmentId}/assessmentPreview`,
     });

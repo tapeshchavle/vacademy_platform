@@ -78,6 +78,9 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
     switch (type) {
       case "instructions":
         if (!assessment) return null;
+        // const currentSectionInstructions =
+        //   assessment.section_dtos[currentSection] || "";
+        // console.log(assessment);
         return (
           <>
             <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">

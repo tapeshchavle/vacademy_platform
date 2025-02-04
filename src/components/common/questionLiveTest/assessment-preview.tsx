@@ -22,7 +22,9 @@ export function AssessmentPreview() {
   const { setAssessment } = useAssessmentStore();
   const [activeSection, setActiveSection] = useState(0);
   const [timeLeft, setTimeLeft] = useState(() => {
-    return (assessment?.preview_total_time ? assessment.preview_total_time : 0) * 60 ;
+    return (
+      (assessment?.preview_total_time ? assessment.preview_total_time : 0) * 60
+    );
   });
   const navigate = useNavigate();
 
@@ -73,10 +75,10 @@ export function AssessmentPreview() {
   const QuestionContent = ({ content }: { content: string }) => {
     return <div dangerouslySetInnerHTML={{ __html: content }} />;
   };
-//  function parseHtmlToString(html: string) {
-//     const doc = new DOMParser().parseFromString(html, "text/html");
-//     return doc.body.textContent || doc.body.innerText || "";
-//   }
+  //  function parseHtmlToString(html: string) {
+  //     const doc = new DOMParser().parseFromString(html, "text/html");
+  //     return doc.body.textContent || doc.body.innerText || "";
+  //   }
   // const calculateTotalMarks = async(marking_shceme)=>{
   //   return marking_shceme.totalMarks;
   // }
