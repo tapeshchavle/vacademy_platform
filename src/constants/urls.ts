@@ -1,8 +1,4 @@
-// import { INSTITUTE_ID } from '@/constants/urls';
-// import { Assessment } from './../types/previewInstructionAssessment';
 export const BASE_URL = "https://backend-stage.vacademy.io";
-
-// export const INSTITUTE_ID = "c70f40a5-e4d3-4b6c-a498-e612d0d4b133";
 
 // urls
 export const LOGIN_URL = `${BASE_URL}/auth-service/learner/v1/login`;
@@ -15,3 +11,5 @@ export const Assessment_List_Filter = `${BASE_URL}/assessment-service/assessment
 export const GET_TEXT_VIA_IDS = `${BASE_URL}/assessment-service/assessment/rich-text/by-ids`;
 export const ASSESSMENT_PREVIEW = `${BASE_URL}/assessment-service/assessment/learner/assessment-start-preview`;
 export const START_ASSESSMENT = `${BASE_URL}/assessment-service/assessment/learner/assessment-start-assessment`;
+export const ASSESSMENT_SAVE = `${BASE_URL}/assessment-service/assessment/learner/status/update`;
+export const ASSESSMENT_SUBMIT = `${BASE_URL}/assessment-service/assessment/learner/status/submit`;
