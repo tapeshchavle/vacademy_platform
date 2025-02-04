@@ -22,7 +22,9 @@ export function AssessmentPreview() {
   const { setAssessment } = useAssessmentStore();
   const [activeSection, setActiveSection] = useState(0);
   const [timeLeft, setTimeLeft] = useState(() => {
-    return (assessment?.preview_total_time ? assessment.preview_total_time : 0) * 60 ;
+    return (
+      (assessment?.preview_total_time ? assessment.preview_total_time : 0) * 60
+    );
   });
   const navigate = useNavigate();
 
@@ -37,7 +39,7 @@ export function AssessmentPreview() {
         }
 
         const parsedData: AssessmentPreviewData = JSON.parse(value);
-        console.log("Parsed Data:", parsedData);
+        // console.log("Parsed Data:", parsedData);
         setAssessment(parsedData);
       } catch (error) {
         console.error("Error parsing assessment data:", error);
@@ -74,10 +76,10 @@ export function AssessmentPreview() {
   const QuestionContent = ({ content }: { content: string }) => {
     return <div dangerouslySetInnerHTML={{ __html: content }} />;
   };
-//  function parseHtmlToString(html: string) {
-//     const doc = new DOMParser().parseFromString(html, "text/html");
-//     return doc.body.textContent || doc.body.innerText || "";
-//   }
+  //  function parseHtmlToString(html: string) {
+  //     const doc = new DOMParser().parseFromString(html, "text/html");
+  //     return doc.body.textContent || doc.body.innerText || "";
+  //   }
   // const calculateTotalMarks = async(marking_shceme)=>{
   //   return marking_shceme.totalMarks;
   // }
@@ -88,8 +90,8 @@ export function AssessmentPreview() {
     return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
   const handleStartAssessment = async () => {
-    const data = await startAssessment();
-    console.log(data);
+     await startAssessment();
+    // console.log(data);
     router.navigate({ to: newPath });
   };
   return (

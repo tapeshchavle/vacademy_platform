@@ -29,7 +29,7 @@ export function QuestionDisplay() {
   } = useAssessmentStore();
 
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
-  console.log(currentQuestion);
+  // console.log(currentQuestion);
 
   useEffect(() => {
     if (
@@ -98,7 +98,7 @@ export function QuestionDisplay() {
   const calculateMarkingScheme = (marking_json: string) => {
     try {
       const marking_scheme = JSON.parse(marking_json);
-      console.log(marking_scheme)
+      // console.log(marking_scheme)
       return marking_scheme; 
     } catch (error) {
       console.error("Error parsing marking_json:", error);
