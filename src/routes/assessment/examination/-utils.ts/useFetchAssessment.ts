@@ -1,3 +1,4 @@
+import { useAssessmentStore } from "@/stores/assessment-store";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { toast } from "sonner";
 import {
@@ -8,13 +9,13 @@ import {
 import { Preferences } from "@capacitor/preferences";
 import {
   assessmentTypes,
+  distribution_duration_types,
   // AssessmentPreviewData,
   //   Section_dto,
   //   Question_dto,
   // Section,
 } from "@/types/assessment";
 import { Storage } from "@capacitor/storage";
-import setAssessment from "@/stores/assessment-store";
 
 const getStoredDetails = async () => {
   const studentData = await Preferences.get({ key: "StudentDetails" });
@@ -50,19 +51,25 @@ const getStartAssessmentDetails = async () => {
   };
 };
 
-const getDuration = async ()=>{
+const getDuration = async (): Promise<{
+  can_switch_section: boolean;
+  duration: number;
+  distribution_duration: distribution_duration_types;
+}> => {
   const InstructionID_and_AboutID = await Preferences.get({
     key: "InstructionID_and_AboutID",
   });
+
   const assessment = InstructionID_and_AboutID.value
     ? JSON.parse(InstructionID_and_AboutID.value)
     : null;
+
   return {
-    can_switch_section: assessment.can_switch_section,
-    duration: assessment.duration,
-    distribution_duration: assessment.distribution_duration,
+    can_switch_section: assessment?.can_switch_section || false,
+    duration: assessment?.duration || 1,
+    distribution_duration: assessment?.distribution_duration || "QUESTION",
   };
-}
+};
 
 export const fetchAssessmentData = async (
   pageNo: number,
@@ -115,32 +122,31 @@ export const fetchPreviewData = async (assessment_id: string) => {
       toast.error("Missing student or institute details.");
       return;
     }
+
     const getStudentDetails = async () => {
       const storedData = await Storage.get({ key: "StudentDetails" });
-
       if (storedData.value) {
         try {
-          const parsedData = await JSON.parse(storedData.value);
-          console.log(parsedData);
-          console.log(parsedData.package_session_id);
-          return parsedData;
+          return JSON.parse(storedData.value);
         } catch (error) {
           console.error("Error parsing student details:", error);
         }
       }
     };
+
     const getInstituteId = async () => {
       const institute_id_value = await Storage.get({ key: "InstituteId" });
-
-      if (institute_id_value.value) {
-        return institute_id_value.value;
-      }
+      return institute_id_value.value || null;
     };
 
     const institute_id = await getInstituteId();
-    console.log(institute_id);
     const student_details = await getStudentDetails();
-    console.log(student_details);
+
+    if (!student_details) {
+      toast.error("Student details not found.");
+      return;
+    }
+
     const requestBody = {
       username: student_details.username,
       user_id: student_details.user_id,
@@ -165,22 +171,27 @@ export const fetchPreviewData = async (assessment_id: string) => {
       }
     );
 
+    const durationData = await getDuration();
     if (response.status === 200) {
       console.log(response);
-      const durationData = getDuration();
-      // console.log(transfomredData)
+
+      // Save to local storage
       await Storage.set({
         key: "Assessment_questions",
         value: JSON.stringify({ ...response.data, ...durationData }),
       });
-      setAssessment({...response.data , ...durationData});
+
+      // ✅ UPDATE STORE SAFELY (Use Zustand's setState Outside Component)
+      useAssessmentStore.setState((state) => ({
+        ...state,
+        assessment: { ...response.data, ...durationData },
+      }));
     }
+    
     return response.data;
   } catch (error) {
     console.error("Error fetching assessments:", error);
-    toast.error("Failed to fetch assessments.");
-  } finally {
-    // setLoading(false);
+    toast.error("Failed to fetch assessments.")
   }
 };
 
@@ -199,14 +210,13 @@ export const startAssessment = async () => {
       `${START_ASSESSMENT}`,
       requestBody
     );
-    if(response.status === 200){
+    if (response.status === 200) {
       await Storage.set({
         key: "server_start_end_time",
         value: JSON.stringify(response.data),
       });
       return response.data;
     }
-  
   } catch (error) {
     console.error("Error fetching assessments:", error);
     // toast.error("Failed to fetch assessments.");
