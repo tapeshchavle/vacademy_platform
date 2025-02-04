@@ -24,6 +24,7 @@ export type Assessment = {
   preview_time: number;
   last_attempt_id: string | null;
   assessment_user_registration_id: string | null;
+  can_switch_section:boolean;
 };
 export interface QuestionState {
   isAnswered: boolean;
@@ -115,3 +116,18 @@ export interface Option {
 export interface OptionWithExplanation extends Option {
   explanation_text: RichText;
 }
+
+export interface UpdateApiResponse {
+  announcements: {
+    id: string;
+    rich_text_id: string;
+    sent_time: string; // Use Date if you plan to convert it
+  }[];
+  duration: {
+    id: string;
+    type: string;
+    new_max_time: string;
+  }[];
+  control: string[];
+}
+

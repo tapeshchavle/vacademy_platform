@@ -16,8 +16,13 @@ import { AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import useAlertsStore from "@/stores/alerts-store";
-// import SectionDetails from "../common/instructionPage/SectionDetails";
-// import { AssessmentInstructions } from "../common/instructionPage/AssessmentInstructions";
+import SectionDetails from "../common/instructionPage/SectionDetails";
+import { AssessmentInstructions } from "../common/instructionPage/AssessmentInstructions";
+import { GET_TEXT_VIA_IDS } from "@/constants/urls";
+import { fetchDataByIds } from "@/services/GetDataById";
+import { RichText, Assessment as AssessmentType } from "@/types/assessment";
+import { useEffect } from "react";
+import { Preferences } from "@capacitor/preferences";
 
 interface HelpModalProps {
   open: boolean;
@@ -26,13 +31,36 @@ interface HelpModalProps {
 }
 
 export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
+  const [instructions, setInstructions] = useState<RichText>();
+  const [assessmentInfo, setAssessmentInfo] = useState<AssessmentType>();
   const [reason, setReason] = useState("");
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+   const { assessment , currentSection} = useAssessmentStore();
   // const { assessment, currentSection } = useAssessmentStore();
   // const { alerts, requests, addRequest } = useAlertsStore();
   const { alerts } = useAlertsStore();
-  const { assessment } = useAssessmentStore();
-
+  const fetchInstructions = async () => {
+    try {
+      const AssessmentData = await Preferences.get({
+        key: "InstructionID_and_AboutID",
+      });
+      const Assessment = AssessmentData.value
+        ? JSON.parse(AssessmentData.value)
+        : null;
+      setAssessmentInfo(Assessment);
+      const data = await fetchDataByIds(
+        Assessment.instruction_id,
+        GET_TEXT_VIA_IDS
+      );
+      setInstructions(data[0]);
+    } catch (error) {
+      console.error("Error fetching assessments:", error);
+      // toast.error("Failed to fetch assessments.");
+    }
+  };
+  useEffect(() => {
+    fetchInstructions();
+  }, []);
   const getTitle = () => {
     switch (type) {
       case "instructions":
@@ -54,30 +82,38 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
         //   assessment.section_dtos[currentSection] || "";
         // console.log(assessment);
         return (
-          // <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
-          //   {/* <p>{assessment.assessmentInstruction}</p> */}
-          //   <AssessmentInstructions
-          //     instructions={assessment.assessmentInstruction}
-          //   />
-          //   <p>Current Section Instructions:</p>
-          //   <div className="">
-          //     <SectionDetails section={currentSectionInstructions} />
-          //   </div>
-          // </div>
-          <div className="">
-
-          
-          {/* {open && type === "instructions" && (
+          <>
             <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
-              <AssessmentInstructions
-                instructions={assessment?.assessmentInstruction}
-              />
+              {/* <p>{assessment.assessmentInstruction}</p> */}
+              {assessmentInfo && instructions && (
+                <AssessmentInstructions
+                  instructions={instructions.content}
+                  duration={assessmentInfo.duration}
+                  preview={assessmentInfo.preview_time > 0 ? true : false}
+                  canSwitchSections={assessmentInfo.can_switch_section}
+                />
+              )}
               <p>Current Section Instructions:</p>
-              <SectionDetails section={assessment?.sections[currentSection]} />
+              <div className="">
+                <SectionDetails
+                  section={assessment.section_dtos[currentSection]}
+                />
+              </div>
             </div>
-          )} */}
-          </div>
-          
+            <div className="">
+              {/* {open && type === "instructions" && (
+                <div className="space-y-4 mt-4 max-h-96 overflow-y-auto">
+                  <AssessmentInstructions
+                    instructions={assessment?.assessmentInstruction}
+                  />
+                  <p>Current Section Instructions:</p>
+                  <SectionDetails
+                    section={assessment?.sections[currentSection]}
+                  />
+                </div>
+              )} */}
+            </div>
+          </>
         );
       case "alerts":
         return (
@@ -144,7 +180,6 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
         <DialogContent className="max-w-md">
           <DialogHeader className="flex flex-row items-center justify-between">
             <DialogTitle>{getTitle()}</DialogTitle>
-            
           </DialogHeader>
           {getContent()}
         </DialogContent>

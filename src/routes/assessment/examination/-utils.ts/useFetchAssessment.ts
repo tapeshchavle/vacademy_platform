@@ -10,10 +10,7 @@ import { Preferences } from "@capacitor/preferences";
 import {
   assessmentTypes,
   distribution_duration_types,
-  // AssessmentPreviewData,
-  //   Section_dto,
-  //   Question_dto,
-  // Section,
+  // UpdateApiResponse,
 } from "@/types/assessment";
 import { Storage } from "@capacitor/storage";
 
@@ -173,8 +170,6 @@ export const fetchPreviewData = async (assessment_id: string) => {
 
     const durationData = await getDuration();
     if (response.status === 200) {
-      console.log(response);
-
       // Save to local storage
       await Storage.set({
         key: "Assessment_questions",
@@ -224,3 +219,14 @@ export const startAssessment = async () => {
     // setLoading(false);
   }
 };
+
+// export const updateAssessmentAccordingToApiResponse = async (
+//   UpdateApiResponse: UpdateApiResponse
+// ) => {
+//   const Assessment_question = await Preferences.get({
+//     key: "Assessment_questions",
+//   });
+//   const assessment = Assessment_question.value
+//     ? JSON.parse(Assessment_question.value)
+//     : null;
+// };

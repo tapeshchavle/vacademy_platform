@@ -39,7 +39,6 @@ export function AssessmentPreview() {
         }
 
         const parsedData: AssessmentPreviewData = JSON.parse(value);
-        // console.log("Parsed Data:", parsedData);
         setAssessment(parsedData);
       } catch (error) {
         console.error("Error parsing assessment data:", error);
@@ -91,7 +90,6 @@ export function AssessmentPreview() {
   };
   const handleStartAssessment = async () => {
      await startAssessment();
-    // console.log(data);
     router.navigate({ to: newPath });
   };
   return (
