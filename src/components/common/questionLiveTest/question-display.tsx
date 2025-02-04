@@ -98,10 +98,11 @@ export function QuestionDisplay() {
   const calculateMarkingScheme = (marking_json: string) => {
     try {
       const marking_scheme = JSON.parse(marking_json);
-      return marking_scheme; // Ensure the JSON contains a number or string
+      console.log(marking_scheme)
+      return marking_scheme; 
     } catch (error) {
       console.error("Error parsing marking_json:", error);
-      return 0; // Default value in case of an error
+      return 0;
     }
   };
 
@@ -121,10 +122,10 @@ export function QuestionDisplay() {
           <div className="flex items-baseline gap-5 sm:mb-2">
             <div className="flex items-baseline gap-8">
               <span className="text-lg text-gray-700">
-                Question {currentQuestion.question_id.slice(1)}
+                Question {currentQuestion.question_order}
               </span>
               <span className="text-base text-gray-600">
-                {calculateMarkingScheme(currentQuestion.marking_json).totalMark} Marks
+                {calculateMarkingScheme(currentQuestion.marking_json).data.totalMark} Marks
               </span>
             </div>
 

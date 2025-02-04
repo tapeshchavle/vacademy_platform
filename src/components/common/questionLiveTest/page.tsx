@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// import { QuestionDisplay } from "./question-display";
+import { QuestionDisplay } from "./question-display";
 import { SectionTabs } from "./section-tabs";
 import { Navbar } from "./navbar";
 import { Footer } from "./footer";
@@ -44,7 +44,7 @@ export default function Page() {
       <SectionTabs />
       <div className="flex-1 overflow-hidden">
         <main className="w-full h-full p-4 md:p-6 overflow-auto">
-          {/* <QuestionDisplay /> */}
+          <QuestionDisplay />
         </main>
       </div>
       <Footer onToggleSidebar={toggleSidebar} />
