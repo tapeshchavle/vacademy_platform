@@ -10,7 +10,7 @@ import { Preferences } from "@capacitor/preferences";
 import {
   assessmentTypes,
   distribution_duration_types,
-  UpdateApiResponse,
+  // UpdateApiResponse,
 } from "@/types/assessment";
 import { Storage } from "@capacitor/storage";
 
@@ -220,13 +220,13 @@ export const startAssessment = async () => {
   }
 };
 
-export const updateAssessmentAccordingToApiResponse = async (
-  UpdateApiResponse: UpdateApiResponse
-) => {
-  const Assessment_question = await Preferences.get({
-    key: "Assessment_questions",
-  });
-  const assessment = Assessment_question.value
-    ? JSON.parse(Assessment_question.value)
-    : null;
-};
+// export const updateAssessmentAccordingToApiResponse = async (
+//   UpdateApiResponse: UpdateApiResponse
+// ) => {
+//   const Assessment_question = await Preferences.get({
+//     key: "Assessment_questions",
+//   });
+//   const assessment = Assessment_question.value
+//     ? JSON.parse(Assessment_question.value)
+//     : null;
+// };
