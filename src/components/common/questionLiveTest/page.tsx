@@ -15,6 +15,7 @@ export default function Page() {
 
   useEffect(() => {
     const initializeAssessment = async () => {
+      console.log('loading state variables')
       await loadState()
       // const currentState = useAssessmentStore.getState()
 

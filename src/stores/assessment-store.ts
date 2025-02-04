@@ -1,6 +1,5 @@
-
-import { create } from "zustand"
-import { Storage } from "@capacitor/storage"
+import { create } from "zustand";
+import { Storage } from "@capacitor/storage";
 import {
   QuestionState,
   AssessmentPreviewData,
@@ -9,15 +8,16 @@ import {
 } from "../types/assessment";
 
 interface SectionTimer {
-  timeLeft: number
-  isRunning: boolean
-  hasStarted: boolean
+  timeLeft: number;
+  isRunning: boolean;
+  hasStarted: boolean;
 }
 
 interface AssessmentStore {
   assessment: AssessmentPreviewData | null;
   currentSection: number;
   currentQuestion: QuestionDto | null;
+  currentQuestionIndex: number | null;
   questionStates: Record<string, QuestionState>;
   answers: Record<string, string[]>;
   sectionTimers: Record<number, SectionTimer>;
@@ -55,6 +55,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   assessment: null,
   currentSection: 0,
   currentQuestion: null,
+  currentQuestionIndex:0,
   questionStates: {},
   answers: {},
   sectionTimers: {},
@@ -63,17 +64,21 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   setAssessment: (assessment) =>
     set((state) => {
       if (!assessment || !assessment.section_dtos) {
-        console.error("Invalid assessment object:", assessment)
-        return state
+        console.error("Invalid assessment object:", assessment);
+        return state;
       }
-      const currentQuestion: QuestionDto = assessment.section_dtos[0].question_preview_dto_list[0]
-      const questionStates: Record<string, QuestionState> = {}
-      const sectionTimers: Record<number, SectionTimer> = {}
-      const questionTimers: Record<string, number> = {}
-      const questionStartTime: Record<string, number> = {}
+      const currentQuestion: QuestionDto =
+        assessment.section_dtos[0].question_preview_dto_list[0];
+      const questionStates: Record<string, QuestionState> = {};
+      const sectionTimers: Record<number, SectionTimer> = {};
+      const questionTimers: Record<string, number> = {};
+      const questionStartTime: Record<string, number> = {};
 
       assessment.section_dtos.forEach((section, index) => {
-        if (assessment.distribution_duration === distribution_duration_types.SECTION ) {
+        if (
+          assessment.distribution_duration ===
+          distribution_duration_types.SECTION
+        ) {
           const minutes = section.duration;
           sectionTimers[index] = {
             timeLeft: minutes * 60 * 1000,
@@ -88,20 +93,19 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
             isVisited: false,
             isMarkedForReview: false,
             isDisabled: false,
-          }
+          };
 
           if (
             assessment.distribution_duration ===
             distribution_duration_types.QUESTION
           ) {
             const minutes = question.question_duration;
-            questionTimers[question.question_id] =
-              (minutes * 60) * 1000;
+            questionTimers[question.question_id] = minutes * 60 * 1000;
           }
-        })
-      })
+        });
+      });
 
-      const entireTestTimer = assessment.duration * 60; 
+      const entireTestTimer = assessment.duration * 60;
 
       return {
         assessment,
@@ -112,12 +116,12 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         currentSection: 0,
         currentQuestion,
         questionStartTime,
-      }
+      };
     }),
 
   setCurrentSection: (sectionIndex) =>
     set((state) => {
-      if (!state.assessment) return {}
+      if (!state.assessment) return {};
 
       if (!state.assessment.can_switch_section) {
         const previousSectionsComplete = [...Array(sectionIndex)].every(
@@ -126,18 +130,18 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         if (!previousSectionsComplete) return {};
       }
 
-      const updatedTimers = { ...state.sectionTimers }
+      const updatedTimers = { ...state.sectionTimers };
       Object.keys(updatedTimers).forEach((key) => {
-        const idx = Number(key)
+        const idx = Number(key);
         if (!state.assessment?.can_switch_section) {
           updatedTimers[idx].isRunning = idx === sectionIndex;
         }
-      })
+      });
 
       return {
         currentSection: sectionIndex,
         sectionTimers: updatedTimers,
-      }
+      };
     }),
 
   setCurrentQuestion: (question) =>
@@ -155,6 +159,8 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         [question.question_id]: Date.now(),
       },
     })),
+
+    
 
   setQuestionState: (questionId, state) =>
     set((prevState) => ({
@@ -182,7 +188,8 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         ...state.questionStates,
         [questionId]: {
           ...state.questionStates[questionId],
-          isMarkedForReview: !state.questionStates[questionId].isMarkedForReview,
+          isMarkedForReview:
+            !state.questionStates[questionId].isMarkedForReview,
         },
       },
     })),
@@ -201,8 +208,11 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
 
   updateSectionTimer: (sectionIndex, timeLeft) =>
     set((state) => {
-      if (state.assessment?.distribution_duration !== distribution_duration_types.SECTION) {
-        return {}
+      if (
+        state.assessment?.distribution_duration !==
+        distribution_duration_types.SECTION
+      ) {
+        return {};
       }
 
       const updatedTimers = {
@@ -211,12 +221,12 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
           ...state.sectionTimers[sectionIndex],
           timeLeft,
         },
-      }
+      };
 
       if (timeLeft === 0 && sectionIndex === state.currentSection) {
-        const nextSectionIndex = state.findNextAvailableSection()
+        const nextSectionIndex = state.findNextAvailableSection();
         if (nextSectionIndex !== null) {
-          updatedTimers[nextSectionIndex].isRunning = true
+          updatedTimers[nextSectionIndex].isRunning = true;
           const firstQuestion =
             state.assessment?.section_dtos[nextSectionIndex]
               .question_preview_dto_list[0];
@@ -225,18 +235,18 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
             sectionTimers: updatedTimers,
             currentSection: nextSectionIndex,
             currentQuestion: firstQuestion,
-          }
+          };
         } else {
           if (state.entireTestTimer <= 0) {
             return {
               sectionTimers: updatedTimers,
               isSubmitted: true,
-            }
+            };
           }
         }
       }
 
-      return { sectionTimers: updatedTimers }
+      return { sectionTimers: updatedTimers };
     }),
 
   updateQuestionTimer: (questionId, timeLeft) =>
@@ -262,27 +272,31 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   submitAssessment: () => set({ isSubmitted: true }),
 
   findNextAvailableSection: () => {
-    const state = get()
-    if (!state.assessment) return null
+    const state = get();
+    if (!state.assessment) return null;
 
-    for (let i = state.currentSection + 1; i < state.assessment.section_dtos.length; i++) {
+    for (
+      let i = state.currentSection + 1;
+      i < state.assessment.section_dtos.length;
+      i++
+    ) {
       if (state.sectionTimers[i]?.timeLeft > 0 && !state.isSectionComplete(i)) {
-        return i
+        return i;
       }
     }
 
     for (let i = 0; i < state.currentSection; i++) {
       if (state.sectionTimers[i]?.timeLeft > 0 && !state.isSectionComplete(i)) {
-        return i
+        return i;
       }
     }
 
-    return null
+    return null;
   },
 
   moveToNextAvailableSection: () => {
-    const state = get()
-    if (!state.assessment) return
+    const state = get();
+    if (!state.assessment) return;
 
     if (
       state.assessment?.distribution_duration ===
@@ -314,7 +328,8 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
           });
 
           const firstQuestion =
-            state.assessment.section_dtos[nextSection].question_preview_dto_list[0];
+            state.assessment.section_dtos[nextSection]
+              .question_preview_dto_list[0];
           if (firstQuestion) {
             state.setCurrentQuestion(firstQuestion);
           }
@@ -334,47 +349,49 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         }
         return;
       }
-    } 
+    }
 
     if (state.entireTestTimer === 0) {
-      set({ isSubmitted: true })
+      set({ isSubmitted: true });
     }
   },
 
   moveToNextQuestion: () => {
-    const state = get()
-    const { assessment, currentSection, currentQuestion } = state
-    if (!assessment || !currentQuestion) return
+    const state = get();
+    const { assessment, currentSection, currentQuestion } = state;
+    if (!assessment || !currentQuestion) return;
 
     const currentSectionQuestions =
       assessment.section_dtos[currentSection].question_preview_dto_list;
-    const currentIndex = currentSectionQuestions.findIndex((q) => q.question_id === currentQuestion.question_id)
+    const currentIndex = currentSectionQuestions.findIndex(
+      (q) => q.question_id === currentQuestion.question_id
+    );
 
     if (currentIndex < currentSectionQuestions.length - 1) {
-      state.setCurrentQuestion(currentSectionQuestions[currentIndex + 1])
+      state.setCurrentQuestion(currentSectionQuestions[currentIndex + 1]);
     } else {
-      state.moveToNextAvailableSection()
+      state.moveToNextAvailableSection();
     }
   },
 
-  
-
   isSectionComplete: (sectionIndex: number) => {
-    const state = get()
-    if (!state.assessment) return false
+    const state = get();
+    if (!state.assessment) return false;
 
-    const section = state.assessment.section_dtos[sectionIndex]
-    if (!section) return false
+    const section = state.assessment.section_dtos[sectionIndex];
+    if (!section) return false;
 
     return (
       state.sectionTimers[sectionIndex]?.timeLeft === 0 ||
-      section.question_preview_dto_list.every((question) => state.questionStates[question.question_id]?.isAnswered)
-    )
+      section.question_preview_dto_list.every(
+        (question) => state.questionStates[question.question_id]?.isAnswered
+      )
+    );
   },
 
   isSectionAvailable: (sectionIndex: number) => {
-    const state = get()
-    if (!state.assessment) return false
+    const state = get();
+    if (!state.assessment) return false;
 
     if (
       state.assessment?.distribution_duration !==
@@ -388,24 +405,26 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     }
 
     return (
-      [...Array(sectionIndex)].every((_, idx) => state.sectionTimers[idx]?.timeLeft === 0) &&
-      state.sectionTimers[sectionIndex]?.timeLeft > 0
-    )
+      [...Array(sectionIndex)].every(
+        (_, idx) => state.sectionTimers[idx]?.timeLeft === 0
+      ) && state.sectionTimers[sectionIndex]?.timeLeft > 0
+    );
   },
 
   tabSwitchCount: 0,
-  incrementTabSwitchCount: () => set((state) => ({ tabSwitchCount: state.tabSwitchCount + 1 })),
+  incrementTabSwitchCount: () =>
+    set((state) => ({ tabSwitchCount: state.tabSwitchCount + 1 })),
 
   entireTestTimer: 0,
   setEntireTestTimer: (time) => set({ entireTestTimer: time }),
   updateEntireTestTimer: () =>
     set((state) => {
-      const newTimer = Math.max(0, state.entireTestTimer - 1)
-      return { entireTestTimer: newTimer }
+      const newTimer = Math.max(0, state.entireTestTimer - 1);
+      return { entireTestTimer: newTimer };
     }),
-    
+
   saveState: async () => {
-    const state = get()
+    const state = get();
     const dataToSave = {
       assessment: state.assessment,
       currentSection: state.currentSection,
@@ -417,43 +436,45 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       entireTestTimer: state.entireTestTimer,
       tabSwitchCount: state.tabSwitchCount,
       questionStartTime: state.questionStartTime,
-    }
+    };
 
     await Storage.set({
       key: "ASSESSMENT_STATE",
       value: JSON.stringify(dataToSave),
-    })
+    });
 
-    localStorage.setItem("ASSESSMENT_STATE", JSON.stringify(dataToSave))
+    localStorage.setItem("ASSESSMENT_STATE", JSON.stringify(dataToSave));
   },
 
   loadState: async () => {
-    let savedState = localStorage.getItem("ASSESSMENT_STATE")
+    let savedState = localStorage.getItem("ASSESSMENT_STATE");
 
     if (!savedState) {
-      const { value } = await Storage.get({ key: "ASSESSMENT_STATE" })
-      savedState = value
+      const { value } = await Storage.get({ key: "ASSESSMENT_STATE" });
+      savedState = value;
     }
 
     if (savedState) {
-      const parsedState = JSON.parse(savedState)
-      set(parsedState)
+      const parsedState = JSON.parse(savedState);
+      set(parsedState);
     }
   },
 
   questionStartTime: {},
   setQuestionStartTime: (questionId: string, startTime: number) =>
     set((state) => ({
-      questionStartTime: { ...state.questionStartTime, [questionId]: startTime },
+      questionStartTime: {
+        ...state.questionStartTime,
+        [questionId]: startTime,
+      },
     })),
 
   calculateTimeTaken: (questionId: string) => {
-    const state = get()
-    const startTime = state.questionStartTime[questionId]
-    if (!startTime) return 0
-    return Date.now() - startTime
+    const state = get();
+    const startTime = state.questionStartTime[questionId];
+    if (!startTime) return 0;
+    return Date.now() - startTime;
   },
-}))
+}));
 
-export default useAssessmentStore
-
+export default useAssessmentStore;

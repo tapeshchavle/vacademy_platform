@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HelpCircle } from "lucide-react";
-import { TimesUpModal } from "@/components/modals/times-up-modal";
+// import { TimesUpModal } from "@/components/modals/times-up-modal";
 import { MyButton } from "@/components/design-system/button";
 
 export function Navbar() {
@@ -183,11 +183,11 @@ export function Navbar() {
         onConfirm={handleSubmit}
       />
 
-      <TimesUpModal
+      {/* <TimesUpModal
         open={showTimesUpModal}
         onOpenChange={setShowTimesUpModal}
         onFinish={handleSubmit}
-      />
+      /> */}
 
       <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
         <AlertDialogContent>
