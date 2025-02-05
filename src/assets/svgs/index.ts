@@ -17,3 +17,10 @@ export { LoginImage };
 
 import ImportFileImage from "./import-file.svg";
 export { ImportFileImage };
+
+import dashboardImg from "./dashboardImg.svg"
+export { dashboardImg };
+
+import PlayCircle from "./PlayCircle.svg";
+export { PlayCircle };
+
