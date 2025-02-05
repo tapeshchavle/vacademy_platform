@@ -18,20 +18,11 @@ const AssessmentStartModal = () => {
     setIsOpen(false);
   };
   const handleNavigation = async () => {
-    try {
-      const data = await fetchPreviewData(assessmentId);
-      if (data.success) {
-        navigate({
-          to: `/assessment/examination/${assessmentId}/assessmentPreview`,
-        });
-      } else {
-        // Show error toast
-        console.error("Error: Unable to fetch preview data");
-      }
-    } catch (error) {
-      // Show error toast
-      console.error("Error: Unable to fetch preview data", error);
-    }
+    await fetchPreviewData(assessmentId);
+    // console.log(data);
+    navigate({
+      to: `/assessment/examination/${assessmentId}/assessmentPreview`,
+    });
   };
 
   return (
