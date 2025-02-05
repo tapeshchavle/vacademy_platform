@@ -1,4 +1,4 @@
-package com.template.app;
+package io.vacademy.student.app;
 
 import com.getcapacitor.BridgeActivity;
 

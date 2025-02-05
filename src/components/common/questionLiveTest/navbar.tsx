@@ -19,13 +19,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HelpCircle } from "lucide-react";
-// import { TimesUpModal } from "@/components/modals/times-up-modal";
 import { MyButton } from "@/components/design-system/button";
+import { TimesUpModal } from "@/components/modals/times-up-modal";
+import { ASSESSMENT_SUBMIT } from "@/constants/urls";
+import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
+import { Preferences } from "@capacitor/preferences";
+import { toast } from "sonner";
 
 export function Navbar() {
   const {
     assessment,
-    sectionTimers,
     submitAssessment,
     updateEntireTestTimer,
     tabSwitchCount,
@@ -43,6 +46,75 @@ export function Navbar() {
   }
 
   const [helpType, setHelpType] = useState<HelpType["type"]>(null);
+
+  const formatDataFromStore = (assessment_id: string) => {
+    console.log("here   ");
+    const state = useAssessmentStore.getState();
+    console.log(state);
+    return {
+      attemptId: state.assessment?.attempt_id,
+      clientLastSync: new Date().toISOString(),
+      assessment: {
+        assessmentId: assessment_id,
+        entireTestDurationLeftInSeconds: state.entireTestTimer,
+        timeElapsedInSeconds: 0,
+        status: "END",
+        tabSwitchCount: state.tabSwitchCount || 0,
+      },
+      sections: state.assessment?.section_dtos?.map((section, idx) => ({
+        sectionId: section.id,
+        timeElapsedInSeconds: state.sectionTimers?.[idx].timeLeft || 0,
+        questions: section.question_preview_dto_list?.map((question, qidx) => ({
+          questionId: question.question_id,
+          questionDurationLeftInSeconds: state.questionTimers?.[qidx] || 0,
+          timeTakenInSeconds: 0,
+          responseData: {
+            type: question.question_type,
+            optionIds: state.answers?.[question.question_id] || [],
+          },
+        })),
+      })),
+    };
+  };
+
+  const sendFormattedData = async () => {
+    try {
+      const state = useAssessmentStore.getState();
+      const InstructionID_and_AboutID = await Preferences.get({
+        key: "InstructionID_and_AboutID",
+      });
+
+      const assessment_id_json = InstructionID_and_AboutID.value
+        ? JSON.parse(InstructionID_and_AboutID.value)
+        : null;
+      const formattedData = formatDataFromStore(
+        assessment_id_json?.assessment_id
+      );
+      console.log("Formatted Data:", formattedData);
+      const response = await authenticatedAxiosInstance.post(
+        `${ASSESSMENT_SUBMIT}`,
+        { json_content: JSON.stringify(formattedData) },
+        {
+          params: {
+            attemptId: state.assessment?.attempt_id,
+            assessmentId: assessment_id_json?.assessment_id,
+          },
+        }
+      );
+      console.log(response.data);
+
+      // Save announcements in local storage
+      await Preferences.set({
+        key: "announcements",
+        value: JSON.stringify(response.data),
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error("Error sending data:", error);
+      // throw error;
+    }
+  };
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -96,15 +168,30 @@ export function Navbar() {
 
   if (!assessment) return null;
 
-  const isAllTimeUp = Object.values(sectionTimers).every(
-    (timer) => timer.timeLeft === 0
-  );
+  const isAllTimeUp = entireTestTimer === 0;
 
-  const handleSubmit = () => {
-    submitAssessment();
-    navigate({
-      to: "/assessment/examination",
-    });
+  const handleSubmit = async () => {
+    let attemptCount = 0;
+    const submitData = async () => {
+      const success = await sendFormattedData();
+      if (!success && attemptCount < 5) {
+        attemptCount++;
+        const retryInterval = 10000 + attemptCount * 5000; // 10, 15, 20, 25, 30 seconds
+        console.log(`Retrying data submission in ${retryInterval / 1000} seconds...`);
+        setTimeout(submitData, retryInterval);
+        toast.error("Failed to submit assessment. retrying...");
+      } else if (success) {
+        console.log("Data submitted successfully!");
+        submitAssessment();
+        // Show success toast
+        toast.success("Data submitted successfully!");
+        navigate({
+          to: "/assessment/examination",
+        });
+      }
+    };
+
+    submitData();
   };
 
   if (isAllTimeUp && !showTimesUpModal) {
@@ -183,11 +270,11 @@ export function Navbar() {
         onConfirm={handleSubmit}
       />
 
-      {/* <TimesUpModal
+      <TimesUpModal
         open={showTimesUpModal}
         onOpenChange={setShowTimesUpModal}
         onFinish={handleSubmit}
-      /> */}
+      />
 
       <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
         <AlertDialogContent>

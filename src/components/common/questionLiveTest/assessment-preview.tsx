@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useNavigate } from "@tanstack/react-router";
 import { MyButton } from "@/components/design-system/button";
 import { useRouter } from "@tanstack/react-router";
 import { startAssessment } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
 import { Storage } from "@capacitor/storage";
 import { AssessmentPreviewData } from "@/types/assessment";
+import { toast } from "sonner";
 
 export function AssessmentPreview() {
   const router = useRouter();
@@ -26,7 +26,6 @@ export function AssessmentPreview() {
       (assessment?.preview_total_time ? assessment.preview_total_time : 0) * 60
     );
   });
-  const navigate = useNavigate();
 
   useEffect(() => {
     const setAssessmentData = async () => {
@@ -47,18 +46,29 @@ export function AssessmentPreview() {
 
     setAssessmentData();
   }, []);
+  // useEffect(() => {
+  //   if (timeLeft <= 0) {
+  //     router.navigate({ to: newPath });
+  //     return;
+  //   }
+
+  //   const timer = setInterval(() => {
+  //     setTimeLeft((prev) => Math.max(0, prev - 1));
+  //   }, 1000);
+
+  //   return () => clearInterval(timer);
+  // }, [timeLeft, navigate]);
+
   useEffect(() => {
     if (timeLeft <= 0) {
-      router.navigate({ to: newPath });
+      handleStartAssessment();
       return;
     }
-
     const timer = setInterval(() => {
       setTimeLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
-
     return () => clearInterval(timer);
-  }, [timeLeft, navigate]);
+  }, [timeLeft]);
 
   if (!assessment) return null;
 
@@ -89,8 +99,13 @@ export function AssessmentPreview() {
     return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
   const handleStartAssessment = async () => {
-     await startAssessment();
-    router.navigate({ to: newPath });
+    try {
+      await startAssessment();
+      router.navigate({ to: newPath });
+    } catch (error) {
+      console.error("Error starting assessment:", error);
+      toast("Failed to start assessment. Please try again.");
+    }
   };
   return (
     <div className="flex flex-col w-full bg-gray-50">
