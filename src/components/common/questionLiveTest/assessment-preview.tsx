@@ -8,7 +8,6 @@ import { useRouter } from "@tanstack/react-router";
 import { startAssessment } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
 import { Storage } from "@capacitor/storage";
 import { AssessmentPreviewData } from "@/types/assessment";
-import { toast } from "sonner";
 
 export function AssessmentPreview() {
   const router = useRouter();
