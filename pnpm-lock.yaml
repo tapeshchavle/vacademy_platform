@@ -112,8 +112,7 @@ importers:
         version: 1.1.1(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@radix-ui/react-tooltip':
         specifier: ^1.1.6
-<<<<<<< HEAD
-        version: 1.1.6(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+        version: 1.1.7(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@react-pdf-viewer/attachment':
         specifier: ^3.12.0
         version: 3.12.0(pdfjs-dist@3.11.174)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -177,9 +176,6 @@ importers:
       '@react-pdf-viewer/zoom':
         specifier: ^3.12.0
         version: 3.12.0(pdfjs-dist@3.11.174)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-=======
-        version: 1.1.7(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
->>>>>>> main
       '@tanstack/react-query':
         specifier: ^5.62.9
         version: 5.65.1(react@19.0.0)
@@ -1087,17 +1083,12 @@ packages:
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
 
-<<<<<<< HEAD
   '@mapbox/node-pre-gyp@1.0.11':
     resolution: {integrity: sha512-Yhlar6v9WQgUp/He7BdgzOz8lqMQ8sU+jkCq7Wx8Myc5YFJLbEe7lgui/V7G1qB1DJykHSGwreceSaD60Y0PUQ==}
     hasBin: true
 
-  '@next/env@15.1.4':
-    resolution: {integrity: sha512-2fZ5YZjedi5AGaeoaC0B20zGntEHRhi2SdWcu61i48BllODcAmmtj8n7YarSPt4DaTsJaBFdxQAVEVzgmx2Zpw==}
-=======
   '@next/env@15.1.6':
     resolution: {integrity: sha512-d9AFQVPEYNr+aqokIiPLNK/MTyt3DWa/dpKveiAaVccUadFbhFEvY6FXYX2LJO2Hv7PHnLBu2oWwB4uBuHjr/w==}
->>>>>>> main
 
   '@next/swc-darwin-arm64@15.1.6':
     resolution: {integrity: sha512-u7lg4Mpl9qWpKgy6NzEkz/w0/keEHtOybmIl0ykgItBxEM5mYotS5PmqTpo+Rhg8FiOiWgwr8USxmKQkqLBCrw==}
@@ -1499,13 +1490,8 @@ packages:
       '@types/react-dom':
         optional: true
 
-<<<<<<< HEAD
-  '@radix-ui/react-select@2.1.4':
-    resolution: {integrity: sha512-pOkb2u8KgO47j/h7AylCj7dJsm69BXcjkrvTqMptFqsE2i0p8lHkfgneXKjAgPzBMivnoMyt8o4KiV4wYzDdyQ==}
-=======
   '@radix-ui/react-select@2.1.5':
     resolution: {integrity: sha512-eVV7N8jBXAXnyrc+PsOF89O9AfVgGnbLxUtBb0clJ8y8ENMWLARGMI/1/SBRLz7u4HqxLgN71BJ17eono3wcjA==}
->>>>>>> main
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
@@ -2937,17 +2923,12 @@ packages:
   html-parse-stringify@3.0.1:
     resolution: {integrity: sha512-KknJ50kTInJ7qIScF3jeaFRpMpE8/lfiTdzf/twXyPBLAGrLRTmkz3AdTnKeh40X8k9L2fdYwEp/42WGXIRGcg==}
 
-<<<<<<< HEAD
   https-proxy-agent@5.0.1:
     resolution: {integrity: sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==}
     engines: {node: '>= 6'}
 
-  i18next@24.2.0:
-    resolution: {integrity: sha512-ArJJTS1lV6lgKH7yEf4EpgNZ7+THl7bsGxxougPYiXRTJ/Fe1j08/TBpV9QsXCIYVfdE/HWG/xLezJ5DOlfBOA==}
-=======
   i18next@24.2.2:
     resolution: {integrity: sha512-NE6i86lBCKRYZa5TaUDkU5S4HFgLIEJRLr3Whf2psgaxBleQ2LC1YW1Vc+SCgkAW7VEzndT6al6+CzegSUHcTQ==}
->>>>>>> main
     peerDependencies:
       typescript: ^5
     peerDependenciesMeta:
@@ -4784,7 +4765,6 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
-<<<<<<< HEAD
   '@mapbox/node-pre-gyp@1.0.11':
     dependencies:
       detect-libc: 2.0.3
@@ -4794,17 +4774,14 @@ snapshots:
       nopt: 5.0.0
       npmlog: 5.0.1
       rimraf: 3.0.2
-      semver: 7.6.3
+      semver: 7.7.0
       tar: 6.2.1
     transitivePeerDependencies:
       - encoding
       - supports-color
     optional: true
 
-  '@next/env@15.1.4': {}
-=======
   '@next/env@15.1.6': {}
->>>>>>> main
 
   '@next/swc-darwin-arm64@15.1.6':
     optional: true
@@ -5196,11 +5173,7 @@ snapshots:
       '@types/react': 18.3.18
       '@types/react-dom': 18.3.5(@types/react@18.3.18)
 
-<<<<<<< HEAD
-  '@radix-ui/react-select@2.1.4(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
-=======
   '@radix-ui/react-select@2.1.5(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
->>>>>>> main
     dependencies:
       '@radix-ui/number': 1.1.0
       '@radix-ui/primitive': 1.1.1
@@ -5399,7 +5372,6 @@ snapshots:
 
   '@radix-ui/rect@1.1.0': {}
 
-<<<<<<< HEAD
   '@react-pdf-viewer/attachment@3.12.0(pdfjs-dist@3.11.174)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
       '@react-pdf-viewer/core': 3.12.0(pdfjs-dist@3.11.174)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -5582,10 +5554,7 @@ snapshots:
     transitivePeerDependencies:
       - pdfjs-dist
 
-  '@rollup/pluginutils@5.1.4(rollup@4.29.1)':
-=======
   '@rollup/pluginutils@5.1.4(rollup@4.32.1)':
->>>>>>> main
     dependencies:
       '@types/estree': 1.0.6
       estree-walker: 2.0.2
@@ -6767,7 +6736,6 @@ snapshots:
     dependencies:
       void-elements: 3.1.0
 
-<<<<<<< HEAD
   https-proxy-agent@5.0.1:
     dependencies:
       agent-base: 6.0.2
@@ -6776,10 +6744,7 @@ snapshots:
       - supports-color
     optional: true
 
-  i18next@24.2.0(typescript@5.6.3):
-=======
   i18next@24.2.2(typescript@5.6.3):
->>>>>>> main
     dependencies:
       '@babel/runtime': 7.26.7
     optionalDependencies:
@@ -7757,13 +7722,9 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-<<<<<<< HEAD
   uuid@11.0.5: {}
 
-  vite-plugin-svgr@4.3.0(rollup@4.29.1)(typescript@5.6.3)(vite@6.0.5(@types/node@22.10.2)(jiti@1.21.7)(tsx@4.19.2)(yaml@2.6.1)):
-=======
   vite-plugin-svgr@4.3.0(rollup@4.32.1)(typescript@5.6.3)(vite@6.0.11(@types/node@22.12.0)(jiti@1.21.7)(tsx@4.19.2)(yaml@2.7.0)):
->>>>>>> main
     dependencies:
       '@rollup/pluginutils': 5.1.4(rollup@4.32.1)
       '@svgr/core': 8.1.0(typescript@5.6.3)
