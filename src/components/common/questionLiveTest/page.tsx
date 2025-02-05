@@ -8,50 +8,19 @@ import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import NetworkStatus from "./network-status";
-
 import { Preferences } from "@capacitor/preferences";
-// import { AssessmentPreviewData } from "@/types/assessment";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { ASSESSMENT_SAVE } from "@/constants/urls";
-// import { Storage } from "@capacitor/storage";
-
-// interface AssessmentData {
-//   attemptId: string;
-//   clientLastSync: string;
-//   assessment: {
-//     assessmentId: string;
-//     entireTestDurationLeftInSeconds: number;
-//     timeElapsedInSeconds: number;
-//     status: string;
-//     tabSwitchCount: number;
-//   };
-//   sections: Array<{
-//     sectionId: string;
-//     timeElapsedInSeconds: number;
-//     questions: Array<{
-//       questionId: string;
-//       questionDurationLeftInSeconds: number;
-//       timeTakenInSeconds: number;
-//       responseData: {
-//         type: string;
-//         optionIds: string[];
-//       };
-//     }>;
-//   }>;
-// }
 
 export default function Page() {
   const { loadState, saveState } = useAssessmentStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const state = useAssessmentStore();
-  console.log(state);
+
   // Function to format data from assessment-store
   const formatDataFromStore = (assessment_id: string) => {
-    console.log("here   ");
     const state = useAssessmentStore.getState();
-    console.log(state);
     return {
-      attemptId: state.assessment?.attempt_id, // Ensure attemptId is present
+      attemptId: state.assessment?.attempt_id, 
       clientLastSync: new Date().toISOString(),
       assessment: {
         assessmentId: assessment_id,
@@ -62,11 +31,11 @@ export default function Page() {
       },
       sections: state.assessment?.section_dtos?.map((section, idx) => ({
         sectionId: section.id,
-        timeElapsedInSeconds: state.sectionTimers?.[idx] || 0,
+        timeElapsedInSeconds: state.sectionTimers?.[idx].timeLeft || 0,
         questions: section.question_preview_dto_list?.map((question, qidx) => ({
           questionId: question.question_id,
           questionDurationLeftInSeconds: state.questionTimers?.[qidx] || 0,
-          timeTakenInSeconds: 0, // You can update this dynamically
+          timeTakenInSeconds: 0, 
           responseData: {
             type: question.question_type,
             optionIds: state.answers?.[question.question_id] || [],
@@ -76,7 +45,7 @@ export default function Page() {
     };
   };
 
-  // API function to send data
+  // update API function to send data
   const sendFormattedData = async () => {
     try {
       const state = useAssessmentStore.getState();
@@ -101,7 +70,6 @@ export default function Page() {
           },
         }
       );
-      console.log(response.data);
 
       // Save announcements in local storage
       await Preferences.set({
@@ -116,7 +84,8 @@ export default function Page() {
     }
   };
 
-  // UseEffect to call sendFormattedData every 10 seconds
+  const { isSubmitted } = useAssessmentStore();
+
   useEffect(() => {
     const sendData = async () => {
       console.log("Sending data...");
@@ -126,28 +95,29 @@ export default function Page() {
         console.error("Error in periodic data sending:", error);
       }
     };
+  
     const sent = async () => {
+      // Check if isSubmitted is false and time is not up before sending data
+      const state = useAssessmentStore.getState();
+      if (!isSubmitted && state.entireTestTimer > 0) {
       await sendData();
+      }
     };
-
-    sent(); // Send once immediately on mount
-
+  
+    sent(); 
+  
     const interval = setInterval(() => {
-      console.log("here");
       sent();
-    }, 10000); // 10-second interval
-
+    }, 60000);
+  
+    // Cleanup function to clear the interval
     return () => clearInterval(interval);
-  }, []);
+  }, [isSubmitted]); 
+  
 
   useEffect(() => {
     const initializeAssessment = async () => {
       await loadState();
-      // const currentState = useAssessmentStore.getState()
-
-      // if (!currentState.assessment) {
-      //   setAssessment(dummyAssessment)
-      // }
     };
 
     initializeAssessment();

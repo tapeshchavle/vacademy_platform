@@ -29,28 +29,27 @@ export function QuestionDisplay() {
   } = useAssessmentStore();
 
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
-  // console.log(currentQuestion);
-
+  
   useEffect(() => {
     if (
       !currentQuestion ||
       assessment?.distribution_duration !== distribution_duration_types.QUESTION
     )
       return;
-
+  
     const timer = setInterval(() => {
-      const timeLeft = questionTimers[currentQuestion.question_id];
+      const timeLeft = questionTimers[currentQuestion.question_id] || 0;
       if (timeLeft > 0) {
-        // console.log('here')
         updateQuestionTimer(currentQuestion.question_id, timeLeft - 1000);
       } else {
-        // console.log('next question')
         moveToNextQuestion();
       }
     }, 1000);
-
+  
     return () => clearInterval(timer);
-  }, [currentQuestion?.question_id]);
+  }, [currentQuestion, assessment?.distribution_duration, questionTimers]);
+  
+  
 
   if (!currentQuestion) {
     return (
