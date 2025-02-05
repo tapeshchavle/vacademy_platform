@@ -99,13 +99,9 @@ export function AssessmentPreview() {
     return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
   const handleStartAssessment = async () => {
-    try {
-      await startAssessment();
-      router.navigate({ to: newPath });
-    } catch (error) {
-      console.error("Error starting assessment:", error);
-      toast("Failed to start assessment. Please try again.");
-    }
+     await startAssessment();
+    // console.log(data);
+    router.navigate({ to: newPath });
   };
   return (
     <div className="flex flex-col w-full bg-gray-50">
