@@ -85,8 +85,6 @@ export const ScheduleTestMainComponent = () => {
     const timeoutId = setTimeout(() => {
       fetchAssessmentData(currentPastPage, pageSize, assessmentTypes.PAST)
         .then((data) => {
-          console.log(data);
-          console.log(data?.content);
           setPastAssessmentList(data?.content);
           setTotalPastPage(data?.total_pages);
           // setLoading(false);

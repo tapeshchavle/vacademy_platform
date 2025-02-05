@@ -11,6 +11,7 @@ import {
   distribution_duration_types,
   QUESTION_TYPES,
 } from "@/types/assessment";
+import {parseHtmlToString} from "@/lib/utils"
 
 export function QuestionDisplay() {
   const {
@@ -124,7 +125,11 @@ export function QuestionDisplay() {
                 Question {currentQuestion.question_order}
               </span>
               <span className="text-base text-gray-600">
-                {calculateMarkingScheme(currentQuestion.marking_json).data.totalMark} Marks
+                {
+                  calculateMarkingScheme(currentQuestion.marking_json).data
+                    .totalMark
+                }{" "}
+                Marks
               </span>
             </div>
 
@@ -139,7 +144,7 @@ export function QuestionDisplay() {
           </div>
 
           <p className="text-lg text-gray-800">
-            {currentQuestion.question.content}
+            {parseHtmlToString(currentQuestion.question.content)}
           </p>
         </div>
         <div className="flex gap-2 mt-4 md:mt-4 sm:mt-0 w-full sm:w-auto justify-between">
@@ -189,11 +194,8 @@ export function QuestionDisplay() {
               onCheckedChange={() => handleAnswerChange(option.id)}
               disabled={isDisabled}
             />
-            <Label
-              htmlFor={option.id}
-              className="flex-grow cursor-pointer"
-            >
-              {option.text.content}
+            <Label htmlFor={option.id} className="flex-grow cursor-pointer">
+              {parseHtmlToString(option.text.content)}
             </Label>
           </div>
         ))}
