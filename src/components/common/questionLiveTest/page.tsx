@@ -20,7 +20,7 @@ export default function Page() {
   const formatDataFromStore = (assessment_id: string) => {
     const state = useAssessmentStore.getState();
     return {
-      attemptId: state.assessment?.attempt_id, 
+      attemptId: state.assessment?.attempt_id,
       clientLastSync: new Date().toISOString(),
       assessment: {
         assessmentId: assessment_id,
@@ -31,11 +31,11 @@ export default function Page() {
       },
       sections: state.assessment?.section_dtos?.map((section, idx) => ({
         sectionId: section.id,
-        timeElapsedInSeconds: state.sectionTimers?.[idx].timeLeft || 0,
+        timeElapsedInSeconds: state.sectionTimers?.[idx] || 0,
         questions: section.question_preview_dto_list?.map((question, qidx) => ({
           questionId: question.question_id,
           questionDurationLeftInSeconds: state.questionTimers?.[qidx] || 0,
-          timeTakenInSeconds: 0, 
+          timeTakenInSeconds: 0,
           responseData: {
             type: question.question_type,
             optionIds: state.answers?.[question.question_id] || [],
@@ -95,28 +95,26 @@ export default function Page() {
         console.error("Error in periodic data sending:", error);
       }
     };
-  
+
     const sent = async () => {
       // Check if isSubmitted is false and time is not up before sending data
       const state = useAssessmentStore.getState();
       if (!isSubmitted && state.entireTestTimer > 0) {
-      await sendData();
+        await sendData();
       }
     };
-  
-    sent(); 
-  
+
+    sent();
+
     const interval = setInterval(() => {
       sent();
-    }, 60000);
-  
+    }, 10000);
+
     // Cleanup function to clear the interval
     return () => clearInterval(interval);
-  }, [isSubmitted]); 
-  
+  }, [isSubmitted]);
 
   useEffect(() => {
-    console.log('main component')
     const initializeAssessment = async () => {
       await loadState();
     };

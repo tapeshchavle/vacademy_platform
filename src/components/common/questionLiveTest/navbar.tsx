@@ -63,7 +63,7 @@ export function Navbar() {
       },
       sections: state.assessment?.section_dtos?.map((section, idx) => ({
         sectionId: section.id,
-        timeElapsedInSeconds: state.sectionTimers?.[idx].timeLeft || 0,
+        timeElapsedInSeconds: state.sectionTimers?.[idx] || 0,
         questions: section.question_preview_dto_list?.map((question, qidx) => ({
           questionId: question.question_id,
           questionDurationLeftInSeconds: state.questionTimers?.[qidx] || 0,
