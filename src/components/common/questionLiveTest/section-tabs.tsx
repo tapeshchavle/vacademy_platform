@@ -1,8 +1,8 @@
 'use client'
 import { cn } from '@/lib/utils'
 import { useAssessmentStore } from '@/stores/assessment-store'
-import { Button } from '@/components/ui/button'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import {distribution_duration_types} from "@/types/assessment";
 
 export function SectionTabs() {
   const {
@@ -16,10 +16,10 @@ export function SectionTabs() {
   } = useAssessmentStore()
 
   // Track if the current section's time is ending
-  const [showEndButton, setShowEndButton] = useState(false)
+  // const [showEndButton, setShowEndButton] = useState(false)
 
   useEffect(() => {
-    if (!assessment?.testDuration.sectionWiseDuration) return
+    if (assessment?.distribution_duration !== distribution_duration_types.SECTION) return
 
     const timer = setInterval(() => {
       const currentTimer = sectionTimers[currentSection]
@@ -28,13 +28,13 @@ export function SectionTabs() {
         updateSectionTimer(currentSection, currentTimer.timeLeft - 1000)
         
         // Show end button when 1 minute is remaining for the current section
-        if (currentTimer.timeLeft <= 60000 && !assessment.canSwitchSections) {
-          setShowEndButton(true)
+        if (currentTimer.timeLeft <= 60000 && !assessment?.can_switch_section) {
+          // setShowEndButton(true);
         }
-      } else if (!assessment.canSwitchSections) {
+      } else if (!assessment?.can_switch_section) {
         // Automatically move to next section when time ends if switching is disabled
         moveToNextAvailableSection()
-        setShowEndButton(false)
+        // setShowEndButton(false)
       }
     }, 1000)
     
@@ -45,18 +45,18 @@ export function SectionTabs() {
 
   const handleSectionChange = (index: number) => {
     // If switching is disabled, only allow changing to the first non-completed section
-    if (!assessment.canSwitchSections) {
-      const isFirstAvailableSection = assessment.sections
+    if (!assessment.can_switch_section) {
+      const isFirstAvailableSection = assessment.section_dtos
         .slice(0, index)
-        .every((_, i) => sectionTimers[i]?.timeLeft === 0)
-      
-      if (!isFirstAvailableSection) return
+        .every((_, i) => sectionTimers[i]?.timeLeft === 0);
+
+      if (!isFirstAvailableSection) return;
     }
     
     if (sectionTimers[index]?.timeLeft === 0) return
     
     setCurrentSection(index)
-    const firstQuestion = assessment.sections[index].questions[0]
+    const firstQuestion = assessment.section_dtos[index].question_preview_dto_list[0]
     setCurrentQuestion(firstQuestion)
   }
 
@@ -64,7 +64,7 @@ export function SectionTabs() {
     // Set current section timer to 0
     updateSectionTimer(currentSection, 0)
     moveToNextAvailableSection()
-    setShowEndButton(false)
+    // setShowEndButton(false)
   }
 
   const formatTime = (ms: number) => {
@@ -75,37 +75,45 @@ export function SectionTabs() {
 
   return (
     <div className="flex gap-2 px-4 py-2 border-b bg-white overflow-x-auto">
-      {assessment.sections.map((section, index) => {
+      {assessment?.section_dtos?.map((section, index) => {
         const timer = sectionTimers[index]
         const isTimeUp = timer?.timeLeft === 0
         const isActive = currentSection === index
-        const isAvailable = assessment.canSwitchSections || 
-          assessment.sections.slice(0, index).every((_, i) => sectionTimers[i]?.timeLeft === 0)
+        const isAvailable =
+          assessment.can_switch_section ||
+          assessment.section_dtos
+            .slice(0, index)
+            .every((_, i) => sectionTimers[i]?.timeLeft === 0);
 
         return (
-          <div key={index} className="flex items-center">
+          <div key={section.id} className="flex items-center">
             <button
               onClick={() => handleSectionChange(index)}
               disabled={!isAvailable || isTimeUp}
               className={cn(
-                'relative px-4 py-2 rounded-t-lg text-sm',
-                isActive && 'border border-b-0 border-orange-500 bg-orange-50 text-orange-500',
-                !isActive && 'border border-transparent hover:bg-gray-50',
-                (!isAvailable || isTimeUp) && 'opacity-50 cursor-not-allowed'
+                "relative px-4 py-2 rounded-t-lg text-sm",
+                isActive &&
+                  "border border-b-0 border-orange-500 bg-orange-50 text-orange-500",
+                !isActive && "border border-transparent hover:bg-gray-50",
+                (!isAvailable || isTimeUp) && "opacity-50 cursor-not-allowed"
               )}
             >
               <div className="flex items-center gap-1 min-w-max">
                 <span>Section {index + 1}</span>
-                {assessment.testDuration.sectionWiseDuration && (
-                  <span className={cn(
-                    timer?.timeLeft < 60000 && !isTimeUp ? 'text-red-500' : 'text-gray-500'
-                  )}>
+                {assessment.distribution_duration === distribution_duration_types.SECTION && (
+                  <span
+                    className={cn(
+                      timer?.timeLeft < 60000 && !isTimeUp
+                        ? "text-red-500"
+                        : "text-gray-500"
+                    )}
+                  >
                     {formatTime(timer?.timeLeft || 0)}
                   </span>
                 )}
               </div>
             </button>
-            {!assessment.canSwitchSections && isActive  && (
+            {!assessment.can_switch_section && isActive && (
               <button
                 onClick={handleEndSection}
                 className="ml-2 px-3 py-1 text-sm border rounded hover:bg-gray-50"
@@ -114,7 +122,7 @@ export function SectionTabs() {
               </button>
             )}
           </div>
-        )
+        );
       })}
     </div>
   )

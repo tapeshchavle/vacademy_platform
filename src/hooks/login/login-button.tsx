@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LOGIN_URL } from "@/constants/urls";
-import { INSTITUTE_ID } from "@/constants/urls";
+// import { INSTITUTE_ID } from "@/constants/urls";
 
 // Define the request and response schemas using Zod
 const loginRequestSchema = z.object({
@@ -29,7 +29,7 @@ async function loginUser(
             user_name: username,
             password: password,
             client_name: "ADMIN_PORTAL",
-            institute_id: INSTITUTE_ID,
+            // institute_id: INSTITUTE_ID,
         }),
     });
 

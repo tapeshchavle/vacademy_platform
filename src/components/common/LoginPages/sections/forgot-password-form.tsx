@@ -1,7 +1,6 @@
 import { FormContainer } from "@/components/common/LoginPages/layout/form-container";
 import { Heading } from "@/components/common/LoginPages/ui/heading";
 import { MyInput } from "@/components/design-system/input";
-import { Link } from "@tanstack/react-router";
 import { forgotPasswordSchema } from "@/schemas/login/login";
 import { z } from "zod";
 import { forgotPassword } from "@/hooks/login/send-link-button";
@@ -118,22 +117,20 @@ export function ForgotPassword() {
                   >
                     Get Credentials
                   </MyButton>
-                  <div className="flex font-regular items-center ">
-                <div className="text-neutral-500 text-sm md:text-base lg:text-base">
-                Remembered your account details?
-                
-                      
-                      <MyButton
+                    <div className="flex flex-col items-center font-regular">
+                    <div className="text-neutral-500 text-sm md:text-base lg:text-base text-center">
+                      Remembered your account details?
+                    </div>
+                    <MyButton
                       type="button"
                       scale="medium"
                       buttonType="text"
                       layoutVariant="default"
                       className="text-primary-500"
                       onClick={() => navigate({ to: "/login" })}
-                      >
+                    >
                       Back to Login
-                      </MyButton>
-                    </div>
+                    </MyButton>
                     </div>
                 </div>
               </div>

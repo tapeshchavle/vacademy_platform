@@ -1,45 +1,68 @@
-import React from "react";
-import { AssessmentInstructions } from "@/components/common/instructionPage/AssessmentInstructions";
-import { SectionDetails } from "@/components/common/instructionPage/SectionDetails";
-import { Assessment } from "@/types/previewInstructionAssessment";
+import { useEffect, useState } from "react";
 import AssessmentStartModal from "./StartAssessment";
-import Navbar from "@/components/common/instructionPage/AssessmentNavbar";
-import { Separator } from "@/components/ui/separator";
+import { Preferences } from "@capacitor/preferences";
+import { GET_TEXT_VIA_IDS } from "@/constants/urls";
+import { fetchDataByIds } from "@/services/GetDataById";
+import { RichText, Assessment as AssessmentType } from "@/types/assessment";
+import AssessmentNavbar from "./AssessmentNavbar";
+import {AssessmentInstructions} from "./AssessmentInstructions"
 
-const InstructionPage: React.FC<{ assessment: Assessment; title: string }> = ({
-  assessment,
-  title, 
-}) => {
+const InstructionPage = () => {
+  const [instructions, setInstructions] = useState<RichText>();
+  const [assessmentInfo, setAssessmentInfo] = useState<AssessmentType>();
+  const fetchInstructions = async () => {
+    try {
+      const AssessmentData = await Preferences.get({
+        key: "InstructionID_and_AboutID",
+      });
+      const Assessment = AssessmentData.value
+        ? JSON.parse(AssessmentData.value)
+        : null;
+      setAssessmentInfo(Assessment);
+      const data = await fetchDataByIds(
+        Assessment.instruction_id,
+        GET_TEXT_VIA_IDS
+      );
+      setInstructions(data[0]);
+    } catch (error) {
+      console.error("Error fetching assessments:", error);
+      // toast.error("Failed to fetch assessments.");
+    }
+  };
+  useEffect(() => {
+    fetchInstructions();
+  }, []);
+
   return (
-    <>
-      <div className="">
-        <div className="fixed top-0 w-full z-50">
-          <Navbar title={assessment.title} />
-        </div>
-        <div className="pt-24 pb-16 p-4 lg:p-8 lg:pt-24 lg:pb-16">
-          {" "}
-          {/* Add padding-top to account for the fixed navbar */}
-          <AssessmentInstructions
-            instructions={assessment.assessmentInstruction}
-            duration={assessment.assessmentDuration}
-            preview={assessment.assessmentPreview}
-            canSwitchSections={assessment.canSwitchSections}
-          />
-          {assessment.sections.map((section, index) => (
-            <div className="">
+    <div className="min-h-screen relative">
+      <div className="fixed top-0 w-full z-50">
+        {assessmentInfo && <AssessmentNavbar title={assessmentInfo.name} />}
+      </div>
 
-          <Separator orientation="horizontal" className="my-4 " />
-            <SectionDetails key={index} section={section} />
-            </div>
-          ))}
-          <div className="fixed bottom-0 bg-white w-full z-50">
-            <div className="pb-4">
-              <AssessmentStartModal />
-            </div>
+      <main className="pt-24 pb-16 p-4 lg:p-8 lg:pt-24 lg:pb-16">
+        {assessmentInfo && instructions &&  (
+          <AssessmentInstructions
+            instructions={instructions.content}
+            duration={assessmentInfo.duration}
+            preview={assessmentInfo.preview_time > 0 ? true : false}
+            canSwitchSections={assessmentInfo.can_switch_section}
+          />
+        )}
+
+        {/* {assessment.section_dtos.map((section: Section) => (
+          <div key={section.id} className="section-container">
+            <Separator orientation="horizontal" className="my-4" />
+            <SectionDetails section={section} />
+          </div>
+        ))} */}
+
+        <div className="fixed bottom-0 left-0 right-0 bg-white z-50">
+          <div className="pb-4 px-4">
+            <AssessmentStartModal />
           </div>
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   );
 };
 

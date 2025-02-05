@@ -1,6 +1,6 @@
 'use client'
 
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { QuestionNavigator } from './question-navigator'
 
 

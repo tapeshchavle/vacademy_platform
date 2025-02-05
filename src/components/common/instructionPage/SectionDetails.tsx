@@ -1,14 +1,13 @@
-import React from "react";
-import { Check } from "lucide-react";
-import { SectionProps } from "@/types/previewInstructionAssessment";
 import { StatusCheck } from "@/components/design-system/chips";
+import { SectionDto } from "@/types/assessment";
+import {parseHtmlToString} from "@/lib/utils"
 
-export const SectionDetails: React.FC<SectionProps> = ({ section }) => {
+export const SectionDetails = ({ section }: { section: SectionDto }) => {
   return (
     <div className="w-full mb-4">
       <div className="space-y-6">
         <h2 className="text-orange-500 text-lg font-semibold">
-          {section.subject}
+          {section.name}
         </h2>
 
         <div className="space-y-4">
@@ -16,48 +15,48 @@ export const SectionDetails: React.FC<SectionProps> = ({ section }) => {
             <div className="font-semibold ">
               <p className="font-bold">Section Description:</p>
             </div>
-            <div className="text-gray-700">{section.sectionDesc}</div>
+            <div className="text-gray-700">
+              {parseHtmlToString(section.description.content)}
+            </div>
           </div>
 
           <div className="text-sm text-gray-600">
             <div className="mb-4">
               <span className="font-bold">Section Duration: </span>
-              <span className="text-gray-900">{section.assesmentDuration}</span>
+              <span className="text-gray-900">{section.duration}</span>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm text-gray-600">
+            {/* <div className="flex items-center justify-between text-sm text-gray-600">
               <div>
                 <span className="font-bold">Negative Marking: </span>
-                {section.negativeMarking.checked
+                {section..checked
                   ? section.negativeMarking.value
                   : "No"}
               </div>
-              {section.cutoffMarking.checked && <StatusCheck />}
-            </div>
+              {section.cutoff_marks && <StatusCheck />}
+            </div> */}
 
             <div className="flex items-center justify-between text-sm text-gray-600">
-              <div>
+              {/* <div>
                 <p className="font-bold">Partial Marking</p>
-              </div>
-              {section.partialMarking && <StatusCheck />}
+              </div> */}
+              {/* {section. && <StatusCheck />} */}
             </div>
 
             <div className="flex items-center justify-between text-sm text-gray-600">
               <div>
                 <span className="font-bold">Cut off marks: </span>
-                {section.cutoffMarking.checked
-                  ? section.cutoffMarking.value
-                  : "NA"}
+                {section.cutoff_marks ? section.cutoff_marks : "NA"}
               </div>
-              {section.cutoffMarking.checked && <StatusCheck />}
+              {section.cutoff_marks && <StatusCheck />}
             </div>
 
             <div className="flex items-center justify-between text-sm text-gray-600">
               <div>
                 <span className="font-bold">Total Marks: </span>
-                <span>{section.totalMark}</span>
+                <span>{section.total_marks}</span>
               </div>
             </div>
           </div>

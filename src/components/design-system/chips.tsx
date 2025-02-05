@@ -22,11 +22,10 @@ export const PauseIcon = ({ className = '', size = 24 }) => {
 
 
 import React from 'react';
-import { Pause } from 'lucide-react';
 import { Check } from 'lucide-react';
 
-export type StatusMode = 'Online' | 'Offline';
-export type StatusState = 'Active' | 'Paused';
+export type StatusMode = 'ONLINE' | 'OFFLINE';
+export type StatusState = "ACTIVE" | "PUBLISHED";
 
 export interface StatusChipProps {
   mode?: StatusMode;
@@ -42,12 +41,12 @@ export const StatusChip: React.FC<StatusChipProps> = ({
   className = ''
 }) => {
   const getStateStyles = () => {
-    if (status === 'Paused' || mode === 'Offline') {
+    if (status === "PUBLISHED" || mode === "OFFLINE") {
       return {
-        bg: 'bg-gray-50',
-        text: 'text-gray-600',
-        dot: 'bg-gray-400',
-        border: 'border-gray-300',
+        bg: "bg-gray-50",
+        text: "text-gray-600",
+        dot: "bg-gray-400",
+        border: "border-gray-300",
       };
     }
     
@@ -63,21 +62,18 @@ export const StatusChip: React.FC<StatusChipProps> = ({
   const displayText = status || mode;
 
   return (
-    <div 
+    <div
       className={`inline-flex items-center gap-2 rounded-sm px-3 py-1 border ${styles.bg} ${styles.border} transition-all duration-200 ${className}`}
     >
-      {status === 'Paused' ? (
-        <PauseIcon/>
-      ) : (
-        status ? (
-            
+      {status === "PUBLISHED" ? (
+        <PauseIcon />
+      ) : status ? (
         //   <StatusCheck />
         <div className="flex items-center justify-center rounded-full bg-green-500 p-1">
-      <Check className="h-2 w-2 text-white" />
-    </div>
-        ) : (
-          showDot && <div className={`h-2 w-2 rounded-full ${styles.dot}`} />
-        )
+          <Check className="h-2 w-2 text-white" />
+        </div>
+      ) : (
+        showDot && <div className={`h-2 w-2 rounded-full ${styles.dot}`} />
       )}
       <div className="flex items-center gap-1">
         <span className={`text-sm font-medium ${styles.text}`}>

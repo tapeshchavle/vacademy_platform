@@ -13,6 +13,7 @@
 import { Route as rootRoute } from './routes/__root'
 import { Route as StudyLibraryIndexImport } from './routes/study-library/index'
 import { Route as LoginIndexImport } from './routes/login/index'
+import { Route as InstituteSelectionIndexImport } from './routes/institute-selection/index'
 import { Route as DashboardIndexImport } from './routes/dashboard/index'
 import { Route as StudyLibraryCoursesIndexImport } from './routes/study-library/courses/index'
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
@@ -42,6 +43,12 @@ const StudyLibraryIndexRoute = StudyLibraryIndexImport.update({
 const LoginIndexRoute = LoginIndexImport.update({
   id: '/login/',
   path: '/login/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const InstituteSelectionIndexRoute = InstituteSelectionIndexImport.update({
+  id: '/institute-selection/',
+  path: '/institute-selection/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -181,6 +188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexImport
       parentRoute: typeof rootRoute
     }
+    '/institute-selection/': {
+      id: '/institute-selection/'
+      path: '/institute-selection'
+      fullPath: '/institute-selection'
+      preLoaderRoute: typeof InstituteSelectionIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/login/': {
       id: '/login/'
       path: '/login'
@@ -314,6 +328,7 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardIndexRoute
+  '/institute-selection': typeof InstituteSelectionIndexRoute
   '/login': typeof LoginIndexRoute
   '/study-library': typeof StudyLibraryIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
@@ -336,6 +351,7 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
+  '/institute-selection': typeof InstituteSelectionIndexRoute
   '/login': typeof LoginIndexRoute
   '/study-library': typeof StudyLibraryIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
@@ -359,6 +375,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/institute-selection/': typeof InstituteSelectionIndexRoute
   '/login/': typeof LoginIndexRoute
   '/study-library/': typeof StudyLibraryIndexRoute
   '/assessment/examination/': typeof AssessmentExaminationIndexRoute
@@ -383,6 +400,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/dashboard'
+    | '/institute-selection'
     | '/login'
     | '/study-library'
     | '/assessment/examination'
@@ -404,6 +422,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/dashboard'
+    | '/institute-selection'
     | '/login'
     | '/study-library'
     | '/assessment/examination'
@@ -425,6 +444,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/dashboard/'
+    | '/institute-selection/'
     | '/login/'
     | '/study-library/'
     | '/assessment/examination/'
@@ -448,6 +468,7 @@ export interface FileRouteTypes {
 
 export interface RootRouteChildren {
   DashboardIndexRoute: typeof DashboardIndexRoute
+  InstituteSelectionIndexRoute: typeof InstituteSelectionIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
   StudyLibraryIndexRoute: typeof StudyLibraryIndexRoute
   AssessmentExaminationIndexRoute: typeof AssessmentExaminationIndexRoute
@@ -470,6 +491,7 @@ export interface RootRouteChildren {
 
 const rootRouteChildren: RootRouteChildren = {
   DashboardIndexRoute: DashboardIndexRoute,
+  InstituteSelectionIndexRoute: InstituteSelectionIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
   StudyLibraryIndexRoute: StudyLibraryIndexRoute,
   AssessmentExaminationIndexRoute: AssessmentExaminationIndexRoute,
@@ -513,6 +535,7 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/dashboard/",
+        "/institute-selection/",
         "/login/",
         "/study-library/",
         "/assessment/examination/",
@@ -535,6 +558,9 @@ export const routeTree = rootRoute
     },
     "/dashboard/": {
       "filePath": "dashboard/index.tsx"
+    },
+    "/institute-selection/": {
+      "filePath": "institute-selection/index.tsx"
     },
     "/login/": {
       "filePath": "login/index.tsx"

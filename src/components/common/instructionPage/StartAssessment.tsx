@@ -1,14 +1,28 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { MyButton } from "@/components/design-system/button";
 import { useNavigate } from "@tanstack/react-router";
+import { useLocation } from "@tanstack/react-router";
+// import { Storage } from "@capacitor/storage";
+import {fetchPreviewData } from '@/routes/assessment/examination/-utils.ts/useFetchAssessment'
+
 
 const AssessmentStartModal = () => {
+  const location = useLocation();
+  const pathSegments = location.pathname.split("/");
+  const assessmentId = pathSegments[3];
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleClose = () => {
     setIsOpen(false);
+  };
+  const handleNavigation = async () => {
+    await fetchPreviewData(assessmentId);
+    // console.log(data);
+    navigate({
+      to: `/assessment/examination/${assessmentId}/assessmentPreview`,
+    });
   };
 
   return (
@@ -44,10 +58,6 @@ const AssessmentStartModal = () => {
                 <span className="text-red-500 sm:text-sm lg:text-[16px]">
                   Attention
                 </span>
-                {/* <div className="w-4 h-4 rounded-full border border-red-500 flex items-center justify-center">
-                  <span className="text-red-500 text-sm">!</span>
-                  
-                </div> */}
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="18"
@@ -66,14 +76,10 @@ const AssessmentStartModal = () => {
               </p>
             </div>
 
-            {/* Footer */}
+            {/* Footer  */}
             <div className="p-4 flex justify-center">
               <MyButton
-                onClick={() =>
-                  navigate({
-                    to: "/assessment/examination/$assessmentId/LearnerLiveTest",
-                  })
-                }
+                onClick={() => handleNavigation()}
                 buttonType="primary"
                 scale="large"
                 layoutVariant="default"
