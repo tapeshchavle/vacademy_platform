@@ -52,7 +52,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const totalPagesReadRef = useRef<number>(0);
 
-    const defaultPdfUrl = "https://vacademy-media-storage.s3.ap-south-1.amazonaws.com/c70f40a5-e4d3-4b6c-a498-e612d0d4b133/PDF_DOCUMENTS/6a99e32c-9895-42fc-9e70-7afa237498d2-project_report.docx.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250128T085555Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86399&X-Amz-Credential=AKIA3ISBV4TNOKWJM7FQ%2F20250128%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Signature=f43a50ae25b066b4a6226f4393df1f9cb9165ce8859b71b2069429173517aac7";
+    const defaultPdfUrl = "https://vacademy-media-storage.s3.ap-south-1.amazonaws.com/c70f40a5-e4d3-4b6c-a498-e612d0d4b133/PDF_DOCUMENTS/0465951b-8aa0-4744-8859-1add389ddd32-project_en20cs301425_shristi_gupta.docx.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250201T111342Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86399&X-Amz-Credential=REMOVED_AWS_KEY%2F20250201%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Signature=8c189b347b3833d481c2bd81d4894ab54bd1d36050501c836da83e1c5d3f5db2";
 
     // Plugin instances
     const attachmentPluginInstance = attachmentPlugin();
