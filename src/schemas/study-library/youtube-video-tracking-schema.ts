@@ -16,7 +16,8 @@ export const ActivitySchema = z.object({
     duration: z.string(),
     timestamps: z.array(TimestampSchema),
     percentage_watched: z.string(),
-    sync_status: z.enum(['SYNCED', 'STALE'])
+    sync_status: z.enum(['SYNCED', 'STALE']),
+    current_start_time: z.string().optional()
 });
 
 export const TrackingDataSchema = z.object({

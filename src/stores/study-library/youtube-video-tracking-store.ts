@@ -46,6 +46,7 @@ export const useTrackingStore = create<TrackingStore>((set) => ({
                         duration: activity.duration,
                         percentage_watched: activity.percentage_watched,
                         sync_status: 'STALE',
+                        current_start_time: activity.current_start_time,
                         timestamps: Array.from(
                             new Set([
                                 ...existingActivity.timestamps.map((t) => JSON.stringify(t)),

@@ -60,6 +60,15 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const timerRef = useRef<NodeJS.Timeout | null>(null);
    const currentStartTimeRef = useRef('');
    const timestampDurationRef = useRef(0);
+   const [isFirstPlay, setIsFirstPlay] = useState(true);
+    const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    const clearUpdateInterval = useCallback(() => {
+        if (updateIntervalRef.current) {
+            clearInterval(updateIntervalRef.current);
+            updateIntervalRef.current = null;
+        }
+    }, []);
 
    const extractVideoId = (url: string): string => {
        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -69,7 +78,6 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
 
    const calculatePercentageWatched = (totalDuration: number) => {
         const netDuration = calculateNetDuration(currentTimestamps.current);
-        console.log("netDuration: ", netDuration);
         return ((netDuration / totalDuration) * 100).toFixed(2);
     };
 
@@ -161,7 +169,8 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
            percentage_watched: calculatePercentageWatched(
                playerRef.current?.getDuration() || 0
            ),
-           sync_status: 'STALE' as const
+           sync_status: 'STALE' as const,
+           current_start_time: currentStartTimeRef.current 
        };
    
        addActivity(newActivity, true);
@@ -204,6 +213,19 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                            if (!videoStartTime.current) {
                                videoStartTime.current = now;
                             }
+
+                            if (isFirstPlay) {
+                                console.log("integrate add video activity api now");
+                                setIsFirstPlay(false);
+                                
+                                // Start the 2-minute interval for update notifications
+                                if (!updateIntervalRef.current) {
+                                    updateIntervalRef.current = setInterval(() => {
+                                        console.log("integrate update video activity api now");
+                                    }, 2 * 60 * 1000); // 2 minutes in milliseconds
+                                }
+                            }
+
                             currentStartTimeRef.current = formatVideoTime(currentTime);
                             console.log("play state")
                             
@@ -235,6 +257,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
            if (playerRef.current) {
                playerRef.current.destroy();
            }
+           clearUpdateInterval(); 
        };
    }, [videoUrl]);
 
