@@ -6,20 +6,20 @@ export interface TrackingDataType {
     slide_id: string | null,
     start_time: string | null,
     end_time: string | null,
-    percentage_watched: 0 | null,
+    percentage_watched: number | null,
     videos: [
       {
         id: string,
-        start_time: string | null,
-        end_time: string | null
+        start_time: string ,
+        end_time: string 
       }
     ] | null,
     documents: [
       {
         id: string,
-        start_time: string | null,
-        end_time: string | null,
-        page_number: 0 | null
+        start_time: string,
+        end_time: string,
+        page_number: number
       }
     ] | null
   }

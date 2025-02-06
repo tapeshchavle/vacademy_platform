@@ -2,6 +2,10 @@ import React, { useEffect, useRef, useCallback, useState } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import { useTrackingStore } from "@/stores/study-library/youtube-video-tracking-store";
 import { getISTTime } from "./utils";
+import { convertTimeToSeconds } from "@/utils/study-library/tracking/convertTimeToSeconds";
+import { formatVideoTime } from "@/utils/study-library/tracking/formatVideoTime";
+import { calculateNetDuration } from "@/utils/study-library/tracking/calculateNetDuration";
+import { extractVideoId } from "@/utils/study-library/tracking/extractVideoId";
 
 interface YTPlayer {
    destroy(): void;
@@ -61,43 +65,23 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const currentStartTimeRef = useRef('');
    const timestampDurationRef = useRef(0);
    const [isFirstPlay, setIsFirstPlay] = useState(true);
-    const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+    
+    
+    const calculatePercentageWatched = (totalDuration: number) => {
+        const netDuration = calculateNetDuration(currentTimestamps.current);
+        return ((netDuration / totalDuration) * 100).toFixed(2);
+    };
+   
+
+   
     const clearUpdateInterval = useCallback(() => {
         if (updateIntervalRef.current) {
             clearInterval(updateIntervalRef.current);
             updateIntervalRef.current = null;
         }
     }, []);
-
-   const extractVideoId = (url: string): string => {
-       const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-       const match = url.match(regExp);
-       return (match && match[2] && match[2].length === 11) ? match[2] : "";
-   };
-
-   const calculatePercentageWatched = (totalDuration: number) => {
-        const netDuration = calculateNetDuration(currentTimestamps.current);
-        return ((netDuration / totalDuration) * 100).toFixed(2);
-    };
-
-   const formatVideoTime = (seconds: number): string => {
-       const hours = Math.floor(seconds / 3600);
-       const minutes = Math.floor((seconds % 3600) / 60);
-       const secs = Math.floor(seconds % 60);
-       
-       return hours > 0 
-           ? `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-           : `${minutes}:${secs.toString().padStart(2, '0')}`;
-   };
-
-   const convertTimeToSeconds = (formattedTime: string): number => {
-        const parts = formattedTime.split(':');
-        if (parts.length === 2) {
-            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-        }
-        return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
-    };
 
    const startTimer = useCallback(() => {
        if (timerRef.current) return;
@@ -108,6 +92,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
        }, 1000);
    }, []);
 
+
    const stopTimer = useCallback(() => {
        if (timerRef.current) {
            clearInterval(timerRef.current);
@@ -115,66 +100,31 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
        }
    }, []);
 
-   const calculateNetDuration = (timestamps: Array<{id: string, start_time: string, end_time: string}>): number => {
-    
-    if (timestamps.length === 0) return 0;
-
-    // Convert timestamps to seconds for easier calculation
-    const ranges = timestamps.map(t => ({
-        id: t.id,
-        start: convertTimeToSeconds(t.start_time),
-        end: convertTimeToSeconds(t.end_time)
-    }));
-
-    // Sort ranges by start time
-    ranges.sort((a, b) => a.start - b.start);
-
-    // Merge overlapping ranges
-    const mergedRanges = ranges.reduce((merged, current) => {
-        if (merged.length === 0) {
-            return [current];
-        }
-
-        const lastRange = merged[merged.length - 1];
-        if (current.start <= lastRange.end) {
-            // Overlapping range - merge them
-            lastRange.end = Math.max(lastRange.end, current.end);
-            return merged;
-        } else {
-            // Non-overlapping range - add to list
-            return [...merged, current];
-        }
-    }, [] as Array<{start: number, end: number}>);
-
-    // Calculate total duration from merged ranges
-    const totalDuration = mergedRanges.reduce((sum, range) => {
-        return sum + (range.end - range.start);
-    }, 0);
-
-    return totalDuration;
-};
+   
 
    useEffect(() => {
-       const videoId = extractVideoId(videoUrl);
-       const endTime = videoEndTime.current || getISTTime();
-       
-       const newActivity = {
-           activity_id: activityId.current,
-           source: 'youtube',
-           source_id: videoId,
-           start_time: videoStartTime.current,
-           end_time: endTime,
-           duration: elapsedTime.toString(),
-           timestamps: currentTimestamps.current,
-           percentage_watched: calculatePercentageWatched(
-               playerRef.current?.getDuration() || 0
-           ),
-           sync_status: 'STALE' as const,
-           current_start_time: currentStartTimeRef.current 
-       };
-   
-       addActivity(newActivity, true);
-   }, [elapsedTime]);
+    const videoId = extractVideoId(videoUrl);
+    const endTime = videoEndTime.current || getISTTime();
+    
+    const newActivity = {
+        activity_id: activityId.current,
+        source: 'youtube',
+        source_id: videoId,
+        start_time: videoStartTime.current,
+        end_time: endTime,
+        duration: elapsedTime.toString(),
+        timestamps: currentTimestamps.current,
+        percentage_watched: calculatePercentageWatched(
+            playerRef.current?.getDuration() || 0
+        ),
+        sync_status: 'STALE' as const, // Always set to STALE when updating
+        current_start_time: currentStartTimeRef.current,
+        new_activity: true
+    };
+
+    addActivity(newActivity, true);
+}, [elapsedTime]);
+
 
    useEffect(() => {
        const videoId = extractVideoId(videoUrl);

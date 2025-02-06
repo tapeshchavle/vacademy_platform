@@ -3,7 +3,7 @@ import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { UPDATE_VIDEO_ACTIVITY } from "@/constants/urls";
 import { TrackingDataType } from "@/types/tracking-data-type";
 
-export const useAddSubject = () => {
+export const useUpdateVideoActivity = () => {
 
     return useMutation({
         mutationFn: async ({

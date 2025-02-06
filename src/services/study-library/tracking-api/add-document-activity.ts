@@ -3,7 +3,7 @@ import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { ADD_DOCUMENT_ACTIVITY } from "@/constants/urls";
 import { TrackingDataType } from "@/types/tracking-data-type";
 
-export const useAddSubject = () => {
+export const useAddDocumentActivity = () => {
 
     return useMutation({
         mutationFn: async ({
