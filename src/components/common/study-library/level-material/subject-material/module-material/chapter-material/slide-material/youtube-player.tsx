@@ -53,7 +53,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const playerRef = useRef<YTPlayer | null>(null);
    const playerContainerRef = useRef<HTMLDivElement>(null);
    const activityId = useRef(uuidv4());
-   const currentTimestamps = useRef<Array<{start: string, end: string}>>([]);
+   const currentTimestamps = useRef<Array<{id: string, start_time: string, end_time: string}>>([]);
    const videoStartTime = useRef<string>('');
    const videoEndTime = useRef<string>('');
    const [elapsedTime, setElapsedTime] = useState(0);
@@ -107,14 +107,15 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
        }
    }, []);
 
-   const calculateNetDuration = (timestamps: Array<{start: string, end: string}>): number => {
+   const calculateNetDuration = (timestamps: Array<{id: string, start_time: string, end_time: string}>): number => {
     
     if (timestamps.length === 0) return 0;
 
     // Convert timestamps to seconds for easier calculation
     const ranges = timestamps.map(t => ({
-        start: convertTimeToSeconds(t.start),
-        end: convertTimeToSeconds(t.end)
+        id: t.id,
+        start: convertTimeToSeconds(t.start_time),
+        end: convertTimeToSeconds(t.end_time)
     }));
 
     // Sort ranges by start time
@@ -210,24 +211,20 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                             event.data === window.YT.PlayerState.ENDED) {
                                 stopTimer();
                                 videoEndTime.current = now;
-
+                        
                                 const currentStartTimeInSeconds = convertTimeToSeconds(currentStartTimeRef.current);
-                                const endTimeInSeconds = currentStartTimeInSeconds+timestampDurationRef.current
+                                const endTimeInSeconds = currentStartTimeInSeconds + timestampDurationRef.current;
                                 const endTimeStamp = formatVideoTime(endTimeInSeconds);
-
-                                console.log("currentStartTime: ", currentStartTimeRef.current); 
-                                console.log("end time formatted: ",  endTimeStamp);
-                                // console.log("wrong end time: ", formatVideoTime(currentTime));
-
+                        
                                 currentTimestamps.current.push({
-                                    start: currentStartTimeRef.current,
-                                    end: endTimeStamp
+                                    id: uuidv4(), // Add this line to generate unique ID
+                                    start_time: currentStartTimeRef.current,
+                                    end_time: endTimeStamp
                                 });
-                            // setTimestampDuration(0);
-                            currentStartTimeRef.current = formatVideoTime(currentTime);
-                            console.log("updated start time: ", currentStartTimeRef.current )
-                            timestampDurationRef.current = 0;
-                       }
+                        
+                                currentStartTimeRef.current = formatVideoTime(currentTime);
+                                timestampDurationRef.current = 0;
+                        }
                    }
                },
            });

@@ -1,25 +1,25 @@
 export interface TrackingDataType {
-    id: "string",
-    source_id: "string",
-    source_type: "string",
-    user_id: "string",
-    slide_id: "string",
-    start_time: "2025-02-06T07:32:39.469Z",
-    end_time: "2025-02-06T07:32:39.469Z",
-    percentage_watched: 0,
+    id: string,
+    source_id: string | null,
+    source_type: string | null,
+    user_id: string,
+    slide_id: string | null,
+    start_time: string | null,
+    end_time: string | null,
+    percentage_watched: 0 | null,
     videos: [
       {
-        "id": "string",
-        "start_time": "2025-02-06T07:32:39.469Z",
-        "end_time": "2025-02-06T07:32:39.469Z"
+        id: string,
+        start_time: string | null,
+        end_time: string | null
       }
-    ],
+    ] | null,
     documents: [
       {
-        "id": "string",
-        "start_time": "2025-02-06T07:32:39.469Z",
-        "end_time": "2025-02-06T07:32:39.469Z",
-        "page_number": 0
+        id: string,
+        start_time: string | null,
+        end_time: string | null,
+        page_number: 0 | null
       }
-    ]
+    ] | null
   }

@@ -2,8 +2,9 @@ import { z } from 'zod';
 
 // Define schemas using zod for validation
 const TimestampSchema = z.object({
-    start: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/),
-    end: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/)
+    id: z.string(),
+    start_time: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/),
+    end_time: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/)
 });
 
 export const ActivitySchema = z.object({
