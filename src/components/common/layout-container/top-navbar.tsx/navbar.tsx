@@ -1,19 +1,18 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import {
-  MagnifyingGlass,
-  Bell,
-  List,
-} from "@phosphor-icons/react";
+import { MagnifyingGlass, Bell, List } from "@phosphor-icons/react";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { FiSidebar } from "react-icons/fi";
 import { useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 
 export function Navbar() {
-  const notifications = true;
+  const [notifications, setNotifications] = useState<boolean>(true);
   const navigate = useNavigate();
   const { navHeading } = useNavHeadingStore();
+  useEffect(() => {
+    setNotifications(true);
+  });
   const navigateToNotificationsTab = () => {
-    console.log("onclick");
     navigate({ to: "/dashboard/notifications" });
   };
 
@@ -37,7 +36,7 @@ export function Navbar() {
         </div>
 
         <List className="size-5" />
-        
+
         {/* TODO: implement side nab bar */}
         {/* <AppSidebar /> */}
         {/* <SidebarTrigger>

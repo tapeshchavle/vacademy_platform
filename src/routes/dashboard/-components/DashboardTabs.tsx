@@ -21,16 +21,14 @@ export function DashboardTabs({
         <div>{title}</div>
         <div className="text-primary-500">{count}</div>
       </div>
-      {list && list.length > 0 &&  (
         <div className="flex flex-col gap-2 my-4">
-          {list.map((item, idx) => (
+          {list?.map((item, idx) => (
             <div key={idx} className="flex flex-row gap-5 items-start">
               <img src={PlayCircle} alt="" />
               <div>{item}</div>
             </div>
           ))}
         </div>
-      )}
 
       {button && (
         <div className="w-full flex items-center justify-center mt-4">

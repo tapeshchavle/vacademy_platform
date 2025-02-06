@@ -13,11 +13,11 @@ export function Dashboard() {
   const [username, setUsername] = useState<string | null>(null);
   const [data , setData] = useState();
   const { setNavHeading } = useNavHeadingStore();
+  console.log(data)
   useEffect(() => {
     setNavHeading("Dashoard");
     fetchStaticData(setUsername, setData);
   }, []);
-  if(data){}
   return (
     <LayoutContainer>
       <div>

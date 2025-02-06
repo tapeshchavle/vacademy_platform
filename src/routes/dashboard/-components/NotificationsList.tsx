@@ -4,15 +4,14 @@ import { fetchNotifications, fetchAnnouncements } from "../-lib/utils";
 import { useEffect, useState } from "react";
 
 export function NotificationList() {
-  const [notifcations, setNotifications] = useState();
+  const [notifications, setNotifications] = useState();
   const [announcements, setAnnouncements] = useState();
+  console.log(notifications, announcements);
   async function fetch() {
-    const notifcations = await fetchNotifications();
+    const notifications = await fetchNotifications();
     const announcements = await fetchAnnouncements();
-    setNotifications(notifcations);
+    setNotifications(notifications);
     setAnnouncements(announcements);
-  }
-  if (notifcations && announcements) {
   }
   useEffect(() => {
     fetch();
@@ -34,9 +33,6 @@ export function NotificationList() {
         </TabsTrigger>
       </TabsList>
       <TabsContent className="flex flex-col gap-4" value="General">
-        {/* {notifcations && notifcations.map(() => (
-          <div></div>
-        ))} */}
         <NotifcationCard
           title="New Assessment Assigned!"
           description="You have been assigned a new assessment: The Human Eye and The Colourful World. Check the details and stay prepared!"
@@ -48,9 +44,6 @@ export function NotificationList() {
           date="Today, 11:06 AM"
         />
       </TabsContent>
-      {/* {announcements && announcements.map(() => (
-        <div></div>
-        ))} */}
       <TabsContent className="flex flex-col gap-4" value="Announcement">
         <NotifcationCard
           title="New Assessment Assigned!"
