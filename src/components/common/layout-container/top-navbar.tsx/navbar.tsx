@@ -1,6 +1,9 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
-// import { useState } from "react";
-import { MagnifyingGlass, Bell, Sliders } from "@phosphor-icons/react";
+import {
+  MagnifyingGlass,
+  Bell,
+  List,
+} from "@phosphor-icons/react";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { FiSidebar } from "react-icons/fi";
 import { useNavigate } from "@tanstack/react-router";
@@ -20,11 +23,11 @@ export function Navbar() {
         <SidebarTrigger>
           <FiSidebar className="text-neutral-600" />
         </SidebarTrigger>
-        <div className="border-l border-neutral-500 px-4 sm max-sm:text-h3 text-h2 font-semibold text-neutral-600">
+        <div className="border-l border-neutral-500 px-3 sm max-sm:text-h3 text-subtitle font-body text-neutral-600">
           {navHeading}
         </div>
       </div>
-      <div className="flex gap-6 text-neutral-600">
+      <div className="flex gap-3 text-neutral-600">
         <MagnifyingGlass className="size-5" />
         <div className="relative" onClick={navigateToNotificationsTab}>
           <Bell className="size-5" />
@@ -33,8 +36,8 @@ export function Navbar() {
           )}
         </div>
 
-        <Sliders className="size-5" />
-
+        <List className="size-5" />
+        
         {/* TODO: implement side nab bar */}
         {/* <AppSidebar /> */}
         {/* <SidebarTrigger>

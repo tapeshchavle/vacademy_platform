@@ -1,23 +1,30 @@
 import SSDC_Logo from "./ssdc_logo.svg";
-export { SSDC_Logo };
-
 import DummyProfile from "./dummy_profile_photo.svg";
-export { DummyProfile };
-
 import EmptyDashboardImage from "./empty-student-dashboard.svg";
-export { EmptyDashboardImage };
-
 import EnrollFormUploadImage from "./enroll-form-upload-image.svg";
-export { EnrollFormUploadImage };
 import SsdcLogo_Login from "./ssdc_logo.svg";
-export { SsdcLogo_Login };
-
 import LoginImage from "./login-image.svg";
-export { LoginImage };
-
 import ImportFileImage from "./import-file.svg";
-export { ImportFileImage };
+import EmptySubjectMaterial from "./empty-subject-material.svg";
+import SubjectDefaultImage from './subject-default-image.svg';
+import EmptyModulesImage from './empty_modules_image.svg'
+import EmptyChaptersImage from './empty_chapters_image.svg'
+import EmptySlideMaterial from './empty-slide-material.svg'
 
+export {
+  SSDC_Logo,
+  DummyProfile,
+  EmptyDashboardImage,
+  EnrollFormUploadImage,
+  SsdcLogo_Login,
+  LoginImage,
+  ImportFileImage,
+  EmptySubjectMaterial,
+  SubjectDefaultImage,
+  EmptyModulesImage,
+  EmptyChaptersImage,
+  EmptySlideMaterial
+};
 import dashboardImg from "./dashboardImg.svg"
 export { dashboardImg };
 

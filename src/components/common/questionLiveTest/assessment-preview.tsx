@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useNavigate } from "@tanstack/react-router";
 import { MyButton } from "@/components/design-system/button";
 import { useRouter } from "@tanstack/react-router";
 import { startAssessment } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
@@ -26,7 +25,6 @@ export function AssessmentPreview() {
       (assessment?.preview_total_time ? assessment.preview_total_time : 0) * 60
     );
   });
-  const navigate = useNavigate();
 
   useEffect(() => {
     const setAssessmentData = async () => {
@@ -47,18 +45,29 @@ export function AssessmentPreview() {
 
     setAssessmentData();
   }, []);
+  // useEffect(() => {
+  //   if (timeLeft <= 0) {
+  //     router.navigate({ to: newPath });
+  //     return;
+  //   }
+
+  //   const timer = setInterval(() => {
+  //     setTimeLeft((prev) => Math.max(0, prev - 1));
+  //   }, 1000);
+
+  //   return () => clearInterval(timer);
+  // }, [timeLeft, navigate]);
+
   useEffect(() => {
     if (timeLeft <= 0) {
-      router.navigate({ to: newPath });
+      handleStartAssessment();
       return;
     }
-
     const timer = setInterval(() => {
       setTimeLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
-
     return () => clearInterval(timer);
-  }, [timeLeft, navigate]);
+  }, [timeLeft]);
 
   if (!assessment) return null;
 
@@ -90,6 +99,7 @@ export function AssessmentPreview() {
   };
   const handleStartAssessment = async () => {
      await startAssessment();
+    // console.log(data);
     router.navigate({ to: newPath });
   };
   return (
