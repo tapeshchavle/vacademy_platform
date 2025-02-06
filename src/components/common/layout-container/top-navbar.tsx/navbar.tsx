@@ -19,7 +19,7 @@ export function Navbar() {
         <SidebarTrigger>
           <FiSidebar className="text-neutral-600" />
         </SidebarTrigger>
-        <div className="border-l border-neutral-500 px-4 text-h2 font-semibold text-neutral-600">
+        <div className="border-l border-neutral-500 px-4 text-h5 font-semibold text-neutral-600">
           {navHeading}
         </div>
       </div>

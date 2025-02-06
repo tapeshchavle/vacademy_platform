@@ -1,208 +1,174 @@
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import ScheduleTestTabList from "./ScheduleTestTabList";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { assessmentTypes } from "@/types/assessment";
 import { fetchAssessmentData } from "../-utils.ts/useFetchAssessment";
-import { Assessment } from "@/types/assessment";
 import { AssessmentCard } from "../-components/AssessmentCard";
-import { MyPagination } from "@/components/design-system/pagination";
 import { EmptyScheduleTest } from "@/svgs";
+
+// Define types for state variables
+type AssessmentData = { [key in assessmentTypes]: any[] };
+type TotalCounts = { [key in assessmentTypes]: number };
+type Page = { [key in assessmentTypes]: number };
+type HasMoreData = { [key in assessmentTypes]: boolean };
 
 export const ScheduleTestMainComponent = () => {
   const { setNavHeading } = useNavHeadingStore();
-  // const [loading, // setLoading] = useState(true);
-  const [liveAssessmentList, setLiveAssessmentList] = useState<Assessment[]>(
-    []
-  );
-  const [currentLivePage, setCurrentLivePage] = useState(0);
-  const [currentUpcomingPage, setCurrentUpcomingPage] = useState(0);
-  const [currentPastPage, setCurrentPastPage] = useState(0);
-  const [totalLivePage, setTotalLivePage] = useState(0);
-  const [totalUpcomingPage, setTotalUpcomingPage] = useState(0);
-  const [totalPastPage, setTotalPastPage] = useState(0);
-  const [UpcomingAssessmentList, setUpcomingAssessmentList] = useState<
-    Assessment[]
-  >([]);
-  const [PastAssessmentList, setPastAssessmentList] = useState<Assessment[]>(
-    []
-  );
-  const pageSize = 5;
-  const [selectedTab, setSelectedTab] = useState<assessmentTypes>(
-    assessmentTypes.LIVE
-  );
+  const [selectedTab, setSelectedTab] = useState<assessmentTypes>(assessmentTypes.LIVE);
+  const [assessmentData, setAssessmentData] = useState<AssessmentData>({
+    [assessmentTypes.LIVE]: [],
+    [assessmentTypes.UPCOMING]: [],
+    [assessmentTypes.PAST]: [],
+  });
+  const [totalCounts, setTotalCounts] = useState<TotalCounts>({
+    [assessmentTypes.LIVE]: 0,
+    [assessmentTypes.UPCOMING]: 0,
+    [assessmentTypes.PAST]: 0,
+  });
+  const [page, setPage] = useState<Page>({
+    [assessmentTypes.LIVE]: 0,
+    [assessmentTypes.UPCOMING]: 0,
+    [assessmentTypes.PAST]: 0,
+  });
+  const [loading, setLoading] = useState(false);
+  const [hasMoreData, setHasMoreData] = useState<HasMoreData>({
+    [assessmentTypes.LIVE]: true,
+    [assessmentTypes.UPCOMING]: true,
+    [assessmentTypes.PAST]: true,
+  });
   
-  const handleTabChange = (value: string) => {
-    setSelectedTab(value as assessmentTypes);
-  };
+  const observer = useRef<IntersectionObserver | null>(null); // Proper typing
+  const pageSize = 5;
+
   useEffect(() => {
-    setNavHeading("Assessment");
+    setNavHeading("Assessment List");
   }, []);
-  useEffect(() => {
-    // setLoading(true);
-    const timeoutId = setTimeout(() => {
-      fetchAssessmentData(currentLivePage, pageSize, assessmentTypes.LIVE)
-        .then((data) => {
-          setLiveAssessmentList(data?.content);
-          setTotalLivePage(data?.total_pages);
-          // setLoading(false);
-        })
-        .catch((error) => {
-          console.error(error);
-          // // setLoading(false);
-        });
-    }, 0);
 
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [currentLivePage]);
+  // Fetch data for all tabs initially (called only once)
   useEffect(() => {
-    // setLoading(true);
-    const timeoutId = setTimeout(() => {
-      fetchAssessmentData(
-        currentUpcomingPage,
-        pageSize,
-        assessmentTypes.UPCOMING
-      )
-        .then((data) => {
-          setUpcomingAssessmentList(data?.content);
-          setTotalUpcomingPage(data?.total_pages);
-          // setLoading(false);
-        })
-        .catch((error) => {
-          console.error(error);
-          // setLoading(false);
-        });
-    }, 0);
+    fetchAllTabsData();
+  }, []);
 
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [currentUpcomingPage]);
-  useEffect(() => {
-    // setLoading(true);
-    const timeoutId = setTimeout(() => {
-      fetchAssessmentData(currentPastPage, pageSize, assessmentTypes.PAST)
-        .then((data) => {
-          setPastAssessmentList(data?.content);
-          setTotalPastPage(data?.total_pages);
-          // setLoading(false);
-        })
-        .catch((error) => {
-          console.error(error);
-          // setLoading(false);
-        });
-    }, 0);
+  const fetchAllTabsData = () => {
+    Object.values(assessmentTypes).forEach((tab) => {
+      fetchMoreData(tab);  // Fetch data for each tab
+    });
+  };
 
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [currentPastPage]);
+  const fetchMoreData = useCallback((tab: assessmentTypes) => {
+    if (loading || !hasMoreData[tab]) return;
+    setLoading(true);
+    fetchAssessmentData(page[tab], pageSize, tab)
+      .then((data) => {
+        if (data.content.length === 0) {
+          setHasMoreData((prev) => ({ ...prev, [tab]: false }));
+          return;
+        }
+        setAssessmentData((prevData) => ({
+          ...prevData,
+          [tab]: [
+            ...prevData[tab],
+            ...data.content.map((assessment) => ({
+              ...assessment,
+              status: assessment.recent_attempt_status,
+            })),
+          ],
+        }));
+        setTotalCounts((prevCounts) => ({
+          ...prevCounts,
+          [tab]: data.total_elements,
+        }));
+        setPage((prevPage) => ({
+          ...prevPage,
+          [tab]: prevPage[tab] + 1,
+        }));
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [loading, page, hasMoreData]);
+
+  const refreshData = () => {
+    setAssessmentData({
+      [assessmentTypes.LIVE]: [],
+      [assessmentTypes.UPCOMING]: [],
+      [assessmentTypes.PAST]: [],
+    });
+    setPage({
+      [assessmentTypes.LIVE]: 0,
+      [assessmentTypes.UPCOMING]: 0,
+      [assessmentTypes.PAST]: 0,
+    });
+    setHasMoreData({
+      [assessmentTypes.LIVE]: true,
+      [assessmentTypes.UPCOMING]: true,
+      [assessmentTypes.PAST]: true,
+    });
+    fetchAllTabsData();
+  };
+
+  const lastElementRef = useCallback(
+    (node: HTMLDivElement | null) => { // Typing the node parameter
+      if (loading || !hasMoreData[selectedTab]) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          fetchMoreData(selectedTab);
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [loading, hasMoreData, selectedTab]
+  );
 
   return (
-    <>
-      <div className="items-center gap-4 min-h-full">
-        <Tabs value={selectedTab} onValueChange={handleTabChange}>
-          <div className="items-center justify-center gap-5 pb-5">
-            <div className="flex flex-wrap gap-5 pb-5">
-              <ScheduleTestTabList selectedTab={selectedTab} totalAssessments={selectedTab.length} />
+    <div className="items-center gap-4 min-h-full">
+      <Tabs value={selectedTab} onValueChange={(tab: string) => setSelectedTab(tab as assessmentTypes)}>
+        <ScheduleTestTabList
+          selectedTab={selectedTab}
+          totalAssessments={totalCounts}
+          onRefresh={refreshData}
+        />
+        <TabsContent
+          key={selectedTab}
+          value={selectedTab}
+          className="rounded-xl bg-neutral-50 flex flex-col gap-3"
+        >
+          {assessmentData[selectedTab].length > 0 ? (
+            assessmentData[selectedTab].map((assessment, index) => {
+              const actionButton =
+                assessment.recent_attempt_status === "ENDED"
+                  ? "Join Assessment"
+                  : assessment.recent_attempt_status === "LIVE"
+                  ? "Resume"
+                  : "Upcoming";
+              if (index === assessmentData[selectedTab].length - 1) {
+                return (
+                  <div ref={lastElementRef} key={assessment.assessment_id}>
+                    <AssessmentCard
+                      assessmentInfo={{ ...assessment, actionButton }}
+                      assessmentType={selectedTab}
+                    />
+                  </div>
+                );
+              }
+              return (
+                <AssessmentCard
+                  key={assessment.assessment_id}
+                  assessmentInfo={{ ...assessment, actionButton }}
+                  assessmentType={selectedTab}
+                />
+              );
+            })
+          ) : (
+            <div className="flex h-screen flex-col items-center justify-center">
+              <img src={EmptyScheduleTest} alt="No Tests Available" />
+              <span className="text-neutral-600">No tests found.</span>
             </div>
-          </div>
-          <TabsContent
-            key={assessmentTypes.LIVE}
-            value={assessmentTypes.LIVE}
-            className="rounded-xl bg-neutral-50 flex flex-col gap-3"
-          >
-            {liveAssessmentList && liveAssessmentList.length > 0 ? (
-              <>
-                {liveAssessmentList.map((assessment, index) => (
-                  <AssessmentCard
-                    key={`${index}-${assessmentTypes.LIVE}`}
-                    assessmentInfo={assessment}
-                    assessmentType={assessmentTypes.LIVE}
-                  />
-                ))}
-                <MyPagination
-                  currentPage={currentLivePage}
-                  totalPages={totalLivePage}
-                  onPageChange={setCurrentLivePage}
-                />
-              </>
-            ) : (
-              // Empty state when no live assessments are available
-              <div className="flex h-screen flex-col items-center justify-center">
-                <img src={EmptyScheduleTest} alt="No Live Tests Available" />
-                <span className="text-neutral-600">
-                  No tests are currently live.
-                </span>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent
-            key={assessmentTypes.UPCOMING}
-            value={assessmentTypes.UPCOMING}
-            className="rounded-xl bg-neutral-50 flex flex-col gap-3"
-          >
-            {UpcomingAssessmentList && UpcomingAssessmentList.length > 0 ? (
-              <>
-                {UpcomingAssessmentList.map((assessment, index) => (
-                  <AssessmentCard
-                    key={`${index}-${assessmentTypes.UPCOMING}`}
-                    assessmentInfo={assessment}
-                    assessmentType={assessmentTypes.UPCOMING}
-                  />
-                ))}
-                <MyPagination
-                  currentPage={currentUpcomingPage}
-                  totalPages={totalUpcomingPage}
-                  onPageChange={setCurrentUpcomingPage}
-                />
-              </>
-            ) : (
-              // Empty state when no data is available
-              <div className="flex h-screen flex-col items-center justify-center">
-                <img src={EmptyScheduleTest} alt="No Tests Available" />
-                <span className="text-neutral-600">
-                  No upcoming tests scheduled.
-                </span>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent
-            key={assessmentTypes.PAST}
-            value={assessmentTypes.PAST}
-            className="rounded-xl bg-neutral-50 flex flex-col gap-3"
-          >
-            {PastAssessmentList && PastAssessmentList.length > 0 ? (
-              <>
-                {PastAssessmentList.map((assessment, index) => (
-                  <AssessmentCard
-                    key={`${index}-${assessmentTypes.PAST}`}
-                    assessmentInfo={assessment}
-                    assessmentType={assessmentTypes.PAST}
-                  />
-                ))}
-                <MyPagination
-                  currentPage={currentPastPage}
-                  totalPages={totalPastPage}
-                  onPageChange={setCurrentPastPage}
-                />
-              </>
-            ) : (
-              // Empty state when no past assessments are available
-              <div className="flex h-screen flex-col items-center justify-center">
-                <img src={EmptyScheduleTest} alt="No Past Tests Available" />
-                <span className="text-neutral-600">
-                  No previous tests available.
-                </span>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
-    </>
+          )}
+          {loading && <div className="text-center py-4">Loading...</div>}
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
