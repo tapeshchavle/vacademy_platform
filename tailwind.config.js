@@ -13,10 +13,17 @@ module.exports = {
   		center: true,
   		padding: '2rem',
   		screens: {
+			'xs': '350px',
+			'md-tablets': '769px', 
   			'2xl': '1400px'
   		}
   	},
   	extend: {
+		screens: {
+			'xs': '350px',
+			'md-tablets': '769px',
+  			'2xl': '1400px'
+  		},
   		fontFamily: {
   			sans: [
   				'Open Sans',
