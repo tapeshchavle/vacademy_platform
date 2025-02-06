@@ -16,7 +16,7 @@ export const Modules = ({modules, subject }:{modules: ModuleType[], subject: str
                 </div>
             )}
             <div className={`grid xs:grid-cols-1 md-tablets:grid-cols-2 ${open?"sm:grid-cols-1":"sm:grid-cols-2"} gap-6 w-full`}>
-                {modules.map((module, index) => (
+                {modules?.map((module, index) => (
                     <ModuleCard
                         key={index}
                         module={module}

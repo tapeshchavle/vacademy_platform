@@ -60,7 +60,7 @@ export const SubjectMaterial = ({course}:{course:string}) => {
                 </div>
             ) : (
                 <div className={`grid grid-cols-2 ${open?"sm:grid-cols-2 md-tablets:grid-cols-3":"sm:grid-cols-3 md-tablets:grid-cols-4"} w-full gap-4 `}>
-                    {subjects.map((subject) => (
+                    {subjects?.map((subject) => (
                         <SubjectCard
                             key={subject.id}
                             subject={subject}

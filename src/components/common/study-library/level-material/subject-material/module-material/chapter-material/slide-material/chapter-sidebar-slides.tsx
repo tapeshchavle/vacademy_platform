@@ -20,7 +20,7 @@ export const ChapterSidebarSlides = () => {
 
     return (
         <div className="flex w-full flex-col items-center gap-6 text-neutral-600">
-            {items.map((item) => (
+            {items?.map((item) => (
                 <div
                     key={item.id}
                     onClick={() => setActiveItem(item)} // Pass the entire item

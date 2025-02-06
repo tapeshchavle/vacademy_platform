@@ -57,7 +57,7 @@ function ModuleMaterialPage() {
           {moduleName}
         </p>
       </div>
-      {data.map((obj, key) => (
+      {data?.map((obj, key) => (
         <div
           key={key}
           className="flex w-full items-center gap-3 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-primary-500 hover:cursor-pointer hover:border hover:border-neutral-300 hover:bg-white hover:text-primary-500"

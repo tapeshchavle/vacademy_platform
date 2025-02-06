@@ -241,12 +241,6 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
        };
    }, [videoUrl]);
 
-   useEffect(() => {
-       return () => {
-           stopTimer();
-       };
-   }, [stopTimer]);
-
    return (
        <div className="aspect-video w-full">
            <div ref={playerContainerRef} />
