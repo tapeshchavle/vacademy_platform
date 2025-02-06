@@ -8,6 +8,7 @@ import { useRouter } from "@tanstack/react-router";
 import { startAssessment } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
 import { Storage } from "@capacitor/storage";
 import { AssessmentPreviewData } from "@/types/assessment";
+import { parseHtmlToString } from "@/lib/utils";
 
 export function AssessmentPreview() {
   const router = useRouter();
@@ -81,16 +82,10 @@ export function AssessmentPreview() {
     }
   };
 
-  const QuestionContent = ({ content }: { content: string }) => {
-    return <div dangerouslySetInnerHTML={{ __html: content }} />;
-  };
-  //  function parseHtmlToString(html: string) {
-  //     const doc = new DOMParser().parseFromString(html, "text/html");
-  //     return doc.body.textContent || doc.body.innerText || "";
-  //   }
-  // const calculateTotalMarks = async(marking_shceme)=>{
-  //   return marking_shceme.totalMarks;
-  // }
+  // const QuestionContent = ({ content }: { content: string }) => {
+  //   return <div dangerouslySetInnerHTML={{ __html: content }} />;
+  // };
+   
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -132,7 +127,7 @@ export function AssessmentPreview() {
                   onClick={() => setActiveSection(index)}
                   className={`px-4 py-2 text-sm rounded-t-lg ${
                     activeSection === index
-                      ? "bg-orange-50 text-orange-500 border border-b-0 border-orange-500"
+                      ? "bg-orange-50 text-primary-500 border border-b-0 border-orange-500"
                       : "text-gray-600"
                   }`}
                 >
@@ -182,8 +177,8 @@ export function AssessmentPreview() {
                     key={option.id}
                     className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
                   >
-                    {/* {parseHtmlToString(option.text.content)} */}
-                    <QuestionContent content={option.text.content} />
+                    {parseHtmlToString(option.text.content)}
+                    {/* <QuestionContent content={option.text.content} /> */}
                   </div>
                 ))}
               </div>

@@ -26,7 +26,6 @@ const InstructionPage = () => {
       setInstructions(data[0]);
     } catch (error) {
       console.error("Error fetching assessments:", error);
-      // toast.error("Failed to fetch assessments.");
     }
   };
   useEffect(() => {

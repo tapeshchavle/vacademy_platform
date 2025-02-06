@@ -105,7 +105,7 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
                   </div>
                   {(key === "Marked for review" ||
                     key === "Answered & Marked for review") && (
-                    <Flag className="absolute -top-1 -right-1 w-3 h-3 text-orange-500" />
+                    <Flag className="absolute -top-1 -right-1 w-3 h-3 text-primary-500" />
                   )}
                 </div>
                 <span>{key}</span>
@@ -135,7 +135,7 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
                     {index + 1}
                   </Button>
                   {state?.isMarkedForReview && (
-                    <Flag className="absolute -top-1 -right-1 w-2 h-2 text-orange-500" />
+                    <Flag className="absolute -top-1 -right-1 w-2 h-2 text-primary-500" />
                   )}
                 </div>
               );

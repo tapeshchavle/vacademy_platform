@@ -11,6 +11,7 @@ import NetworkStatus from "./network-status";
 import { Preferences } from "@capacitor/preferences";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { ASSESSMENT_SAVE } from "@/constants/urls";
+import { toast } from "sonner";
 
 export default function Page() {
   const { loadState, saveState } = useAssessmentStore();
@@ -25,16 +26,16 @@ export default function Page() {
       assessment: {
         assessmentId: assessment_id,
         entireTestDurationLeftInSeconds: state.entireTestTimer,
-        timeElapsedInSeconds: 0, // You can calculate if needed
+        timeElapsedInSeconds: 0, 
         status: "LIVE",
         tabSwitchCount: state.tabSwitchCount || 0,
       },
       sections: state.assessment?.section_dtos?.map((section, idx) => ({
         sectionId: section.id,
-        timeElapsedInSeconds: state.sectionTimers?.[idx] || 0,
-        questions: section.question_preview_dto_list?.map((question, qidx) => ({
+        timeElapsedInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+        questions: section.question_preview_dto_list?.map((question) => ({
           questionId: question.question_id,
-          questionDurationLeftInSeconds: state.questionTimers?.[qidx] || 0,
+          questionDurationLeftInSeconds: state.questionTimers?.[question.question_id] || 0,
           timeTakenInSeconds: 0,
           responseData: {
             type: question.question_type,
@@ -59,7 +60,6 @@ export default function Page() {
       const formattedData = formatDataFromStore(
         assessment_id_json?.assessment_id
       );
-      console.log("Formatted Data:", formattedData);
       const response = await authenticatedAxiosInstance.post(
         `${ASSESSMENT_SAVE}`,
         { json_content: JSON.stringify(formattedData) },
@@ -93,6 +93,8 @@ export default function Page() {
         await sendFormattedData();
       } catch (error) {
         console.error("Error in periodic data sending:", error);
+        // Show toast notification for failure
+        toast.error("Your responses are not being recorded");
       }
     };
 

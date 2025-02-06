@@ -22,7 +22,7 @@ export function SubmitModal({ open, onOpenChange, onConfirm }: SubmitModalProps)
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-orange-500" />
+            <AlertCircle className="h-5 w-5 text-primary-500" />
             Submit Assessment
           </AlertDialogTitle>
           <AlertDialogDescription>

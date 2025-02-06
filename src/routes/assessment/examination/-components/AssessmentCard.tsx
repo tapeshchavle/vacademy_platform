@@ -102,7 +102,7 @@ export const AssessmentCard = ({
           <AlertDialogContent className="max-w-sm bg-[#FDFAF6] rounded-lg p-4 sm:mx-4 sm:p-6 ">
             <div className="text-gray-700">
               The assessment{" "}
-              <span className="text-orange-500">{assessmentInfo.name}</span> is
+              <span className="text-primary-500">{assessmentInfo.name}</span> is
               not live currently. You can appear for the assessment when it goes
               live.
             </div>

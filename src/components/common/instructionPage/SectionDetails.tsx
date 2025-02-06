@@ -6,7 +6,7 @@ export const SectionDetails = ({ section }: { section: SectionDto }) => {
   return (
     <div className="w-full mb-4">
       <div className="space-y-6">
-        <h2 className="text-orange-500 text-lg font-semibold">
+        <h2 className="text-primary-500 text-lg font-semibold">
           {section.name}
         </h2>
 

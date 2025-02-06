@@ -11,7 +11,9 @@ import {
   distribution_duration_types,
   QUESTION_TYPES,
 } from "@/types/assessment";
-import {parseHtmlToString} from "@/lib/utils"
+import { parseHtmlToString } from "@/lib/utils";
+// import { MyButton } from "@/components/design-system/button";
+// import { SsdcLogo_Login } from "@/assets/svgs";
 
 export function QuestionDisplay() {
   const {
@@ -30,14 +32,14 @@ export function QuestionDisplay() {
   } = useAssessmentStore();
 
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
-  
+
   useEffect(() => {
     if (
       !currentQuestion ||
       assessment?.distribution_duration !== distribution_duration_types.QUESTION
     )
       return;
-  
+
     const timer = setInterval(() => {
       const timeLeft = questionTimers[currentQuestion.question_id] || 0;
       if (timeLeft > 0) {
@@ -46,11 +48,9 @@ export function QuestionDisplay() {
         moveToNextQuestion();
       }
     }, 1000);
-  
+
     return () => clearInterval(timer);
   }, [currentQuestion, assessment?.distribution_duration, questionTimers]);
-  
-  
 
   if (!currentQuestion) {
     return (
@@ -98,8 +98,7 @@ export function QuestionDisplay() {
   const calculateMarkingScheme = (marking_json: string) => {
     try {
       const marking_scheme = JSON.parse(marking_json);
-      // console.log(marking_scheme)
-      return marking_scheme; 
+      return marking_scheme;
     } catch (error) {
       console.error("Error parsing marking_json:", error);
       return 0;
@@ -136,7 +135,7 @@ export function QuestionDisplay() {
             <div className="flex items-center gap-2">
               {assessment?.distribution_duration ===
                 distribution_duration_types.QUESTION && (
-                <span className="text-base text-orange-500">
+                <span className="text-base text-primary-500">
                   {formatTime(questionTimers[currentQuestion.question_id])}
                 </span>
               )}
@@ -148,16 +147,16 @@ export function QuestionDisplay() {
           </p>
         </div>
         <div className="flex gap-2 mt-4 md:mt-4 sm:mt-0 w-full sm:w-auto justify-between">
-          <Button
-            variant="outline"
-            size="sm"
-            className={isMarkedForReview ? "text-orange-500" : ""}
-            onClick={() => markForReview(currentQuestion.question_id)}
-            disabled={isDisabled}
-          >
-            <Flag className="mr-2 h-4 w-4" />
-            Review Later
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={isMarkedForReview ? "text-primary-500 hover:text-primary-500 hover:bg-transparent" : ""}
+              onClick={() => markForReview(currentQuestion.question_id)}
+            >
+              <Flag className="mr-2 h-4 w-4" />
+              Review Later
+            </Button>
+
           <Button
             variant="outline"
             size="sm"

@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+import { cn, parseHtmlToString } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Flag } from 'lucide-react'
 // import Image from 'next/image'
@@ -61,10 +61,10 @@ export function QuestionListView() {
                   </span>
                 </div>
                 {state?.isMarkedForReview && (
-                  <Flag className="h-4 w-4 text-orange-500" />
+                  <Flag className="h-4 w-4 text-primary-500" />
                 )}
               </div>
-              <div className="text-sm line-clamp-2">{question.question.content}</div>
+              <div className="text-sm line-clamp-2">{parseHtmlToString(question.question.content)}</div>
               {/* {question.imageDetails && question.imageDetails.length > 0 && (
                 <div className="mt-2 relative h-20">
                   <Image
