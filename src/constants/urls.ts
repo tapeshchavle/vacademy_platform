@@ -13,3 +13,8 @@ export const ASSESSMENT_PREVIEW = `${BASE_URL}/assessment-service/assessment/lea
 export const START_ASSESSMENT = `${BASE_URL}/assessment-service/assessment/learner/assessment-start-assessment`;
 export const ASSESSMENT_SAVE = `${BASE_URL}/assessment-service/assessment/learner/status/update`;
 export const ASSESSMENT_SUBMIT = `${BASE_URL}/assessment-service/assessment/learner/status/submit`;
+
+export const ADD_VIDEO_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-video-activity`
+export const UPDATE_VIDEO_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/update-video-activity`
+export const ADD_DOCUMENT_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-document-activity`
+export const UPDATE_DOCUMENT_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/update-document-activity`
