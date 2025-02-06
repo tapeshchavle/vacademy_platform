@@ -25,3 +25,9 @@ export {
   EmptyChaptersImage,
   EmptySlideMaterial
 };
+import dashboardImg from "./dashboardImg.svg"
+export { dashboardImg };
+
+import PlayCircle from "./PlayCircle.svg";
+export { PlayCircle };
+
