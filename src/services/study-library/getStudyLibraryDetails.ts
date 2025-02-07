@@ -5,7 +5,7 @@ import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-s
 import { getUserId } from "@/constants/getUserId";
 
 export const fetchStudyLibraryDetails = async () => {
-    const userId = getUserId();
+    const userId = await getUserId();
     const response = await authenticatedAxiosInstance.get(INIT_STUDY_LIBRARY, {
         params: {
             instituteId: INSTITUTE_ID,

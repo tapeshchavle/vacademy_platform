@@ -1,44 +1,62 @@
 import { EmptySubjectMaterial } from "@/assets/svgs";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
-import { useEffect } from "react";
-import { Subject, SubjectCard } from "./subject-card";
+import { useEffect, useState } from "react";
+import { SubjectCard } from "./subject-card";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useRouter } from "@tanstack/react-router";
 import { CaretLeft } from "phosphor-react";
+import { getCourseSubjects } from "@/utils/study-library/get-list-from-stores/getSubjects";
+import { useSelectedSessionStore } from "@/stores/study-library/selected-session-store";
+import { StudyLibrarySessionType, useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
+import { getLevelSessions } from "@/utils/study-library/get-list-from-stores/getSessionsForSubjects";
 
-const subjectsDummy = [
-    { 
-        id: "123",
-        name: "Biology",
-        code: null,
-        credit: null,
-        imageId: null,
-        createdAt: null,
-        updatedAt: null
-    },
-    { 
-        id: "124",
-        name: "Chemistry",
-        code: null,
-        credit: null,
-        imageId: null,
-        createdAt: null,
-        updatedAt: null
-    },
-]
 
-export const SubjectMaterial = ({course}:{course:string}) => {
-    const subjects: Subject[] = subjectsDummy;
+export const SubjectMaterial = () => {
+    
     const {setNavHeading} = useNavHeadingStore();
     const {open} = useSidebar();
     const router = useRouter();
+    const searchParams = router.state.location.search;
+    const courseId: string = searchParams.courseId || "";
+    const levelId: string = searchParams.levelId || "";
+
+    const { selectedSession, setSelectedSession } = useSelectedSessionStore();
+
+    const { studyLibraryData } = useStudyLibraryStore();
+
+    const sessionList = courseId && levelId ? getLevelSessions(levelId) : [];
+    const initialSession: StudyLibrarySessionType | undefined =
+        selectedSession && sessionList.includes(selectedSession) ? selectedSession : sessionList[0];
+    // const [currentSession, setCurrentSession] = useState<StudyLibrarySessionType | undefined>(
+    //     initialSession,
+    // );
+    const currentSession = initialSession
+
+    useEffect(() => {
+        setSelectedSession(currentSession);
+        const newSubjects = getCourseSubjects(courseId, currentSession?.id ?? "", levelId);
+        setSubjects(newSubjects);
+    }, [currentSession, studyLibraryData]);
+
+   
+
+    // const handleSessionChange = (value: string | StudyLibrarySessionType) => {
+    //     if (typeof value !== "string" && value) {
+    //         setCurrentSession(value);
+    //     }
+    // };
 
     const handleBackClick = () => {
         router.navigate({
-            to: `/study-library/courses/$course/levels`,
-            params: {course: course}
+            to: `/study-library/courses/levels`,
+            search: {
+                courseId: courseId
+            }
         })
     };
+
+    const initialSubjects = getCourseSubjects(courseId, currentSession?.id ?? "", levelId);
+    const [subjects, setSubjects] = useState(initialSubjects);
 
     const heading = (
         <div className="flex items-center gap-2">

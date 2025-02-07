@@ -1,45 +1,43 @@
 import { SubjectDefaultImage } from "@/assets/svgs";
-import { useRouter } from "@tanstack/react-router";
-
-export interface LevelType {
-    id: string;
-    name: string;
-    code: string | null;
-    credit: number | null;
-    imageId: string | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-}
+import { LevelWithDetailsType } from "@/stores/study-library/use-study-library-store";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 
 interface LevelCardProps {
-    level: LevelType;
+    level: LevelWithDetailsType;
 }
 
 export const LevelCard = ({ level }: LevelCardProps) => {
-    
+    const navigate = useNavigate();
     const router = useRouter();
+
+    const currentPath = router.state.location.pathname;
+    const { courseId } = router.state.location.search;
     const imageUrl = undefined
 
-    const handleCardClick = (e: React.MouseEvent) => {
+    const handleLevelCardClick = (e: React.MouseEvent) => {
         if (
-            (e.target as HTMLElement).closest(".menu-options-container") ||
-            (e.target as HTMLElement).closest('[role="menu"]') ||
-            (e.target as HTMLElement).closest('[role="dialog"]')
+            e.target instanceof Element &&
+            (e.target.closest(".menu-options-container") ||
+                e.target.closest(".drag-handle-container") ||
+                e.target.closest('[role="menu"]') ||
+                e.target.closest('[role="dialog"]'))
         ) {
             return;
         }
 
-        const formatterLevelName = level.name.replace(/\s+/g, "-");
-        const currentPath = router.state.location.pathname;
-
-        router.navigate({
-            to: `${currentPath}/$level/subjects`,
-            params: {level: formatterLevelName}
+        navigate({
+            to: `${currentPath}/subjects`,
+            search: {
+                courseId: courseId,
+                levelId: level.id,
+            },
         });
     };
 
+    
+
     return(
-        <div onClick={handleCardClick} className="cursor-pointer w-full ">
+        <div onClick={handleLevelCardClick} className="cursor-pointer w-full ">
             <div
                 className={`relative flex flex-col items-center justify-center gap-4 border rounded-lg border-neutral-200 bg-neutral-50 p-4  w-full`}
             >

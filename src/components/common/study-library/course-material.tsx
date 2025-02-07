@@ -1,47 +1,25 @@
 import { EmptySubjectMaterial } from "@/assets/svgs";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSidebar } from "@/components/ui/sidebar";
-import { CourseCard, CourseType } from "./course-card";
+import { CourseCard } from "./course-card";
+import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
+import { getCourses } from "@/utils/study-library/get-list-from-stores/getCourses";
 
-const courseDummy = [
-    { 
-        id: "123",
-        name: "Premium Pro Group 1",
-        code: null,
-        credit: null,
-        imageId: null,
-        createdAt: null,
-        updatedAt: null
-    },
-    { 
-        id: "121",
-        name: "Premium Pro Group 2",
-        code: null,
-        credit: null,
-        imageId: null,
-        createdAt: null,
-        updatedAt: null
-    },
-    { 
-        id: "124",
-        name: "Premium Plus Group 1",
-        code: null,
-        credit: null,
-        imageId: null,
-        createdAt: null,
-        updatedAt: null
-    },
-]
 
 export const CourseMaterial = () => {
-    const courses: CourseType[] = courseDummy;
+    const {studyLibraryData} = useStudyLibraryStore();
     const {setNavHeading} = useNavHeadingStore();
     const {open} = useSidebar();
+    const [courses, setCourses] = useState(getCourses());
     
-      useEffect(()=>{
+    useEffect(()=>{
         setNavHeading("Study Library")
-      }, [])
+    }, [])
+
+    useEffect(() => {
+        setCourses(getCourses());
+    }, [studyLibraryData]);
 
     return(
         <div className=" w-full flex flex-col items-center justify-center">
@@ -52,7 +30,7 @@ export const CourseMaterial = () => {
                 </div>
             ) : (
                 <div className={`grid grid-cols-2 ${open?"sm:grid-cols-2 md-tablets:grid-cols-3":"sm:grid-cols-3 md-tablets:grid-cols-4"} w-full gap-4 `}>
-                    {courses.map((course) => (
+                    {courses?.map((course) => (
                         <CourseCard
                             key={course.id}
                             course={course}
