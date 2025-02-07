@@ -1,5 +1,10 @@
 import { IconProps } from "@phosphor-icons/react";
 
+export enum sideBarStateType{
+    HAMBURGER = "Hamburger sidebar",
+    DEFAULT = "Defalut sidebar",
+}
+
 export interface subItemsType {
     subItem: string;
     subItemLink: string | undefined;

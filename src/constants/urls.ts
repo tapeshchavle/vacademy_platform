@@ -16,3 +16,8 @@ export const ASSESSMENT_SUBMIT = `${BASE_URL}/assessment-service/assessment/lear
 export const GET_DASHBOARD_DATA = `${BASE_URL}/`;
 export const GET_NOTIFCATIONS = `${BASE_URL}/`;
 export const GET_ANNOUNCEMENTS = `${BASE_URL}/`;
+
+export const GET_SIGNED_URL = `${BASE_URL}/media-service/get-signed-url`;
+export const ACKNOWLEDGE = `${BASE_URL}/media-service/acknowledge`;
+export const GET_PUBLIC_URL = `${BASE_URL}/media-service/get-public-url`;
+export const GET_DETAILS = `${BASE_URL}/media-service/get-details/ids`;

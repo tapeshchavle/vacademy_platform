@@ -10,6 +10,8 @@ import SubjectDefaultImage from './subject-default-image.svg';
 import EmptyModulesImage from './empty_modules_image.svg'
 import EmptyChaptersImage from './empty_chapters_image.svg'
 import EmptySlideMaterial from './empty-slide-material.svg'
+import DashboardImg from "./dashboardImg.svg"
+import PlayCircle from "./PlayCircle.svg";
 
 export {
   SSDC_Logo,
@@ -23,11 +25,9 @@ export {
   SubjectDefaultImage,
   EmptyModulesImage,
   EmptyChaptersImage,
-  EmptySlideMaterial
+  EmptySlideMaterial,
+  DashboardImg,
+  PlayCircle,
 };
-import dashboardImg from "./dashboardImg.svg"
-export { dashboardImg };
 
-import PlayCircle from "./PlayCircle.svg";
-export { PlayCircle };
 

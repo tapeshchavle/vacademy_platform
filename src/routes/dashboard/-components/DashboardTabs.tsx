@@ -13,7 +13,7 @@ export function DashboardTabs({
   count,
   button,
   buttonText,
-  list,
+  list = [],
 }: DashboardTabsProps) {
   return (
     <div className="border rounded-md bg-sidebar-background p-4 flex flex-col">
@@ -21,14 +21,14 @@ export function DashboardTabs({
         <div>{title}</div>
         <div className="text-primary-500">{count}</div>
       </div>
-        <div className="flex flex-col gap-2 my-4">
+        {list?.length > 0 && <div className="flex flex-col gap-2 my-4">
           {list?.map((item, idx) => (
             <div key={idx} className="flex flex-row gap-5 items-start">
-              <img src={PlayCircle} alt="" />
+              <PlayCircle />
               <div>{item}</div>
             </div>
           ))}
-        </div>
+        </div>}
 
       {button && (
         <div className="w-full flex items-center justify-center mt-4">

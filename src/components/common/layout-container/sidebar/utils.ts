@@ -1,5 +1,5 @@
 import { SidebarItemsType } from "../../../../types/layout-container-types";
-import { House, BookOpen, Scroll } from "@phosphor-icons/react";
+import { House, BookOpen, Scroll, SignOut } from "@phosphor-icons/react";
 
 export const SidebarItemsData: SidebarItemsType[] = [
     {
@@ -39,4 +39,20 @@ export const SidebarItemsData: SidebarItemsType[] = [
             
         ],
     },
+];
+export const HamBurgerSidebarItemsData: SidebarItemsType[] = [
+  // {
+  //     icon: House,
+  //     title: "Setings",
+  //     to: "/dashboard",
+  // },
+  // {
+  //     icon: BookOpen,
+  //     title: "View Profile Details",
+  //     to: "/study-library",
+  // },
+  {
+    icon: SignOut ,
+    title: "Log Out",
+  },
 ];

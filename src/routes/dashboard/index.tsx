@@ -2,18 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { LayoutContainer } from "@/components/common/layout-container/layout-container";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { useEffect, useState } from "react";
+import { CourseData } from "@/types/dashbaord/types";
 export const Route = createFileRoute("/dashboard/")({
   component: Dashboard,
 });
-import { dashboardImg } from "@/assets/svgs";
+import { DashboardImg } from "@/assets/svgs";
 import { fetchStaticData } from "./-lib/utils";
 import { DashboardTabs } from "./-components/DashboardTabs";
 
 export function Dashboard() {
   const [username, setUsername] = useState<string | null>(null);
-  const [data , setData] = useState();
+  const [data, setData] = useState<CourseData>();
   const { setNavHeading } = useNavHeadingStore();
-  console.log(data)
   useEffect(() => {
     setNavHeading("Dashoard");
     fetchStaticData(setUsername, setData);
@@ -29,19 +29,27 @@ export function Dashboard() {
             Excited to have you here! Let's dive into learning!
           </div>
         </div>
-        <div className="my-6">
-          <img className="m-auto" src={dashboardImg} alt="dashboard Image" />
+        <div className="my-6 w-fit mx-auto">
+          <DashboardImg />
         </div>
         <div className="flex flex-col gap-6">
-          <DashboardTabs title="Courses" count={2} button={false} />
           <DashboardTabs
-            title="Courses"
-            count={2}
+            title={"Courses"}
+            count={data?.courses}
+            button={false}
+          />
+          <DashboardTabs
+            title="Begin your journey"
+            count={data?.slides.length}
             button={true}
             buttonText="Resume"
             list={["The Human Eye: Structure and Function Explained"]}
           />
-          <DashboardTabs title="Courses" count={2} button={false} />
+          <DashboardTabs
+            title="Test Assigned"
+            count={data?.tests_assigned}
+            button={false}
+          />
         </div>
       </div>
     </LayoutContainer>
