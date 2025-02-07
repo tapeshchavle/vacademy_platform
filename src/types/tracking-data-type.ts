@@ -4,22 +4,21 @@ export interface TrackingDataType {
     source_type: string | null,
     user_id: string,
     slide_id: string | null,
-    start_time: string | null,
-    end_time: string | null,
+    start_time_in_millis: number,
+    end_time_in_millis: number,
     percentage_watched: number | null,
-    videos: [
+    videos: 
       {
         id: string,
-        start_time: string ,
-        end_time: string 
-      }
-    ] | null,
-    documents: [
+        start_time: string,
+        end_time: string
+      }[]   | null,
+    documents: 
       {
         id: string,
         start_time: string,
         end_time: string,
         page_number: number
-      }
-    ] | null
+      }[]
+     | null
   }

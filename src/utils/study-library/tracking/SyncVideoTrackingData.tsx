@@ -9,8 +9,9 @@ import { Preferences } from '@capacitor/preferences';
 const STORAGE_KEY = 'video_tracking_data';
 const USER_ID_KEY = 'StudentDetails';
 
-export const syncVideoTrackingData = async () => {
+export const SyncVideoTrackingData = async () => {
     try {
+        console.log("Entered inside function")
         const userDetailsStr = await Preferences.get({ key: USER_ID_KEY });
         const userDetails = userDetailsStr.value ? JSON.parse(userDetailsStr.value) : null;
         const userId = userDetails?.user_id;
@@ -56,8 +57,8 @@ export const syncVideoTrackingData = async () => {
                 source_type: activity.source,
                 user_id: userId,
                 slide_id: "",
-                start_time: activity.start_time,
-                end_time: activity.end_time,
+                start_time_in_millis: activity.start_time,
+                end_time_in_millis: activity.end_time,
                 percentage_watched: parseFloat(activity.percentage_watched),
                 videos: [timestamps[0]], // Ensure we always have exactly one element
                 documents: null

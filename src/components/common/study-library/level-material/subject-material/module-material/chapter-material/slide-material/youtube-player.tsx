@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import { useTrackingStore } from "@/stores/study-library/youtube-video-tracking-store";
-import { getISTTime } from "./utils";
+import { getEpochTimeInMillis } from "./utils";
 import { convertTimeToSeconds } from "@/utils/study-library/tracking/convertTimeToSeconds";
 import { formatVideoTime } from "@/utils/study-library/tracking/formatVideoTime";
 import { calculateNetDuration } from "@/utils/study-library/tracking/calculateNetDuration";
 import { extractVideoId } from "@/utils/study-library/tracking/extractVideoId";
+import { useVideoSync } from "@/hooks/study-library/useVideoSync";
 
 interface YTPlayer {
    destroy(): void;
@@ -57,16 +58,17 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const playerRef = useRef<YTPlayer | null>(null);
    const playerContainerRef = useRef<HTMLDivElement>(null);
    const activityId = useRef(uuidv4());
-   const currentTimestamps = useRef<Array<{id: string, start_time: string, end_time: string}>>([]);
-   const videoStartTime = useRef<string>('');
-   const videoEndTime = useRef<string>('');
+   const currentTimestamps = useRef<Array<{id: string, start_time: string, end_time: string, start: string, end: string}>>([]);
+   const videoStartTime = useRef<number>(0);
+   const videoEndTime = useRef<number>(0);
    const [elapsedTime, setElapsedTime] = useState(0);
    const timerRef = useRef<NodeJS.Timeout | null>(null);
    const currentStartTimeRef = useRef('');
    const timestampDurationRef = useRef(0);
    const [isFirstPlay, setIsFirstPlay] = useState(true);
    const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
+   const { syncVideoTrackingData } = useVideoSync();
+   const currentStartTimeInEpochRef = useRef<number>(0);
     
     
     const calculatePercentageWatched = (totalDuration: number) => {
@@ -104,7 +106,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
 
    useEffect(() => {
     const videoId = extractVideoId(videoUrl);
-    const endTime = videoEndTime.current || getISTTime();
+    const endTime = videoEndTime.current || getEpochTimeInMillis();
     
     const newActivity = {
         activity_id: activityId.current,
@@ -119,6 +121,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
         ),
         sync_status: 'STALE' as const, // Always set to STALE when updating
         current_start_time: currentStartTimeRef.current,
+        current_start_time_in_epoch: currentStartTimeInEpochRef.current,
         new_activity: true
     };
 
@@ -153,7 +156,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                        console.log("Player ready");
                    },
                    onStateChange: (event) => {
-                       const now = getISTTime();
+                       const now = getEpochTimeInMillis();
                        const currentTime = player.getCurrentTime();
 
                        
@@ -166,17 +169,20 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
 
                             if (isFirstPlay) {
                                 console.log("integrate add video activity api now");
+                                syncVideoTrackingData();
                                 setIsFirstPlay(false);
                                 
                                 // Start the 2-minute interval for update notifications
                                 if (!updateIntervalRef.current) {
                                     updateIntervalRef.current = setInterval(() => {
                                         console.log("integrate update video activity api now");
+                                        syncVideoTrackingData();
                                     }, 2 * 60 * 1000); // 2 minutes in milliseconds
                                 }
                             }
 
                             currentStartTimeRef.current = formatVideoTime(currentTime);
+                            currentStartTimeInEpochRef.current = now;
                             console.log("play state")
                             
                         } else if (event.data === window.YT.PlayerState.PAUSED || 
@@ -187,11 +193,16 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                                 const currentStartTimeInSeconds = convertTimeToSeconds(currentStartTimeRef.current);
                                 const endTimeInSeconds = currentStartTimeInSeconds + timestampDurationRef.current;
                                 const endTimeStamp = formatVideoTime(endTimeInSeconds);
+
+                                const startDate = new Date(videoStartTime.current + (currentStartTimeInSeconds * 1000));
+                                const endDate = new Date(videoStartTime.current + (endTimeInSeconds * 1000));
                         
                                 currentTimestamps.current.push({
                                     id: uuidv4(), // Add this line to generate unique ID
                                     start_time: currentStartTimeRef.current,
-                                    end_time: endTimeStamp
+                                    end_time: endTimeStamp,
+                                    start: startDate.toISOString(),
+                                    end: endDate.toISOString()
                                 });
                         
                                 currentStartTimeRef.current = formatVideoTime(currentTime);

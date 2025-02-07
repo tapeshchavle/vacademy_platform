@@ -5,6 +5,10 @@ import { formatVideoTime } from './formatVideoTime';
 import { ActivitySchema } from '@/schemas/study-library/youtube-video-tracking-schema';
 import { z } from 'zod';
 
+const formatInISODateFormat = (epochTimeInMillis: number): string => {
+    return new Date(epochTimeInMillis).toISOString();
+};
+
 export const calculateAndUpdateTimestamps = (activity: z.infer<typeof ActivitySchema>) => {
     const totalTimestampDuration = activity.timestamps.reduce((sum: number, timestamp: {
         start_time: string;
@@ -22,10 +26,15 @@ export const calculateAndUpdateTimestamps = (activity: z.infer<typeof ActivitySc
         const startTimeInSeconds = convertTimeToSeconds(activity.current_start_time);
         const endTimeInSeconds = startTimeInSeconds + remainingDuration;
         
+        // Calculate the end time in epoch milliseconds
+        const endTimeInEpoch = activity.current_start_time_in_epoch + (remainingDuration * 1000);
+
         const newTimestamp = {
             id: uuidv4(),
             start_time: activity.current_start_time,
-            end_time: formatVideoTime(endTimeInSeconds)
+            end_time: formatVideoTime(endTimeInSeconds),
+            start: formatInISODateFormat(activity.current_start_time_in_epoch),
+            end: formatInISODateFormat(endTimeInEpoch)
         };
 
         return {
