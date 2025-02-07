@@ -1,5 +1,7 @@
 export const BASE_URL = "https://backend-stage.vacademy.io";
 
+export const INSTITUTE_ID = "c70f40a5-e4d3-4b6c-a498-e612d0d4b133";
+
 // urls
 export const LOGIN_URL = `${BASE_URL}/auth-service/learner/v1/login`;
 export const REQUEST_OTP = `${BASE_URL}/auth-service/learner/v1/request-otp`;
@@ -18,3 +20,7 @@ export const ADD_VIDEO_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracki
 export const UPDATE_VIDEO_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/update-video-activity`
 export const ADD_DOCUMENT_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-document-activity`
 export const UPDATE_DOCUMENT_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/update-document-activity`
+
+export const INIT_STUDY_LIBRARY = `${BASE_URL}/admin-core-service/v1/learner-study-library/init-details`
+export const MODULES_WITH_CHAPTERS = `${BASE_URL}/admin-core-service/v1/learner-study-library/modules-with-chapters`
+export const GET_SLIDES = `${BASE_URL}/admin-core-service/v1/learner-study-library/get-slides`

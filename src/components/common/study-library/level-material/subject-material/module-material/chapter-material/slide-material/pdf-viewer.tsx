@@ -31,6 +31,8 @@ import { useTrackingStore } from "@/stores/study-library/pdf-tracking-store";
 import "@react-pdf-viewer/core/lib/styles/index.css";
 import "@react-pdf-viewer/default-layout/lib/styles/index.css";
 import { getISTTime } from "./utils";
+import { usePDFSync } from "@/hooks/study-library/usePdfSync";
+import { getEpochTimeInMillis } from "./utils";
 
 interface PDFViewerProps {
    documentId?: string;
@@ -45,14 +47,23 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
     const activityId = useRef(uuidv4());
     const startTime = useRef(getISTTime());
     const pageViews = useRef<Array<{
-        page: number, 
-        duration: number
+         id: string,
+        page: number,
+        duration: number,
+        start_time: string,
+        end_time: string,
+        start_time_in_millis: number,
+        end_time_in_millis: number
     }>>([]);
     const [elapsedTime, setElapsedTime] = useState(0);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const totalPagesReadRef = useRef<number>(0);
+    const startTimeInMillis = useRef(getEpochTimeInMillis());
+    const { syncPDFTrackingData } = usePDFSync();
+    const [isFirstView, setIsFirstView] = useState(true);
+    const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    const defaultPdfUrl = "https://vacademy-media-storage.s3.ap-south-1.amazonaws.com/c70f40a5-e4d3-4b6c-a498-e612d0d4b133/PDF_DOCUMENTS/0465951b-8aa0-4744-8859-1add389ddd32-project_en20cs301425_shristi_gupta.docx.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250201T111342Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86399&X-Amz-Credential=REMOVED_AWS_KEY%2F20250201%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Signature=8c189b347b3833d481c2bd81d4894ab54bd1d36050501c836da83e1c5d3f5db2";
+    const defaultPdfUrl = "https://vacademy-media-storage.s3.ap-south-1.amazonaws.com/c70f40a5-e4d3-4b6c-a498-e612d0d4b133/PDF_DOCUMENTS/c8605f58-aca8-4079-a260-199a01f78218-project_report.docx.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250207T024956Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86399&X-Amz-Credential=REMOVED_AWS_KEY%2F20250207%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Signature=ea590e177655b7f22f27b6d83b0befa1f838dadf28941867068b08fc99f9de5f";
 
     // Plugin instances
     const attachmentPluginInstance = attachmentPlugin();
@@ -101,7 +112,78 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
     // Update activity in real-time when elapsedTime changes
     useEffect(() => {
         totalPagesReadRef.current = new Set(pageViews.current.map(v => v.page)).size;
-        console.log("total_pages_read: ", totalPagesReadRef.current)
+    
+        addActivity({
+            activity_id: activityId.current,
+            source: 'pdf',
+            source_id: documentId || '',
+            start_time: startTime.current,
+            end_time: getISTTime(),
+            start_time_in_millis: startTimeInMillis.current,
+            end_time_in_millis: getEpochTimeInMillis(),
+            duration: elapsedTime.toString(),
+            page_views: pageViews.current,
+            total_pages_read: totalPagesReadRef.current,
+            sync_status: 'STALE',
+            current_page: currentPage,
+            current_page_start_time_in_millis: pageStartTime.current.getTime()
+        }, true);
+    
+    }, [elapsedTime, documentId, totalPages, addActivity]);
+
+    const handleDocumentLoad = (e: DocumentLoadEvent) => {
+        setTotalPages(e.doc.numPages);
+        const now = getEpochTimeInMillis();
+        pageStartTime.current = new Date();
+        startTimeInMillis.current = now;
+        
+        if (isFirstView) {
+            console.log("integrate add document activity api now");
+            syncPDFTrackingData();
+            setIsFirstView(false);
+            
+            // Start the 2-minute interval for update notifications
+            if (!updateIntervalRef.current) {
+                updateIntervalRef.current = setInterval(() => {
+                    console.log("integrate update document activity api now");
+                    syncPDFTrackingData();
+                }, 2 * 60 * 1000); // 2 minutes in milliseconds
+            }
+        }
+    };
+
+    const handlePageChange = (e: PageChangeEvent) => {
+        const now = getEpochTimeInMillis();
+        const duration = Math.round((now - pageStartTime.current.getTime()) / 1000);
+
+        if (duration >= 10) {
+            pageViews.current.push({
+                id: uuidv4(),
+                page: currentPage,
+                duration,
+                start_time: new Date(pageStartTime.current).toISOString(),
+                end_time: new Date(now).toISOString(),
+                start_time_in_millis: pageStartTime.current.getTime(),
+                end_time_in_millis: now
+            });
+        }
+
+        setCurrentPage(e.currentPage);
+        pageStartTime.current = new Date();
+    };
+
+    useEffect(() => {
+        startTimer();
+        return () => {
+            stopTimer();
+            if (updateIntervalRef.current) {
+                clearInterval(updateIntervalRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        totalPagesReadRef.current = new Set(pageViews.current.map(v => v.page)).size;
 
         addActivity({
             activity_id: activityId.current,
@@ -109,38 +191,17 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
             source_id: documentId || '',
             start_time: startTime.current,
             end_time: getISTTime(),
+            start_time_in_millis: startTimeInMillis.current,
+            end_time_in_millis: getEpochTimeInMillis(),
             duration: elapsedTime.toString(),
             page_views: pageViews.current,
             total_pages_read: totalPagesReadRef.current,
-            sync_status: 'STALE'
+            sync_status: 'STALE',
+            current_page: currentPage,
+            current_page_start_time_in_millis: pageStartTime.current.getTime()
         }, true);
 
-    }, [elapsedTime, documentId, totalPages, addActivity]);
-
-    const handleDocumentLoad = (e: DocumentLoadEvent) => {
-        setTotalPages(e.doc.numPages);
-        pageStartTime.current = new Date();
-        console.log("PDF loaded!", {
-            numberOfPages: e.doc.numPages,
-            documentId: documentId,
-            timeOpened: new Date().toISOString(),
-        });
-    };
-
-    const handlePageChange = (e: PageChangeEvent) => {
-        const now = new Date();
-        const duration = Math.round((now.getTime() - pageStartTime.current.getTime()) / 1000);
-
-        if (duration >= 10) {
-            pageViews.current.push({
-                page: currentPage,
-                duration
-            });
-        }
-
-        setCurrentPage(e.currentPage);
-        pageStartTime.current = now;
-    };
+    }, [elapsedTime, documentId, totalPages]);
 
     return (
         <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
