@@ -13,6 +13,9 @@ import { ChapterSidebarSlides } from '@/components/common/study-library/level-ma
 import { getModuleName } from '@/utils/study-library/get-name-by-id/getModuleNameById'
 import { getSubjectName } from '@/utils/study-library/get-name-by-id/getSubjectNameById'
 import { getChapterName } from '@/utils/study-library/get-name-by-id/getChapterById'
+import { useContentStore } from '@/stores/study-library/chapter-sidebar-store'
+import { InitStudyLibraryProvider } from '@/providers/study-library/init-study-library-provider'
+import { ModulesWithChaptersProvider } from '@/providers/study-library/modules-with-chapters-provider'
 
 interface ChapterSearchParams {
   subjectId: string
@@ -40,6 +43,7 @@ function Chapters() {
   const [inputSearch, setInputSearch] = useState("");
   const { open, state, toggleSidebar } = useSidebar();
   const navigate = useNavigate();
+  const { activeItem } = useContentStore();
 
   const handleSubjectRoute = () => {
       navigate({
@@ -120,6 +124,19 @@ function Chapters() {
 
   const { setNavHeading } = useNavHeadingStore();
 
+  useEffect(() => {
+    navigate({
+        to: "/study-library/courses/levels/subjects/modules/chapters/slides",
+        search: {
+            subjectId,
+            moduleId,
+            chapterId,
+            slideId: activeItem?.slide_id || "",
+        },
+        replace: true,
+    });
+}, [activeItem]);
+
 
   const handleBackClick = () => {
       navigate({
@@ -144,7 +161,11 @@ function Chapters() {
 
   return (
     <LayoutContainer sidebarComponent={SidebarComponent}>
-      <SlideMaterial />
+        <InitStudyLibraryProvider>
+            <ModulesWithChaptersProvider subjectId={subjectId}>
+                <SlideMaterial />
+            </ModulesWithChaptersProvider>
+      </InitStudyLibraryProvider>
     </LayoutContainer>
   )
 }

@@ -3,7 +3,6 @@ import { Viewer } from "@react-pdf-viewer/core";
 import { Worker } from "@react-pdf-viewer/core";
 import { DocumentLoadEvent, PageChangeEvent } from "@react-pdf-viewer/core";
 import "@react-pdf-viewer/core/lib/styles/index.css";
-import { usePDFStore } from "@/types/study-library/pdf-store";
 import { v4 as uuidv4 } from 'uuid';
 
 // Plugin imports
@@ -36,10 +35,10 @@ import { getEpochTimeInMillis } from "./utils";
 
 interface PDFViewerProps {
    documentId?: string;
+   pdfUrl: string;
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
-    const { pdfUrl } = usePDFStore();
+const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
     const { addActivity } = useTrackingStore();
     const [currentPage, setCurrentPage] = useState<number>(0);
     const [totalPages, setTotalPages] = useState(0);
@@ -63,7 +62,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
     const [isFirstView, setIsFirstView] = useState(true);
     const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    const defaultPdfUrl = "https://vacademy-media-storage.s3.ap-south-1.amazonaws.com/c70f40a5-e4d3-4b6c-a498-e612d0d4b133/PDF_DOCUMENTS/c8605f58-aca8-4079-a260-199a01f78218-project_report.docx.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20250207T024956Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86399&X-Amz-Credential=REMOVED_AWS_KEY%2F20250207%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Signature=ea590e177655b7f22f27b6d83b0befa1f838dadf28941867068b08fc99f9de5f";
 
     // Plugin instances
     const attachmentPluginInstance = attachmentPlugin();
@@ -207,7 +205,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId }) => {
         <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
             <div className="h-full w-full">
                 <Viewer
-                    fileUrl={pdfUrl || defaultPdfUrl}
+                    fileUrl={pdfUrl}
                     onDocumentLoad={handleDocumentLoad}
                     onPageChange={handlePageChange}
                     plugins={[
