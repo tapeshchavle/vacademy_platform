@@ -21,7 +21,7 @@ export const useVideoSync = () => {
         try {
             const userDetailsStr = await Preferences.get({ key: USER_ID_KEY });
             const userDetails = userDetailsStr.value ? JSON.parse(userDetailsStr.value) : null;
-            const userId = userDetails?.user_id;
+            const userId = userDetails[0]?.user_id;
 
             if (!userId) {
                 throw new Error('User ID not found in storage');
