@@ -27,12 +27,9 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
         }
 
         const currentPath = router.state.location.pathname;
-        const searchParams = router.state.location.search;
         router.navigate({
             to: `${currentPath}/modules`,
             search: {
-                courseId: searchParams.courseId,
-                levelId: searchParams.levelId,
                 subjectId: subject.id,
             },
         });

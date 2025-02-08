@@ -10,8 +10,6 @@ import { InitStudyLibraryProvider } from '@/providers/study-library/init-study-l
 import { ModulesWithChaptersProvider } from '@/providers/study-library/modules-with-chapters-provider'
 
 interface ModulesSearchParams {
-  courseId: string
-  levelId: string
   subjectId: string
   moduleId: string
 }
@@ -22,8 +20,6 @@ export const Route = createFileRoute(
   component: ModuleMaterialPage,
   validateSearch: (search: Record<string, unknown>): ModulesSearchParams => {
     return {
-      courseId: search.courseId as string,
-      levelId: search.levelId as string,
       subjectId: search.subjectId as string,
       moduleId: search.moduleId as string,
     }
@@ -33,7 +29,7 @@ export const Route = createFileRoute(
 function ModuleMaterialPage() {
   const navigate = useNavigate();
 
-    const { courseId, levelId, subjectId, moduleId } = Route.useSearch();
+    const { subjectId, moduleId } = Route.useSearch();
 
     const [currentModuleId, setCurrentModuleId] = useState(moduleId);
 
@@ -43,14 +39,12 @@ function ModuleMaterialPage() {
         navigate({
             to: "/study-library/courses/levels/subjects/modules/chapters",
             search: {
-                courseId,
-                levelId,
                 subjectId,
                 moduleId: currentModuleId,
             },
             replace: true,
         });
-    }, [currentModuleId, courseId, levelId, subjectId]);
+    }, [currentModuleId, subjectId]);
 
     // Module page heading
     const subjectName = getSubjectName(subjectId);
@@ -59,8 +53,6 @@ function ModuleMaterialPage() {
         navigate({
             to: `/study-library/courses/levels/subjects/modules`,
             search: {
-                courseId,
-                levelId,
                 subjectId,
             },
         });

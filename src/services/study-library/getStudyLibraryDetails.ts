@@ -2,26 +2,25 @@
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { INIT_STUDY_LIBRARY, INSTITUTE_ID } from "@/constants/urls";
 import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
-import { getUserId } from "@/constants/getUserId";
 
-export const fetchStudyLibraryDetails = async () => {
-    const userId = await getUserId();
+export const fetchStudyLibraryDetails = async (packageSessionId: string) => {
     const response = await authenticatedAxiosInstance.get(INIT_STUDY_LIBRARY, {
         params: {
             instituteId: INSTITUTE_ID,
-            userId: userId
+            packageSessionId: packageSessionId
         },
     });
     return response.data;
 };
 
-export const useStudyLibraryQuery = () => {
+export const useStudyLibraryQuery = (packageSessionId: string) => {
     const setStudyLibraryData = useStudyLibraryStore((state) => state.setStudyLibraryData);
+    console.log("package id: ", packageSessionId)
 
     return {
         queryKey: ["GET_INIT_STUDY_LIBRARY"],
         queryFn: async () => {
-            const data = await fetchStudyLibraryDetails();
+            const data = await fetchStudyLibraryDetails(packageSessionId);
             setStudyLibraryData(data);
             return data;
         },

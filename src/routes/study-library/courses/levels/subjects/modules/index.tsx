@@ -5,8 +5,6 @@ import { ModulesWithChaptersProvider } from '@/providers/study-library/modules-w
 import { createFileRoute } from '@tanstack/react-router'
 
 interface SubjectSearchParams {
-  courseId: string
-  levelId: string
   subjectId: string
 }
 
@@ -16,8 +14,6 @@ export const Route = createFileRoute(
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): SubjectSearchParams => {
     return {
-      courseId: search.courseId as string,
-      levelId: search.levelId as string,
       subjectId: search.subjectId as string,
     }
   },

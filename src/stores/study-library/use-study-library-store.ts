@@ -7,7 +7,6 @@ export interface CourseType {
     thumbnail_file_id: string;
     status: string;
 }
-
 export interface StudyLibrarySessionType {
     id: string;
     session_name: string;
@@ -22,6 +21,7 @@ export interface SubjectType {
     thumbnail_id: string | null;
     created_at: string | null;
     updated_at: string | null;
+    subject_order: number;
 }
 
 export interface LevelWithDetailsType {
@@ -40,13 +40,20 @@ export interface CourseWithSessionsType {
     course: CourseType;
     sessions: SessionWithLevelsType[];
 }
-
 interface StudyLibraryStore {
-    studyLibraryData: CourseWithSessionsType[] | null;
-    setStudyLibraryData: (data: CourseWithSessionsType[]) => void;
+    studyLibraryData: SessionWithLevelsType | null;
+    setStudyLibraryData: (data: SessionWithLevelsType) => void;
+    getFirstLevelSubjects: () => SubjectType[] | null;
 }
 
-export const useStudyLibraryStore = create<StudyLibraryStore>((set) => ({
+export const useStudyLibraryStore = create<StudyLibraryStore>((set, get) => ({
     studyLibraryData: null,
     setStudyLibraryData: (data) => set({ studyLibraryData: data }),
+    getFirstLevelSubjects: () => {
+        const data = get().studyLibraryData;
+        if (!data || !data.level_with_details.length) {
+            return null;
+        }
+        return data.level_with_details[0].subjects;
+    },
 }));

@@ -18,19 +18,17 @@ export const ChapterSidebarComponent = ({
 }: ChapterSidebarComponentProps) => {
     const router = useRouter();
     const navigate = useNavigate();
-    const { courseId, levelId, subjectId, moduleId } = router.state.location.search;
+    const { subjectId, moduleId } = router.state.location.search;
     const { open } = useSidebar();
     const { modulesWithChaptersData } = useModulesWithChaptersStore();
 
-    if (!courseId || !levelId || !subjectId || !moduleId) return <p>Error in route</p>;
+    if ( !subjectId || !moduleId) return <p>Error in route</p>;
 
     const handleSubjectRoute = () => {
         navigate({
             to: "/study-library/courses/levels/subjects/modules",
             params: {},
             search: {
-                courseId: courseId,
-                levelId: levelId,
                 subjectId: subjectId,
             },
             hash: "",

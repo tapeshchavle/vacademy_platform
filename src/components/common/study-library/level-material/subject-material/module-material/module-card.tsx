@@ -4,8 +4,6 @@ import { Module } from "@/stores/study-library/use-modules-with-chapters-store";
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-
-
 export const ModuleCard = ({module}:{module:Module}) => {
 
     const router = useRouter();
@@ -27,8 +25,6 @@ export const ModuleCard = ({module}:{module:Module}) => {
         router.navigate({
             to: `${currentPath}/chapters`,
             search: {
-                courseId: searchParams.courseId,
-                levelId: searchParams.levelId,
                 subjectId: searchParams.subjectId,
                 moduleId: module.id,
             },

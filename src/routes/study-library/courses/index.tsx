@@ -1,18 +1,19 @@
-import { LayoutContainer } from '@/components/common/layout-container/layout-container'
-import { CourseMaterial } from '@/components/common/study-library/course-material'
-import { InitStudyLibraryProvider } from '@/providers/study-library/init-study-library-provider'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/study-library/courses/')({
-  component: RouteComponent,
+  beforeLoad: () => {
+    return redirect({
+      to: `/study-library/courses/levels/subjects`
+    })
+  }
 })
 
-function RouteComponent() {
-  return (
-    <LayoutContainer>
-      <InitStudyLibraryProvider>
-      <CourseMaterial />
-      </InitStudyLibraryProvider>
-    </LayoutContainer>
-  )
-}
+// function RouteComponent() {
+//   return (
+//     <LayoutContainer>
+//       <InitStudyLibraryProvider>
+//       <CourseMaterial />
+//       </InitStudyLibraryProvider>
+//     </LayoutContainer>
+//   )
+// }

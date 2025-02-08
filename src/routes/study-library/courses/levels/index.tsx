@@ -1,27 +1,29 @@
-import { LayoutContainer } from '@/components/common/layout-container/layout-container'
-import { LevelMaterial } from '@/components/common/study-library/level-material/level-material'
-import { InitStudyLibraryProvider } from '@/providers/study-library/init-study-library-provider'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-interface CourseSearchParams {
-  courseId: string
-}
+// interface CourseSearchParams {
+//   courseId: string
+// }
 
 export const Route = createFileRoute('/study-library/courses/levels/')({
-  component: RouteComponent,
-  validateSearch: (search: Record<string, unknown>): CourseSearchParams => {
-    return {
-      courseId: search.courseId as string,
-    }
-  },
+  // component: RouteComponent,
+  // validateSearch: (search: Record<string, unknown>): CourseSearchParams => {
+  //   return {
+  //     courseId: search.courseId as string,
+  //   }
+  // },
+  beforeLoad: () => {
+    return redirect({
+      to: `/study-library/courses/levels/subjects`
+    })
+  }
 })
 
-function RouteComponent() {
-  return (
-    <LayoutContainer>
-      <InitStudyLibraryProvider>
-        <LevelMaterial />
-      </InitStudyLibraryProvider>
-    </LayoutContainer>
-  )
-}
+// function RouteComponent() {
+//   return (
+//     <LayoutContainer>
+//       <InitStudyLibraryProvider>
+//         <LevelMaterial />
+//       </InitStudyLibraryProvider>
+//     </LayoutContainer>
+//   )
+// }

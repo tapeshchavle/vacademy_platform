@@ -8,7 +8,7 @@ import { ChapterWithSlides } from "@/stores/study-library/use-modules-with-chapt
 export const ChapterCard = ({ chapter }: {chapter: ChapterWithSlides}) => {
 
     const router = useRouter();
-    const { courseId, levelId, subjectId, moduleId } = router.state.location.search;
+    const {  subjectId, moduleId } = router.state.location.search;
     const navigate = useNavigate();
 
     const handleCardClick = (e: React.MouseEvent) => {
@@ -26,8 +26,6 @@ export const ChapterCard = ({ chapter }: {chapter: ChapterWithSlides}) => {
         navigate({
             to: `${currentPath}/slides`,
             search: {
-                courseId: courseId,
-                levelId: levelId,
                 subjectId: subjectId,
                 moduleId: moduleId,
                 chapterId: chapter.chapter.id,

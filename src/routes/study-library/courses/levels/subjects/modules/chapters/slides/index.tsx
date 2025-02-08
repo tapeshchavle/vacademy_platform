@@ -10,10 +10,11 @@ import { useNavHeadingStore } from '@/stores/layout-container/useNavHeadingStore
 import { CaretLeft } from 'phosphor-react'
 import { SlideMaterial } from '@/components/common/study-library/level-material/subject-material/module-material/chapter-material/slide-material/slide-material'
 import { ChapterSidebarSlides } from '@/components/common/study-library/level-material/subject-material/module-material/chapter-material/slide-material/chapter-sidebar-slides'
+import { getModuleName } from '@/utils/study-library/get-name-by-id/getModuleNameById'
+import { getSubjectName } from '@/utils/study-library/get-name-by-id/getSubjectNameById'
+import { getChapterName } from '@/utils/study-library/get-name-by-id/getChapterById'
 
 interface ChapterSearchParams {
-  courseId: string
-  levelId: string
   subjectId: string
   moduleId: string
   chapterId: string
@@ -26,8 +27,6 @@ export const Route = createFileRoute(
   component: Chapters,
   validateSearch: (search: Record<string, unknown>): ChapterSearchParams => {
     return {
-      courseId: search.courseId as string,
-      levelId: search.levelId as string,
       subjectId: search.subjectId as string,
       moduleId: search.moduleId as string,
       chapterId: search.chapterId as string,
@@ -37,7 +36,7 @@ export const Route = createFileRoute(
 })
 
 function Chapters() {
-  const {courseId, subjectId, levelId, moduleId} = Route.useSearch();
+  const {subjectId, moduleId, chapterId} = Route.useSearch();
   const [inputSearch, setInputSearch] = useState("");
   const { open, state, toggleSidebar } = useSidebar();
   const navigate = useNavigate();
@@ -47,8 +46,6 @@ function Chapters() {
           to: "/study-library/courses/levels/subjects/modules",
           params: {},
           search: {
-              courseId: courseId,
-              levelId: levelId,
               subjectId: subjectId,
           },
           hash: "",
@@ -60,8 +57,6 @@ function Chapters() {
           to: "/study-library/courses/levels/subjects/modules/chapters",
           params: {},
           search: {
-              courseId: courseId,
-              levelId: levelId,
               subjectId: subjectId,
               moduleId: moduleId,
           },
@@ -74,12 +69,11 @@ function Chapters() {
   };
 
 
-  const [levelName, setLevelName] = useState("")
-  const [subjectName, setSubjectName] = useState("");
-  const [moduleName, setModuleName] = useState("");
-  const [chapterName, setChapterName] = useState("")
+  const subjectName = getSubjectName(subjectId);
+  const moduleName = getModuleName(moduleId);
+  const chapterName = getChapterName(chapterId);
+  const trucatedChapterName = truncateString(chapterName || "", 9);
 
-  const trucatedChapterName = truncateString(chapterName, 9);
 
   const SidebarComponent = (
       <div className="flex w-full flex-col items-center">
@@ -131,8 +125,6 @@ function Chapters() {
       navigate({
           to: `/study-library/courses/levels/subjects/modules/chapters`,
           search: {
-              courseId,
-              levelId,
               subjectId,
               moduleId,
           },
@@ -142,7 +134,7 @@ function Chapters() {
   const heading = (
       <div className="flex items-center gap-4">
           <CaretLeft onClick={handleBackClick} className="cursor-pointer" />
-          <div>{`${levelName} Class ${subjectName}`}</div>
+          <div>{`${subjectName}`}</div>
       </div>
   );
 

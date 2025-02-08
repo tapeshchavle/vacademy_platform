@@ -3,20 +3,9 @@ import { SubjectMaterial } from '@/components/common/study-library/level-materia
 import { InitStudyLibraryProvider } from '@/providers/study-library/init-study-library-provider'
 import { createFileRoute } from '@tanstack/react-router'
 
-interface LevelSearchParams {
-  courseId: string
-  levelId: string
-}
-
 export const Route = createFileRoute('/study-library/courses/levels/subjects/')(
   {
-    component: RouteComponent,
-    validateSearch: (search: Record<string, unknown>): LevelSearchParams => {
-      return {
-        courseId: search.courseId as string,
-        levelId: search.levelId as string,
-      }
-    },
+    component: RouteComponent
   },
 )
 

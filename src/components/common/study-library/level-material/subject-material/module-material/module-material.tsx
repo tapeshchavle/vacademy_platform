@@ -12,21 +12,14 @@ export const ModuleMaterial = () => {
     const {setNavHeading} = useNavHeadingStore();
     const router = useRouter();
     const searchParams = router.state.location.search;
-    const courseId: string = searchParams.courseId || "";
-    const levelId: string = searchParams.levelId || "";
-    const subjectId: string = searchParams.levelId || "";
+    const subjectId: string = searchParams.subjectId || "";
 
     const { modulesWithChaptersData } = useModulesWithChaptersStore();
     
 
     const handleBackClick = () => {
         router.navigate({
-            to: `/study-library/courses/levels/subjects`,
-            search: {
-                courseId: courseId,
-                levelId: levelId
-
-            }
+            to: `/study-library/courses/levels/subjects`
         })
     };
 
