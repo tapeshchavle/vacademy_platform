@@ -46,18 +46,6 @@ export function AssessmentPreview() {
 
     setAssessmentData();
   }, []);
-  // useEffect(() => {
-  //   if (timeLeft <= 0) {
-  //     router.navigate({ to: newPath });
-  //     return;
-  //   }
-
-  //   const timer = setInterval(() => {
-  //     setTimeLeft((prev) => Math.max(0, prev - 1));
-  //   }, 1000);
-
-  //   return () => clearInterval(timer);
-  // }, [timeLeft, navigate]);
 
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -82,28 +70,22 @@ export function AssessmentPreview() {
     }
   };
 
-  // const QuestionContent = ({ content }: { content: string }) => {
-  //   return <div dangerouslySetInnerHTML={{ __html: content }} />;
-  // };
-   
-
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
   const handleStartAssessment = async () => {
-     await startAssessment();
-    // console.log(data);
+    await startAssessment();
     router.navigate({ to: newPath });
   };
   return (
     <div className="flex flex-col w-full bg-gray-50">
       {/* Navbar with Timer */}
       <div className="sticky  top-0 z-20 bg-white border-b">
-        <div className="flex flex-col bg-primary-50 sm:flex-row items-center justify-between p-4">
+        <div className="flex flex-col bg-primary-50 items-center justify-center sm:flex-row  p-4">
           {/* <h1 className="text-base font-semibold">{assessment.title}</h1> */}
-          <div className="flex items-center gap-2  mt-2 sm:mt-0 lg:mr-10 md:mr-10">
+          {/* <div className="flex items-center gap-2  mt-2 sm:mt-0 lg:mr-10 md:mr-10">
             {formatTime(timeLeft)
               .split(":")
               .map((time, index) => (
@@ -114,7 +96,21 @@ export function AssessmentPreview() {
                   {time}
                 </span>
               ))}
-          </div>
+          </div> */}
+            <div className="flex items-center justify-center space-x-4 w-full">
+            {formatTime(timeLeft)
+              .split(":")
+              .map((time, index, array) => (
+              <div key={index} className="relative flex items-center">
+                <span className="border border-gray-400 px-2 py-1 rounded">
+                {time}
+                </span>
+                {index < array.length - 1 && (
+                <span className="absolute right-[-10px] text-lg">:</span>
+                )}
+              </div>
+              ))}
+            </div>
         </div>
 
         {/* Section Tabs */}
@@ -142,49 +138,40 @@ export function AssessmentPreview() {
       </div>
 
       {/* Main content */}
-      <ScrollArea className="flex-1  p-4 sm:p-6">
-        {assessment.section_dtos[activeSection].question_preview_dto_list.map(
-          (question, idx) => (
-            <div
-              key={question.question_id}
-              className="mb-8 bg-white rounded-lg p-4 sm:p-6 shadow-sm"
-            >
-              <div className="flex flex-row  gap-2 mb-4">
-                <span className="text-sm text-gray-500">
-                  Question {idx + 1}
-                </span>
-                <span className="text-sm text-gray-500 items-end">
-                  {calculateMarkingScheme(question.marking_json).data.totalMark}{" "}
-                  Marks
-                </span>
-              </div>
-
-              <p className="text-base mb-4">{question.question.content}</p>
-
-              {/* {question.questionImage && (
-              <div className="mb-4">
-                <img
-                  src={question.questionImage}
-                  alt="Question illustration"
-                  className="max-w-full rounded-lg"
-                />
-              </div>
-            )} */}
-
-              <div className="space-y-3">
-                {question.options.map((option) => (
-                  <div
-                    key={option.id}
-                    className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    {parseHtmlToString(option.text.content)}
-                    {/* <QuestionContent content={option.text.content} /> */}
-                  </div>
-                ))}
-              </div>
+      <ScrollArea className="flex-1 p-4 sm:p-6">
+        <div className="flex flex-col space-y-8">
+          {assessment.section_dtos[activeSection].question_preview_dto_list.map(
+        (question, idx) => (
+          <div
+            key={question.question_id}
+            className="bg-white rounded-lg p-4 sm:p-6 shadow-sm"
+          >
+            <div className="flex flex-row gap-2 mb-4">
+          <span className="text-sm text-gray-500">
+            Question {idx + 1}
+          </span>
+          <span className="text-sm text-gray-500 ml-auto">
+            {calculateMarkingScheme(question.marking_json).data.totalMark}{" "}
+            Marks
+          </span>
             </div>
-          )
-        )}
+
+            <p className="text-base mb-4">{question.question.content}</p>
+
+            <div className="space-y-3">
+          {question.options.map((option) => (
+            <div
+              key={option.id}
+              className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+            >
+              {parseHtmlToString(option.text.content)}
+            </div>
+          ))}
+            </div>
+          </div>
+        )
+          )}
+        </div>
       </ScrollArea>
 
       {/* Footer */}

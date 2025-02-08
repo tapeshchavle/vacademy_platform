@@ -66,7 +66,8 @@ export function Navbar() {
         timeElapsedInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
         questions: section.question_preview_dto_list?.map((question) => ({
           questionId: question.question_id,
-          questionDurationLeftInSeconds: state.questionTimers?.[question.question_id] || 0,
+          questionDurationLeftInSeconds:
+            state.questionTimers?.[question.question_id] || 0,
           timeTakenInSeconds: 0,
           responseData: {
             type: question.question_type,
@@ -245,7 +246,7 @@ export function Navbar() {
         <div className="">
           {entireTestTimer && (
             <div className="flex items-center gap-2 text-lg  justify-center">
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-4">
                 {formatTime(entireTestTimer)
                   .split(":")
                   .map((time, index, array) => (
@@ -254,7 +255,9 @@ export function Navbar() {
                         {time}
                       </span>
                       {index < array.length - 1 && (
-                        <span className="absolute right-[-4px] text-lg">:</span>
+                        <span className="absolute right-[-10px] text-lg">
+                          :
+                        </span>
                       )}
                     </div>
                   ))}
@@ -262,6 +265,7 @@ export function Navbar() {
             </div>
           )}
         </div>
+
         <div className="flex items-center gap-4">
           <MyButton
             type="submit"

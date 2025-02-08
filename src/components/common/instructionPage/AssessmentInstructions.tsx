@@ -1,5 +1,6 @@
 import { StatusCheck } from "@/components/design-system/chips";
 import {parseHtmlToString} from "@/lib/utils"
+
 interface AssessmentInstructionsProps {
   instructions: string;
   duration: number;

@@ -58,6 +58,7 @@ const InstructionPage = () => {
         <div className="fixed bottom-0 left-0 right-0 bg-white z-50">
           <div className="pb-4 px-4">
             <AssessmentStartModal />
+            
           </div>
         </div>
       </main>

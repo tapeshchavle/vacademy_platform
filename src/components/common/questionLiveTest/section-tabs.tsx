@@ -74,7 +74,7 @@ export function SectionTabs() {
   }
 
   return (
-    <div className="flex gap-2 px-4 py-2 border-b bg-white overflow-x-auto">
+    <div className="flex gap-2 px-4 pt-2 border-b bg-white overflow-x-auto">
       {assessment?.section_dtos?.map((section, index) => {
         const timer = sectionTimers[index]
         const isTimeUp = timer?.timeLeft === 0

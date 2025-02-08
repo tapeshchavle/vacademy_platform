@@ -1,16 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { assessmentTypes } from "@/types/assessment";
-import { Button } from "@/components/ui/button";
 
 const ScheduleTestTabList = ({
   selectedTab,
   totalAssessments,
-  onRefresh,
 }: {
   selectedTab: string;
   totalAssessments: { [key: string]: number };
-  onRefresh: () => void;
 }) => {
   return (
     <div className="flex items-center pb-4 gap-4 overflow-x-auto">
@@ -37,7 +34,6 @@ const ScheduleTestTabList = ({
           </TabsTrigger>
         ))}
       </TabsList>
-      <Button onClick={onRefresh} className="ml-4">Refresh</Button>
     </div>
   );
 };
