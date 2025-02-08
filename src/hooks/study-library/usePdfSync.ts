@@ -2,6 +2,7 @@
 import { ActivitySchema } from '@/schemas/study-library/pdf-tracking-schema';
 import { useAddDocumentActivity } from '@/services/study-library/tracking-api/add-document-activity';
 import { useUpdateDocumentActivity } from '@/services/study-library/tracking-api/update-document-activity';
+import { useContentStore } from '@/stores/study-library/chapter-sidebar-store';
 import { TrackingDataType } from '@/types/tracking-data-type';
 import { calculateAndUpdatePageViews } from '@/utils/study-library/tracking/calculateAndUpdatePageViews';
 import { Preferences } from '@capacitor/preferences';
@@ -13,6 +14,7 @@ const USER_ID_KEY = 'StudentDetails';
 export const usePDFSync = () => {
     const addDocumentActivity = useAddDocumentActivity();
     const updateDocumentActivity = useUpdateDocumentActivity();
+    const {activeItem} = useContentStore();
 
     const syncPDFTrackingData = async () => {
         try {
@@ -44,7 +46,7 @@ export const usePDFSync = () => {
                     source_id: activity.source_id,
                     source_type: activity.source,
                     user_id: userId,
-                    slide_id: "",
+                    slide_id: activeItem?.slide_id || "",
                     start_time_in_millis: activity.start_time_in_millis,
                     end_time_in_millis: activity.end_time_in_millis,
                     percentage_watched: activity.total_pages_read,
@@ -60,7 +62,7 @@ export const usePDFSync = () => {
                 try {
                     if (activity.page_views.length === 1) {
                         await addDocumentActivity.mutateAsync({
-                            slideId: "",
+                            slideId: activeItem?.slide_id || "",
                             userId,
                             requestPayload: apiPayload
                         });

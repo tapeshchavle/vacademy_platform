@@ -2,6 +2,7 @@
 import { ActivitySchema } from '@/schemas/study-library/youtube-video-tracking-schema';
 import { useAddVideoActivity } from '@/services/study-library/tracking-api/add-video-activity';
 import { useUpdateVideoActivity } from '@/services/study-library/tracking-api/update-video-activity';
+import { useContentStore } from '@/stores/study-library/chapter-sidebar-store';
 import { TrackingDataType } from '@/types/tracking-data-type';
 import { calculateAndUpdateTimestamps } from '@/utils/study-library/tracking/calculateAndUpdateTimestamps';
 import { Preferences } from '@capacitor/preferences';
@@ -14,6 +15,7 @@ const USER_ID_KEY = 'StudentDetails';
 export const useVideoSync = () => {
     const addVideoActivity = useAddVideoActivity();
     const updateVideoActivity = useUpdateVideoActivity();
+    const {activeItem} = useContentStore();
 
     const syncVideoTrackingData = async () => {
         try {
@@ -51,7 +53,7 @@ export const useVideoSync = () => {
                     source_id: activity.source_id,
                     source_type: activity.source,
                     user_id: userId,
-                    slide_id: "",
+                    slide_id: activeItem?.slide_id || "",
                     start_time_in_millis: activity.start_time,
                     end_time_in_millis: activity.end_time,
                     percentage_watched: parseFloat(activity.percentage_watched),
@@ -66,7 +68,7 @@ export const useVideoSync = () => {
                 try {
                     if (activity.new_activity) {
                         await addVideoActivity.mutateAsync({
-                            slideId: "",
+                            slideId: activeItem?.slide_id || "",
                             userId,
                             requestPayload: apiPayload
                         });
