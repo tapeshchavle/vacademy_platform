@@ -53,8 +53,8 @@ export const usePDFSync = () => {
                     videos: null,
                     documents: activity.page_views.map(view => ({
                         id: view.id,
-                        start_time: view.start_time,
-                        end_time: view.end_time,
+                        start_time_in_millis: view.start_time_in_millis,
+                        end_time_in_millis: view.end_time_in_millis,
                         page_number: view.page
                     }))
                 };

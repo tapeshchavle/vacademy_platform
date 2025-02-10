@@ -8,7 +8,6 @@ import { calculateAndUpdateTimestamps } from '@/utils/study-library/tracking/cal
 import { Preferences } from '@capacitor/preferences';
 import { z } from 'zod';
 
-
 const STORAGE_KEY = 'video_tracking_data';
 const USER_ID_KEY = 'StudentDetails';
 

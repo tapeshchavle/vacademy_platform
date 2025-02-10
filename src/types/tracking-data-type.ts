@@ -16,8 +16,8 @@ export interface TrackingDataType {
     documents: 
       {
         id: string,
-        start_time: string,
-        end_time: string,
+        start_time_in_millis: number,
+        end_time_in_millis: number,
         page_number: number
       }[]
      | null

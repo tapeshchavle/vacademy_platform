@@ -16,7 +16,7 @@ export const useUpdateVideoActivity = () => {
             const payload = requestPayload
 
             return authenticatedAxiosInstance.put(
-                `${UPDATE_VIDEO_ACTIVITY}?activityId=${activityId}`,
+                `${UPDATE_VIDEO_ACTIVITY}/${activityId}`,
                 payload,
             );
         }
