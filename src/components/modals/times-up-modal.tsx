@@ -21,7 +21,7 @@ export function TimesUpModal({ open, onOpenChange, onFinish }: TimesUpModalProps
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-orange-500" />
+            <AlertCircle className="h-5 w-5 text-primary-500" />
             Time is up!
           </AlertDialogTitle>
           <AlertDialogDescription>

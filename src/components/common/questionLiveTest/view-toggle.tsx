@@ -28,7 +28,7 @@ export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
         aria-label="List view"
         className={`p-2 border rounded hover:bg-gray-50 ${
           view === "list"
-            ? "border-orange-500 text-orange-500"
+            ? "border-orange-500 text-primary-500"
             : "border-gray-200"
         }`}
       >
