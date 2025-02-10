@@ -6,3 +6,5 @@ export { default as CloseRegistrationWeb } from "./close-registration-web.svg";
 export { default as CloseRegistrationMobile } from "./close-registration-mobile.svg";
 export { default as SSDCLogoWeb } from "./ssdc-logo-web.svg";
 export { default as SSDCLogoMobile } from "./ssdc-logo-mobile.svg";
+export { default as RegistrationCompletedMobile } from "./registration-completed-mobile.svg";
+export { default as RegistrationCompletedWeb } from "./registration-completed-web.svg";

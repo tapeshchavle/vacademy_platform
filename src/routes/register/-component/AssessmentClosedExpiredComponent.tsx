@@ -12,14 +12,14 @@ const AssessmentClosedExpiredComponent = ({
   isExpired: boolean;
 }) => {
   return (
-    <div className="flex flex-col w-screen h-screen items-center justify-center gap-2 p-10">
+    <div className="flex flex-col w-screen h-screen items-center justify-center gap-2 p-10 bg-[linear-gradient(180deg,#FFF9F4_0%,#E6E6FA_100%)]">
       <div className="block sm:hidden">
         <SSDCLogoMobile />
       </div>
       <div className="hidden sm:block">
         <SSDCLogoWeb />
       </div>
-      <h1 className="text-sm sm:text-lg">
+      <h1 className="text-sm sm:text-lg text-center">
         The Human Eye and The Colourful World
       </h1>
       <Separator className="mt-2" />
@@ -29,15 +29,15 @@ const AssessmentClosedExpiredComponent = ({
       <div className="hidden sm:block">
         <CloseRegistrationWeb />
       </div>
-      <h1 className="-mt-4 text-sm sm:text-lg">
+      <h1 className="-mt-4 text-sm sm:text-lg text-center">
         {isExpired ? "Assessment Expired" : "Registration Closed"}
       </h1>
-      <h1 className="mt-4 text-sm sm:text-lg">
+      <h1 className="mt-4 text-sm sm:text-lg text-center">
         {isExpired
           ? "This assessment is no longer available. "
           : "Registration for this assessment has closed."}
       </h1>
-      <h1 className="text-primary-500 text-sm sm:text-lg">
+      <h1 className="text-primary-500 text-sm sm:text-lg text-center">
         Stay tuned for upcoming opportunities!
       </h1>
     </div>

@@ -38,7 +38,7 @@ const AssessmentRegistrationForm = () => {
           <div className="hidden sm:block">
             <SSDCLogoWeb />
           </div>
-          <h1 className="text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0">
+          <h1 className="text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
             The Human Eye and The Colourful World
           </h1>
           <div className="flex items-center gap-4 text-sm flex-col sm:flex-row">
@@ -98,7 +98,7 @@ const AssessmentRegistrationForm = () => {
             Register for the assessment by completing the details below.
           </span>
           <FormProvider {...form}>
-            <form className="w-full flex flex-col gap-6 mt-4 max-h-[70vh] overflow-auto">
+            <form className="w-full flex flex-col gap-6 mt-4 sm:max-h-[70vh] sm:overflow-auto">
               <FormField
                 control={form.control}
                 name="email"
