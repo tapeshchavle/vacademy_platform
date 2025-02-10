@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAssessmentStore } from "@/stores/assessment-store";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { div } from "@/components/ui/scroll-area";
 import { MyButton } from "@/components/design-system/button";
 import { useRouter } from "@tanstack/react-router";
 import { startAssessment } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
@@ -16,7 +16,48 @@ export function AssessmentPreview() {
 
   const newPath = currentPath.replace(/\/[^/]+$/, "/LearnerLiveTest");
 
-  // Navigate to the new path
+  export const processHtmlString = (htmlString: string) => {
+    // Create a temporary div to parse the HTML
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = htmlString;
+    // Array to store processed content
+    const processedContent: Array<{ type: "text" | "image"; content: string }> = [];
+    // Iterate through child nodes
+    tempDiv.childNodes.forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            // Process text nodes
+            const trimmedText = node.textContent?.trim();
+            if (trimmedText) {
+                processedContent.push({
+                    type: "text",
+                    content: trimmedText,
+                });
+            }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            const element = node as HTMLElement;
+            // Process image nodes
+            if (element.tagName.toLowerCase() === "img") {
+                const src = element.getAttribute("src");
+                if (src) {
+                    processedContent.push({
+                        type: "image",
+                        content: src,
+                    });
+                }
+            } else {
+                // Process other elements' text content
+                const text = element.textContent?.trim();
+                if (text) {
+                    processedContent.push({
+                        type: "text",
+                        content: text,
+                    });
+                }
+            }
+        }
+    });
+    return processedContent;
+};
 
   const { assessment } = useAssessmentStore();
   const { setAssessment } = useAssessmentStore();
@@ -82,7 +123,7 @@ export function AssessmentPreview() {
   return (
     <div className="flex flex-col w-full bg-gray-50">
       {/* Navbar with Timer */}
-      <div className="sticky  top-0 z-20 bg-white border-b">
+      <div className="sticky top-0 z-20 bg-white border-b">
         <div className="flex flex-col bg-primary-50 items-center justify-center sm:flex-row  p-4">
           {/* <h1 className="text-base font-semibold">{assessment.title}</h1> */}
           {/* <div className="flex items-center gap-2  mt-2 sm:mt-0 lg:mr-10 md:mr-10">
@@ -97,20 +138,20 @@ export function AssessmentPreview() {
                 </span>
               ))}
           </div> */}
-            <div className="flex items-center justify-center space-x-4 w-full">
+          <div className="flex items-center justify-center space-x-4 w-full">
             {formatTime(timeLeft)
               .split(":")
               .map((time, index, array) => (
-              <div key={index} className="relative flex items-center">
-                <span className="border border-gray-400 px-2 py-1 rounded">
-                {time}
-                </span>
-                {index < array.length - 1 && (
-                <span className="absolute right-[-10px] text-lg">:</span>
-                )}
-              </div>
+                <div key={index} className="relative flex items-center">
+                  <span className="border border-gray-400 px-2 py-1 rounded">
+                    {time}
+                  </span>
+                  {index < array.length - 1 && (
+                    <span className="absolute right-[-10px] text-lg">:</span>
+                  )}
+                </div>
               ))}
-            </div>
+          </div>
         </div>
 
         {/* Section Tabs */}
@@ -138,41 +179,44 @@ export function AssessmentPreview() {
       </div>
 
       {/* Main content */}
-      <ScrollArea className="flex-1 p-4 sm:p-6">
+      <div className="flex-1 p-4 sm:p-6">
         <div className="flex flex-col space-y-8">
           {assessment.section_dtos[activeSection].question_preview_dto_list.map(
-        (question, idx) => (
-          <div
-            key={question.question_id}
-            className="bg-white rounded-lg p-4 sm:p-6 shadow-sm"
-          >
-            <div className="flex flex-row gap-2 mb-4">
-          <span className="text-sm text-gray-500">
-            Question {idx + 1}
-          </span>
-          <span className="text-sm text-gray-500 ml-auto">
-            {calculateMarkingScheme(question.marking_json).data.totalMark}{" "}
-            Marks
-          </span>
-            </div>
+            (question, idx) => (
+              <div
+                key={question.question_id}
+                className="bg-white rounded-lg p-4 sm:p-6 shadow-sm"
+              >
+                <div className="flex flex-row gap-2 mb-4">
+                  <span className="text-sm text-gray-500">
+                    Question {idx + 1}
+                  </span>
+                  <span className="text-sm text-gray-500 ml-auto">
+                    {
+                      calculateMarkingScheme(question.marking_json).data
+                        .totalMark
+                    }{" "}
+                    Marks
+                  </span>
+                </div>
 
-            <p className="text-base mb-4">{question.question.content}</p>
+                <p className="text-base mb-4">{question.question.content}</p>
 
-            <div className="space-y-3">
-          {question.options.map((option) => (
-            <div
-              key={option.id}
-              className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-            >
-              {parseHtmlToString(option.text.content)}
-            </div>
-          ))}
-            </div>
-          </div>
-        )
+                <div className="space-y-3">
+                  {question.options.map((option) => (
+                    <div
+                      key={option.id}
+                      className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                    >
+                      {parseHtmlToString(option.text.content)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Footer */}
       <div className="sticky bg-primary-50 bottom-0 p-4 bg-white border-t">

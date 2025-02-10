@@ -10,7 +10,6 @@ import { Preferences } from "@capacitor/preferences";
 import {
   assessmentTypes,
   distribution_duration_types,
-  // UpdateApiResponse,
 } from "@/types/assessment";
 import { Storage } from "@capacitor/storage";
 

@@ -285,11 +285,11 @@ export function Navbar() {
         onConfirm={handleSubmit}
       />
 
-      <TimesUpModal
+      {/* <TimesUpModal
         open={showTimesUpModal}
         onOpenChange={setShowTimesUpModal}
         onFinish={handleSubmit}
-      />
+      /> */}
 
       <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
         <AlertDialogContent>
