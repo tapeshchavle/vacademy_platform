@@ -47,29 +47,7 @@ const SessionSelectionPage = () => {
   };
 
   const handleSessionSelect = async (selectedSession: Session) => {
-    // try {
-    //   setSelectedId(selectedSession.id);
-
-    //   const studentDetails = {
-    //     // Add relevant student details here
-    //     package_session_id: selectedSession.id,
-    //     session_name: selectedSession.session.session_name,
-    //     level_name: selectedSession.level.level_name,
-    //     // Add other needed fields
-    //   };
-
-    //   await Preferences.set({
-    //     key: "StudentDetails",
-    //     value: JSON.stringify(studentDetails),
-    //   });
-
-    //   // Cleanup: Remove previous studentData & sessionList from storage
-    // //   await Preferences.remove({ key: "students" });
-    // //   await Preferences.remove({ key: "sessionList" });
-
-    //   // Navigate to Dashboard after selection
-    //   navigate({ to: "/dashboard" });
-    // }
+   
     try {
       // Fetch stored student details
       const studentData = await Preferences.get({ key: "students" });
@@ -98,10 +76,10 @@ const SessionSelectionPage = () => {
       console.log("Stored selected student:", selectedStudent);
 
       // Cleanup: Remove previous studentData & sessionList from storage
-      // await Preferences.remove({ key: "studentData" });
-      // await Preferences.remove({ key: "sessionList" });
-      // await Preferences.remove({ key: "DifferentSessions" });
-      // await Preferences.remove({ key: "students" });
+      await Preferences.remove({ key: "studentData" });
+      await Preferences.remove({ key: "sessionList" });
+      await Preferences.remove({ key: "DifferentSessions" });
+      await Preferences.remove({ key: "students" });
       
 
       // Navigate to Dashboard after selection

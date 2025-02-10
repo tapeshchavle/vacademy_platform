@@ -74,7 +74,6 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
 
             if (instituteId && userId) {
               try {
-                await fetchAndStoreInstituteDetails(instituteId, userId);
                 await fetchAndStoreStudentDetails(instituteId, userId);
               } catch (error) {
                 console.error("Error fetching details:", error);

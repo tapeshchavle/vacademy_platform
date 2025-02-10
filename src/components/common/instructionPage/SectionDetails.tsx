@@ -1,6 +1,6 @@
 import { StatusCheck } from "@/components/design-system/chips";
 import { SectionDto } from "@/types/assessment";
-import {parseHtmlToString} from "@/lib/utils"
+import { parseHtmlToString } from "@/lib/utils";
 
 export const SectionDetails = ({ section }: { section: SectionDto }) => {
   return (

@@ -8,7 +8,7 @@ import {
   distribution_duration_types,
   QUESTION_TYPES,
 } from "@/types/assessment";
-import { parseHtmlToString } from "@/lib/utils";
+import { processHtmlString } from "@/lib/utils";
 
 export function QuestionDisplay() {
   const {
@@ -141,7 +141,20 @@ export function QuestionDisplay() {
           </div>
 
           <p className="text-lg text-gray-800">
-            {parseHtmlToString(currentQuestion.question.content)}
+            {/* {parseHtmlToString(currentQuestion.question.content)} */}
+            {processHtmlString(currentQuestion.question.content).map(
+              (item, index) =>
+                item.type === "text" ? (
+                  <span key={index}>{item.content}</span>
+                ) : (
+                  <img
+                    key={index}
+                    src={item.content}
+                    alt={`Question image ${index + 1}`}
+                    className=""
+                  />
+                )
+            )}
           </p>
         </div>
         <div className="flex gap-2 mt-4 w-full justify-between">
@@ -203,7 +216,19 @@ export function QuestionDisplay() {
               onClick={() => handleAnswerChange(option.id)}
             >
               {`(${String.fromCharCode(97 + index)})  `}
-              {parseHtmlToString(option.text.content)}
+              {/* {parseHtmlToString(option.text.content)} */}
+              {processHtmlString(option.text.content).map((item, index) =>
+                item.type === "text" ? (
+                  <span key={index}>{item.content}</span>
+                ) : (
+                  <img
+                    key={index}
+                    src={item.content}
+                    alt={`Question image ${index + 1}`}
+                    className=""
+                  />
+                )
+              )}
             </label>
           </div>
         ))}

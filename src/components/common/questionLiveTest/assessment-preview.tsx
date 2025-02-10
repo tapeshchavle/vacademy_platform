@@ -2,63 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useAssessmentStore } from "@/stores/assessment-store";
-import { div } from "@/components/ui/scroll-area";
 import { MyButton } from "@/components/design-system/button";
 import { useRouter } from "@tanstack/react-router";
 import { startAssessment } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
 import { Storage } from "@capacitor/storage";
 import { AssessmentPreviewData } from "@/types/assessment";
-import { parseHtmlToString } from "@/lib/utils";
+import { processHtmlString } from "@/lib/utils";
 
 export function AssessmentPreview() {
   const router = useRouter();
   const currentPath = router.state.location.pathname;
 
   const newPath = currentPath.replace(/\/[^/]+$/, "/LearnerLiveTest");
-
-  export const processHtmlString = (htmlString: string) => {
-    // Create a temporary div to parse the HTML
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = htmlString;
-    // Array to store processed content
-    const processedContent: Array<{ type: "text" | "image"; content: string }> = [];
-    // Iterate through child nodes
-    tempDiv.childNodes.forEach((node) => {
-        if (node.nodeType === Node.TEXT_NODE) {
-            // Process text nodes
-            const trimmedText = node.textContent?.trim();
-            if (trimmedText) {
-                processedContent.push({
-                    type: "text",
-                    content: trimmedText,
-                });
-            }
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-            const element = node as HTMLElement;
-            // Process image nodes
-            if (element.tagName.toLowerCase() === "img") {
-                const src = element.getAttribute("src");
-                if (src) {
-                    processedContent.push({
-                        type: "image",
-                        content: src,
-                    });
-                }
-            } else {
-                // Process other elements' text content
-                const text = element.textContent?.trim();
-                if (text) {
-                    processedContent.push({
-                        type: "text",
-                        content: text,
-                    });
-                }
-            }
-        }
-    });
-    return processedContent;
-};
-
   const { assessment } = useAssessmentStore();
   const { setAssessment } = useAssessmentStore();
   const [activeSection, setActiveSection] = useState(0);
@@ -67,6 +22,27 @@ export function AssessmentPreview() {
       (assessment?.preview_total_time ? assessment.preview_total_time : 0) * 60
     );
   });
+  // const [assessmentData, setAssessmentData] = useState(null);
+
+  const calculateMarkingScheme = (marking_json: string) => {
+    try {
+      const marking_scheme = JSON.parse(marking_json);
+      return marking_scheme; // Ensure the JSON contains a number or string
+    } catch (error) {
+      console.error("Error parsing marking_json:", error);
+      return 0; // Default value in case of an error
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+  const handleStartAssessment = async () => {
+    await startAssessment();
+    router.navigate({ to: newPath });
+  };
 
   useEffect(() => {
     const setAssessmentData = async () => {
@@ -101,43 +77,26 @@ export function AssessmentPreview() {
 
   if (!assessment) return null;
 
-  const calculateMarkingScheme = (marking_json: string) => {
-    try {
-      const marking_scheme = JSON.parse(marking_json);
-      return marking_scheme; // Ensure the JSON contains a number or string
-    } catch (error) {
-      console.error("Error parsing marking_json:", error);
-      return 0; // Default value in case of an error
-    }
-  };
+  // const fetchAssessmentData = async () => {
+  //   const result = await Preferences.get({ key: "InstructionID_and_AboutID" });
+  //   if (result.value) {
+  //     setAssessmentData(JSON.parse(result.value)); // Assuming the value is stored as JSON
+  //   }
+  // };
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
-  const handleStartAssessment = async () => {
-    await startAssessment();
-    router.navigate({ to: newPath });
-  };
+  // useEffect(() => {
+  //   fetchAssessmentData();
+  // }, []);
+
   return (
     <div className="flex flex-col w-full bg-gray-50">
       {/* Navbar with Timer */}
       <div className="sticky top-0 z-20 bg-white border-b">
         <div className="flex flex-col bg-primary-50 items-center justify-center sm:flex-row  p-4">
-          {/* <h1 className="text-base font-semibold">{assessment.title}</h1> */}
-          {/* <div className="flex items-center gap-2  mt-2 sm:mt-0 lg:mr-10 md:mr-10">
-            {formatTime(timeLeft)
-              .split(":")
-              .map((time, index) => (
-                <span
-                  key={index}
-                  className="border border-gray-400 px-2 py-1 rounded"
-                >
-                  {time}
-                </span>
-              ))}
-          </div> */}
+          {/* <h1 className="text-base font-semibold">{AssessmentData.name}</h1> */}
+          {/* <h1 className="text-base font-semibold">
+            {assessmentData ? assessmentData.name : "Loading..."}
+          </h1> */}
           <div className="flex items-center justify-center space-x-4 w-full">
             {formatTime(timeLeft)
               .split(":")
@@ -200,7 +159,22 @@ export function AssessmentPreview() {
                   </span>
                 </div>
 
-                <p className="text-base mb-4">{question.question.content}</p>
+                <p className="text-base mb-4">
+                  {/* {question.question.content} */}
+                  {processHtmlString(question.question.content).map(
+                    (item, index) =>
+                      item.type === "text" ? (
+                        <span key={index}>{item.content}</span>
+                      ) : (
+                        <img
+                          key={index}
+                          src={item.content}
+                          alt={`Question image ${index + 1}`}
+                          className=""
+                        />
+                      )
+                  )}
+                </p>
 
                 <div className="space-y-3">
                   {question.options.map((option) => (
@@ -208,7 +182,20 @@ export function AssessmentPreview() {
                       key={option.id}
                       className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
                     >
-                      {parseHtmlToString(option.text.content)}
+                      {/* {parseHtmlToString(option.text.content)} */}
+                      {processHtmlString(option.text.content).map(
+                        (item, index) =>
+                          item.type === "text" ? (
+                            <span key={index}>{item.content}</span>
+                          ) : (
+                            <img
+                              key={index}
+                              src={item.content}
+                              alt={`Question image ${index + 1}`}
+                              className=""
+                            />
+                          )
+                      )}
                     </div>
                   ))}
                 </div>
