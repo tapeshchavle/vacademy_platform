@@ -41,19 +41,11 @@ export interface CourseWithSessionsType {
     sessions: SessionWithLevelsType[];
 }
 interface StudyLibraryStore {
-    studyLibraryData: SessionWithLevelsType | null;
-    setStudyLibraryData: (data: SessionWithLevelsType) => void;
-    getFirstLevelSubjects: () => SubjectType[] | null;
+    studyLibraryData: SubjectType[] | null;
+    setStudyLibraryData: (data: SubjectType[] | null) => void;
 }
 
-export const useStudyLibraryStore = create<StudyLibraryStore>((set, get) => ({
+export const useStudyLibraryStore = create<StudyLibraryStore>((set) => ({
     studyLibraryData: null,
-    setStudyLibraryData: (data) => set({ studyLibraryData: data }),
-    getFirstLevelSubjects: () => {
-        const data = get().studyLibraryData;
-        if (!data || !data.level_with_details.length) {
-            return null;
-        }
-        return data.level_with_details[0].subjects;
-    },
+    setStudyLibraryData: (data) => set({ studyLibraryData: data })
 }));
