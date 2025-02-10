@@ -1,6 +1,6 @@
 import { convertTimeToSeconds } from "./convertTimeToSeconds";
 
-export const calculateNetDuration = (timestamps: Array<{id: string, start_time: string, end_time: string}>): number => {
+export const calculateNetDuration = (timestamps: Array<{id: string, start_time: string, end_time: string, start: number, end: number}>): number => {
     
     if (timestamps.length === 0) return 0;
 

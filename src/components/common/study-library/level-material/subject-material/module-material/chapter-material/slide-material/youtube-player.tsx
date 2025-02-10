@@ -4,7 +4,7 @@ import { useTrackingStore } from "@/stores/study-library/youtube-video-tracking-
 import { getEpochTimeInMillis } from "./utils";
 import { convertTimeToSeconds } from "@/utils/study-library/tracking/convertTimeToSeconds";
 import { formatVideoTime } from "@/utils/study-library/tracking/formatVideoTime";
-// import { calculateNetDuration } from "@/utils/study-library/tracking/calculateNetDuration";
+import { calculateNetDuration } from "@/utils/study-library/tracking/calculateNetDuration";
 import { extractVideoId } from "@/utils/study-library/tracking/extractVideoId";
 import { useVideoSync } from "@/hooks/study-library/useVideoSync";
 
@@ -71,10 +71,10 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const currentStartTimeInEpochRef = useRef<number>(0);
     
     
-    // const calculatePercentageWatched = (totalDuration: number) => {
-    //     const netDuration = calculateNetDuration(currentTimestamps.current);
-    //     return ((netDuration / totalDuration) * 100).toFixed(2);
-    // };
+    const calculatePercentageWatched = (totalDuration: number) => {
+        const netDuration = calculateNetDuration(currentTimestamps.current);
+        return ((netDuration / totalDuration) * 100).toFixed(2);
+    };
    
 
    
@@ -117,10 +117,9 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
         end_time: endTime,
         duration: elapsedTime.toString(),
         timestamps: currentTimestamps.current,
-        // percentage_watched: calculatePercentageWatched(
-        //     playerRef.current?.getDuration() || 0
-        // ),
-        percentage_watched: "10",
+        percentage_watched: calculatePercentageWatched(
+            playerRef.current?.getDuration() || 0
+        ),
         sync_status: 'STALE' as const, // Always set to STALE when updating
         current_start_time: currentStartTimeRef.current,
         current_start_time_in_epoch: currentStartTimeInEpochRef.current,
