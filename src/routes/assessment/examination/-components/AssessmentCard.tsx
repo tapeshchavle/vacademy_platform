@@ -1,11 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "@tanstack/react-router";
 import { MyButton } from "@/components/design-system/button";
-import {
-  StatusChip,
-//   StatusMode,
-//   StatusState,
-} from "@/components/design-system/chips";
+import { PlayMode, StatusChip } from "@/components/design-system/chips";
 import { assessmentTypes } from "@/types/assessment";
 import { Assessment } from "@/types/assessment";
 import {
@@ -15,18 +11,26 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { Storage } from "@capacitor/storage";
-
+import dayjs from "dayjs";
 interface AssessmentProps {
   assessmentInfo: Assessment;
   assessmentType: assessmentTypes;
 }
-// Card Component
+
+const playModeColors: { [key: string]: string } = {
+  EXAM: "bg-green-500 text-white",
+  MOCK: "bg-purple-500 text-white",
+  PRACTICE: "bg-blue-500 text-white",
+  SURVEY: "bg-red-500 text-white",
+};
+
 export const AssessmentCard = ({
   assessmentInfo,
   assessmentType,
 }: AssessmentProps) => {
   const navigate = useNavigate();
   const [showPopup, setShowPopup] = useState(false);
+  const [showStartModal, setShowStartModal] = useState(false);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -38,77 +42,90 @@ export const AssessmentCard = ({
     return () => clearTimeout(timer);
   }, [showPopup]);
 
-  const handleClose = () => {
-    setShowPopup(false);
-  };
-  const handleOpen = () =>{
-    if(assessmentType === assessmentTypes.UPCOMING){
-        setShowPopup(true)
-    }
-  }
+  const handleClosePopup = () => setShowPopup(false);
 
-  const handleJoinAssessment = async () => {
-    await Storage.set({
-      key: "InstructionID_and_AboutID",
-      value: JSON.stringify(assessmentInfo),
-    });
-    navigate({ to: `/assessment/examination/${assessmentInfo.assessment_id}` });
+  const handleOpen = () => {
+    if (assessmentType === assessmentTypes.UPCOMING) {
+      setShowPopup(true);
+    }
+  };
+
+  const handleAction = async () => {
+    if (assessmentInfo.recent_attempt_status === "PREVIEW") {
+      setShowStartModal(true);
+      console.log("Assessment Preview",showStartModal);
+    } else {
+      await Storage.set({
+        key: "InstructionID_and_AboutID",
+        value: JSON.stringify(assessmentInfo),
+      });
+      navigate({
+        to: `/assessment/examination/${assessmentInfo.assessment_id}`,
+      });
+    }
   };
 
   return (
     <>
-      <Card className="w-full p-6 space-y-6" onClick={() => handleOpen()}>
+      <Card className="w-full p-6 space-y-6" onClick={handleOpen}>
         <h2 className="text-sm lg:text-base font-semibold">
           {assessmentInfo.name}
         </h2>
-        <div className="lg:flex md:flex justify-between items-center ">
-          <div className="">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
             <div className="flex gap-3 pb-3 items-center">
-              <StatusChip mode={"ONLINE"} />
-              {assessmentType === assessmentTypes.LIVE && (
-                <div className="h-8 border-l border-gray-400"></div>
-              )}
-              {assessmentType === assessmentTypes.LIVE && (
-                <StatusChip status={"PUBLISHED"} />
-              )}
+              
+              <StatusChip
+                playMode={assessmentInfo.play_mode as PlayMode}
+                className={playModeColors[assessmentInfo.play_mode as PlayMode]}
+              />
             </div>
             <div className="space-y-2 text-xs lg:text-sm text-gray-600">
-              <div>Start Date and Time: {assessmentInfo.bound_start_time}</div>
-              <div>End Date and Time: {assessmentInfo.bound_end_time}</div>
-              {/* <div>Subject: {assessmentInfo.subject}</div> */}
-              <div>Duration: {assessmentInfo.duration}</div>
+              <div>
+                Start Date and Time:{" "}
+                {dayjs(assessmentInfo.bound_start_time).format(
+                  "DD MMM YYYY, hh:mm A"
+                )}
+              </div>
+              <div>
+                End Date and Time:{" "}
+                {dayjs(assessmentInfo.bound_end_time).format(
+                  "DD MMM YYYY, hh:mm A"
+                )}
+              </div>
+              <div>Duration: {assessmentInfo.duration} minutes</div>
             </div>
           </div>
-          {assessmentType === assessmentTypes.LIVE && (
-            <div className="sm:justify-center">
-              <div className="pt-6 md:pt-14 lg:pt-24 sm:items-center">
-                <MyButton
-                  buttonType="secondary"
-                  className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
-                  disabled={status.toLowerCase() !== "active"}
-                  onClick={handleJoinAssessment}
-                >
-                  Join Assessment
-                </MyButton>
-              </div>
-            </div>
-          )}
+          <div className="w-full md:w-auto">
+            <MyButton
+              buttonType="secondary"
+              className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
+              onClick={handleAction}
+            >
+              {assessmentInfo.recent_attempt_status === "PREVIEW"
+                ? "Resume"
+                : "Join Assessment"}
+            </MyButton>
+          </div>
         </div>
       </Card>
 
-      <div className="sm:max-w-[90%] md:max-w-[400px] lg:max-w-[500px]">
-        <AlertDialog open={showPopup} onOpenChange={handleClose}>
-          <AlertDialogOverlay className="bg-black/50" onClick={handleClose} />
-          <AlertDialogContent className="max-w-sm bg-[#FDFAF6] rounded-lg p-4 sm:mx-4 sm:p-6 ">
-            <div className="text-gray-700">
-              The assessment{" "}
-              <span className="text-orange-500">{assessmentInfo.name}</span> is
-              not live currently. You can appear for the assessment when it goes
-              live.
-            </div>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+      <AlertDialog open={showPopup} onOpenChange={handleClosePopup}>
+        <AlertDialogOverlay
+          className="bg-black/50"
+          onClick={handleClosePopup}
+        />
+        <AlertDialogContent className="max-w-sm bg-[#FDFAF6] rounded-lg p-4 sm:mx-4 sm:p-6">
+          <div className="text-gray-700">
+            The assessment{" "}
+            <span className="text-primary-500 ">{assessmentInfo.name}</span> is
+            not live currently. You can appear for the assessment when it goes
+            live.
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* {showStartModal && <AssessmentStartModal resumeTest={assessmentInfo.recent_attempt_status === "PREVIEW"} />} */}
     </>
   );
 };

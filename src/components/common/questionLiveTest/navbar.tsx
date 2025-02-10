@@ -25,6 +25,7 @@ import { ASSESSMENT_SUBMIT } from "@/constants/urls";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { Preferences } from "@capacitor/preferences";
 import { toast } from "sonner";
+import { Storage } from "@capacitor/storage";
 
 export function Navbar() {
   const {
@@ -48,7 +49,6 @@ export function Navbar() {
   const [helpType, setHelpType] = useState<HelpType["type"]>(null);
 
   const formatDataFromStore = (assessment_id: string) => {
-    console.log("here   ");
     const state = useAssessmentStore.getState();
     console.log(state);
     return {
@@ -63,10 +63,11 @@ export function Navbar() {
       },
       sections: state.assessment?.section_dtos?.map((section, idx) => ({
         sectionId: section.id,
-        timeElapsedInSeconds: state.sectionTimers?.[idx] || 0,
-        questions: section.question_preview_dto_list?.map((question, qidx) => ({
+        timeElapsedInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+        questions: section.question_preview_dto_list?.map((question) => ({
           questionId: question.question_id,
-          questionDurationLeftInSeconds: state.questionTimers?.[qidx] || 0,
+          questionDurationLeftInSeconds:
+            state.questionTimers?.[question.question_id] || 0,
           timeTakenInSeconds: 0,
           responseData: {
             type: question.question_type,
@@ -103,16 +104,13 @@ export function Navbar() {
       );
       console.log(response.data);
 
-      // Save announcements in local storage
-      await Preferences.set({
-        key: "announcements",
-        value: JSON.stringify(response.data),
-      });
+      if (response.data) {
+        await Preferences.remove({ key: "ASSESSMENT_STATE" });
+      }
 
       return response.data;
     } catch (error) {
       console.error("Error sending data:", error);
-      // throw error;
     }
   };
 
@@ -124,7 +122,6 @@ export function Navbar() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // setWarningCount((prev) => prev + 1);
         incrementTabSwitchCount();
         setShowWarningModal(true);
       }
@@ -160,7 +157,6 @@ export function Navbar() {
     const minutes = Math.floor((timeInSeconds % 3600) / 60);
     const seconds = timeInSeconds % 60;
 
-    // Pad with zeros if needed
     const padNumber = (num: number) => num.toString().padStart(2, "0");
 
     return `${padNumber(hours)}:${padNumber(minutes)}:${padNumber(seconds)}`;
@@ -177,14 +173,25 @@ export function Navbar() {
       if (!success && attemptCount < 5) {
         attemptCount++;
         const retryInterval = 10000 + attemptCount * 5000; // 10, 15, 20, 25, 30 seconds
-        console.log(`Retrying data submission in ${retryInterval / 1000} seconds...`);
+        
         setTimeout(submitData, retryInterval);
         toast.error("Failed to submit assessment. retrying...");
       } else if (success) {
         console.log("Data submitted successfully!");
         submitAssessment();
-        // Show success toast
         toast.success("Data submitted successfully!");
+        // Remove ASSESSMENT_STATE from Capacitor Storage
+        const { value } = await Storage.get({ key: "ASSESSMENT_STATE" });
+        if (value) {
+          await Storage.remove({ key: "ASSESSMENT_STATE" });
+          console.log("ASSESSMENT_STATE removed from Capacitor Storage");
+        }
+
+        // Remove ASSESSMENT_STATE from Local Storage
+        if (localStorage.getItem("ASSESSMENT_STATE")) {
+          localStorage.removeItem("ASSESSMENT_STATE");
+          console.log("ASSESSMENT_STATE removed from Local Storage");
+        }
         navigate({
           to: "/assessment/examination",
         });
@@ -234,7 +241,7 @@ export function Navbar() {
         <div className="">
           {entireTestTimer && (
             <div className="flex items-center gap-2 text-lg  justify-center">
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-4">
                 {formatTime(entireTestTimer)
                   .split(":")
                   .map((time, index, array) => (
@@ -243,7 +250,9 @@ export function Navbar() {
                         {time}
                       </span>
                       {index < array.length - 1 && (
-                        <span className="absolute right-[-4px] text-lg">:</span>
+                        <span className="absolute right-[-10px] text-lg">
+                          :
+                        </span>
                       )}
                     </div>
                   ))}
@@ -251,6 +260,7 @@ export function Navbar() {
             </div>
           )}
         </div>
+
         <div className="flex items-center gap-4">
           <MyButton
             type="submit"

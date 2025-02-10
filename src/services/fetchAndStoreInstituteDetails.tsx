@@ -68,15 +68,16 @@ export const fetchAndStoreInstituteDetails = async (
 };
 
 // Helper function to retrieve stored institute details
-export const getStoredInstituteDetails = async (): Promise<InstituteDetails | null> => {
-  try {
-    const { value } = await Preferences.get({ key: "InstituteDetails" });
+export const getStoredInstituteDetails =
+  async (): Promise<InstituteDetails | null> => {
+    try {
+      const { value } = await Preferences.get({ key: "InstituteDetails" });
 
-    if (!value) return null;
+      if (!value) return null;
 
-    return JSON.parse(value) as InstituteDetails;
-  } catch (error) {
-    console.error("Error parsing stored institute details:", error);
-    return null;
-  }
-};
+      return JSON.parse(value) as InstituteDetails;
+    } catch (error) {
+      console.error("Error parsing stored institute details:", error);
+      return null;
+    }
+  };

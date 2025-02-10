@@ -103,9 +103,8 @@ export const fetchAssessmentData = async (
       }
     );
     return response.data;
-  } catch (error) {
-    console.error("Error fetching assessments:", error);
-    // toast.error("Failed to fetch assessments.");
+  } catch {
+    console.error("Error fetching assessments:");
   } finally {
     // setLoading(false);
   }

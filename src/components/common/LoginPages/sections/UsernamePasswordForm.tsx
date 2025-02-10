@@ -58,7 +58,9 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
             navigate({ to: "/institute-selection" });
           } else {
             // Get the single institute ID
-            const instituteId = authorities ? Object.keys(authorities)[0] : undefined;
+            const instituteId = authorities
+              ? Object.keys(authorities)[0]
+              : undefined;
 
             if (instituteId && userId) {
               try {
@@ -70,18 +72,18 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
               console.error("Institute ID or User ID is undefined");
             }
 
-            try {
-              if (instituteId && userId) {
+            if (instituteId && userId) {
+              try {
                 await fetchAndStoreStudentDetails(instituteId, userId);
-              } else {
-                console.error("Institute ID or User ID is undefined");
+              } catch (error) {
+                console.error("Error fetching details:", error);
+                toast.error("Failed to fetch details");
               }
-            } catch (error) {
-              console.error("Failed to fetch student details:", error);
-              toast.error("Failed to fetch student details");
+            } else {
+              console.error("Institute ID or User ID is undefined");
             }
-            // Navigate after successful fetch
-            navigate({ to: "/dashboard" });
+
+            navigate({ to: "/login/SessionSelectionPage" });
           }
         } catch (error) {
           console.error("Error processing decoded data:", error);

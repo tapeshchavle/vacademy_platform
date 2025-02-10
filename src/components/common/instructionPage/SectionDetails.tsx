@@ -1,12 +1,12 @@
 import { StatusCheck } from "@/components/design-system/chips";
 import { SectionDto } from "@/types/assessment";
-import {parseHtmlToString} from "@/lib/utils"
+import { parseHtmlToString } from "@/lib/utils";
 
 export const SectionDetails = ({ section }: { section: SectionDto }) => {
   return (
     <div className="w-full mb-4">
       <div className="space-y-6">
-        <h2 className="text-orange-500 text-lg font-semibold">
+        <h2 className="text-primary-500 text-lg font-semibold">
           {section.name}
         </h2>
 
@@ -16,14 +16,14 @@ export const SectionDetails = ({ section }: { section: SectionDto }) => {
               <p className="font-bold">Section Description:</p>
             </div>
             <div className="text-gray-700">
-              {parseHtmlToString(section.description.content)}
+              {parseHtmlToString(section?.description?.content)}
             </div>
           </div>
 
           <div className="text-sm text-gray-600">
             <div className="mb-4">
               <span className="font-bold">Section Duration: </span>
-              <span className="text-gray-900">{section.duration}</span>
+              <span className="text-gray-900">{section?.duration}</span>
             </div>
           </div>
 
