@@ -1,4 +1,4 @@
-interface Slide {
+export interface Slide {
   status: string;
   source_type: string;
   video_description: string;

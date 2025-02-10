@@ -13,10 +13,11 @@ import { DashboardTabs } from "./-components/DashboardTabs";
 export function Dashboard() {
   const [username, setUsername] = useState<string | null>(null);
   const [data, setData] = useState<CourseData>();
+  const [assessmentCount, setAssessmentCount] = useState<number>();
   const { setNavHeading } = useNavHeadingStore();
   useEffect(() => {
     setNavHeading("Dashoard");
-    fetchStaticData(setUsername, setData);
+    fetchStaticData(setUsername, setData, setAssessmentCount);
   }, []);
   return (
     <LayoutContainer>
@@ -38,16 +39,17 @@ export function Dashboard() {
             count={data?.courses}
             button={false}
           />
-          <DashboardTabs
+          // TODO: implemnet resume feature after api is changed
+          {/* <DashboardTabs
             title="Begin your journey"
             count={data?.slides.length}
             button={true}
             buttonText="Resume"
-            list={["The Human Eye: Structure and Function Explained"]}
-          />
+            list={data?.slides}
+          /> */}
           <DashboardTabs
             title="Test Assigned"
-            count={data?.tests_assigned}
+            count={assessmentCount}
             button={false}
           />
         </div>

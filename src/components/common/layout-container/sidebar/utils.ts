@@ -54,5 +54,6 @@ export const HamBurgerSidebarItemsData: SidebarItemsType[] = [
   {
     icon: SignOut ,
     title: "Log Out",
+    to:"/logout"
   },
 ];

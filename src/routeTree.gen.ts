@@ -12,6 +12,7 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as StudyLibraryIndexImport } from './routes/study-library/index'
+import { Route as LogoutIndexImport } from './routes/logout/index'
 import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as InstituteSelectionIndexImport } from './routes/institute-selection/index'
 import { Route as DashboardIndexImport } from './routes/dashboard/index'
@@ -38,6 +39,12 @@ import { Route as StudyLibraryCoursesCourseLevelsLevelSubjectsSubjectModulesModu
 const StudyLibraryIndexRoute = StudyLibraryIndexImport.update({
   id: '/study-library/',
   path: '/study-library/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const LogoutIndexRoute = LogoutIndexImport.update({
+  id: '/logout/',
+  path: '/logout/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -210,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginIndexImport
       parentRoute: typeof rootRoute
     }
+    '/logout/': {
+      id: '/logout/'
+      path: '/logout'
+      fullPath: '/logout'
+      preLoaderRoute: typeof LogoutIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/study-library/': {
       id: '/study-library/'
       path: '/study-library'
@@ -345,6 +359,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardIndexRoute
   '/institute-selection': typeof InstituteSelectionIndexRoute
   '/login': typeof LoginIndexRoute
+  '/logout': typeof LogoutIndexRoute
   '/study-library': typeof StudyLibraryIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
@@ -369,6 +384,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/institute-selection': typeof InstituteSelectionIndexRoute
   '/login': typeof LoginIndexRoute
+  '/logout': typeof LogoutIndexRoute
   '/study-library': typeof StudyLibraryIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
@@ -394,6 +410,7 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexRoute
   '/institute-selection/': typeof InstituteSelectionIndexRoute
   '/login/': typeof LoginIndexRoute
+  '/logout/': typeof LogoutIndexRoute
   '/study-library/': typeof StudyLibraryIndexRoute
   '/assessment/examination/': typeof AssessmentExaminationIndexRoute
   '/dashboard/notifications/': typeof DashboardNotificationsIndexRoute
@@ -420,6 +437,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/institute-selection'
     | '/login'
+    | '/logout'
     | '/study-library'
     | '/assessment/examination'
     | '/dashboard/notifications'
@@ -443,6 +461,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/institute-selection'
     | '/login'
+    | '/logout'
     | '/study-library'
     | '/assessment/examination'
     | '/dashboard/notifications'
@@ -466,6 +485,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/institute-selection/'
     | '/login/'
+    | '/logout/'
     | '/study-library/'
     | '/assessment/examination/'
     | '/dashboard/notifications/'
@@ -491,6 +511,7 @@ export interface RootRouteChildren {
   DashboardIndexRoute: typeof DashboardIndexRoute
   InstituteSelectionIndexRoute: typeof InstituteSelectionIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
+  LogoutIndexRoute: typeof LogoutIndexRoute
   StudyLibraryIndexRoute: typeof StudyLibraryIndexRoute
   AssessmentExaminationIndexRoute: typeof AssessmentExaminationIndexRoute
   DashboardNotificationsIndexRoute: typeof DashboardNotificationsIndexRoute
@@ -515,6 +536,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardIndexRoute: DashboardIndexRoute,
   InstituteSelectionIndexRoute: InstituteSelectionIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
+  LogoutIndexRoute: LogoutIndexRoute,
   StudyLibraryIndexRoute: StudyLibraryIndexRoute,
   AssessmentExaminationIndexRoute: AssessmentExaminationIndexRoute,
   DashboardNotificationsIndexRoute: DashboardNotificationsIndexRoute,
@@ -560,6 +582,7 @@ export const routeTree = rootRoute
         "/dashboard/",
         "/institute-selection/",
         "/login/",
+        "/logout/",
         "/study-library/",
         "/assessment/examination/",
         "/dashboard/notifications/",
@@ -588,6 +611,9 @@ export const routeTree = rootRoute
     },
     "/login/": {
       "filePath": "login/index.tsx"
+    },
+    "/logout/": {
+      "filePath": "logout/index.tsx"
     },
     "/study-library/": {
       "filePath": "study-library/index.tsx"
