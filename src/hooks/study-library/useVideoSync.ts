@@ -65,22 +65,31 @@ export const useVideoSync = () => {
                 try {
                     if (activity.new_activity && apiPayload.videos && apiPayload.videos.length>0) {
                         console.log("Hitting add video activity api: ", activity.new_activity)
-                        await addVideoActivity.mutateAsync({
-                            slideId: activeItem?.slide_id || "",
-                            userId,
-                            requestPayload: apiPayload
-                        });
-                        activity.sync_status = 'SYNCED';
-                        updatedActivities.push(activity);
-                    } else {
-                        if(apiPayload.videos && apiPayload.videos.length>0){
-                            await updateVideoActivity.mutateAsync({
-                                activityId: activity.activity_id,
+                        try{
+                            await addVideoActivity.mutateAsync({
+                                slideId: activeItem?.slide_id || "",
+                                userId,
                                 requestPayload: apiPayload
                             });
+                            activity.sync_status = 'SYNCED';
+                            activity.new_activity = false;  // Move this here, after successful API call
+                            updatedActivities.push(activity);
+                        }catch(err){
+                            console.log("add api call failed: ", err)
                         }
-                        activity.sync_status = 'SYNCED';
-                        updatedActivities.push(activity);
+                    } else {
+                        if(apiPayload.videos && apiPayload.videos.length>0){
+                            try{
+                                await updateVideoActivity.mutateAsync({
+                                    activityId: activity.activity_id,
+                                    requestPayload: apiPayload
+                                });
+                                activity.sync_status = 'SYNCED';
+                                updatedActivities.push(activity);
+                            }catch(err){
+                                console.log("update api call failed: ", err)
+                            }
+                        }
                     }
                 } catch (error) {
                     console.error('API call failed:', error);
