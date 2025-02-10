@@ -122,7 +122,6 @@ export function Navbar() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // setWarningCount((prev) => prev + 1);
         incrementTabSwitchCount();
         setShowWarningModal(true);
       }
@@ -158,7 +157,6 @@ export function Navbar() {
     const minutes = Math.floor((timeInSeconds % 3600) / 60);
     const seconds = timeInSeconds % 60;
 
-    // Pad with zeros if needed
     const padNumber = (num: number) => num.toString().padStart(2, "0");
 
     return `${padNumber(hours)}:${padNumber(minutes)}:${padNumber(seconds)}`;
@@ -175,15 +173,12 @@ export function Navbar() {
       if (!success && attemptCount < 5) {
         attemptCount++;
         const retryInterval = 10000 + attemptCount * 5000; // 10, 15, 20, 25, 30 seconds
-        console.log(
-          `Retrying data submission in ${retryInterval / 1000} seconds...`
-        );
+        
         setTimeout(submitData, retryInterval);
         toast.error("Failed to submit assessment. retrying...");
       } else if (success) {
         console.log("Data submitted successfully!");
         submitAssessment();
-        // Show success toast
         toast.success("Data submitted successfully!");
         // Remove ASSESSMENT_STATE from Capacitor Storage
         const { value } = await Storage.get({ key: "ASSESSMENT_STATE" });

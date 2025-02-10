@@ -3,6 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Flag } from "lucide-react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { QuestionDto, QuestionState } from "@/types/assessment";
+import { useEffect } from "react";
 
 export function QuestionListView() {
   const {
@@ -15,10 +16,12 @@ export function QuestionListView() {
     sectionTimers,
   } = useAssessmentStore();
 
-  if (!assessment) return null;
+  useEffect(() => {
+    if (!assessment) return;
+  }, [assessment]);
 
   const currentSectionQuestions =
-    assessment.section_dtos[currentSection].question_preview_dto_list;
+    assessment?.section_dtos[currentSection].question_preview_dto_list;
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
 
   const handleQuestionClick = (question: QuestionDto) => {
@@ -36,7 +39,7 @@ export function QuestionListView() {
   return (
     <ScrollArea className="h-full pb-16">
       <div className="space-y-2 p-4">
-        {currentSectionQuestions.map((question, index) => {
+        {currentSectionQuestions?.map((question, index) => {
           const state = questionStates[question.question_id];
           const isActive =
             currentQuestion?.question_id === question.question_id;

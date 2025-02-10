@@ -185,7 +185,7 @@ export function QuestionDisplay() {
       </div>
 
       <div className="space-y-4">
-        {currentQuestion.options.map((option, index) => (
+        {currentQuestion?.options?.map((option, index) => (
           <div
             key={option.id}
             className={`flex flex-row-reverse items-center justify-between rounded-lg border p-4 w-full ${
@@ -216,7 +216,6 @@ export function QuestionDisplay() {
               onClick={() => handleAnswerChange(option.id)}
             >
               {`(${String.fromCharCode(97 + index)})  `}
-              {/* {parseHtmlToString(option.text.content)} */}
               {processHtmlString(option.text.content).map((item, index) =>
                 item.type === "text" ? (
                   <span key={index}>{item.content}</span>
