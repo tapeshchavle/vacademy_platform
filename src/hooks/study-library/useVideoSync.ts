@@ -63,21 +63,25 @@ export const useVideoSync = () => {
                 };
 
                 try {
-                    if (activity.new_activity) {
+                    if (activity.new_activity && apiPayload.videos && apiPayload.videos.length>0) {
+                        console.log("Hitting add video activity api: ", activity.new_activity)
                         await addVideoActivity.mutateAsync({
                             slideId: activeItem?.slide_id || "",
                             userId,
                             requestPayload: apiPayload
                         });
+                        activity.sync_status = 'SYNCED';
+                        updatedActivities.push(activity);
                     } else {
-                        await updateVideoActivity.mutateAsync({
-                            activityId: activity.activity_id,
-                            requestPayload: apiPayload
-                        });
+                        if(apiPayload.videos && apiPayload.videos.length>0){
+                            await updateVideoActivity.mutateAsync({
+                                activityId: activity.activity_id,
+                                requestPayload: apiPayload
+                            });
+                        }
+                        activity.sync_status = 'SYNCED';
+                        updatedActivities.push(activity);
                     }
-
-                    activity.sync_status = 'SYNCED';
-                    updatedActivities.push(activity);
                 } catch (error) {
                     console.error('API call failed:', error);
                     updatedActivities.push(activity);

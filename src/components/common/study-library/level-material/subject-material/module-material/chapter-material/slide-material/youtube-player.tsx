@@ -14,38 +14,47 @@ interface YTPlayer {
    getDuration(): number;
 }
 
+interface YouTubePlayerEvent {
+    target: YTPlayer;
+    data: number;
+}
+
+interface YouTubePlayerOptions {
+    height?: string | number;
+    width?: string | number;
+    videoId?: string;
+    playerVars?: {
+        autoplay?: number;
+        controls?: number;
+        showinfo?: number;
+        rel?: number;
+        [key: string]: number | undefined;
+    };
+    events?: {
+        onReady?: (event: YouTubePlayerEvent) => void;
+        onStateChange?: (event: YouTubePlayerEvent) => void;
+        onError?: (event: YouTubePlayerEvent) => void;
+        onPlaybackQualityChange?: (event: YouTubePlayerEvent) => void;
+        onPlaybackRateChange?: (event: YouTubePlayerEvent) => void;
+    };
+}
+
 declare global {
-   interface Window {
-       onYouTubeIframeAPIReady: () => void;
-       YT: {
-           Player: new (
-               container: HTMLElement | string,
-               options: {
-                   height?: string | number;
-                   width?: string | number;
-                   videoId?: string;
-                   playerVars?: {
-                       autoplay?: number;
-                       controls?: number; 
-                       showinfo?: number;
-                       rel?: number;
-                       [key: string]: any;
-                   };
-                   events?: {
-                       onReady?: (event: any) => void;
-                       onStateChange?: (event: any) => void;
-                       [key: string]: any;
-                   };
-               }
-           ) => YTPlayer;
-           PlayerState: {
-               PLAYING: number;
-               PAUSED: number;
-               ENDED: number;
-               BUFFERING: number;
-           };
-       };
-   }
+    interface Window {
+        onYouTubeIframeAPIReady: () => void;
+        YT: {
+            Player: new (
+                container: HTMLElement | string,
+                options: YouTubePlayerOptions
+            ) => YTPlayer;
+            PlayerState: {
+                PLAYING: number;
+                PAUSED: number;
+                ENDED: number;
+                BUFFERING: number;
+            };
+        };
+    }
 }
 
 interface YouTubePlayerProps {
