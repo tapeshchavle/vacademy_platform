@@ -19,10 +19,9 @@ export const fetchStaticData = async (
   setData: (data: any) => void,
   setAssessmentCount: (count: number) => void
 ) => {
-  console.log('inside')
   const userData = await fetchUserData();
-  const first_name = userData[0].full_name.split(" ")[0];
-  const institute_id = userData[0].institute_id;
+  const first_name = userData.full_name.split(" ")[0];
+  const institute_id = userData.institute_id;
   const params = {instituteId : institute_id}
   setUsername(first_name);
   try {
