@@ -48,6 +48,7 @@ export const useTrackingStore = create<TrackingStore>((set) => ({
                         sync_status: 'STALE',
                         current_start_time: activity.current_start_time,
                         current_start_time_in_epoch: activity.current_start_time_in_epoch,
+                        new_activity: false,
                         timestamps: Array.from(
                             new Set([
                                 ...existingActivity.timestamps.map((t) => JSON.stringify(t)),

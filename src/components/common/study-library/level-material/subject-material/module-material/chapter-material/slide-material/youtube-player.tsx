@@ -107,6 +107,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    useEffect(() => {
     const videoId = extractVideoId(videoUrl);
     const endTime = videoEndTime.current || getEpochTimeInMillis();
+
     
     const newActivity = {
         activity_id: activityId.current,
