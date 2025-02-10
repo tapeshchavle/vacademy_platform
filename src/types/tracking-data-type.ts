@@ -10,8 +10,8 @@ export interface TrackingDataType {
     videos: 
       {
         id: string,
-        start_time: string,
-        end_time: string
+        start_time_in_millis: number,
+        end_time_in_millis: number
       }[]   | null,
     documents: 
       {

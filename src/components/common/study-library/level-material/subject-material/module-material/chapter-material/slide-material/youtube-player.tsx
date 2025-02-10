@@ -4,7 +4,7 @@ import { useTrackingStore } from "@/stores/study-library/youtube-video-tracking-
 import { getEpochTimeInMillis } from "./utils";
 import { convertTimeToSeconds } from "@/utils/study-library/tracking/convertTimeToSeconds";
 import { formatVideoTime } from "@/utils/study-library/tracking/formatVideoTime";
-import { calculateNetDuration } from "@/utils/study-library/tracking/calculateNetDuration";
+// import { calculateNetDuration } from "@/utils/study-library/tracking/calculateNetDuration";
 import { extractVideoId } from "@/utils/study-library/tracking/extractVideoId";
 import { useVideoSync } from "@/hooks/study-library/useVideoSync";
 
@@ -58,7 +58,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const playerRef = useRef<YTPlayer | null>(null);
    const playerContainerRef = useRef<HTMLDivElement>(null);
    const activityId = useRef(uuidv4());
-   const currentTimestamps = useRef<Array<{id: string, start_time: string, end_time: string, start: string, end: string}>>([]);
+   const currentTimestamps = useRef<Array<{id: string, start_time: string, end_time: string, start: number, end: number}>>([]);
    const videoStartTime = useRef<number>(0);
    const videoEndTime = useRef<number>(0);
    const [elapsedTime, setElapsedTime] = useState(0);
@@ -71,10 +71,10 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const currentStartTimeInEpochRef = useRef<number>(0);
     
     
-    const calculatePercentageWatched = (totalDuration: number) => {
-        const netDuration = calculateNetDuration(currentTimestamps.current);
-        return ((netDuration / totalDuration) * 100).toFixed(2);
-    };
+    // const calculatePercentageWatched = (totalDuration: number) => {
+    //     const netDuration = calculateNetDuration(currentTimestamps.current);
+    //     return ((netDuration / totalDuration) * 100).toFixed(2);
+    // };
    
 
    
@@ -117,9 +117,10 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
         end_time: endTime,
         duration: elapsedTime.toString(),
         timestamps: currentTimestamps.current,
-        percentage_watched: calculatePercentageWatched(
-            playerRef.current?.getDuration() || 0
-        ),
+        // percentage_watched: calculatePercentageWatched(
+        //     playerRef.current?.getDuration() || 0
+        // ),
+        percentage_watched: "10",
         sync_status: 'STALE' as const, // Always set to STALE when updating
         current_start_time: currentStartTimeRef.current,
         current_start_time_in_epoch: currentStartTimeInEpochRef.current,
@@ -195,15 +196,15 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                                 const endTimeInSeconds = currentStartTimeInSeconds + timestampDurationRef.current;
                                 const endTimeStamp = formatVideoTime(endTimeInSeconds);
 
-                                const startDate = new Date(videoStartTime.current + (currentStartTimeInSeconds * 1000));
-                                const endDate = new Date(videoStartTime.current + (endTimeInSeconds * 1000));
+                                // const startDate = new Date(videoStartTime.current + (currentStartTimeInSeconds * 1000));
+                                // const endDate = new Date(videoStartTime.current + (endTimeInSeconds * 1000));
                         
                                 currentTimestamps.current.push({
                                     id: uuidv4(), // Add this line to generate unique ID
                                     start_time: currentStartTimeRef.current,
                                     end_time: endTimeStamp,
-                                    start: startDate.toISOString(),
-                                    end: endDate.toISOString()
+                                    start: convertTimeToSeconds(currentStartTimeRef.current)*1000,
+                                    end: convertTimeToSeconds(endTimeStamp)*1000
                                 });
                         
                                 currentStartTimeRef.current = formatVideoTime(currentTime);

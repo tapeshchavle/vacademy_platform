@@ -5,8 +5,8 @@ export const TimestampSchema = z.object({
     id: z.string(),
     start_time: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/),
     end_time: z.string().regex(/^\d{1,2}:\d{2}(:\d{2})?$/),
-    start: z.string().datetime(),
-    end: z.string().datetime()
+    start: z.number(),
+    end: z.number(),
 });
 
 export const ActivitySchema = z.object({

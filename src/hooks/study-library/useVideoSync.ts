@@ -4,7 +4,7 @@ import { useAddVideoActivity } from '@/services/study-library/tracking-api/add-v
 import { useUpdateVideoActivity } from '@/services/study-library/tracking-api/update-video-activity';
 import { useContentStore } from '@/stores/study-library/chapter-sidebar-store';
 import { TrackingDataType } from '@/types/tracking-data-type';
-import { calculateAndUpdateTimestamps } from '@/utils/study-library/tracking/calculateAndUpdateTimestamps';
+// import { calculateAndUpdateTimestamps } from '@/utils/study-library/tracking/calculateAndUpdateTimestamps';
 import { Preferences } from '@capacitor/preferences';
 import { z } from 'zod';
 
@@ -44,7 +44,7 @@ export const useVideoSync = () => {
                     continue;
                 }
 
-                activity = calculateAndUpdateTimestamps(activity);
+                // activity = calculateAndUpdateTimestamps(activity);
 
                 
 
@@ -59,8 +59,8 @@ export const useVideoSync = () => {
                     percentage_watched: parseFloat(activity.percentage_watched),
                     videos: activity.timestamps.map(timestamp => ({
                         id: timestamp.id,
-                        start_time: timestamp.start,
-                        end_time: timestamp.end
+                        start_time_in_millis: timestamp.start,
+                        end_time_in_millis: timestamp.end
                     })),
                     documents: null
                 };
