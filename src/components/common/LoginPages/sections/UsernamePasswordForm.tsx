@@ -75,9 +75,14 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
             if (instituteId && userId) {
               try {
                 await fetchAndStoreStudentDetails(instituteId, userId);
-              } catch (error) {
-                console.error("Error fetching details:", error);
+              } catch  {
+                // console.error("Error fetching details:");
                 toast.error("Failed to fetch details");
+              //   toast.error("Login Error", {
+              //     description: "Failed to fetch details",
+              //     className: "error-toast",
+              //     duration: 3000,
+              // });
               }
             } else {
               console.error("Institute ID or User ID is undefined");
@@ -89,11 +94,12 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
           console.error("Error processing decoded data:", error);
         }
       } else {
-        toast.error("Login Error", {
-          description: "Invalid credentials",
-          className: "error-toast",
-          duration: 3000,
-        });
+        // toast.error("Login Error", {
+        //   description: "Invalid credentials",
+        //   className: "error-toast",
+        //   duration: 3000,
+        // });
+
         form.reset();
       }
     },

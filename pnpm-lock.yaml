@@ -32,6 +32,9 @@ importers:
       '@capacitor/storage':
         specifier: ^1.2.5
         version: 1.2.5(@capacitor/core@6.2.0)
+      '@capawesome/capacitor-app-update':
+        specifier: ^7.0.1
+        version: 7.0.1(@capacitor/core@6.2.0)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -513,6 +516,11 @@ packages:
     deprecated: package has been renamed to @capacitor/preferences
     peerDependencies:
       '@capacitor/core': ^3.0.0
+
+  '@capawesome/capacitor-app-update@7.0.1':
+    resolution: {integrity: sha512-VEzAa8vdG8BvW8pjjinmUeiEfzDlZ2XBfAIBE0o0Gib63+FTZg8d0tAu0nUoV/s/1oIOM7Fk+PokN5GpQrY8sQ==}
+    peerDependencies:
+      '@capacitor/core': '>=7.0.0'
 
   '@dnd-kit/accessibility@3.1.1':
     resolution: {integrity: sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw==}
@@ -4300,6 +4308,10 @@ snapshots:
       '@capacitor/core': 6.2.0
 
   '@capacitor/storage@1.2.5(@capacitor/core@6.2.0)':
+    dependencies:
+      '@capacitor/core': 6.2.0
+
+  '@capawesome/capacitor-app-update@7.0.1(@capacitor/core@6.2.0)':
     dependencies:
       '@capacitor/core': 6.2.0
 
