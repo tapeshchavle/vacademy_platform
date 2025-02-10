@@ -12,7 +12,7 @@ export interface TrackingDataType {
         id: string,
         start_time_in_millis: number,
         end_time_in_millis: number
-      }[]   | null,
+      }[] | null,
     documents: 
       {
         id: string,

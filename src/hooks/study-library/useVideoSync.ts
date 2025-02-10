@@ -4,7 +4,7 @@ import { useAddVideoActivity } from '@/services/study-library/tracking-api/add-v
 import { useUpdateVideoActivity } from '@/services/study-library/tracking-api/update-video-activity';
 import { useContentStore } from '@/stores/study-library/chapter-sidebar-store';
 import { TrackingDataType } from '@/types/tracking-data-type';
-// import { calculateAndUpdateTimestamps } from '@/utils/study-library/tracking/calculateAndUpdateTimestamps';
+import { calculateAndUpdateTimestamps } from '@/utils/study-library/tracking/calculateAndUpdateTimestamps';
 import { Preferences } from '@capacitor/preferences';
 import { z } from 'zod';
 
@@ -44,9 +44,7 @@ export const useVideoSync = () => {
                     continue;
                 }
 
-                // activity = calculateAndUpdateTimestamps(activity);
-
-                
+                activity = calculateAndUpdateTimestamps(activity);
 
                 const apiPayload: TrackingDataType = {
                     id: activity.activity_id,

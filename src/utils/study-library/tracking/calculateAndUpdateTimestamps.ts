@@ -1,40 +1,34 @@
 // src/utils/study-library/tracking/calculateAndUpdateTimestamps.ts
 import { v4 as uuidv4 } from 'uuid';
-import { convertTimeToSeconds } from './convertTimeToSeconds';
 import { formatVideoTime } from './formatVideoTime';
 import { ActivitySchema } from '@/schemas/study-library/youtube-video-tracking-schema';
 import { z } from 'zod';
 
-const formatInISODateFormat = (epochTimeInMillis: number): string => {
-    return new Date(epochTimeInMillis).toISOString();
-};
 
 export const calculateAndUpdateTimestamps = (activity: z.infer<typeof ActivitySchema>) => {
     const totalTimestampDuration = activity.timestamps.reduce((sum: number, timestamp: {
-        start_time: string;
-        end_time: string;
+        start: number;
+        end: number;
     }) => {
-        const startSeconds = convertTimeToSeconds(timestamp.start_time);
-        const endSeconds = convertTimeToSeconds(timestamp.end_time);
+        const startSeconds = timestamp.start;
+        const endSeconds = timestamp.end;
         return sum + (endSeconds - startSeconds);
     }, 0);
 
-    const activityDuration = parseInt(activity.duration);
+    const activityDuration = parseInt(activity.duration)*1000;
 
     if (activityDuration > totalTimestampDuration && activity.current_start_time) {
         const remainingDuration = activityDuration - totalTimestampDuration;
-        const startTimeInSeconds = convertTimeToSeconds(activity.current_start_time);
-        const endTimeInSeconds = startTimeInSeconds + remainingDuration;
+        const endTimeInEpoch: number = activity.current_start_time_in_epoch + remainingDuration;
         
-        // Calculate the end time in epoch milliseconds
-        const endTimeInEpoch = activity.current_start_time_in_epoch + (remainingDuration * 1000);
+      
 
         const newTimestamp = {
             id: uuidv4(),
-            start_time: activity.current_start_time,
-            end_time: formatVideoTime(endTimeInSeconds),
-            start: formatInISODateFormat(activity.current_start_time_in_epoch),
-            end: formatInISODateFormat(endTimeInEpoch)
+            start_time: formatVideoTime(activity.current_start_time_in_epoch/1000),
+            end_time: formatVideoTime(endTimeInEpoch/1000),
+            start: activity.current_start_time_in_epoch,
+            end: endTimeInEpoch
         };
 
         return {

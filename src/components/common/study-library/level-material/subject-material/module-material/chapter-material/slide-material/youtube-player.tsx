@@ -184,7 +184,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                             }
 
                             currentStartTimeRef.current = formatVideoTime(currentTime);
-                            currentStartTimeInEpochRef.current = now;
+                            currentStartTimeInEpochRef.current =  convertTimeToSeconds(currentStartTimeRef.current)*1000;
                             console.log("play state")
                             
                         } else if (event.data === window.YT.PlayerState.PAUSED || 
