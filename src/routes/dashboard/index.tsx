@@ -39,7 +39,7 @@ export function Dashboard() {
             count={data?.courses}
             button={false}
           />
-          // TODO: implemnet resume feature after api is changed
+          {/* TODO: implemnet resume feature after api is changed */}
           {/* <DashboardTabs
             title="Begin your journey"
             count={data?.slides.length}
