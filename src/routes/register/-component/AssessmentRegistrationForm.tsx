@@ -4,29 +4,94 @@ import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import { SSDCLogoMobile, SSDCLogoWeb } from "@/svgs";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
+import { getOpenTestRegistrationDetails } from "../-services/open-registration-services";
+import { Route } from "..";
+import { DashboardLoader } from "@/components/core/dashboard-loader";
+import { convertToLocalDateTime } from "@/constants/helper";
+import { parseHtmlToString } from "@/lib/utils";
+import { calculateTimeLeft, getDynamicSchema } from "../-utils/helper";
+import SelectField from "@/components/design-system/select-field";
 
-export const forgotPasswordSchema = z.object({
-  email: z
-    .string({
-      required_error: "Email is required",
-      invalid_type_error: "Email must be a valid string",
-    })
-    .trim()
-    .email("Invalid email address")
-    .max(255, { message: "Email must be less than 255 characters" }),
-});
-
-type FormValues = z.infer<typeof forgotPasswordSchema>;
 const AssessmentRegistrationForm = () => {
+  const { code } = Route.useSearch();
+  const { data, isLoading } = useSuspenseQuery(
+    getOpenTestRegistrationDetails(code)
+  );
+  const zodSchema = getDynamicSchema(data.assessment_custom_fields);
+  type FormValues = z.infer<typeof zodSchema>;
+
+  // const [timeLeft, setTimeLeft] = useState(
+  //   calculateTimeLeft(
+  //     convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
+  //   )
+  // );
+
+  const navigate = useNavigate();
+  const formRef = useRef<HTMLDivElement>(null);
   const form = useForm<FormValues>({
-    resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: {
-      email: "",
-    },
+    resolver: zodResolver(zodSchema),
+    defaultValues: data.assessment_custom_fields.reduce(
+      (defaults, field) => {
+        if (field.field_type === "dropdown") {
+          const optionsArray = field.comma_separated_options
+            ? field.comma_separated_options.split(",").map((opt) => opt.trim())
+            : [];
+
+          defaults[field.field_key] = {
+            name: field.field_name,
+            value: optionsArray[0] || "",
+            is_mandatory: field.is_mandatory || false,
+            comma_separated_options: optionsArray,
+            type: field.field_type,
+          };
+        } else {
+          defaults[field.field_key] = {
+            name: field.field_name,
+            value: "",
+            is_mandatory: field.is_mandatory || false,
+            type: field.field_type,
+          };
+        }
+        return defaults;
+      },
+      {} as Record<
+        string,
+        {
+          value: string;
+          is_mandatory: boolean;
+          comma_seperated_values?: string;
+        }
+      >
+    ),
     mode: "onTouched",
   });
+
+  form.watch();
+
+  console.log(form.getValues());
+
+  const scrollToForm = () => {
+    formRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // useEffect(() => {
+  //   const timer = setInterval(() => {
+  //     setTimeLeft(
+  //       calculateTimeLeft(
+  //         convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
+  //       )
+  //     );
+  //   }, 1000);
+
+  //   return () => clearInterval(timer);
+  // }, [data.assessment_public_dto.bound_start_time]);
+
+  if (isLoading) return <DashboardLoader />;
 
   return (
     <div className="flex w-full items-center justify-center bg-[linear-gradient(180deg,#FFF9F4_0%,#E6E6FA_100%)] gap-8 flex-col sm:flex-row">
@@ -39,26 +104,34 @@ const AssessmentRegistrationForm = () => {
             <SSDCLogoWeb />
           </div>
           <h1 className="text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
-            The Human Eye and The Colourful World
+            {data?.assessment_public_dto?.assessment_name}
           </h1>
           <div className="flex items-center gap-4 text-sm flex-col sm:flex-row">
-            <span className="text-primary-500 cursor-pointer hidden sm:block">
-              Register Now!
-            </span>
             <MyButton
               type="button"
               buttonType="primary"
               scale="large"
               layoutVariant="default"
               className="block sm:hidden"
+              onClick={scrollToForm}
             >
               Register Now!
             </MyButton>
-            <span className="font-thin">27 hrs : 19 min : 43 sec</span>
+            {/* <span className="font-thin">
+              {timeLeft.hours} hrs : {timeLeft.minutes} min : {timeLeft.seconds}{" "}
+              sec
+            </span> */}
           </div>
           <div className="text-sm flex items-center gap-2">
             <span className="text-neutral-400">Already Registered?</span>
-            <span className="text-primary-500 cursor-pointer">
+            <span
+              className="text-primary-500 cursor-pointer"
+              onClick={() =>
+                navigate({
+                  to: "/register/login",
+                })
+              }
+            >
               Login with Email
             </span>
           </div>
@@ -69,29 +142,47 @@ const AssessmentRegistrationForm = () => {
           <div className="text-sm flex flex-col gap-4 px-4">
             <div className="flex flex-col">
               <h1>Registration Window:</h1>
-              <span className="font-thin">Opens: 16/11/2024, 10:00 AM</span>
-              <span className="font-thin">Closes: 16/11/2024, 10:00 AM</span>
+              <span className="font-thin">
+                Opens:{" "}
+                {convertToLocalDateTime(
+                  data.assessment_public_dto.registration_open_date
+                )}
+              </span>
+              <span className="font-thin">
+                Closes:{" "}
+                {convertToLocalDateTime(
+                  data.assessment_public_dto.registration_close_date
+                )}
+              </span>
             </div>
             <div className="flex flex-col">
               <h1>Assessment Live Dates</h1>
-              <span className="font-thin">Starts: 24/11/2024, 10:00 AM </span>
-              <span className="font-thin">Ends: 24/11/2024, 10:00 AM </span>
-            </div>
-            <div className="flex flex-col">
-              <h1>About Assessment</h1>
               <span className="font-thin">
-                This assessment is designed to evaluate your knowledge, skills,
-                and aptitude in the respective field. It provides an opportunity
-                to showcase your capabilities and gain insights into your
-                performance. Ensure you complete the registration within the
-                specified period to participate.
+                Starts:{" "}
+                {convertToLocalDateTime(
+                  data.assessment_public_dto.bound_start_time
+                )}
+              </span>
+              <span className="font-thin">
+                Ends:{" "}
+                {convertToLocalDateTime(
+                  data.assessment_public_dto.bound_end_time
+                )}
               </span>
             </div>
+            {data.assessment_public_dto.about.content && (
+              <div className="flex flex-col">
+                <h1>About Assessment</h1>
+                <span className="font-thin">
+                  {parseHtmlToString(data.assessment_public_dto.about.content)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
       <Separator className="block sm:hidden mx-4" />
-      <div className="flex justify-center items-center w-full">
+      <div className="flex justify-center items-center w-full" ref={formRef}>
         <div className="flex justify-center items-start w-full  sm:w-3/4 flex-col bg-white rounded-xl p-4 shadow-md mx-4 mb-4">
           <h1>Assessment Registration Form</h1>
           <span className="text-sm text-neutral-500">
@@ -99,192 +190,62 @@ const AssessmentRegistrationForm = () => {
           </span>
           <FormProvider {...form}>
             <form className="w-full flex flex-col gap-6 mt-4 sm:max-h-[70vh] sm:overflow-auto">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field: { onChange, value, ...field } }) => (
-                  <FormItem>
-                    <FormControl>
-                      <MyInput
-                        inputType="text"
-                        inputPlaceholder="Enter your email"
-                        input={value}
-                        onChangeFunction={onChange}
-                        required
-                        size="large"
-                        label="Email"
-                        labelStyle="font-thin"
-                        {...field}
-                        className="max-w-full !w-full"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field: { onChange, value, ...field } }) => (
-                  <FormItem>
-                    <FormControl>
-                      <MyInput
-                        inputType="text"
-                        inputPlaceholder="Enter your email"
-                        input={value}
-                        onChangeFunction={onChange}
-                        required
-                        size="large"
-                        label="Email"
-                        labelStyle="font-thin"
-                        {...field}
-                        className="max-w-full !w-full"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field: { onChange, value, ...field } }) => (
-                  <FormItem>
-                    <FormControl>
-                      <MyInput
-                        inputType="text"
-                        inputPlaceholder="Enter your email"
-                        input={value}
-                        onChangeFunction={onChange}
-                        required
-                        size="large"
-                        label="Email"
-                        labelStyle="font-thin"
-                        {...field}
-                        className="max-w-full !w-full"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field: { onChange, value, ...field } }) => (
-                  <FormItem>
-                    <FormControl>
-                      <MyInput
-                        inputType="text"
-                        inputPlaceholder="Enter your email"
-                        input={value}
-                        onChangeFunction={onChange}
-                        required
-                        size="large"
-                        label="Email"
-                        labelStyle="font-thin"
-                        {...field}
-                        className="max-w-full !w-full"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field: { onChange, value, ...field } }) => (
-                  <FormItem>
-                    <FormControl>
-                      <MyInput
-                        inputType="text"
-                        inputPlaceholder="Enter your email"
-                        input={value}
-                        onChangeFunction={onChange}
-                        required
-                        size="large"
-                        label="Email"
-                        labelStyle="font-thin"
-                        {...field}
-                        className="max-w-full !w-full"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field: { onChange, value, ...field } }) => (
-                  <FormItem>
-                    <FormControl>
-                      <MyInput
-                        inputType="text"
-                        inputPlaceholder="Enter your email"
-                        input={value}
-                        onChangeFunction={onChange}
-                        required
-                        size="large"
-                        label="Email"
-                        labelStyle="font-thin"
-                        {...field}
-                        className="max-w-full !w-full"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field: { onChange, value, ...field } }) => (
-                  <FormItem>
-                    <FormControl>
-                      <MyInput
-                        inputType="text"
-                        inputPlaceholder="Enter your email"
-                        input={value}
-                        onChangeFunction={onChange}
-                        required
-                        size="large"
-                        label="Email"
-                        labelStyle="font-thin"
-                        {...field}
-                        className="max-w-full !w-full"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field: { onChange, value, ...field } }) => (
-                  <FormItem>
-                    <FormControl>
-                      <MyInput
-                        inputType="text"
-                        inputPlaceholder="Enter your email"
-                        input={value}
-                        onChangeFunction={onChange}
-                        required
-                        size="large"
-                        label="Email"
-                        labelStyle="font-thin"
-                        {...field}
-                        className="max-w-full !w-full"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              {Object.entries(form.getValues()).map(([key, value]) => (
+                <FormField
+                  key={key}
+                  control={form.control}
+                  name={`${key}.value`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        {value.type === "dropdown" ? (
+                          <SelectField
+                            label={value.name}
+                            name={`${key}.value`}
+                            options={
+                              value.comma_separated_options?.map(
+                                (option: string, index: number) => ({
+                                  value: option,
+                                  label: option,
+                                  _id: index,
+                                })
+                              ) || []
+                            }
+                            control={form.control}
+                            required={value.is_mandatory}
+                            className="!w-full"
+                          />
+                        ) : (
+                          <MyInput
+                            inputType="text"
+                            inputPlaceholder={value.name}
+                            input={field.value}
+                            onChangeFunction={field.onChange}
+                            required={value.is_mandatory}
+                            size="large"
+                            label={value.name}
+                            className="!max-w-full !w-full"
+                          />
+                        )}
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              ))}
               <div className="flex items-center justify-center flex-col gap-4">
                 <MyButton
                   type="button"
                   buttonType="primary"
                   scale="large"
                   layoutVariant="default"
+                  onClick={() => console.log(form.getValues())}
                 >
                   Submit
                 </MyButton>
-                <p className="border-none !text-primary-500 !text-sm mb-2 cursor-pointer">
+                <p
+                  className="border-none !text-primary-500 !text-sm mb-2 cursor-pointer"
+                  onClick={() => form.reset()}
+                >
                   Reset Form
                 </p>
               </div>

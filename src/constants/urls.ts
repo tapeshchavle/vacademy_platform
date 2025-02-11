@@ -16,3 +16,4 @@ export const ASSESSMENT_SUBMIT = `${BASE_URL}/assessment-service/assessment/lear
 export const GET_DASHBOARD_DATA = `${BASE_URL}/`;
 export const GET_NOTIFCATIONS = `${BASE_URL}/`;
 export const GET_ANNOUNCEMENTS = `${BASE_URL}/`;
+export const GET_OPEN_REGISTRATION_DETAILS = `${BASE_URL}/assessment-service/open-registrations/v1/assessment-page`;
