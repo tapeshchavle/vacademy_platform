@@ -9,23 +9,31 @@ import { EmptyScheduleTest } from "@/svgs";
 
 export const ScheduleTestMainComponent = () => {
   const { setNavHeading } = useNavHeadingStore();
-  const [selectedTab, setSelectedTab] = useState<assessmentTypes>(assessmentTypes.LIVE);
-  const [assessmentData, setAssessmentData] = useState<{ [key in assessmentTypes]: any[] }>({
+  const [selectedTab, setSelectedTab] = useState<assessmentTypes>(
+    assessmentTypes.LIVE
+  );
+  const [assessmentData, setAssessmentData] = useState<{
+    [key in assessmentTypes]: any[];
+  }>({
     [assessmentTypes.LIVE]: [],
     [assessmentTypes.UPCOMING]: [],
     [assessmentTypes.PAST]: [],
   });
-  const [totalCounts, setTotalCounts] = useState<{ [key in assessmentTypes]: number }>({
+  const [totalCounts, setTotalCounts] = useState<{
+    [key in assessmentTypes]: number;
+  }>({
     [assessmentTypes.LIVE]: 0,
     [assessmentTypes.UPCOMING]: 0,
     [assessmentTypes.PAST]: 0,
   });
-  const [hasMorePages, setHasMorePages] = useState<{ [key in assessmentTypes]: boolean }>({
+  const [hasMorePages, setHasMorePages] = useState<{
+    [key in assessmentTypes]: boolean;
+  }>({
     [assessmentTypes.LIVE]: true,
     [assessmentTypes.UPCOMING]: true,
     [assessmentTypes.PAST]: true,
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState<{ [key in assessmentTypes]: number }>({
@@ -50,32 +58,35 @@ export const ScheduleTestMainComponent = () => {
 
   const fetchMoreData = useCallback(
     async (tab: assessmentTypes, pageNum: number, isInitialLoad = false) => {
-      if (loading || (loadingMore && !isInitialLoad) || !hasMorePages[tab]) return;
-  
+      if (loading || (loadingMore && !isInitialLoad) || !hasMorePages[tab])
+        return;
+
       setLoading(isInitialLoad);
       setLoadingMore(!isInitialLoad);
-  
+
       try {
         const data = await fetchAssessmentData(pageNum, pageSize, tab);
-  
+
         setAssessmentData((prevData) => ({
           ...prevData,
-          [tab]: isInitialLoad ? data.content : [...prevData[tab], ...data.content],
+          [tab]: isInitialLoad
+            ? data.content
+            : [...prevData[tab], ...data.content],
         }));
-  
+
         setTotalCounts((prevCounts) => ({
           ...prevCounts,
           [tab]: data.total_elements,
         }));
-  
+
         setHasMorePages((prev) => ({
           ...prev,
-          [tab]: !data.last, 
+          [tab]: !data.last,
         }));
-  
+
         setPage((prevPage) => ({
           ...prevPage,
-          [tab]: pageNum + 1, 
+          [tab]: pageNum + 1,
         }));
       } catch (error) {
         console.error(error);
@@ -87,7 +98,6 @@ export const ScheduleTestMainComponent = () => {
     [loading, loadingMore, hasMorePages]
   );
 
-  
   const refreshCurrentTab = useCallback(() => {
     setAssessmentData((prevData) => ({
       ...prevData,
@@ -117,11 +127,17 @@ export const ScheduleTestMainComponent = () => {
 
   return (
     <div className="items-center gap-4 min-h-full">
-      <Tabs value={selectedTab} onValueChange={(tab) => {
-        setSelectedTab(tab as assessmentTypes);
-        refreshCurrentTab();
-      }}>
-        <ScheduleTestTabList selectedTab={selectedTab} totalAssessments={totalCounts} />
+      <Tabs
+        value={selectedTab}
+        onValueChange={(tab) => {
+          setSelectedTab(tab as assessmentTypes);
+          refreshCurrentTab();
+        }}
+      >
+        <ScheduleTestTabList
+          selectedTab={selectedTab}
+          totalAssessments={totalCounts}
+        />
 
         <TabsContent
           key={selectedTab}
@@ -155,7 +171,9 @@ export const ScheduleTestMainComponent = () => {
             </div>
           )}
           {loading && <div className="text-center py-4">Loading...</div>}
-          {loadingMore && <div className="text-center py-4">Loading more...</div>}
+          {loadingMore && (
+            <div className="text-center py-4">Loading more...</div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
