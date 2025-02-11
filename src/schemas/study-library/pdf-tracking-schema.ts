@@ -29,7 +29,8 @@ export const ActivitySchema = z.object({
     total_pages_read: z.number(),
     sync_status: z.enum(['SYNCED', 'STALE']),
     current_page: z.number().optional(),
-    current_page_start_time_in_millis: z.number().optional()
+    current_page_start_time_in_millis: z.number().optional(),
+    new_activity: z.boolean()
 });
 
 export const TrackingDataSchema = z.object({

@@ -124,7 +124,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
             total_pages_read: totalPagesReadRef.current,
             sync_status: 'STALE',
             current_page: currentPage,
-            current_page_start_time_in_millis: pageStartTime.current.getTime()
+            current_page_start_time_in_millis: pageStartTime.current.getTime(),
+            new_activity: true
         }, true);
     
     }, [elapsedTime, documentId, totalPages, addActivity]);
@@ -196,7 +197,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
             total_pages_read: totalPagesReadRef.current,
             sync_status: 'STALE',
             current_page: currentPage,
-            current_page_start_time_in_millis: pageStartTime.current.getTime()
+            current_page_start_time_in_millis: pageStartTime.current.getTime(),
+            new_activity: true
         }, true);
 
     }, [elapsedTime, documentId, totalPages]);

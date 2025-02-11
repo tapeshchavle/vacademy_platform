@@ -44,7 +44,18 @@ export const useTrackingStore = create<TrackingStore>((set) => ({
                     
                     updatedData[existingActivityIndex] = {
                         ...existingActivity,
-                        ...activity // This will ensure all properties are updated
+                        start_time: activity.start_time,
+                        end_time: activity.end_time,
+                        duration: activity.duration,
+                        total_pages_read: activity.total_pages_read,
+                        sync_status: 'STALE',
+                        new_activity: existingActivity.new_activity,
+                        page_views: Array.from(
+                            new Set([
+                                ...existingActivity.page_views.map((t) => JSON.stringify(t)),
+                                ...activity.page_views.map((t) => JSON.stringify(t))
+                            ])
+                        ).map((t) => JSON.parse(t))
                     };
                 } else {
                     updatedData = [...existingActivities, activity];
