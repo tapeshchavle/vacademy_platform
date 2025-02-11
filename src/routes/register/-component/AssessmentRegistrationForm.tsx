@@ -16,6 +16,7 @@ import { convertToLocalDateTime } from "@/constants/helper";
 import { parseHtmlToString } from "@/lib/utils";
 import { calculateTimeLeft, getDynamicSchema } from "../-utils/helper";
 import SelectField from "@/components/design-system/select-field";
+import { AssessmentCustomFieldOpenRegistration } from "@/types/assessment-open-registration";
 
 const AssessmentRegistrationForm = () => {
   const { code } = Route.useSearch();
@@ -25,18 +26,30 @@ const AssessmentRegistrationForm = () => {
   const zodSchema = getDynamicSchema(data.assessment_custom_fields);
   type FormValues = z.infer<typeof zodSchema>;
 
-  // const [timeLeft, setTimeLeft] = useState(
-  //   calculateTimeLeft(
-  //     convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
-  //   )
-  // );
+  const [timeLeft, setTimeLeft] = useState(
+    calculateTimeLeft(
+      convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
+    )
+  );
 
   const navigate = useNavigate();
   const formRef = useRef<HTMLDivElement>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(zodSchema),
     defaultValues: data.assessment_custom_fields.reduce(
-      (defaults, field) => {
+      (
+        defaults: Record<
+          string,
+          {
+            name: string;
+            value: string;
+            is_mandatory: boolean;
+            type: string;
+            comma_separated_options?: string[];
+          }
+        >,
+        field: AssessmentCustomFieldOpenRegistration
+      ) => {
         if (field.field_type === "dropdown") {
           const optionsArray = field.comma_separated_options
             ? field.comma_separated_options.split(",").map((opt) => opt.trim())
@@ -62,9 +75,11 @@ const AssessmentRegistrationForm = () => {
       {} as Record<
         string,
         {
+          name: string;
           value: string;
           is_mandatory: boolean;
-          comma_seperated_values?: string;
+          type: string;
+          comma_separated_options?: string[]; // Fixed key name
         }
       >
     ),
@@ -73,23 +88,21 @@ const AssessmentRegistrationForm = () => {
 
   form.watch();
 
-  console.log(form.getValues());
-
   const scrollToForm = () => {
     formRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // useEffect(() => {
-  //   const timer = setInterval(() => {
-  //     setTimeLeft(
-  //       calculateTimeLeft(
-  //         convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
-  //       )
-  //     );
-  //   }, 1000);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(
+        calculateTimeLeft(
+          convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
+        )
+      );
+    }, 1000);
 
-  //   return () => clearInterval(timer);
-  // }, [data.assessment_public_dto.bound_start_time]);
+    return () => clearInterval(timer);
+  }, [data.assessment_public_dto.bound_start_time]);
 
   if (isLoading) return <DashboardLoader />;
 
@@ -117,10 +130,10 @@ const AssessmentRegistrationForm = () => {
             >
               Register Now!
             </MyButton>
-            {/* <span className="font-thin">
+            <span className="font-thin">
               {timeLeft.hours} hrs : {timeLeft.minutes} min : {timeLeft.seconds}{" "}
               sec
-            </span> */}
+            </span>
           </div>
           <div className="text-sm flex items-center gap-2">
             <span className="text-neutral-400">Already Registered?</span>

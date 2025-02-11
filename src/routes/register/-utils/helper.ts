@@ -1,3 +1,4 @@
+import { AssessmentCustomFieldOpenRegistration } from "@/types/assessment-open-registration";
 import { z } from "zod";
 
 export const calculateTimeLeft = (startDate: string) => {
@@ -24,26 +25,28 @@ export const calculateTimeLeft = (startDate: string) => {
   };
 };
 
-export const getDynamicSchema = (formFields: any) => {
+export const getDynamicSchema = (
+  formFields: AssessmentCustomFieldOpenRegistration[]
+) => {
   const dynamicSchema = z.object(
-    formFields.reduce(
-      (schema, field) => {
-        if (field.field_type === "dropdown") {
-          const options = field.comma_separated_options
-            .split(",")
-            .map((opt) => opt.trim());
-          schema[field.field_key] = field.is_mandatory
-            ? z.enum(options, { message: `${field.field_key} is required` })
-            : z.enum(options).optional();
-        } else {
-          schema[field.field_key] = field.is_mandatory
-            ? z.string().min(1, `${field.field_key} is required`)
-            : z.string().optional();
-        }
-        return schema;
-      },
-      {} as Record<string, z.ZodTypeAny>
-    )
+    formFields.reduce<Record<string, z.ZodTypeAny>>((schema, field) => {
+      if (field.field_type === "dropdown") {
+        const options = field.comma_separated_options
+          ? field.comma_separated_options.split(",").map((opt) => opt.trim())
+          : [];
+        schema[field.field_key] =
+          field.is_mandatory && options.length > 0
+            ? z.enum([...(options as [string, ...string[]])], {
+                message: `${field.field_key} is required`,
+              })
+            : z.enum([...(options as [string, ...string[]])]).optional();
+      } else {
+        schema[field.field_key] = field.is_mandatory
+          ? z.string().min(1, `${field.field_key} is required`)
+          : z.string().optional();
+      }
+      return schema;
+    }, {})
   );
   return dynamicSchema;
 };
