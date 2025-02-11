@@ -13,3 +13,6 @@ project(':capacitor-preferences').projectDir = new File('../node_modules/.pnpm/@
 
 include ':capacitor-storage'
 project(':capacitor-storage').projectDir = new File('../node_modules/.pnpm/@capacitor+storage@1.2.5_@capacitor+core@6.2.0/node_modules/@capacitor/storage/android')
+
+include ':capawesome-capacitor-app-update'
+project(':capawesome-capacitor-app-update').projectDir = new File('../node_modules/.pnpm/@capawesome+capacitor-app-update@7.0.1_@capacitor+core@6.2.0/node_modules/@capawesome/capacitor-app-update/android')

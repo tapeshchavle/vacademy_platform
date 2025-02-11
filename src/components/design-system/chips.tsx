@@ -14,15 +14,15 @@ export interface StatusChipProps {
 }
 
 const playModeColors: Record<PlayMode, string> = {
-  EXAM: "bg-green-100 text-black",
-  MOCK: "bg-purple-100 text-black",
-  PRACTICE: "bg-blue-100 text-black",
-  SURVEY: "bg-red-100 text-black",
+  EXAM: "bg-success-400 text-black",
+  MOCK: "bg-purple-50 text-black",
+  PRACTICE: "bg-blue-50 text-black",
+  SURVEY: "bg-red-50 text-black",
 };
 
 export const StatusChip = ({ playMode, className }: StatusChipProps) => {
   return (
-    <div className={`inline-flex items-center rounded-sm px-2 py-1 border border-gray-200 ${playModeColors[playMode]} ${className}`}>
+    <div className={`inline-flex items-center rounded-sm px-2 py-1  border border-gray-200 ${playModeColors[playMode]} ${className}`}>
       <div className="w-2 h-2 rounded-full bg-white opacity-75 mr-1.5" />
       <span className="text-xs font-medium">{playMode}</span>
     </div>

@@ -1,17 +1,48 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet, redirect } from "@tanstack/react-router";
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
+import { AppUpdate, AppUpdateAvailability } from "@capawesome/capacitor-app-update";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { toast } from "sonner";
+import { useUpdate } from "@/stores/useUpdate";
 
 const TanStackRouterDevtools =
     process.env.NODE_ENV === "production"
-        ? () => null // Render nothing in production
+        ? () => null
         : React.lazy(() =>
-              // Lazy load in development
               import("@tanstack/router-devtools").then((res) => ({
                   default: res.TanStackRouterDevtools,
-              })),
+              }))
           );
+
+
+const RootComponent = () => {
+    
+    const { setUpdateAvailable } = useUpdate();
+    useEffect(() => {
+        (async () => {
+            const result = await AppUpdate.getAppUpdateInfo();
+            if (result.updateAvailability === AppUpdateAvailability.UPDATE_AVAILABLE) {
+                toast.warning("Update available, please update app...");
+                setUpdateAvailable(true);
+                if (result.immediateUpdateAllowed) {
+                    await AppUpdate.performImmediateUpdate();
+                }
+            }
+        })();
+    }, []);
+
+    return (
+        <>
+            <Outlet />
+            {/* Development tools */}
+            <Suspense>
+                <TanStackRouterDevtools />
+            </Suspense>
+            <ReactQueryDevtools initialIsOpen={false} />
+        </>
+    );
+};
 
 export const Route = createRootRouteWithContext<{
     queryClient: QueryClient;
@@ -23,16 +54,5 @@ export const Route = createRootRouteWithContext<{
             });
         }
     },
-
-    component: () => (
-        <>
-            <Outlet />
-
-            {/* Development tools */}
-            <Suspense>
-                <TanStackRouterDevtools />
-            </Suspense>
-            <ReactQueryDevtools initialIsOpen={false} />
-        </>
-    ),
+    component: RootComponent, 
 });
