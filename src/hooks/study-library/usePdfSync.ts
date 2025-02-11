@@ -60,17 +60,22 @@ export const usePDFSync = () => {
                 };
 
                 try {
-                    if (activity.page_views.length === 1) {
+                    if (activity.page_views.length === 1 && activity.new_activity) {
                         await addDocumentActivity.mutateAsync({
                             slideId: activeItem?.slide_id || "",
                             userId,
                             requestPayload: apiPayload
                         });
+                        activity.sync_status = 'SYNCED';
+                        activity.new_activity = false;  // Move this here, after successful API call
+                        updatedActivities.push(activity);
                     } else {
                         await updateDocumentActivity.mutateAsync({
                             activityId: activity.activity_id,
                             requestPayload: apiPayload
                         });
+                        activity.sync_status = 'SYNCED';
+                        updatedActivities.push(activity);
                     }
 
                     activity.sync_status = 'SYNCED';

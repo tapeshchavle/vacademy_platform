@@ -186,7 +186,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
 
         addActivity({
             activity_id: activityId.current,
-            source: 'pdf',
+            source: 'DOCUMENT',
             source_id: documentId || '',
             start_time: startTime.current,
             end_time: getISTTime(),

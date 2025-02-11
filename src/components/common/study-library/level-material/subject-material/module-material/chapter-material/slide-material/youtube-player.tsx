@@ -120,7 +120,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
     
     const newActivity = {
         activity_id: activityId.current,
-        source: 'youtube',
+        source: 'YOUTUBE',
         source_id: videoId,
         start_time: videoStartTime.current,
         end_time: endTime,
