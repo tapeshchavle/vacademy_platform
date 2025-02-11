@@ -19,6 +19,7 @@ import { Route as StudyLibraryCoursesIndexImport } from './routes/study-library/
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
 import { Route as LoginSessionSelectionPageIndexImport } from './routes/login/SessionSelectionPage/index'
 import { Route as DashboardNotificationsIndexImport } from './routes/dashboard/notifications/index'
+import { Route as AssessmentReportsIndexImport } from './routes/assessment/reports/index'
 import { Route as AssessmentExaminationIndexImport } from './routes/assessment/examination/index'
 import { Route as StudyLibraryCoursesCourseIndexImport } from './routes/study-library/courses/$course/index'
 import { Route as AssessmentExaminationAssessmentIdIndexImport } from './routes/assessment/examination/$assessmentId/index'
@@ -85,6 +86,12 @@ const DashboardNotificationsIndexRoute =
     path: '/dashboard/notifications/',
     getParentRoute: () => rootRoute,
   } as any)
+
+const AssessmentReportsIndexRoute = AssessmentReportsIndexImport.update({
+  id: '/assessment/reports/',
+  path: '/assessment/reports/',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const AssessmentExaminationIndexRoute = AssessmentExaminationIndexImport.update(
   {
@@ -232,6 +239,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssessmentExaminationIndexImport
       parentRoute: typeof rootRoute
     }
+    '/assessment/reports/': {
+      id: '/assessment/reports/'
+      path: '/assessment/reports'
+      fullPath: '/assessment/reports'
+      preLoaderRoute: typeof AssessmentReportsIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/dashboard/notifications/': {
       id: '/dashboard/notifications/'
       path: '/dashboard/notifications'
@@ -362,6 +376,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginIndexRoute
   '/study-library': typeof StudyLibraryIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
+  '/assessment/reports': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
   '/login/SessionSelectionPage': typeof LoginSessionSelectionPageIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
@@ -387,6 +402,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginIndexRoute
   '/study-library': typeof StudyLibraryIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
+  '/assessment/reports': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
   '/login/SessionSelectionPage': typeof LoginSessionSelectionPageIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
@@ -413,6 +429,7 @@ export interface FileRoutesById {
   '/login/': typeof LoginIndexRoute
   '/study-library/': typeof StudyLibraryIndexRoute
   '/assessment/examination/': typeof AssessmentExaminationIndexRoute
+  '/assessment/reports/': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications/': typeof DashboardNotificationsIndexRoute
   '/login/SessionSelectionPage/': typeof LoginSessionSelectionPageIndexRoute
   '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
@@ -440,6 +457,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/study-library'
     | '/assessment/examination'
+    | '/assessment/reports'
     | '/dashboard/notifications'
     | '/login/SessionSelectionPage'
     | '/login/forgot-password'
@@ -464,6 +482,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/study-library'
     | '/assessment/examination'
+    | '/assessment/reports'
     | '/dashboard/notifications'
     | '/login/SessionSelectionPage'
     | '/login/forgot-password'
@@ -488,6 +507,7 @@ export interface FileRouteTypes {
     | '/login/'
     | '/study-library/'
     | '/assessment/examination/'
+    | '/assessment/reports/'
     | '/dashboard/notifications/'
     | '/login/SessionSelectionPage/'
     | '/login/forgot-password/'
@@ -514,6 +534,7 @@ export interface RootRouteChildren {
   LoginIndexRoute: typeof LoginIndexRoute
   StudyLibraryIndexRoute: typeof StudyLibraryIndexRoute
   AssessmentExaminationIndexRoute: typeof AssessmentExaminationIndexRoute
+  AssessmentReportsIndexRoute: typeof AssessmentReportsIndexRoute
   DashboardNotificationsIndexRoute: typeof DashboardNotificationsIndexRoute
   LoginSessionSelectionPageIndexRoute: typeof LoginSessionSelectionPageIndexRoute
   LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
@@ -539,6 +560,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginIndexRoute: LoginIndexRoute,
   StudyLibraryIndexRoute: StudyLibraryIndexRoute,
   AssessmentExaminationIndexRoute: AssessmentExaminationIndexRoute,
+  AssessmentReportsIndexRoute: AssessmentReportsIndexRoute,
   DashboardNotificationsIndexRoute: DashboardNotificationsIndexRoute,
   LoginSessionSelectionPageIndexRoute: LoginSessionSelectionPageIndexRoute,
   LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
@@ -585,6 +607,7 @@ export const routeTree = rootRoute
         "/login/",
         "/study-library/",
         "/assessment/examination/",
+        "/assessment/reports/",
         "/dashboard/notifications/",
         "/login/SessionSelectionPage/",
         "/login/forgot-password/",
@@ -618,6 +641,9 @@ export const routeTree = rootRoute
     },
     "/assessment/examination/": {
       "filePath": "assessment/examination/index.tsx"
+    },
+    "/assessment/reports/": {
+      "filePath": "assessment/reports/index.tsx"
     },
     "/dashboard/notifications/": {
       "filePath": "dashboard/notifications/index.tsx"
