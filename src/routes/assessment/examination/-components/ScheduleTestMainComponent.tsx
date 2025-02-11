@@ -49,40 +49,45 @@ export const ScheduleTestMainComponent = () => {
   };
 
   const fetchMoreData = useCallback(
-    (tab: assessmentTypes, pageNum: number, isInitialLoad = false) => {
+    async (tab: assessmentTypes, pageNum: number, isInitialLoad = false) => {
       if (loading || (loadingMore && !isInitialLoad) || !hasMorePages[tab]) return;
-
+  
       setLoading(isInitialLoad);
       setLoadingMore(!isInitialLoad);
-
-      fetchAssessmentData(pageNum, pageSize, tab)
-        .then((data) => {
-          if (data.content.length === 0 || data.last) {
-            setHasMorePages((prev) => ({ ...prev, [tab]: false }));
-          }
-
-          setAssessmentData((prevData) => ({
-            ...prevData,
-            [tab]: isInitialLoad ? data.content : [...prevData[tab], ...data.content],
-          }));
-          setTotalCounts((prevCounts) => ({
-            ...prevCounts,
-            [tab]: data.total_elements,
-          }));
-          setPage((prevPage) => ({
-            ...prevPage,
-            [tab]: prevPage[tab] + 1,
-          }));
-        })
-        .catch(console.error)
-        .finally(() => {
-          setLoading(false);
-          setLoadingMore(false);
-        });
+  
+      try {
+        const data = await fetchAssessmentData(pageNum, pageSize, tab);
+  
+        setAssessmentData((prevData) => ({
+          ...prevData,
+          [tab]: isInitialLoad ? data.content : [...prevData[tab], ...data.content],
+        }));
+  
+        setTotalCounts((prevCounts) => ({
+          ...prevCounts,
+          [tab]: data.total_elements,
+        }));
+  
+        setHasMorePages((prev) => ({
+          ...prev,
+          [tab]: !data.last, 
+        }));
+  
+        setPage((prevPage) => ({
+          ...prevPage,
+          [tab]: pageNum + 1, 
+        }));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     },
     [loading, loadingMore, hasMorePages]
   );
 
+  
   const refreshCurrentTab = useCallback(() => {
     setAssessmentData((prevData) => ({
       ...prevData,

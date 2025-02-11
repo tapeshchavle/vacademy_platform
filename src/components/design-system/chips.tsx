@@ -14,7 +14,7 @@ export interface StatusChipProps {
 }
 
 const playModeColors: Record<PlayMode, string> = {
-  EXAM: "bg-success-300 text-black",
+  EXAM: "bg-success-400 text-black",
   MOCK: "bg-purple-50 text-black",
   PRACTICE: "bg-blue-50 text-black",
   SURVEY: "bg-red-50 text-black",
