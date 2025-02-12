@@ -168,38 +168,53 @@ export function Navbar() {
 
   const handleSubmit = async () => {
     let attemptCount = 0;
+    // const attemptId = get().attemptId; // Retrieve attemptId from state
+    const state = useAssessmentStore.getState();
+    const attemptId = state.assessment?.attempt_id;
+  
+    if (!attemptId) {
+      console.error("Attempt ID is missing. Cannot proceed with submission.");
+      toast.error("Submission failed: Attempt ID is missing.");
+      return;
+    }
+  
     const submitData = async () => {
       const success = await sendFormattedData();
       if (!success && attemptCount < 5) {
         attemptCount++;
         const retryInterval = 10000 + attemptCount * 5000; // 10, 15, 20, 25, 30 seconds
-        
+  
         setTimeout(submitData, retryInterval);
-        toast.error("Failed to submit assessment. retrying...");
+        toast.error("Failed to submit assessment. Retrying...");
       } else if (success) {
         console.log("Data submitted successfully!");
         submitAssessment();
         toast.success("Data submitted successfully!");
-        // Remove ASSESSMENT_STATE from Capacitor Storage
-        const { value } = await Storage.get({ key: "ASSESSMENT_STATE" });
+  
+        const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+  
+        // Remove from Capacitor Storage
+        const { value } = await Storage.get({ key: storageKey });
         if (value) {
-          await Storage.remove({ key: "ASSESSMENT_STATE" });
-          console.log("ASSESSMENT_STATE removed from Capacitor Storage");
+          await Storage.remove({ key: storageKey });
+          console.log(`${storageKey} removed from Capacitor Storage`);
         }
-
-        // Remove ASSESSMENT_STATE from Local Storage
-        if (localStorage.getItem("ASSESSMENT_STATE")) {
-          localStorage.removeItem("ASSESSMENT_STATE");
-          console.log("ASSESSMENT_STATE removed from Local Storage");
+  
+        // Remove from Local Storage
+        if (localStorage.getItem(storageKey)) {
+          localStorage.removeItem(storageKey);
+          console.log(`${storageKey} removed from Local Storage`);
         }
+  
         navigate({
           to: "/assessment/examination",
         });
       }
     };
-
+  
     submitData();
   };
+  
 
   if (isAllTimeUp && !showTimesUpModal) {
     setShowTimesUpModal(true);
