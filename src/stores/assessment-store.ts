@@ -487,7 +487,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       value: JSON.stringify(dataToSave),
     });
 
-    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+    // localStorage.setItem(storageKey, JSON.stringify(dataToSave));
   },
 
   loadState: async () => {
@@ -515,7 +515,8 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     }
 
     const storageKey = `ASSESSMENT_STATE_${attemptId}`;
-    let savedState = localStorage.getItem(storageKey);
+    // let savedState = localStorage.getItem(storageKey);
+    let { value: savedState } = await Storage.get({ key: storageKey });
 
     if (!savedState) {
       const { value } = await Storage.get({ key: storageKey });

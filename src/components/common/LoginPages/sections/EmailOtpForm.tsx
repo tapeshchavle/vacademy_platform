@@ -17,7 +17,6 @@ import {
 } from "@/lib/auth/sessionUtility";
 import { LOGIN_OTP, REQUEST_OTP } from "@/constants/urls";
 import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
-import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
 
 const emailSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -102,7 +101,7 @@ export function EmailLogin({
           if (instituteId && userId) {
             try {
               await fetchAndStoreInstituteDetails(instituteId, userId);
-              await fetchAndStoreStudentDetails(instituteId, userId);
+              // await fetchAndStoreStudentDetails(instituteId, userId);
             } catch (error) {
               console.error("Error fetching details:", error);
               toast.error("Failed to fetch details");

@@ -8,6 +8,13 @@ import { startAssessment } from "@/routes/assessment/examination/-utils.ts/useFe
 import { Storage } from "@capacitor/storage";
 import { AssessmentPreviewData } from "@/types/assessment";
 import { processHtmlString } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { useProctoring } from "@/hooks";
 
 export function AssessmentPreview() {
   const router = useRouter();
@@ -15,13 +22,22 @@ export function AssessmentPreview() {
 
   const newPath = currentPath.replace(/\/[^/]+$/, "/LearnerLiveTest");
   const { assessment } = useAssessmentStore();
-  const { setAssessment } = useAssessmentStore();
+  const { setAssessment, incrementTabSwitchCount, tabSwitchCount } =
+    useAssessmentStore();
   const [activeSection, setActiveSection] = useState(0);
   const [timeLeft, setTimeLeft] = useState(() => {
     return (
       (assessment?.preview_total_time ? assessment.preview_total_time : 0) * 60
     );
   });
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const { fullScreen } = useProctoring({
+      forceFullScreen: true,
+      preventTabSwitch: true,
+      preventContextMenu: true,
+      preventUserSelection: true,
+      preventCopy: true,
+    });
   // const [assessmentData, setAssessmentData] = useState(null);
 
   const calculateMarkingScheme = (marking_json: string) => {
@@ -65,6 +81,17 @@ export function AssessmentPreview() {
   }, []);
 
   useEffect(() => {
+    const preventReload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", preventReload);
+
+    return () => window.removeEventListener("beforeunload", preventReload);
+  }, []);
+
+  useEffect(() => {
     if (timeLeft <= 0) {
       handleStartAssessment();
       return;
@@ -74,6 +101,30 @@ export function AssessmentPreview() {
     }, 1000);
     return () => clearInterval(timer);
   }, [timeLeft]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        incrementTabSwitchCount();
+        setShowWarningModal(true);
+      } else {
+        setShowWarningModal(true);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [incrementTabSwitchCount]);
+
+  const handleWarningClose = () => {
+    setShowWarningModal(false);
+    // if (tabSwitchCount >= 3) {
+    //   handleSubmit();
+    // }
+  };
 
   if (!assessment) return null;
 
@@ -89,59 +140,61 @@ export function AssessmentPreview() {
   // }, []);
 
   return (
-    <div className="flex flex-col w-full bg-gray-50">
-      {/* Navbar with Timer */}
-      <div className="sticky top-0 z-20 bg-white border-b">
-        <div className="flex flex-col bg-primary-50 items-center justify-center sm:flex-row  p-4">
-          {/* <h1 className="text-base font-semibold">{AssessmentData.name}</h1> */}
-          {/* <h1 className="text-base font-semibold">
+    <>
+      <div className="flex flex-col w-full bg-gray-50">
+        {/* Navbar with Timer */}
+        <div className="sticky top-0 z-20 bg-white border-b">
+          <div className="flex flex-col bg-primary-50 items-center justify-center sm:flex-row  p-4">
+            {/* <h1 className="text-base font-semibold">{AssessmentData.name}</h1> */}
+            {/* <h1 className="text-base font-semibold">
             {assessmentData ? assessmentData.name : "Loading..."}
           </h1> */}
-          <div className="flex items-center justify-center space-x-4 w-full">
-            {formatTime(timeLeft)
-              .split(":")
-              .map((time, index, array) => (
-                <div key={index} className="relative flex items-center">
-                  <span className="border border-gray-400 px-2 py-1 rounded">
-                    {time}
-                  </span>
-                  {index < array.length - 1 && (
-                    <span className="absolute right-[-10px] text-lg">:</span>
-                  )}
-                </div>
-              ))}
-          </div>
-        </div>
-
-        {/* Section Tabs */}
-        <div className="sticky top-0 z-10 bg-white border-b">
-          <div className="flex overflow-x-auto items-center justify-between p-4 pb-0">
-            <div className="flex flex-nowrap items-center space-x-4">
-              {assessment.section_dtos?.map((section, index) => (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(index)}
-                  className={`px-4 py-2 text-sm rounded-t-lg ${
-                    activeSection === index
-                      ? "bg-orange-50 text-primary-500 border border-b-0 border-orange-500"
-                      : "text-gray-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-max">
-                    <span>Section {index + 1}</span>
+            <div className="flex items-center justify-center space-x-4 w-full">
+              {formatTime(timeLeft)
+                .split(":")
+                .map((time, index, array) => (
+                  <div key={index} className="relative flex items-center">
+                    <span className="border border-gray-400 px-2 py-1 rounded">
+                      {time}
+                    </span>
+                    {index < array.length - 1 && (
+                      <span className="absolute right-[-10px] text-lg">:</span>
+                    )}
                   </div>
-                </button>
-              ))}
+                ))}
+            </div>
+          </div>
+
+          {/* Section Tabs */}
+          <div className="sticky top-0 z-10 bg-white border-b">
+            <div className="flex overflow-x-auto items-center justify-between p-4 pb-0">
+              <div className="flex flex-nowrap items-center space-x-4">
+                {assessment.section_dtos?.map((section, index) => (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveSection(index)}
+                    className={`px-4 py-2 text-sm rounded-t-lg ${
+                      activeSection === index
+                        ? "bg-orange-50 text-primary-500 border border-b-0 border-orange-500"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-max">
+                      <span>Section {index + 1}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main content */}
-      <div className="flex-1 p-4 sm:p-6">
-        <div className="flex flex-col space-y-8">
-          {assessment.section_dtos[activeSection].question_preview_dto_list.map(
-            (question, idx) => (
+        {/* Main content */}
+        <div className="flex-1 p-4 sm:p-6">
+          <div className="flex flex-col space-y-8">
+            {assessment.section_dtos[
+              activeSection
+            ].question_preview_dto_list.map((question, idx) => (
               <div
                 key={question.question_id}
                 className="bg-white rounded-lg p-4 sm:p-6 shadow-sm"
@@ -200,24 +253,44 @@ export function AssessmentPreview() {
                   ))}
                 </div>
               </div>
-            )
-          )}
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bg-primary-50 bottom-0 p-4 bg-white border-t">
+          <div className="flex  justify-center">
+            <MyButton
+              onClick={() => handleStartAssessment()}
+              buttonType="primary"
+              scale="large"
+              layoutVariant="default"
+            >
+              Start Test
+            </MyButton>
+          </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="sticky bg-primary-50 bottom-0 p-4 bg-white border-t">
-        <div className="flex  justify-center">
-          <MyButton
-            onClick={() => handleStartAssessment()}
-            buttonType="primary"
-            scale="large"
-            layoutVariant="default"
+      <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+        <AlertDialogContent>
+          <AlertDialogDescription>
+            Warning: You are attempting to leave the test environment. This is
+            warning {tabSwitchCount} of 3. If you attempt to leave again, your
+            test will be automatically submitted.
+          </AlertDialogDescription>
+          <AlertDialogAction
+            onClick={() => {
+              fullScreen.trigger();
+              setTimeout(() => {
+                handleWarningClose();
+              }, 100);
+            }}
           >
-            Start Test
-          </MyButton>
-        </div>
-      </div>
-    </div>
+            Return to Test
+          </AlertDialogAction>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

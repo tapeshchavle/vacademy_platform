@@ -26,6 +26,7 @@ import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { Preferences } from "@capacitor/preferences";
 import { toast } from "sonner";
 import { Storage } from "@capacitor/storage";
+import { useProctoring } from "@/hooks";
 
 export function Navbar() {
   const {
@@ -45,6 +46,13 @@ export function Navbar() {
   interface HelpType {
     type: "instructions" | "alerts" | "reattempt" | "time" | null;
   }
+  const { fullScreen } = useProctoring({
+    forceFullScreen: true,
+    preventTabSwitch: true,
+    preventContextMenu: true,
+    preventUserSelection: true,
+    preventCopy: true,
+  });
 
   const [helpType, setHelpType] = useState<HelpType["type"]>(null);
 
@@ -104,8 +112,36 @@ export function Navbar() {
       );
       console.log(response.data);
 
+      // if (response.data) {
+      //   await Preferences.remove({ key: "ASSESSMENT_STATE" });
+      // }
+
       if (response.data) {
-        await Preferences.remove({ key: "ASSESSMENT_STATE" });
+        const { value } = await Storage.get({ key: "Assessment_questions" });
+
+        if (value) {
+          try {
+            const parsedData = JSON.parse(value);
+            const attemptId = parsedData?.attempt_id;
+
+            if (attemptId) {
+              const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+              await Storage.remove({ key: storageKey });
+              localStorage.removeItem(storageKey);
+
+              console.log(`${storageKey} removed from Capacitor Storage`);
+              const { value } = await Storage.get({ key: storageKey });
+              console.log(value);
+              toast.success("Assessment state removed from Capacitor Storage");
+            } else {
+              console.error("Attempt ID not found in Assessment_questions.");
+            }
+          } catch (error) {
+            console.error("Error parsing Assessment_questions:", error);
+          }
+        } else {
+          console.error("No data found in Assessment_questions.");
+        }
       }
 
       return response.data;
@@ -151,6 +187,29 @@ export function Navbar() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        incrementTabSwitchCount();
+        setShowWarningModal(true);
+      } else {
+        setShowWarningModal(true);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [incrementTabSwitchCount]);
+
+  const handleWarningClose = () => {
+    setShowWarningModal(false);
+    if (tabSwitchCount >= 3) {
+      handleSubmit();
+    }
+  };
   const formatTime = (timeInSeconds: number) => {
     // Calculate hours, minutes, and seconds directly from seconds
     const hours = Math.floor(timeInSeconds / 3600);
@@ -171,61 +230,86 @@ export function Navbar() {
     // const attemptId = get().attemptId; // Retrieve attemptId from state
     const state = useAssessmentStore.getState();
     const attemptId = state.assessment?.attempt_id;
-  
+
     if (!attemptId) {
       console.error("Attempt ID is missing. Cannot proceed with submission.");
       toast.error("Submission failed: Attempt ID is missing.");
       return;
     }
-  
+
     const submitData = async () => {
       const success = await sendFormattedData();
       if (!success && attemptCount < 5) {
         attemptCount++;
         const retryInterval = 10000 + attemptCount * 5000; // 10, 15, 20, 25, 30 seconds
-  
+
         setTimeout(submitData, retryInterval);
         toast.error("Failed to submit assessment. Retrying...");
       } else if (success) {
         console.log("Data submitted successfully!");
         submitAssessment();
         toast.success("Data submitted successfully!");
-  
-        const storageKey = `ASSESSMENT_STATE_${attemptId}`;
-  
-        // Remove from Capacitor Storage
-        const { value } = await Storage.get({ key: storageKey });
-        if (value) {
-          await Storage.remove({ key: storageKey });
-          console.log(`${storageKey} removed from Capacitor Storage`);
-        }
-  
-        // Remove from Local Storage
-        if (localStorage.getItem(storageKey)) {
-          localStorage.removeItem(storageKey);
-          console.log(`${storageKey} removed from Local Storage`);
-        }
-  
+
+        // const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+
+        // // Remove from Capacitor Storage
+        // const { value } = await Storage.get({ key: storageKey });
+        // if (value) {
+        //   await Storage.remove({ key: storageKey });
+        //   console.log(`${storageKey} removed from Capacitor Storage`);
+        // }
+
+        // // Remove from Local Storage
+        // if (localStorage.getItem(storageKey)) {
+        //   localStorage.removeItem(storageKey);
+        //   console.log(`${storageKey} removed from Local Storage`);
+        // }
+
         navigate({
           to: "/assessment/examination",
         });
+
+        setTimeout(async () => {
+          const { value } = await Storage.get({ key: "Assessment_questions" });
+
+          if (value) {
+            try {
+              const parsedData = JSON.parse(value);
+              const attemptId = parsedData?.attempt_id;
+
+              if (attemptId) {
+                const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+
+                // Remove from Capacitor Storage
+                await Storage.remove({ key: storageKey });
+                console.log(`${storageKey} removed from Capacitor Storage`);
+
+                // Remove from Local Storage
+                if (localStorage.getItem(storageKey)) {
+                  localStorage.removeItem(storageKey);
+                  console.log(`${storageKey} removed from Local Storage`);
+                }
+              } else {
+                console.error("Attempt ID not found in Assessment_questions.");
+              }
+            } catch (error) {
+              console.error("Error parsing Assessment_questions:", error);
+            }
+          }
+        }, 2000);
       }
     };
-  
+
     submitData();
+    // fullScreen.exit();
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
   };
-  
 
   if (isAllTimeUp && !showTimesUpModal) {
     setShowTimesUpModal(true);
   }
-
-  const handleWarningClose = () => {
-    setShowWarningModal(false);
-    if (tabSwitchCount >= 3) {
-      handleSubmit();
-    }
-  };
 
   return (
     <>
@@ -308,7 +392,14 @@ export function Navbar() {
             warning {tabSwitchCount} of 3. If you attempt to leave again, your
             test will be automatically submitted.
           </AlertDialogDescription>
-          <AlertDialogAction onClick={handleWarningClose}>
+          <AlertDialogAction
+            onClick={() => {
+              fullScreen.trigger();
+              setTimeout(() => {
+                handleWarningClose();
+              }, 100);
+            }}
+          >
             Return to Test
           </AlertDialogAction>
         </AlertDialogContent>

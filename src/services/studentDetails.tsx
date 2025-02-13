@@ -118,7 +118,7 @@ const storeMappedSessions = async () => {
   try {
     // Get Student Details
     const studentData = await Preferences.get({ key: "students" });
-    if (!studentData.value) throw new Error("No student data found!");
+    // if (!studentData.value) throw new Error("No student data found!");
 
     const students: Student[] = JSON.parse(studentData.value);
     console.log("Student Details:", students);

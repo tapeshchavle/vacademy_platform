@@ -9,6 +9,12 @@ const config: CapacitorConfig = {
   appId: "io.vacademy.student.app",
   appName: "ssdc_vacademy_student",
   webDir: "dist",
+  "plugins": {
+    "PrivacyScreen": {
+      "enable": true,
+      "preventScreenshots": true
+    }
+  }
 };
 
 export default config;      
