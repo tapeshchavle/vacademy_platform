@@ -17,3 +17,4 @@ export const GET_DASHBOARD_DATA = `${BASE_URL}/`;
 export const GET_NOTIFCATIONS = `${BASE_URL}/`;
 export const GET_ANNOUNCEMENTS = `${BASE_URL}/`;
 export const GET_OPEN_REGISTRATION_DETAILS = `${BASE_URL}/assessment-service/open-registrations/v1/assessment-page`;
+export const GET_PARTICIPANTS_STATUS = `${BASE_URL}/assessment-service/open-registrations/v1/participant-status`;

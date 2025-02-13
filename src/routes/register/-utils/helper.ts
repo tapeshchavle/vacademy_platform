@@ -1,4 +1,5 @@
 import { AssessmentCustomFieldOpenRegistration } from "@/types/assessment-open-registration";
+import { UserDetailsOpenTest } from "@/types/open-test";
 import { z } from "zod";
 
 export const calculateTimeLeft = (startDate: string) => {
@@ -49,4 +50,11 @@ export const getDynamicSchema = (
     }, {})
   );
   return dynamicSchema;
+};
+
+export const getOpenRegistrationUserDetailsByEmail = (
+  users: UserDetailsOpenTest[],
+  email: string
+): UserDetailsOpenTest | null => {
+  return users.find((user) => user.email === email) || null;
 };

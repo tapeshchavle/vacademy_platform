@@ -11,6 +11,18 @@ import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { LOGIN_OTP, REQUEST_OTP } from "@/constants/urls";
 import { toast } from "sonner";
+import {
+  getTokenDecodedData,
+  setTokenInStorage,
+} from "@/lib/auth/sessionUtility";
+import {
+  handleGetParticipantsTest,
+  handleGetStudentDetailsOfInstitute,
+} from "../-services/open-registration-services";
+import { TokenKey } from "@/constants/auth/tokens";
+import { getOpenRegistrationUserDetailsByEmail } from "../-utils/helper";
+import { OpenTestAssessmentRegistrationDetails } from "@/types/open-test";
+import { useNavigate } from "@tanstack/react-router";
 
 // Define Zod Schema
 const formSchema = z.object({
@@ -23,7 +35,14 @@ const formSchema = z.object({
 // Define Form Values Type
 type FormValues = z.infer<typeof formSchema>;
 
-const CheckEmailStatusAlertDialog = () => {
+const CheckEmailStatusAlertDialog = ({
+  registrationData,
+  registrationForm,
+}: {
+  registrationData: OpenTestAssessmentRegistrationDetails;
+  registrationForm: any;
+}) => {
+  const navigate = useNavigate();
   const [isOtpSent, setIsOTPSent] = useState(false);
   const [open, setOpen] = useState(false);
   const form = useForm<FormValues>({
@@ -34,6 +53,10 @@ const CheckEmailStatusAlertDialog = () => {
     },
     mode: "onChange",
   });
+
+  const handleCloseAlertDialog = () => {
+    setOpen(false);
+  };
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [timer, setTimer] = useState(0);
@@ -103,8 +126,40 @@ const CheckEmailStatusAlertDialog = () => {
   const verifyOtpMutation = useMutation({
     mutationFn: (data: { email: string; otp: string }) =>
       axios.post(LOGIN_OTP, data),
-    onSuccess: (data) => {
-      console.log(data);
+    onSuccess: async (response) => {
+      // Store tokens in Capacitor Storage
+      await setTokenInStorage(TokenKey.accessToken, response.data.accessToken);
+      await setTokenInStorage(
+        TokenKey.refreshToken,
+        response.data.refreshToken
+      );
+      const decodedData = getTokenDecodedData(response.data.accessToken);
+      const userId = decodedData?.user;
+      const assessmentId = registrationData.assessment_public_dto.assessment_id;
+      const instituteId = registrationData.institute_id;
+      const getAllStudentDetails =
+        await handleGetStudentDetailsOfInstitute(instituteId);
+      const userDetails = getOpenRegistrationUserDetailsByEmail(
+        getAllStudentDetails,
+        email
+      );
+      const psIds = userDetails?.package_session_id;
+      const getTestDetailsOfParticipants = await handleGetParticipantsTest(
+        assessmentId,
+        instituteId,
+        userId,
+        psIds
+      );
+      if (
+        getTestDetailsOfParticipants.is_already_registered &&
+        getTestDetailsOfParticipants.remaining_attempts > 0
+      ) {
+        navigate({
+          to: `/assessment/examination/${assessmentId}/assessmentPreview`,
+        });
+      } else {
+        handleCloseAlertDialog();
+      }
     },
     onError: () => {
       toast.error("Invalid OTP", {
@@ -166,7 +221,7 @@ const CheckEmailStatusAlertDialog = () => {
             </FormItem>
             {!isOtpSent && (
               <h1
-                className="text-primary-500 text-sm cursor-pointer -mt-3"
+                className="text-primary-500 text-xs cursor-pointer -mt-3"
                 onClick={() => sendOtpMutation.mutate(email)}
               >
                 Send OTP
