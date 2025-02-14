@@ -24,10 +24,6 @@ export const LayoutContainer = ({
                 <div className={cn("m-4 md:m-7 max-w-full", className)}>{children}</div>
             </div>
             {/* TODO: implement side nab bar */}
-            {/* <div className="w-full md:w-auto">
-                <AppSidebar/>
-            </div> */}
-
         </div>
     );
 };

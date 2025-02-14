@@ -220,6 +220,8 @@ const removeTokensAndLogout = async (): Promise<void> => {
     
     // Remove institute ID
     await removeInstituteIdFromStorage();
+    // remove all the items from storage
+    await Storage.clear();
 
     // Redirect to login or handle logout logic
     console.log("User logged out.");

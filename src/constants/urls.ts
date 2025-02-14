@@ -13,6 +13,13 @@ export const ASSESSMENT_PREVIEW = `${BASE_URL}/assessment-service/assessment/lea
 export const START_ASSESSMENT = `${BASE_URL}/assessment-service/assessment/learner/assessment-start-assessment`;
 export const ASSESSMENT_SAVE = `${BASE_URL}/assessment-service/assessment/learner/status/update`;
 export const ASSESSMENT_SUBMIT = `${BASE_URL}/assessment-service/assessment/learner/status/submit`;
-export const GET_DASHBOARD_DATA = `${BASE_URL}/`;
+
+export const GET_DASHBOARD_DATA = `${BASE_URL}/admin-core-service/learner/v1/get-dashboard-details`;
+export const GET_ASSESSMENT_COUNT = `${BASE_URL}/assessment-service/assessment/learner-assessment/v1/assessment-count-for-user-id`;
 export const GET_NOTIFCATIONS = `${BASE_URL}/`;
 export const GET_ANNOUNCEMENTS = `${BASE_URL}/`;
+
+export const GET_SIGNED_URL = `${BASE_URL}/media-service/get-signed-url`;
+export const ACKNOWLEDGE = `${BASE_URL}/media-service/acknowledge`;
+export const GET_PUBLIC_URL = `${BASE_URL}/media-service/get-public-url`;
+export const GET_DETAILS = `${BASE_URL}/media-service/get-details/ids`;
