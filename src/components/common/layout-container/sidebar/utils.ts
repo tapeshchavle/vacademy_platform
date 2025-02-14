@@ -41,16 +41,7 @@ export const SidebarItemsData: SidebarItemsType[] = [
     },
 ];
 export const HamBurgerSidebarItemsData: SidebarItemsType[] = [
-  // {
-  //     icon: House,
-  //     title: "Setings",
-  //     to: "/dashboard",
-  // },
-  // {
-  //     icon: BookOpen,
-  //     title: "View Profile Details",
-  //     to: "/study-library",
-  // },
+  //TODO : add other options when api and ui is available
   {
     icon: SignOut ,
     title: "Log Out",

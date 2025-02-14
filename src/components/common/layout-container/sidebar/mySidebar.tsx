@@ -14,8 +14,6 @@ import {
 import { SidebarItem } from "./sidebar-item";
 import { SidebarItemsData, HamBurgerSidebarItemsData } from "./utils";
 import "./scrollbarStyle.css";
-// import { SsdcLogo_Login } from "@/assets/svgs";
-// import Logo from "@/svgs/ssdc-logo.svg";
 import useStore from "./useSidebar";
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
 
@@ -25,12 +23,10 @@ export const MySidebar = ({
   sidebarComponent?: React.ReactNode;
 }) => {
   const { state }: SidebarStateType = useSidebar();
-  const { sideBarState, instituteName, instituteLogoFileUrl } = useStore();
+  const { sideBarState, instituteName, instituteLogoFileUrl } =
+    useStore();
   return (
-    <Sidebar
-      side={sideBarState === sideBarStateType.DEFAULT ? "left" : "right"}
-      collapsible="icon"
-    >
+    <Sidebar side="left" collapsible="icon">
       <SidebarContent
         className={`sidebar-content flex flex-col gap-5 border-r-2 border-r-neutral-300 ${sideBarState === sideBarStateType.DEFAULT ? " bg-primary-50 " : " bg-sidebar-primary-foreground "}  py-10 ${
           state == "expanded" ? "w-[307px]" : "w-28"

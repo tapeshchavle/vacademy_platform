@@ -10,16 +10,37 @@ import { FiSidebar } from "react-icons/fi";
 // import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import useStore from "../sidebar/useSidebar";
-import { sideBarStateType } from "../../../../types/layout-container-types";
+import { Preferences } from "@capacitor/preferences";
+import { getPublicUrl } from "@/services/upload_file";
+import {LogoutSidebar} from "../sidebar/logoutSidebar"
 
 export function Navbar() {
   // const [notifications, setNotifications] = useState<boolean>(true);
   // const navigate = useNavigate();
   const { navHeading } = useNavHeadingStore();
-  const { setSideBarState, fetchInstituteDetails } = useStore();
+  const { setInstituteDetails, setSidebarOpen } = useStore();
   async function fetch() {
-    await fetchInstituteDetails();
+    try {
+      const InstituteDetailsData = await Preferences.get({
+        key: "InstituteDetails",
+      });
+
+      const InstituteDetails = InstituteDetailsData.value
+        ? JSON.parse(InstituteDetailsData.value)
+        : null;
+
+      if (InstituteDetails) {
+        const url = InstituteDetails.institute_logo_file_id
+          ? await getPublicUrl(InstituteDetails.institute_logo_file_id)
+          : "";
+
+        setInstituteDetails(InstituteDetails.institute_name, url);
+      }
+    } catch (error) {
+      console.error("Error fetching institute details:", error);
+    }
   }
+
   useEffect(() => {
     // setNotifications(true);
     fetch();
@@ -30,11 +51,11 @@ export function Navbar() {
 
   return (
     <div className="flex h-[72px] items-center justify-between bg-neutral-50 max-sm:px-2 px-8 py-4">
+      <LogoutSidebar/>
       <div className="flex items-center gap-3">
         <SidebarTrigger>
           <div
             onClick={() => {
-              setSideBarState(sideBarStateType.DEFAULT);
             }}
           >
             <FiSidebar className="text-neutral-600" />
@@ -52,15 +73,14 @@ export function Navbar() {
             <div className="absolute right-0 top-0 size-2 rounded-full bg-primary-500"></div>
           )}
         </div> */}
-        <SidebarTrigger>
-          <div
-            onClick={() => {
-              setSideBarState(sideBarStateType.HAMBURGER);
-            }}
-          >
-            <List className="size-5" />
-          </div>
-        </SidebarTrigger>
+        <div
+          className="size-5 "
+          onClick={() => {
+            setSidebarOpen();
+          }}
+        >
+          <List className="size-5" />
+        </div>
       </div>
     </div>
   );

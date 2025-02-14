@@ -5,19 +5,23 @@ import { getPublicUrl } from "@/services/upload_file";
 
 interface StoreState {
   sideBarState: sideBarStateType;
+  sideBarOpen:boolean;
   instituteName: string;
   instituteLogoFileUrl: string;
+  setSidebarOpen:()=>void;
   setSideBarState: (sidebarstate: sideBarStateType) => void;
-  fetchInstituteDetails: () => Promise<void>; 
+  setInstituteDetails: (instituteName : string, instituteLogoFileUrl : string) => void;
 }
 
 const useStore = create<StoreState>((set) => ({
   sideBarState: sideBarStateType.DEFAULT,
+  sideBarOpen: true,
   instituteName: "",
   instituteLogoFileUrl: "",
+  setSidebarOpen: () => set((state) => ({ sideBarOpen: !state.sideBarOpen })),
   setSideBarState: (sidebarstate) => set({ sideBarState: sidebarstate }),
 
-  fetchInstituteDetails: async () => {
+  setInstituteDetails: async () => {
     try {
       const InstituteDetailsData = await Preferences.get({
         key: "InstituteDetails",
