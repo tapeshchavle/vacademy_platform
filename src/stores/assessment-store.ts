@@ -421,43 +421,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       return { entireTestTimer: newTimer };
     }),
 
-  // saveState: async () => {
-  //   const state = get();
-  //   const dataToSave = {
-  //     assessment: state.assessment,
-  //     currentSection: state.currentSection,
-  //     currentQuestion: state.currentQuestion,
-  //     questionStates: state.questionStates,
-  //     answers: state.answers,
-  //     sectionTimers: state.sectionTimers,
-  //     questionTimers: state.questionTimers,
-  //     entireTestTimer: state.entireTestTimer,
-  //     tabSwitchCount: state.tabSwitchCount,
-  //     questionStartTime: state.questionStartTime,
-  //   };
-
-  //   await Storage.set({
-  //     key: "ASSESSMENT_STATE",
-  //     value: JSON.stringify(dataToSave),
-  //   });
-
-  //   localStorage.setItem("ASSESSMENT_STATE", JSON.stringify(dataToSave));
-  // },
-
-  // loadState: async () => {
-  //   let savedState = localStorage.getItem("ASSESSMENT_STATE");
-
-  //   if (!savedState) {
-  //     const { value } = await Storage.get({ key: "ASSESSMENT_STATE" });
-  //     savedState = value;
-  //   }
-
-  //   if (savedState) {
-  //     const parsedState = JSON.parse(savedState);
-  //     set(parsedState);
-  //   }
-  // },
-
   saveState: async () => {
     const state = get();
     const attemptId = state?.assessment?.attempt_id;

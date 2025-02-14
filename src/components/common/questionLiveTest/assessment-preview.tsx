@@ -80,16 +80,6 @@ export function AssessmentPreview() {
     setAssessmentData();
   }, []);
 
-  useEffect(() => {
-    const preventReload = (e) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", preventReload);
-
-    return () => window.removeEventListener("beforeunload", preventReload);
-  }, []);
 
   useEffect(() => {
     if (timeLeft <= 0) {

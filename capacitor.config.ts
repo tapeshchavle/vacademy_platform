@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   // server: {
-  //   url: "http://192.168.56.1:5173/",
+  //   url: "http://192.168.68.119:8100/",
   //   cleartext: true,
   // },
 

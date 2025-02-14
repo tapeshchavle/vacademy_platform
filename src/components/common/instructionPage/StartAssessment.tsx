@@ -1,13 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { MyButton } from "@/components/design-system/button";
 import { useNavigate } from "@tanstack/react-router";
 import { useLocation } from "@tanstack/react-router";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogOverlay,
-} from "@/components/ui/alert-dialog";
 import { fetchPreviewData } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
 import { useProctoring } from "@/hooks/proctoring/useProctoring";
 import { AssessmentPreview } from "../questionLiveTest/assessment-preview";
@@ -19,7 +14,7 @@ const AssessmentStartModal = () => {
   const assessmentId = pathSegments[3];
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  // const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [examHasStarted, setExamHasStarted] = useState(false);
   const navigate = useNavigate();
   const enableProtection = async () => {
@@ -37,23 +32,23 @@ const AssessmentStartModal = () => {
     // preventCopy: true,
   });
 
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    if (showErrorAlert) {
-      timeoutId = setTimeout(() => {
-        setShowErrorAlert(false);
-      }, 3000);
-    }
-    return () => clearTimeout(timeoutId);
-  }, [showErrorAlert]);
+  // useEffect(() => {
+  //   let timeoutId: NodeJS.Timeout;
+  //   if (showErrorAlert) {
+  //     timeoutId = setTimeout(() => {
+  //       setShowErrorAlert(false);
+  //     }, 3000);
+  //   }
+  //   return () => clearTimeout(timeoutId);
+  // }, [showErrorAlert]);
 
   const handleClose = () => {
     setIsOpen(false);
   };
 
-  const handleAlertClose = () => {
-    setShowErrorAlert(false);
-  };
+  // const handleAlertClose = () => {
+  //   setShowErrorAlert(false);
+  // };
 
   const handleAssessmentAction = async () => {
     if (isLoading) return;
@@ -75,12 +70,12 @@ const AssessmentStartModal = () => {
           });
         }, 100);
       } else {
-        setShowErrorAlert(true);
+        // setShowErrorAlert(true);
         setIsOpen(false);
       }
     } catch (error) {
       console.error("Error during assessment action:", error);
-      setShowErrorAlert(true);
+      // setShowErrorAlert(true);
       setIsOpen(false);
     } finally {
       setIsLoading(false);
@@ -146,7 +141,7 @@ const AssessmentStartModal = () => {
         </div>
       )}
 
-      {showErrorAlert && (
+      {/* {showErrorAlert && (
         <div className="sm:max-w-[90%] md:max-w-[400px] lg:max-w-[500px]">
           <AlertDialog open={showErrorAlert} onOpenChange={handleAlertClose}>
             <AlertDialogOverlay
@@ -163,7 +158,7 @@ const AssessmentStartModal = () => {
             </AlertDialogContent>
           </AlertDialog>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

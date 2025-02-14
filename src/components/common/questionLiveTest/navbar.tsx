@@ -110,11 +110,6 @@ export function Navbar() {
           },
         }
       );
-      console.log(response.data);
-
-      // if (response.data) {
-      //   await Preferences.remove({ key: "ASSESSMENT_STATE" });
-      // }
 
       if (response.data) {
         const { value } = await Storage.get({ key: "Assessment_questions" });
@@ -127,12 +122,6 @@ export function Navbar() {
             if (attemptId) {
               const storageKey = `ASSESSMENT_STATE_${attemptId}`;
               await Storage.remove({ key: storageKey });
-              localStorage.removeItem(storageKey);
-
-              console.log(`${storageKey} removed from Capacitor Storage`);
-              const { value } = await Storage.get({ key: storageKey });
-              console.log(value);
-              toast.success("Assessment state removed from Capacitor Storage");
             } else {
               console.error("Attempt ID not found in Assessment_questions.");
             }
@@ -227,7 +216,6 @@ export function Navbar() {
 
   const handleSubmit = async () => {
     let attemptCount = 0;
-    // const attemptId = get().attemptId; // Retrieve attemptId from state
     const state = useAssessmentStore.getState();
     const attemptId = state.assessment?.attempt_id;
 
@@ -246,24 +234,8 @@ export function Navbar() {
         setTimeout(submitData, retryInterval);
         toast.error("Failed to submit assessment. Retrying...");
       } else if (success) {
-        console.log("Data submitted successfully!");
         submitAssessment();
-        toast.success("Data submitted successfully!");
-
-        // const storageKey = `ASSESSMENT_STATE_${attemptId}`;
-
-        // // Remove from Capacitor Storage
-        // const { value } = await Storage.get({ key: storageKey });
-        // if (value) {
-        //   await Storage.remove({ key: storageKey });
-        //   console.log(`${storageKey} removed from Capacitor Storage`);
-        // }
-
-        // // Remove from Local Storage
-        // if (localStorage.getItem(storageKey)) {
-        //   localStorage.removeItem(storageKey);
-        //   console.log(`${storageKey} removed from Local Storage`);
-        // }
+        toast.success("Assessment submitted successfully!");
 
         navigate({
           to: "/assessment/examination",
@@ -284,11 +256,6 @@ export function Navbar() {
                 await Storage.remove({ key: storageKey });
                 console.log(`${storageKey} removed from Capacitor Storage`);
 
-                // Remove from Local Storage
-                if (localStorage.getItem(storageKey)) {
-                  localStorage.removeItem(storageKey);
-                  console.log(`${storageKey} removed from Local Storage`);
-                }
               } else {
                 console.error("Attempt ID not found in Assessment_questions.");
               }
@@ -301,7 +268,6 @@ export function Navbar() {
     };
 
     submitData();
-    // fullScreen.exit();
     if (document.fullscreenElement) {
       document.exitFullscreen();
     }
