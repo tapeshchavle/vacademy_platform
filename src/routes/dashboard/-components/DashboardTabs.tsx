@@ -1,11 +1,12 @@
 import { PlayCircle } from "@/assets/svgs";
+import { Slide } from "@/types/dashbaord/types";
 
 interface DashboardTabsProps {
   title: string;
   count?: number;
   button?: boolean;
   buttonText?: string;
-  list?: string[];
+  list?: Slide[];
 }
 
 export function DashboardTabs({
@@ -13,7 +14,7 @@ export function DashboardTabs({
   count,
   button,
   buttonText,
-  list,
+  list = [],
 }: DashboardTabsProps) {
   return (
     <div className="border rounded-md bg-sidebar-background p-4 flex flex-col">
@@ -21,14 +22,16 @@ export function DashboardTabs({
         <div>{title}</div>
         <div className="text-primary-500">{count}</div>
       </div>
+      {list?.length > 0 && (
         <div className="flex flex-col gap-2 my-4">
           {list?.map((item, idx) => (
             <div key={idx} className="flex flex-row gap-5 items-start">
-              <img src={PlayCircle} alt="" />
-              <div>{item}</div>
+              <PlayCircle />
+              <div>{item.slide_title}</div>
             </div>
           ))}
         </div>
+      )}
 
       {button && (
         <div className="w-full flex items-center justify-center mt-4">
