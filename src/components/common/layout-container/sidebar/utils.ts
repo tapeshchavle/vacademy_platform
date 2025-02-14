@@ -20,18 +20,18 @@ export const SidebarItemsData: SidebarItemsType[] = [
                 subItem: "Examination",
                 subItemLink: "/assessment/examination",
             },
-            {
-                subItem: "Mock Test",
-                subItemLink: "/assessment/mock-test",
-            },
-            {
-                subItem: "Practice Test",
-                subItemLink: "/assessment/practice-test",
-            },
-            {
-                subItem: "Survey",
-                subItemLink: "/assessment/survey",
-            },
+            // {
+            //     subItem: "Mock Test",
+            //     subItemLink: "/assessment/mock-test",
+            // },
+            // {
+            //     subItem: "Practice Test",
+            //     subItemLink: "/assessment/practice-test",
+            // },
+            // {
+            //     subItem: "Survey",
+            //     subItemLink: "/assessment/survey",
+            // },
             {
                 subItem: "Reports",
                 subItemLink: "/assessment/reports",

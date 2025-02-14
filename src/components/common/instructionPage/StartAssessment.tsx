@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogOverlay } from "@/component
 // import { fetchPreviewData, startAssessment, restartAssessment } from '@/services/assessmentAPI';
 import { Storage } from "@capacitor/storage";
 import { fetchPreviewData } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
+// import { useProctoring } from "@/hooks/proctoring/useProctoring";
 
 const AssessmentStartModal = ({ isRestart = false }) => {
   const location = useLocation();
@@ -16,6 +17,16 @@ const AssessmentStartModal = ({ isRestart = false }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const navigate = useNavigate();
+
+  // const [examHasStarted, setExamHasStarted] = useState(false)
+
+  // const { fullScreen, tabFocus } = useProctoring({
+  //   forceFullScreen: true,
+  //   preventTabSwitch: true,
+  //   preventContextMenu: true,
+  //   preventUserSelection: true,
+  //   preventCopy: true,
+  // })
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -54,6 +65,10 @@ const AssessmentStartModal = ({ isRestart = false }) => {
       if (response) {
         setIsOpen(false);
         setTimeout(() => {
+        setIsOpen(false);
+          // fullScreen.trigger()
+          // // Wait before react finishes updating state. flushSync doesn't seem to work
+          // setExamHasStarted(true)
           navigate({
             to: `/assessment/examination/${assessmentId}/assessmentPreview`,
             replace: true
@@ -72,8 +87,17 @@ const AssessmentStartModal = ({ isRestart = false }) => {
     }
   };
 
+  // const getContent = () => {
+  //   // if (fullScreen.status === 'off') return <ExamPaused />
+  //   // if (tabFocus.status === false) return <ExamPaused />
+
+  //   return <AssessmentPreview />
+  // }
+
   return (
     <div className="flex justify-center pt-4">
+      {/* <div className="test-container">{getContent()}</div> */}
+      {/* <Alerts fullScreen={fullScreen} tabFocus={tabFocus} /> */}
       <MyButton
         onClick={() => setIsOpen(true)}
         buttonType="primary"
