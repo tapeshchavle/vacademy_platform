@@ -10,7 +10,6 @@ export const useFileUpload = () => {
             userId,
             source,
             sourceId,
-            publicUrl,
         }: {
             file: File;
             setIsUploading: React.Dispatch<React.SetStateAction<boolean>>;
@@ -26,7 +25,6 @@ export const useFileUpload = () => {
                     userId,
                     source,
                     sourceId,
-                    publicUrl,
                 );
             } catch (error) {
                 console.error("Upload error:", error);
