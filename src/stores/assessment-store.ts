@@ -55,7 +55,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   assessment: null,
   currentSection: 0,
   currentQuestion: null,
-  currentQuestionIndex:0,
+  currentQuestionIndex: 0,
   questionStates: {},
   answers: {},
   sectionTimers: {},
@@ -159,8 +159,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         [question.question_id]: Date.now(),
       },
     })),
-
-    
 
   setQuestionState: (questionId, state) =>
     set((prevState) => ({
@@ -425,6 +423,13 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
 
   saveState: async () => {
     const state = get();
+    const attemptId = state?.assessment?.attempt_id;
+
+    if (!attemptId) {
+      console.error("Attempt ID is missing");
+      return;
+    }
+
     const dataToSave = {
       assessment: state.assessment,
       currentSection: state.currentSection,
@@ -438,19 +443,46 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       questionStartTime: state.questionStartTime,
     };
 
+    const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+
     await Storage.set({
-      key: "ASSESSMENT_STATE",
+      key: storageKey,
       value: JSON.stringify(dataToSave),
     });
 
-    localStorage.setItem("ASSESSMENT_STATE", JSON.stringify(dataToSave));
+    // localStorage.setItem(storageKey, JSON.stringify(dataToSave));
   },
 
   loadState: async () => {
-    let savedState = localStorage.getItem("ASSESSMENT_STATE");
+    const getAttemptId = async () => {
+      const { value } = await Storage.get({ key: "Assessment_questions" });
+
+      if (!value) {
+        console.error("No data found in Assessment_questions.");
+        return null;
+      }
+
+      try {
+        const parsedData = JSON.parse(value);
+        return parsedData?.attempt_id || null;
+      } catch (error) {
+        console.error("Error parsing Assessment_questions:", error);
+        return null;
+      }
+    };
+    const attemptId = await getAttemptId();
+
+    if (!attemptId) {
+      console.error("Attempt ID is required to load state");
+      return;
+    }
+
+    const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+    // let savedState = localStorage.getItem(storageKey);
+    let { value: savedState } = await Storage.get({ key: storageKey });
 
     if (!savedState) {
-      const { value } = await Storage.get({ key: "ASSESSMENT_STATE" });
+      const { value } = await Storage.get({ key: storageKey });
       savedState = value;
     }
 

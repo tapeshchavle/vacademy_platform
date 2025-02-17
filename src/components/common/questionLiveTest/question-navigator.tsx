@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,6 +8,7 @@ import { useAssessmentStore } from "@/stores/assessment-store";
 import { ViewToggle } from "./view-toggle";
 import { QuestionListView } from "./question-list-view";
 import { QuestionDto , QuestionState} from "@/types/assessment";
+import { Circle } from "@phosphor-icons/react";
 
 interface QuestionNavigatorProps {
   onClose: () => void;
@@ -105,7 +105,7 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
                   </div>
                   {(key === "Marked for review" ||
                     key === "Answered & Marked for review") && (
-                    <Flag className="absolute -top-1 -right-1 w-3 h-3 text-primary-500" />
+                    <Circle className="absolute -top-1 -right-1 w-3 h-3 text-primary-500" weight="fill" />
                   )}
                 </div>
                 <span>{key}</span>
@@ -135,14 +135,13 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
                     {index + 1}
                   </Button>
                   {state?.isMarkedForReview && (
-                    <Flag className="absolute -top-1 -right-1 w-2 h-2 text-primary-500" />
+                    <Circle className="absolute -top-1 -right-1 w-3 h-3 text-primary-500" weight="fill" />
                   )}
                 </div>
               );
             })}
           </div>
         ) : (
-          // <QuestionListView onQuestionClick={handleQuestionClick} />
           <QuestionListView />
         )}
       </ScrollArea>

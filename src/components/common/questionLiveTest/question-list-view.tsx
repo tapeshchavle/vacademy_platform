@@ -1,9 +1,9 @@
 import { cn, processHtmlString } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Flag } from "lucide-react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { QuestionDto, QuestionState } from "@/types/assessment";
 import { useEffect } from "react";
+import { Circle } from "@phosphor-icons/react";
 
 export function QuestionListView() {
   const {
@@ -64,7 +64,7 @@ export function QuestionListView() {
                   </span>
                 </div>
                 {state?.isMarkedForReview && (
-                  <Flag className="h-4 w-4 text-primary-500" />
+                  <Circle className="h-4 w-4 text-primary-500" weight="fill" />
                 )}
               </div>
               <div className="text-sm line-clamp-2">

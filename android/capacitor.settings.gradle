@@ -2,6 +2,9 @@
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../node_modules/.pnpm/@capacitor+android@6.2.0_@capacitor+core@6.2.0/node_modules/@capacitor/android/capacitor')
 
+include ':capacitor-community-privacy-screen'
+project(':capacitor-community-privacy-screen').projectDir = new File('../node_modules/.pnpm/@capacitor-community+privacy-screen@6.0.0_@capacitor+core@6.2.0/node_modules/@capacitor-community/privacy-screen/android')
+
 include ':capacitor-app'
 project(':capacitor-app').projectDir = new File('../node_modules/.pnpm/@capacitor+app@6.0.2_@capacitor+core@6.2.0/node_modules/@capacitor/app/android')
 

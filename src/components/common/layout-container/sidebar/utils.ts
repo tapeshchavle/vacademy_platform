@@ -17,7 +17,7 @@ export const SidebarItemsData: SidebarItemsType[] = [
         title: "Assessment Centre",
         subItems: [
             {
-                subItem: "Examination",
+                subItem: "Assessment List",
                 subItemLink: "/assessment/examination",
             },
             // {
@@ -32,10 +32,10 @@ export const SidebarItemsData: SidebarItemsType[] = [
             //     subItem: "Survey",
             //     subItemLink: "/assessment/survey",
             // },
-            {
-                subItem: "Reports",
-                subItemLink: "/assessment/reports",
-            },
+            // {
+            //     subItem: "Reports",
+            //     subItemLink: "/assessment/reports",
+            // },
             
         ],
     },

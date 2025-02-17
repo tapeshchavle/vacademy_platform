@@ -107,7 +107,7 @@ const SessionSelectionPage = () => {
 
       {sessionList.length === 0 ? (
         <Card className="p-6 text-center">
-          <p className="text-gray-500">No sessions available.</p>
+            <p className="text-gray-500">You are not currently enrolled in any courses.</p>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">

@@ -118,9 +118,9 @@ const storeMappedSessions = async () => {
   try {
     // Get Student Details
     const studentData = await Preferences.get({ key: "students" });
-    if (!studentData.value) throw new Error("No student data found!");
+    // if (!studentData.value) throw new Error("No student data found!");
 
-    const students: Student[] = JSON.parse(studentData.value);
+    const students: Student[] = studentData.value ? JSON.parse(studentData.value) : [];
     console.log("Student Details:", students);
 
     // Get Institute Details
@@ -141,13 +141,6 @@ const storeMappedSessions = async () => {
 
     console.log("Matched Sessions:", matchedSessions);
 
-    // Store mapped data
-    await Preferences.set({
-      key: "DifferentSessions",
-      value: JSON.stringify(matchedSessions),
-    });
-
-    console.log("Successfully stored DifferentSessions!");
   } catch (error) {
     console.error("Error in storing mapped sessions:", error);
   }
