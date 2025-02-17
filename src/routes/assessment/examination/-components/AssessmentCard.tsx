@@ -59,7 +59,7 @@ export const AssessmentCard = ({
 
   const handleAction = async () => {
     // Check if user still has attempts remaining
-    if ((assessmentInfo?.user_attempts ?? 1) < assessmentInfo.assessment_attempts) {
+    if ((assessmentInfo?.user_attempts ?? 1) <= assessmentInfo.assessment_attempts) {
       // If status is PREVIEW or LIVE, show restart dialog
       if (
         assessmentInfo.recent_attempt_status === "PREVIEW" ||
