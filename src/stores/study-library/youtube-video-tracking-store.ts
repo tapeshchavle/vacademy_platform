@@ -1,9 +1,7 @@
 import { create } from 'zustand';
 import { Preferences } from '@capacitor/preferences';
-import { TrackingStore } from '@/schemas/study-library/youtube-video-tracking-schema';
-import { TrackingDataSchema } from '@/schemas/study-library/youtube-video-tracking-schema';
+import { TrackingStore, TrackingDataSchema, ActivitySchema } from '@/schemas/study-library/youtube-video-tracking-schema';
 import { z } from 'zod';
-import { ActivitySchema } from '@/schemas/study-library/youtube-video-tracking-schema';
 
 const STORAGE_KEY = 'video_tracking_data';
 
@@ -48,6 +46,9 @@ export const useTrackingStore = create<TrackingStore>((set) => ({
                         duration: activity.duration,
                         percentage_watched: activity.percentage_watched,
                         sync_status: 'STALE',
+                        current_start_time: activity.current_start_time,
+                        current_start_time_in_epoch: activity.current_start_time_in_epoch,
+                        new_activity: existingActivity.new_activity,
                         timestamps: Array.from(
                             new Set([
                                 ...existingActivity.timestamps.map((t) => JSON.stringify(t)),
