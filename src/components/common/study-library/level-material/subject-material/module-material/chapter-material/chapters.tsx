@@ -1,16 +1,10 @@
 import { EmptyChaptersImage } from "@/assets/svgs";
 import { ChapterCard } from "./chapter-card";
+import { ChapterWithSlides } from "@/stores/study-library/use-modules-with-chapters-store";
 
-export interface ChapterType {
-    name: string;
-    description: string;
-    resourceCount?: {
-        ebooks: number;
-        videos: number;
-    };
-}
 
-export const Chapters = ({ chapters}:{chapters:ChapterType[]}) => {
+
+export const Chapters = ({ chapters}:{chapters:ChapterWithSlides[]}) => {
     return(
         <div className=" w-full flex flex-col items-center justify-center">
         {!chapters.length && (

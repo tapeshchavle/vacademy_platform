@@ -1,42 +1,17 @@
 // stores/content-store.ts
 import { create } from "zustand";
-import { SidebarContentItem } from "@/types/study-library/chapter-sidebar";
+import { Slide } from "@/hooks/study-library/use-slides";
 
-// stores/content-store.ts
 interface ContentStore {
-    items: SidebarContentItem[];
-    activeItemId: string | null;
-    setActiveItem: (item: SidebarContentItem) => void;
+    items: Slide[];
+    activeItem: Slide | null;
+    setItems: (items: Slide[]) => void;
+    setActiveItem: (item: Slide | null) => void;
 }
 
-const itemsDummyData: SidebarContentItem[] = [
-    {
-        id: "123",
-        type: "pdf",
-        name: "Human Eye",
-        url: "",
-        content:  "", 
-        createdAt: new Date()
-    },
-    {
-        id: "124",
-        type: "video",
-        name: "Refraction",
-        url: "",
-        content:  "", 
-        createdAt: new Date()
-    },
-]
-
 export const useContentStore = create<ContentStore>((set) => ({
-    items: itemsDummyData,
-    activeItemId: "123",
-    setActiveItem: (item) => {
-        set((state) => {
-            const updatedItems = state.items.map((i) =>
-                i.id === item.id ? { ...i, name: item.name } : i,
-            );
-            return { items: updatedItems, activeItemId: item.id }; // Set activeItemId here
-        });
-    }
+    items: [],
+    activeItem: null,
+    setItems: (items) => set({ items }),
+    setActiveItem: (item) => set({ activeItem: item })
 }));

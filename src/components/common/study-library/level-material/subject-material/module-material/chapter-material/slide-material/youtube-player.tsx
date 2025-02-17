@@ -1,7 +1,12 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import { useTrackingStore } from "@/stores/study-library/youtube-video-tracking-store";
-import { getISTTime } from "./utils";
+import { getEpochTimeInMillis } from "./utils";
+import { convertTimeToSeconds } from "@/utils/study-library/tracking/convertTimeToSeconds";
+import { formatVideoTime } from "@/utils/study-library/tracking/formatVideoTime";
+import { calculateNetDuration } from "@/utils/study-library/tracking/calculateNetDuration";
+import { extractVideoId } from "@/utils/study-library/tracking/extractVideoId";
+import { useVideoSync } from "@/hooks/study-library/useVideoSync";
 
 interface YTPlayer {
    destroy(): void;
@@ -9,38 +14,47 @@ interface YTPlayer {
    getDuration(): number;
 }
 
+interface YouTubePlayerEvent {
+    target: YTPlayer;
+    data: number;
+}
+
+interface YouTubePlayerOptions {
+    height?: string | number;
+    width?: string | number;
+    videoId?: string;
+    playerVars?: {
+        autoplay?: number;
+        controls?: number;
+        showinfo?: number;
+        rel?: number;
+        [key: string]: number | undefined;
+    };
+    events?: {
+        onReady?: (event: YouTubePlayerEvent) => void;
+        onStateChange?: (event: YouTubePlayerEvent) => void;
+        onError?: (event: YouTubePlayerEvent) => void;
+        onPlaybackQualityChange?: (event: YouTubePlayerEvent) => void;
+        onPlaybackRateChange?: (event: YouTubePlayerEvent) => void;
+    };
+}
+
 declare global {
-   interface Window {
-       onYouTubeIframeAPIReady: () => void;
-       YT: {
-           Player: new (
-               container: HTMLElement | string,
-               options: {
-                   height?: string | number;
-                   width?: string | number;
-                   videoId?: string;
-                   playerVars?: {
-                       autoplay?: number;
-                       controls?: number; 
-                       showinfo?: number;
-                       rel?: number;
-                       [key: string]: any;
-                   };
-                   events?: {
-                       onReady?: (event: any) => void;
-                       onStateChange?: (event: any) => void;
-                       [key: string]: any;
-                   };
-               }
-           ) => YTPlayer;
-           PlayerState: {
-               PLAYING: number;
-               PAUSED: number;
-               ENDED: number;
-               BUFFERING: number;
-           };
-       };
-   }
+    interface Window {
+        onYouTubeIframeAPIReady: () => void;
+        YT: {
+            Player: new (
+                container: HTMLElement | string,
+                options: YouTubePlayerOptions
+            ) => YTPlayer;
+            PlayerState: {
+                PLAYING: number;
+                PAUSED: number;
+                ENDED: number;
+                BUFFERING: number;
+            };
+        };
+    }
 }
 
 interface YouTubePlayerProps {
@@ -53,43 +67,32 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
    const playerRef = useRef<YTPlayer | null>(null);
    const playerContainerRef = useRef<HTMLDivElement>(null);
    const activityId = useRef(uuidv4());
-   const currentTimestamps = useRef<Array<{start: string, end: string}>>([]);
-   const videoStartTime = useRef<string>('');
-   const videoEndTime = useRef<string>('');
+   const currentTimestamps = useRef<Array<{id: string, start_time: string, end_time: string, start: number, end: number}>>([]);
+   const videoStartTime = useRef<number>(0);
+   const videoEndTime = useRef<number>(0);
    const [elapsedTime, setElapsedTime] = useState(0);
    const timerRef = useRef<NodeJS.Timeout | null>(null);
    const currentStartTimeRef = useRef('');
    const timestampDurationRef = useRef(0);
-
-   const extractVideoId = (url: string): string => {
-       const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-       const match = url.match(regExp);
-       return (match && match[2] && match[2].length === 11) ? match[2] : "";
-   };
-
-   const calculatePercentageWatched = (totalDuration: number) => {
+   const [isFirstPlay, setIsFirstPlay] = useState(true);
+   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+   const { syncVideoTrackingData } = useVideoSync();
+   const currentStartTimeInEpochRef = useRef<number>(0);
+    
+    
+    const calculatePercentageWatched = (totalDuration: number) => {
         const netDuration = calculateNetDuration(currentTimestamps.current);
-        console.log("netDuration: ", netDuration);
         return ((netDuration / totalDuration) * 100).toFixed(2);
     };
+   
 
-   const formatVideoTime = (seconds: number): string => {
-       const hours = Math.floor(seconds / 3600);
-       const minutes = Math.floor((seconds % 3600) / 60);
-       const secs = Math.floor(seconds % 60);
-       
-       return hours > 0 
-           ? `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-           : `${minutes}:${secs.toString().padStart(2, '0')}`;
-   };
-
-   const convertTimeToSeconds = (formattedTime: string): number => {
-        const parts = formattedTime.split(':');
-        if (parts.length === 2) {
-            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+   
+    const clearUpdateInterval = useCallback(() => {
+        if (updateIntervalRef.current) {
+            clearInterval(updateIntervalRef.current);
+            updateIntervalRef.current = null;
         }
-        return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
-    };
+    }, []);
 
    const startTimer = useCallback(() => {
        if (timerRef.current) return;
@@ -100,6 +103,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
        }, 1000);
    }, []);
 
+
    const stopTimer = useCallback(() => {
        if (timerRef.current) {
            clearInterval(timerRef.current);
@@ -107,64 +111,33 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
        }
    }, []);
 
-   const calculateNetDuration = (timestamps: Array<{start: string, end: string}>): number => {
-    
-    if (timestamps.length === 0) return 0;
-
-    // Convert timestamps to seconds for easier calculation
-    const ranges = timestamps.map(t => ({
-        start: convertTimeToSeconds(t.start),
-        end: convertTimeToSeconds(t.end)
-    }));
-
-    // Sort ranges by start time
-    ranges.sort((a, b) => a.start - b.start);
-
-    // Merge overlapping ranges
-    const mergedRanges = ranges.reduce((merged, current) => {
-        if (merged.length === 0) {
-            return [current];
-        }
-
-        const lastRange = merged[merged.length - 1];
-        if (current.start <= lastRange.end) {
-            // Overlapping range - merge them
-            lastRange.end = Math.max(lastRange.end, current.end);
-            return merged;
-        } else {
-            // Non-overlapping range - add to list
-            return [...merged, current];
-        }
-    }, [] as Array<{start: number, end: number}>);
-
-    // Calculate total duration from merged ranges
-    const totalDuration = mergedRanges.reduce((sum, range) => {
-        return sum + (range.end - range.start);
-    }, 0);
-
-    return totalDuration;
-};
+   
 
    useEffect(() => {
-       const videoId = extractVideoId(videoUrl);
-       const endTime = videoEndTime.current || getISTTime();
-       
-       const newActivity = {
-           activity_id: activityId.current,
-           source: 'youtube',
-           source_id: videoId,
-           start_time: videoStartTime.current,
-           end_time: endTime,
-           duration: elapsedTime.toString(),
-           timestamps: currentTimestamps.current,
-           percentage_watched: calculatePercentageWatched(
-               playerRef.current?.getDuration() || 0
-           ),
-           sync_status: 'STALE' as const
-       };
-   
-       addActivity(newActivity, true);
-   }, [elapsedTime]);
+    const videoId = extractVideoId(videoUrl);
+    const endTime = videoEndTime.current || getEpochTimeInMillis();
+
+    
+    const newActivity = {
+        activity_id: activityId.current,
+        source: 'YOUTUBE',
+        source_id: videoId,
+        start_time: videoStartTime.current,
+        end_time: endTime,
+        duration: elapsedTime.toString(),
+        timestamps: currentTimestamps.current,
+        percentage_watched: calculatePercentageWatched(
+            playerRef.current?.getDuration() || 0
+        ),
+        sync_status: 'STALE' as const, // Always set to STALE when updating
+        current_start_time: currentStartTimeRef.current,
+        current_start_time_in_epoch: currentStartTimeInEpochRef.current,
+        new_activity: true
+    };
+
+    addActivity(newActivity, true);
+}, [elapsedTime]);
+
 
    useEffect(() => {
        const videoId = extractVideoId(videoUrl);
@@ -193,7 +166,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                        console.log("Player ready");
                    },
                    onStateChange: (event) => {
-                       const now = getISTTime();
+                       const now = getEpochTimeInMillis();
                        const currentTime = player.getCurrentTime();
 
                        
@@ -203,31 +176,48 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
                            if (!videoStartTime.current) {
                                videoStartTime.current = now;
                             }
+
+                            if (isFirstPlay) {
+                                console.log("integrate add video activity api now");
+                                syncVideoTrackingData();
+                                setIsFirstPlay(false);
+                                
+                                // Start the 2-minute interval for update notifications
+                                if (!updateIntervalRef.current) {
+                                    updateIntervalRef.current = setInterval(() => {
+                                        console.log("integrate update video activity api now");
+                                        syncVideoTrackingData();
+                                    }, 2 * 60 * 1000); // 2 minutes in milliseconds
+                                }
+                            }
+
                             currentStartTimeRef.current = formatVideoTime(currentTime);
+                            currentStartTimeInEpochRef.current =  convertTimeToSeconds(currentStartTimeRef.current)*1000;
                             console.log("play state")
                             
                         } else if (event.data === window.YT.PlayerState.PAUSED || 
                             event.data === window.YT.PlayerState.ENDED) {
                                 stopTimer();
                                 videoEndTime.current = now;
-
+                        
                                 const currentStartTimeInSeconds = convertTimeToSeconds(currentStartTimeRef.current);
-                                const endTimeInSeconds = currentStartTimeInSeconds+timestampDurationRef.current
+                                const endTimeInSeconds = currentStartTimeInSeconds + timestampDurationRef.current;
                                 const endTimeStamp = formatVideoTime(endTimeInSeconds);
 
-                                console.log("currentStartTime: ", currentStartTimeRef.current); 
-                                console.log("end time formatted: ",  endTimeStamp);
-                                // console.log("wrong end time: ", formatVideoTime(currentTime));
-
+                                // const startDate = new Date(videoStartTime.current + (currentStartTimeInSeconds * 1000));
+                                // const endDate = new Date(videoStartTime.current + (endTimeInSeconds * 1000));
+                        
                                 currentTimestamps.current.push({
-                                    start: currentStartTimeRef.current,
-                                    end: endTimeStamp
+                                    id: uuidv4(), // Add this line to generate unique ID
+                                    start_time: currentStartTimeRef.current,
+                                    end_time: endTimeStamp,
+                                    start: convertTimeToSeconds(currentStartTimeRef.current)*1000,
+                                    end: convertTimeToSeconds(endTimeStamp)*1000
                                 });
-                            // setTimestampDuration(0);
-                            currentStartTimeRef.current = formatVideoTime(currentTime);
-                            console.log("updated start time: ", currentStartTimeRef.current )
-                            timestampDurationRef.current = 0;
-                       }
+                        
+                                currentStartTimeRef.current = formatVideoTime(currentTime);
+                                timestampDurationRef.current = 0;
+                        }
                    }
                },
            });
@@ -238,6 +228,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
            if (playerRef.current) {
                playerRef.current.destroy();
            }
+           clearUpdateInterval(); 
        };
    }, [videoUrl]);
 

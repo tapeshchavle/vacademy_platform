@@ -1,63 +1,29 @@
 // module-material.tsx
-import { useEffect } from "react";
-import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
-import { CaretLeft } from "@phosphor-icons/react";
-import { useRouter } from "@tanstack/react-router";
-import { Chapters, ChapterType } from "./chapters";
+import { useEffect, useState } from "react";
+import { Chapters } from "./chapters";
+import { useModulesWithChaptersStore } from "@/stores/study-library/use-modules-with-chapters-store";
+import { getChaptersByModuleId } from "@/utils/study-library/get-list-from-stores/getChaptersByModuleId";
 
 interface ChapterMaterialProps {
-    subject: string;
-    course: string;
-    level:string;
+    currentModuleId: string
 }
 
-export const ChapterMaterial = ({ subject, level, course }: ChapterMaterialProps) => {
-    const router = useRouter();
-    const { setNavHeading } = useNavHeadingStore();
-
-
-    const handleBackClick = () => {
-        router.navigate({
-            to: `/study-library/courses/$course/levels/$level/subjects/$subject/modules`,
-            params: {subject: subject, level:level, course: course}
-        })
-    };
-
-    const heading = (
-        <div className="flex items-center gap-2">
-            <CaretLeft onClick={handleBackClick} className="cursor-pointer size-5" />
-            <div>{subject}</div>
-        </div>
+export const ChapterMaterial = ({ currentModuleId }: ChapterMaterialProps) => {
+    
+    const { modulesWithChaptersData } = useModulesWithChaptersStore();
+    const [existingChapters, setExistingChapters] = useState(
+        getChaptersByModuleId(currentModuleId) || [],
     );
 
     useEffect(() => {
-        setNavHeading(heading);
-    }, []);
+        setExistingChapters(getChaptersByModuleId(currentModuleId) || []);
+    }, [ modulesWithChaptersData]);
 
-    const chaptersDummyData = [
-         {
-            name: "Refraction",
-            description: "Details about refraction and light in physics",
-            resourceCount: {
-                ebooks: 3,
-                videos: 4
-            }
-        },
-         {
-            name: "Human Eye",
-            description: "Details about Human Eye and light in physics",
-            resourceCount: {
-                ebooks: 3,
-                videos: 4
-            }
-        }
-    ]
-
-    const chapters : ChapterType[] = chaptersDummyData;
+    
 
     return (
         <Chapters
-            chapters={chapters}
+            chapters={existingChapters}
         />
     );
 };
