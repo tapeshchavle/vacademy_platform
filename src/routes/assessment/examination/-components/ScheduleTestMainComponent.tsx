@@ -6,8 +6,12 @@ import { assessmentTypes } from "@/types/assessment";
 import { fetchAssessmentData } from "../-utils.ts/useFetchAssessment";
 import { AssessmentCard } from "../-components/AssessmentCard";
 import { EmptyScheduleTest } from "@/svgs";
+import { PrivacyScreen } from "@capacitor-community/privacy-screen";
 
 export const ScheduleTestMainComponent = () => {
+    const disableProtection = async () => {
+    await PrivacyScreen.disable();
+  };
   const { setNavHeading } = useNavHeadingStore();
   const [selectedTab, setSelectedTab] = useState<assessmentTypes>(
     assessmentTypes.LIVE
@@ -47,6 +51,7 @@ export const ScheduleTestMainComponent = () => {
 
   useEffect(() => {
     setNavHeading("Assessment");
+    disableProtection();
     fetchAllTabsData();
   }, []);
 

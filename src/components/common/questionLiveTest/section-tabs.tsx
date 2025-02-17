@@ -93,7 +93,7 @@ export function SectionTabs() {
               className={cn(
                 "relative px-4 py-2 rounded-t-lg text-sm",
                 isActive &&
-                  "border border-b-0 border-orange-500 bg-orange-50 text-primary-500",
+                  "border border-b-0 border-primary-500 bg-orange-50 text-primary-500",
                 !isActive && "border border-transparent hover:bg-gray-50",
                 (!isAvailable || isTimeUp) && "opacity-50 cursor-not-allowed"
               )}

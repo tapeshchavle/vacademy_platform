@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/auth/sessionUtility";
 import { LOGIN_OTP, REQUEST_OTP } from "@/constants/urls";
 import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
+import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
 
 const emailSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -39,6 +40,8 @@ export function EmailLogin({
 }) {
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [email, setEmail] = useState("");
+  const [timer, setTimer] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -48,6 +51,25 @@ export function EmailLogin({
       email: "",
     },
   });
+  const startTimer = () => {
+    setTimer(60);
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    timerRef.current = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
   const otpForm = useForm<OtpFormValues>({
     resolver: zodResolver(otpSchema),
@@ -60,6 +82,7 @@ export function EmailLogin({
     mutationFn: (email: string) => axios.post(REQUEST_OTP, { email }),
     onSuccess: () => {
       setIsOtpSent(true);
+      startTimer(); // Add this line
       toast.success("OTP sent successfully");
     },
     onError: () => {
@@ -69,6 +92,19 @@ export function EmailLogin({
       });
     },
   });
+  // const sendOtpMutation = useMutation({
+  //   mutationFn: (email: string) => axios.post(REQUEST_OTP, { email }),
+  //   onSuccess: () => {
+  //     setIsOtpSent(true);
+  //     toast.success("OTP sent successfully");
+  //   },
+  //   onError: () => {
+  //     toast.error("this email is not registered", {
+  //       description: "Please try again with a registered email",
+  //       duration: 3000,
+  //     });
+  //   },
+  // });
 
   const verifyOtpMutation = useMutation({
     mutationFn: (data: { email: string; otp: string }) =>
@@ -101,7 +137,7 @@ export function EmailLogin({
           if (instituteId && userId) {
             try {
               await fetchAndStoreInstituteDetails(instituteId, userId);
-              // await fetchAndStoreStudentDetails(instituteId, userId);
+              await fetchAndStoreStudentDetails(instituteId, userId);
             } catch (error) {
               console.error("Error fetching details:", error);
               toast.error("Failed to fetch details");
@@ -281,7 +317,7 @@ export function EmailLogin({
                 >
                   Back
                 </MyButton>
-                <MyButton
+                {/* <MyButton
                   type="button"
                   scale="medium"
                   buttonType="text"
@@ -289,6 +325,16 @@ export function EmailLogin({
                   onClick={() => sendOtpMutation.mutate(email)}
                 >
                   Resend OTP
+                </MyButton> */}
+                <MyButton
+                  type="button"
+                  scale="medium"
+                  buttonType="text"
+                  className={timer > 0 ? "text-gray-500" : "text-primary-500"}
+                  onClick={() => timer === 0 && sendOtpMutation.mutate(email)}
+                  disabled={timer > 0}
+                >
+                  {timer > 0 ? `Resend OTP in ${timer}s` : "Resend OTP"}
                 </MyButton>
               </div>
             </div>

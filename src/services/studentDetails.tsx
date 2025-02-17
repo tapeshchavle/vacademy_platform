@@ -141,13 +141,6 @@ const storeMappedSessions = async () => {
 
     console.log("Matched Sessions:", matchedSessions);
 
-    // Store mapped data
-    await Preferences.set({
-      key: "DifferentSessions",
-      value: JSON.stringify(matchedSessions),
-    });
-
-    console.log("Successfully stored DifferentSessions!");
   } catch (error) {
     console.error("Error in storing mapped sessions:", error);
   }

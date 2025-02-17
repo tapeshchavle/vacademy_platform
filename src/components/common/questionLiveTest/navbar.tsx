@@ -27,6 +27,8 @@ import { Preferences } from "@capacitor/preferences";
 import { toast } from "sonner";
 import { Storage } from "@capacitor/storage";
 import { useProctoring } from "@/hooks";
+import { App } from "@capacitor/app";
+import { PluginListenerHandle } from "@capacitor/core";
 
 export function Navbar() {
   const {
@@ -140,6 +142,17 @@ export function Navbar() {
   };
 
   useEffect(() => {
+    let backButtonListener: PluginListenerHandle | null = null;
+
+    const setupBackButtonListener = async () => {
+      backButtonListener = await App.addListener('backButton', () => {
+        setShowSubmitModal(true);
+        return false;
+      });
+    };
+
+    setupBackButtonListener();
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
@@ -156,6 +169,9 @@ export function Navbar() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      if (backButtonListener) {
+        backButtonListener.remove();
+      }
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
@@ -175,23 +191,6 @@ export function Navbar() {
 
     return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        incrementTabSwitchCount();
-        setShowWarningModal(true);
-      } else {
-        setShowWarningModal(true);
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [incrementTabSwitchCount]);
 
   const handleWarningClose = () => {
     setShowWarningModal(false);
@@ -268,9 +267,9 @@ export function Navbar() {
     };
 
     submitData();
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    }
+    // if (document.fullscreenElement) {
+    //   document.exitFullscreen();
+    // }
   };
 
   if (isAllTimeUp && !showTimesUpModal) {

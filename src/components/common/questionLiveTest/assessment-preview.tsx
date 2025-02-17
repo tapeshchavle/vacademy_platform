@@ -15,6 +15,9 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { useProctoring } from "@/hooks";
+import { App } from '@capacitor/app';
+import { useLocation } from "@tanstack/react-router";
+import { PluginListenerHandle } from "@capacitor/core";
 
 export function AssessmentPreview() {
   const router = useRouter();
@@ -38,7 +41,28 @@ export function AssessmentPreview() {
       preventUserSelection: true,
       preventCopy: true,
     });
-  // const [assessmentData, setAssessmentData] = useState(null);
+
+  const location = useLocation();
+  const [backButtonListener, setBackButtonListener] = useState<PluginListenerHandle | null>(null);
+
+  useEffect(() => {
+    const setupBackButtonListener = async () => {
+      if (location.pathname === '/restricted-page') {
+        const listener = await App.addListener('backButton', () => {
+          console.log('Back button is disabled on this page');
+        });
+        setBackButtonListener(listener);
+      }
+    };
+
+    setupBackButtonListener();
+
+    return () => {
+      if (backButtonListener) {
+        backButtonListener.remove();
+      }
+    };
+  }, [location.pathname]);
 
   const calculateMarkingScheme = (marking_json: string) => {
     try {
@@ -165,7 +189,7 @@ export function AssessmentPreview() {
                     onClick={() => setActiveSection(index)}
                     className={`px-4 py-2 text-sm rounded-t-lg ${
                       activeSection === index
-                        ? "bg-orange-50 text-primary-500 border border-b-0 border-orange-500"
+                        ? "bg-orange-50 text-primary-500 border border-b-0 border-primary-500"
                         : "text-gray-600"
                     }`}
                   >

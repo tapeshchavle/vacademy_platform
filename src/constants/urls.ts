@@ -13,6 +13,7 @@ export const ASSESSMENT_PREVIEW = `${BASE_URL}/assessment-service/assessment/lea
 export const START_ASSESSMENT = `${BASE_URL}/assessment-service/assessment/learner/assessment-start-assessment`;
 export const ASSESSMENT_SAVE = `${BASE_URL}/assessment-service/assessment/learner/status/update`;
 export const ASSESSMENT_SUBMIT = `${BASE_URL}/assessment-service/assessment/learner/status/submit`;
+export const RESTART_ASSESSMENT = `${BASE_URL}/assessment-service/assessment/learner/restart`;
 
 
 export const GET_DASHBOARD_DATA = `${BASE_URL}/admin-core-service/learner/v1/get-dashboard-details`;
