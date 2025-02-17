@@ -1,13 +1,6 @@
 // stores/study-library/useModulesWithChaptersStore.ts
 import { create } from "zustand";
 
-export interface SlidesCount {
-    video_count: number;
-    pdf_count: number;
-    doc_count: number;
-    unknown_count: number;
-}
-
 export interface Chapter {
     id: string;
     chapter_name: string;
@@ -15,11 +8,12 @@ export interface Chapter {
     file_id: string;
     description: string;
     chapter_order: number;
-}
-
-export interface ChapterWithSlides {
-    chapter: Chapter;
-    slides_count: SlidesCount;
+    last_slide_viewed: string,
+    percentage_completed: number,
+    video_count: number,
+    pdf_count: number,
+    doc_count: number,
+    unknown_count: number,
 }
 
 export interface Module {
@@ -32,7 +26,7 @@ export interface Module {
 
 export interface ModulesWithChapters {
     module: Module;
-    chapters: ChapterWithSlides[];
+    chapters: Chapter[];
 }
 
 interface ModulesWithChaptersStore {

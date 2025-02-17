@@ -1,9 +1,9 @@
 import {
-    ChapterWithSlides,
+    Chapter,
     useModulesWithChaptersStore,
 } from "@/stores/study-library/use-modules-with-chapters-store";
 
-export const getChaptersByModuleId = (moduleId: string): ChapterWithSlides[] | null => {
+export const getChaptersByModuleId = (moduleId: string): Chapter[] | null => {
     const modulesWithChaptersData = useModulesWithChaptersStore.getState().modulesWithChaptersData;
 
     if (!modulesWithChaptersData) return null;
