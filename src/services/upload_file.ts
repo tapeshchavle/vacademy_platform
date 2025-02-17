@@ -1,10 +1,4 @@
-import {
-    GET_SIGNED_URL,
-    ACKNOWLEDGE,
-    GET_PUBLIC_URL,
-    GET_DETAILS,
-    ACKNOWLEDGE_FOR_PUBLIC_URL,
-} from "@/constants/urls";
+import { GET_SIGNED_URL, ACKNOWLEDGE, GET_PUBLIC_URL, GET_DETAILS } from "@/constants/urls";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import axios from "axios";
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
@@ -13,6 +7,10 @@ interface SignedURLResponse {
     id: string;
     url: string;
 }
+
+// interface PublicURLResponse {
+//     url: string;
+// }
 
 export enum StatusCode {
     success = 200,
@@ -24,7 +22,6 @@ export const UploadFileInS3 = async (
     user_id: string,
     source?: string,
     sourceId?: string,
-    publicUrl?: boolean,
 ): Promise<string | undefined> => {
     setIsUploadingFile(true);
     const effectiveSource = source || "FLOOR_DOCUMENTS";
@@ -50,7 +47,7 @@ export const UploadFileInS3 = async (
             });
 
             if (uploadResponse.status === StatusCode.success) {
-                await acknowledgeUpload(signedURLData.id, user_id, publicUrl);
+                await acknowledgeUpload(signedURLData.id, user_id);
             }
 
             setIsUploadingFile(false);
@@ -81,19 +78,13 @@ const getSignedURL = async (
     return response.data;
 };
 
-const acknowledgeUpload = async (
-    file_id: string,
-    user_id: string,
-    publicUrl?: boolean,
-): Promise<boolean> => {
+const acknowledgeUpload = async (file_id: string, user_id: string): Promise<boolean> => {
     const requestBody = {
         file_id: file_id,
         user_id: user_id,
     };
 
-    const response = publicUrl
-        ? await authenticatedAxiosInstance.post(ACKNOWLEDGE_FOR_PUBLIC_URL, requestBody)
-        : await authenticatedAxiosInstance.post(ACKNOWLEDGE, requestBody);
+    const response = await authenticatedAxiosInstance.post(ACKNOWLEDGE, requestBody);
 
     return response.data;
 };

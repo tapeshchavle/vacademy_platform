@@ -2,21 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useAssessmentStore } from "@/stores/assessment-store";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { MyButton } from "@/components/design-system/button";
 import { useRouter } from "@tanstack/react-router";
 import { startAssessment } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
 import { Storage } from "@capacitor/storage";
 import { AssessmentPreviewData } from "@/types/assessment";
+import { processHtmlString } from "@/lib/utils";
 
 export function AssessmentPreview() {
   const router = useRouter();
   const currentPath = router.state.location.pathname;
 
   const newPath = currentPath.replace(/\/[^/]+$/, "/LearnerLiveTest");
-
-  // Navigate to the new path
-
   const { assessment } = useAssessmentStore();
   const { setAssessment } = useAssessmentStore();
   const [activeSection, setActiveSection] = useState(0);
@@ -25,6 +22,27 @@ export function AssessmentPreview() {
       (assessment?.preview_total_time ? assessment.preview_total_time : 0) * 60
     );
   });
+  // const [assessmentData, setAssessmentData] = useState(null);
+
+  const calculateMarkingScheme = (marking_json: string) => {
+    try {
+      const marking_scheme = JSON.parse(marking_json);
+      return marking_scheme; // Ensure the JSON contains a number or string
+    } catch (error) {
+      console.error("Error parsing marking_json:", error);
+      return 0; // Default value in case of an error
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+  const handleStartAssessment = async () => {
+    await startAssessment();
+    router.navigate({ to: newPath });
+  };
 
   useEffect(() => {
     const setAssessmentData = async () => {
@@ -45,18 +63,6 @@ export function AssessmentPreview() {
 
     setAssessmentData();
   }, []);
-  // useEffect(() => {
-  //   if (timeLeft <= 0) {
-  //     router.navigate({ to: newPath });
-  //     return;
-  //   }
-
-  //   const timer = setInterval(() => {
-  //     setTimeLeft((prev) => Math.max(0, prev - 1));
-  //   }, 1000);
-
-  //   return () => clearInterval(timer);
-  // }, [timeLeft, navigate]);
 
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -71,53 +77,38 @@ export function AssessmentPreview() {
 
   if (!assessment) return null;
 
-  const calculateMarkingScheme = (marking_json: string) => {
-    try {
-      const marking_scheme = JSON.parse(marking_json);
-      return marking_scheme; // Ensure the JSON contains a number or string
-    } catch (error) {
-      console.error("Error parsing marking_json:", error);
-      return 0; // Default value in case of an error
-    }
-  };
-
-  const QuestionContent = ({ content }: { content: string }) => {
-    return <div dangerouslySetInnerHTML={{ __html: content }} />;
-  };
-  //  function parseHtmlToString(html: string) {
-  //     const doc = new DOMParser().parseFromString(html, "text/html");
-  //     return doc.body.textContent || doc.body.innerText || "";
+  // const fetchAssessmentData = async () => {
+  //   const result = await Preferences.get({ key: "InstructionID_and_AboutID" });
+  //   if (result.value) {
+  //     setAssessmentData(JSON.parse(result.value)); // Assuming the value is stored as JSON
   //   }
-  // const calculateTotalMarks = async(marking_shceme)=>{
-  //   return marking_shceme.totalMarks;
-  // }
+  // };
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
-  const handleStartAssessment = async () => {
-     await startAssessment();
-    // console.log(data);
-    router.navigate({ to: newPath });
-  };
+  // useEffect(() => {
+  //   fetchAssessmentData();
+  // }, []);
+
   return (
     <div className="flex flex-col w-full bg-gray-50">
       {/* Navbar with Timer */}
-      <div className="sticky  top-0 z-20 bg-white border-b">
-        <div className="flex flex-col bg-primary-50 sm:flex-row items-center justify-between p-4">
-          {/* <h1 className="text-base font-semibold">{assessment.title}</h1> */}
-          <div className="flex items-center gap-2  mt-2 sm:mt-0 lg:mr-10 md:mr-10">
+      <div className="sticky top-0 z-20 bg-white border-b">
+        <div className="flex flex-col bg-primary-50 items-center justify-center sm:flex-row  p-4">
+          {/* <h1 className="text-base font-semibold">{AssessmentData.name}</h1> */}
+          {/* <h1 className="text-base font-semibold">
+            {assessmentData ? assessmentData.name : "Loading..."}
+          </h1> */}
+          <div className="flex items-center justify-center space-x-4 w-full">
             {formatTime(timeLeft)
               .split(":")
-              .map((time, index) => (
-                <span
-                  key={index}
-                  className="border border-gray-400 px-2 py-1 rounded"
-                >
-                  {time}
-                </span>
+              .map((time, index, array) => (
+                <div key={index} className="relative flex items-center">
+                  <span className="border border-gray-400 px-2 py-1 rounded">
+                    {time}
+                  </span>
+                  {index < array.length - 1 && (
+                    <span className="absolute right-[-10px] text-lg">:</span>
+                  )}
+                </div>
               ))}
           </div>
         </div>
@@ -132,7 +123,7 @@ export function AssessmentPreview() {
                   onClick={() => setActiveSection(index)}
                   className={`px-4 py-2 text-sm rounded-t-lg ${
                     activeSection === index
-                      ? "bg-orange-50 text-orange-500 border border-b-0 border-orange-500"
+                      ? "bg-orange-50 text-primary-500 border border-b-0 border-orange-500"
                       : "text-gray-600"
                   }`}
                 >
@@ -147,50 +138,72 @@ export function AssessmentPreview() {
       </div>
 
       {/* Main content */}
-      <ScrollArea className="flex-1  p-4 sm:p-6">
-        {assessment.section_dtos[activeSection].question_preview_dto_list.map(
-          (question, idx) => (
-            <div
-              key={question.question_id}
-              className="mb-8 bg-white rounded-lg p-4 sm:p-6 shadow-sm"
-            >
-              <div className="flex flex-row  gap-2 mb-4">
-                <span className="text-sm text-gray-500">
-                  Question {idx + 1}
-                </span>
-                <span className="text-sm text-gray-500 items-end">
-                  {calculateMarkingScheme(question.marking_json).data.totalMark}{" "}
-                  Marks
-                </span>
-              </div>
+      <div className="flex-1 p-4 sm:p-6">
+        <div className="flex flex-col space-y-8">
+          {assessment.section_dtos[activeSection].question_preview_dto_list.map(
+            (question, idx) => (
+              <div
+                key={question.question_id}
+                className="bg-white rounded-lg p-4 sm:p-6 shadow-sm"
+              >
+                <div className="flex flex-row gap-2 mb-4">
+                  <span className="text-sm text-gray-500">
+                    Question {idx + 1}
+                  </span>
+                  <span className="text-sm text-gray-500 ml-auto">
+                    {
+                      calculateMarkingScheme(question.marking_json).data
+                        .totalMark
+                    }{" "}
+                    Marks
+                  </span>
+                </div>
 
-              <p className="text-base mb-4">{question.question.content}</p>
+                <p className="text-base mb-4">
+                  {/* {question.question.content} */}
+                  {processHtmlString(question.question.content).map(
+                    (item, index) =>
+                      item.type === "text" ? (
+                        <span key={index}>{item.content}</span>
+                      ) : (
+                        <img
+                          key={index}
+                          src={item.content}
+                          alt={`Question image ${index + 1}`}
+                          className=""
+                        />
+                      )
+                  )}
+                </p>
 
-              {/* {question.questionImage && (
-              <div className="mb-4">
-                <img
-                  src={question.questionImage}
-                  alt="Question illustration"
-                  className="max-w-full rounded-lg"
-                />
+                <div className="space-y-3">
+                  {question.options.map((option) => (
+                    <div
+                      key={option.id}
+                      className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                    >
+                      {/* {parseHtmlToString(option.text.content)} */}
+                      {processHtmlString(option.text.content).map(
+                        (item, index) =>
+                          item.type === "text" ? (
+                            <span key={index}>{item.content}</span>
+                          ) : (
+                            <img
+                              key={index}
+                              src={item.content}
+                              alt={`Question image ${index + 1}`}
+                              className=""
+                            />
+                          )
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            )} */}
-
-              <div className="space-y-3">
-                {question.options.map((option) => (
-                  <div
-                    key={option.id}
-                    className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    {/* {parseHtmlToString(option.text.content)} */}
-                    <QuestionContent content={option.text.content} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        )}
-      </ScrollArea>
+            )
+          )}
+        </div>
+      </div>
 
       {/* Footer */}
       <div className="sticky bg-primary-50 bottom-0 p-4 bg-white border-t">
