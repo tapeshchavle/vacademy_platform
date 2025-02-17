@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Flag, X, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useEffect } from "react";
@@ -168,7 +168,6 @@ export function QuestionDisplay() {
             }
             onClick={() => markForReview(currentQuestion.question_id)}
           >
-            <Flag className="mr-2 h-4 w-4" />
             Review Later
           </Button>
 
@@ -178,7 +177,6 @@ export function QuestionDisplay() {
             onClick={() => clearResponse(currentQuestion.question_id)}
             disabled={currentAnswer.length === 0 || isDisabled}
           >
-            <X className="h-4 w-4" />
             Clear Response
           </Button>
         </div>
