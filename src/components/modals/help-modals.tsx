@@ -160,7 +160,7 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
               className="min-h-[100px]"
             />
             <Button
-              className="w-full bg-orange-500 hover:bg-orange-600"
+              className="w-full bg-primary-500"
               onClick={() => {
                 // addRequest(type, reason);
                 setReason("");

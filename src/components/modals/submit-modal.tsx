@@ -32,12 +32,12 @@ export function SubmitModal({ open, onOpenChange, onConfirm }: SubmitModalProps)
         <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
           <AlertDialogAction
             onClick={onConfirm}
-            className="w-full bg-orange-500 hover:bg-orange-600"
+            className="w-full bg-primary-500 text-white"
           >
             Submit
           </AlertDialogAction>
           <AlertDialogCancel className="w-full mt-0">
-            Check my responses
+            Cancel 
           </AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
