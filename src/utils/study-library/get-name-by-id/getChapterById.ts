@@ -7,9 +7,9 @@ export const getChapterName = (chapterId: string): string | null => {
     if (!modulesWithChaptersData) return null;
 
     for (const module of modulesWithChaptersData) {
-        for (const chapterWithSlides of module.chapters) {
-            if (chapterWithSlides.chapter.id === chapterId) {
-                return chapterWithSlides.chapter.chapter_name;
+        for (const chapters of module.chapters) {
+            if (chapters.id === chapterId) {
+                return chapters.chapter_name;
             }
         }
     }
