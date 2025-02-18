@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { SplashScreen } from "@/components/common/LoginPages/layout/splash-container";
-import { useAnimationStore } from "@/stores/login/animationStore";
+// import { SplashScreen } from "@/components/common/LoginPages/layout/splash-container";
+// import { useAnimationStore } from "@/stores/login/animationStore";
 import { Heading } from "@/components/common/LoginPages/ui/heading";
 import { MyButton } from "@/components/design-system/button";
 // import { loginSchema } from "@/schemas/login/login";
 // import { z } from "zod";
 import { TokenKey } from "@/constants/auth/tokens";
 import { useNavigate } from "@tanstack/react-router";
-import HeaderLogo from "../ui/header_logo";
+// import HeaderLogo from "../ui/header_logo";
 
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
 import {
@@ -19,22 +19,22 @@ import { UsernameLogin } from "./UsernamePasswordForm";
 // type FormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
-  const { hasSeenAnimation, setHasSeenAnimation } = useAnimationStore();
-  const [showSplash, setShowSplash] = useState(!hasSeenAnimation);
+  // const { hasSeenAnimation, setHasSeenAnimation } = useAnimationStore();
+  // const [showSplash, setShowSplash] = useState(!hasSeenAnimation);
   const navigate = useNavigate();
   const [isEmailLogin, setIsEmailLogin] = useState(false);
 
   
   // Handle splash screen timing
-  useEffect(() => {
-    if (!hasSeenAnimation) {
-      const timer = setTimeout(() => {
-        setHasSeenAnimation();
-        setShowSplash(false);
-      }, 2000); // Splash screen duration
-      return () => clearTimeout(timer); // Cleanup on unmount
-    }
-  }, [hasSeenAnimation, setHasSeenAnimation]);
+  // useEffect(() => {
+  //   if (!hasSeenAnimation) {
+  //     const timer = setTimeout(() => {
+  //       setHasSeenAnimation();
+  //       setShowSplash(false);
+  //     }, 2000); // Splash screen duration
+  //     return () => clearTimeout(timer); // Cleanup on unmount
+  //   }
+  // }, [hasSeenAnimation, setHasSeenAnimation]);
 
 
   
@@ -49,14 +49,14 @@ export function LoginForm() {
     }, []);
     
     // Conditionally render the splash screen
-    if (showSplash) {
-      return <SplashScreen isAnimationEnabled />;
-    }
+    // if (showSplash) {
+    //   return <SplashScreen isAnimationEnabled />;
+    // }
   // Login form content
   return (
-    <div className="w-screen bg-white gap-4 md:gap-8 lg:gap-10">
+    <div className="w-screen bg-white gap-4 md:gap-8 lg:gap-10 pt-14 lg:pt-20">
       {/* Logo Section */}
-      <HeaderLogo />
+      {/* <HeaderLogo /> */}
 
       {/* Login Form Section */}
       <div className="flex w-full flex-col items-center justify-center gap-4 md:gap-8 lg:gap-12 px-4 md:px-8 lg:px-12">
