@@ -6,12 +6,9 @@ import { assessmentTypes } from "@/types/assessment";
 import { fetchAssessmentData } from "../-utils.ts/useFetchAssessment";
 import { AssessmentCard } from "../-components/AssessmentCard";
 import { EmptyScheduleTest } from "@/svgs";
-import { PrivacyScreen } from "@capacitor-community/privacy-screen";
+// import PullToRefresh from "./PullToRefresh";
 
 export const ScheduleTestMainComponent = () => {
-    const disableProtection = async () => {
-    await PrivacyScreen.disable();
-  };
   const { setNavHeading } = useNavHeadingStore();
   const [selectedTab, setSelectedTab] = useState<assessmentTypes>(
     assessmentTypes.LIVE
@@ -51,7 +48,6 @@ export const ScheduleTestMainComponent = () => {
 
   useEffect(() => {
     setNavHeading("Assessment");
-    disableProtection();
     fetchAllTabsData();
   }, []);
 
@@ -103,18 +99,18 @@ export const ScheduleTestMainComponent = () => {
     [loading, loadingMore, hasMorePages]
   );
 
-  const refreshCurrentTab = useCallback(() => {
-    setAssessmentData((prevData) => ({
-      ...prevData,
-      [selectedTab]: [],
-    }));
-    setPage((prevPage) => ({
-      ...prevPage,
-      [selectedTab]: 0,
-    }));
-    setHasMorePages((prev) => ({ ...prev, [selectedTab]: true }));
-    fetchMoreData(selectedTab, 0, true);
-  }, [selectedTab]);
+  // const refreshCurrentTab = useCallback(async () => {
+  //   setAssessmentData((prevData) => ({
+  //     ...prevData,
+  //     [selectedTab]: [],
+  //   }));
+  //   setPage((prevPage) => ({
+  //     ...prevPage,
+  //     [selectedTab]: 0,
+  //   }));
+  //   setHasMorePages((prev) => ({ ...prev, [selectedTab]: true }));
+  //   await fetchMoreData(selectedTab, 0, true);
+  // }, [selectedTab]);
 
   const lastElementRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -136,7 +132,6 @@ export const ScheduleTestMainComponent = () => {
         value={selectedTab}
         onValueChange={(tab) => {
           setSelectedTab(tab as assessmentTypes);
-          refreshCurrentTab();
         }}
       >
         <ScheduleTestTabList
@@ -180,6 +175,45 @@ export const ScheduleTestMainComponent = () => {
             <div className="text-center py-4">Loading more...</div>
           )}
         </TabsContent>
+
+        {/* <TabsContent
+          key={selectedTab}
+          value={selectedTab}
+          className="rounded-xl bg-neutral-50 flex flex-col gap-3"
+        >
+          <PullToRefresh onRefresh={refreshCurrentTab}>
+            {assessmentData[selectedTab].length > 0 ? (
+              assessmentData[selectedTab].map((assessment, index) => {
+                if (index === assessmentData[selectedTab].length - 1) {
+                  return (
+                    <div ref={lastElementRef} key={assessment.assessment_id}>
+                      <AssessmentCard
+                        assessmentInfo={assessment}
+                        assessmentType={selectedTab}
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <AssessmentCard
+                    key={assessment.assessment_id}
+                    assessmentInfo={assessment}
+                    assessmentType={selectedTab}
+                  />
+                );
+              })
+            ) : (
+              <div className="flex h-screen flex-col items-center justify-center">
+                <img src={EmptyScheduleTest} alt="No Tests Available" />
+                <span className="text-neutral-600">No tests found.</span>
+              </div>
+            )}
+            {loading && <div className="text-center py-4">Loading...</div>}
+            {loadingMore && (
+              <div className="text-center py-4">Loading more...</div>
+            )}
+          </PullToRefresh>
+        </TabsContent> */}
       </Tabs>
     </div>
   );
