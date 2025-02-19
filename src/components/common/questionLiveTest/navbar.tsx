@@ -267,9 +267,10 @@ export function Navbar() {
     };
 
     submitData();
-    // if (document.fullscreenElement) {
-    //   document.exitFullscreen();
-    // }
+    // fullScreen.exit();
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
   };
 
   if (isAllTimeUp && !showTimesUpModal) {
