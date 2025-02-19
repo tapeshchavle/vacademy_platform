@@ -1,27 +1,50 @@
 import { useSidebar } from "@/components/ui/sidebar";
+import { getPublicUrl } from "@/services/upload_file";
+import { Module } from "@/stores/study-library/use-modules-with-chapters-store";
 import { useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
-
-export interface ModuleType {
-    name: string;
-    description: string;
-    imageUrl?: string;
-}
-
-export const ModuleCard = ({module}:{module:ModuleType; subject?:string}) => {
+export const ModuleCard = ({module}:{module:Module}) => {
 
     const router = useRouter();
     const {open} = useSidebar();
+    const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
-    const handleCardClick = () => {
-        const moduleName = module.name.toLowerCase().replace(/\s+/g, "-");
+    const handleCardClick = (e: React.MouseEvent) => {
+        if (
+            e.target instanceof Element &&
+            (e.target.closest(".drag-handle-container") ||
+                e.target.closest('[role="menu"]') ||
+                e.target.closest('[role="dialog"]'))
+        ) {
+            return;
+        }
+
         const currentPath = router.state.location.pathname;
-        // Navigate to the new route with the moduleName query parameter
+        const searchParams = router.state.location.search;
         router.navigate({
-            to: `${currentPath}/module`,
-            search: { moduleName }, // Add moduleName as a query parameter
+            to: `${currentPath}/chapters`,
+            search: {
+                subjectId: searchParams.subjectId,
+                moduleId: module.id,
+            },
         });
     };
+
+    useEffect(() => {
+        const fetchImageUrl = async () => {
+            if (module.thumbnail_id) {
+                try {
+                    const url = await getPublicUrl(module.thumbnail_id);
+                    setImageUrl(url);
+                } catch (error) {
+                    console.error("Failed to fetch image URL:", error);
+                }
+            }
+        };
+
+        fetchImageUrl();
+    }, [module.thumbnail_id]);
     
 
     return(
@@ -30,13 +53,13 @@ export const ModuleCard = ({module}:{module:ModuleType; subject?:string}) => {
             className={`flex w-[310px] xs:w-[340px] sm:w-full ${open?"md-tablet:w-[270px]":"md-tablet:w-[340px]"} flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6`}
         >
             <div className="flex items-center justify-between text-title font-semibold">
-                <div>{module.name}</div>
+                <div>{module.module_name}</div>
             </div>
 
-            {module.imageUrl ? (
+            {imageUrl ? (
                 <img
-                    src={module.imageUrl}
-                    alt={module.name}
+                    src={imageUrl}
+                    alt={module.module_name}
                     className="h-[200px] w-full rounded-lg object-cover"
                 />
             ) : (

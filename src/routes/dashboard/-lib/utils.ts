@@ -22,6 +22,7 @@ export const fetchStaticData = async (
   const userData = await fetchUserData();
   const first_name = userData.full_name.split(" ")[0];
   const institute_id = userData.institute_id;
+  const batch_id = userData.package_session_id;
   const params = {instituteId : institute_id}
   setUsername(first_name);
   try {
@@ -40,7 +41,7 @@ export const fetchStaticData = async (
     const response = await authenticatedAxiosInstance({
       method: "GET",
       url,
-      params,
+      params: { instituteId: institute_id, batchId: batch_id },
     });
     setAssessmentCount(response.data);
   } catch (error) {

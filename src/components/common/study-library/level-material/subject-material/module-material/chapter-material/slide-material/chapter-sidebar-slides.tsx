@@ -2,38 +2,71 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { truncateString } from "@/lib/reusable/truncateString";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { BookOpenText, PlayCircle } from "@phosphor-icons/react";
-import { ReactNode } from "react";
-import { SlideFileType } from "@/types/study-library/chapter-sidebar";
+import { ReactNode, useEffect } from "react";
+import { useRouter } from "@tanstack/react-router";
+import { Slide, useSlides } from "@/hooks/study-library/use-slides";
+import { DashboardLoader } from "@/components/core/dashboard-loader";
 
 export const ChapterSidebarSlides = () => {
     const { open } = useSidebar();
-    const { items, activeItemId, setActiveItem } = useContentStore();
+    const { setItems, activeItem, setActiveItem } = useContentStore();
+    const router = useRouter();
+    const { chapterId, slideId } = router.state.location.search;
+    const { slides, isLoading } = useSlides(chapterId || "");
+
+    useEffect(() => {
+        if (slides?.length) {
+            setItems(slides);
+
+            // If we have a slideId in URL, find that slide
+            if (slideId) {
+                const targetSlide: Slide = slides.find(
+                    (slide: Slide) => slide.slide_id === slideId,
+                );
+                if (targetSlide) {
+                    setActiveItem(targetSlide);
+                    return;
+                }
+            }
+
+            // If no slideId or slide not found, set first slide as active
+            setActiveItem(slides[0]);
+        }
+    }, [slides, slideId]);
     
-    const getIcon = (type: SlideFileType): ReactNode => {
+    const getIcon = (slide: Slide): ReactNode => {
+        const type = slide.video_url != null ? "VIDEO" : slide.document_type;
         switch (type) {
-            case "pdf":
-                return <BookOpenText className="size-6" />;
-            case "video":
+            case "VIDEO":
                 return <PlayCircle className="size-6" />;
+            default:
+                return <BookOpenText className="size-6" />;
         }
     };
 
+    if (isLoading) {
+        return <DashboardLoader />;
+    }
+
     return (
         <div className="flex w-full flex-col items-center gap-6 text-neutral-600">
-            {items?.map((item) => (
+            {slides?.map((slide:Slide) => (
                 <div
-                    key={item.id}
-                    onClick={() => setActiveItem(item)} // Pass the entire item
+                    key={slide.slide_id}
+                    onClick={() => setActiveItem(slide)} // Pass the entire item
                     className={`flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-2 ${
-                        item.id === activeItemId
+                        slide.slide_id === activeItem?.slide_id
                             ? "border border-neutral-200 bg-white text-primary-500"
                             : "hover:border hover:border-neutral-200 hover:bg-white hover:text-primary-500"
                     }`}
-                    title={item.name}
+                    title={slide.document_title || slide.video_title || ""}
                 >
-                    {getIcon(item.type)}
+                    {getIcon(slide)}
                     <p className={`flex-1 text-subtitle ${open ? "visible" : "hidden"} text-body`}>
-                        {truncateString(item.name, 18)}
+                        {truncateString(
+                            slide.document_title || slide.video_title || "",
+                            18,
+                        )}
                     </p>
                 </div>
             ))}

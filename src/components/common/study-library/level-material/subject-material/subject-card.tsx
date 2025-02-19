@@ -1,41 +1,54 @@
 import { SubjectDefaultImage } from "@/assets/svgs";
+import { useFileUpload } from "@/hooks/use-file-upload";
+import { SubjectType } from "@/stores/study-library/use-study-library-store";
 import { useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
-export interface Subject {
-    id: string;
-    name: string;
-    code: string | null;
-    credit: number | null;
-    imageId: string | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-}
+
 
 interface SubjectCardProps {
-    subject: Subject;
+    subject: SubjectType;
 }
 
 export const SubjectCard = ({ subject }: SubjectCardProps) => {
-    
+    const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+    const { getPublicUrl } = useFileUpload();
     const router = useRouter();
-    const imageUrl = undefined
 
     const handleCardClick = (e: React.MouseEvent) => {
         if (
-            (e.target as HTMLElement).closest(".menu-options-container") ||
-            (e.target as HTMLElement).closest('[role="menu"]') ||
-            (e.target as HTMLElement).closest('[role="dialog"]')
+            e.target instanceof Element &&
+            (e.target.closest(".menu-options-container") ||
+                e.target.closest(".drag-handle-container") ||
+                e.target.closest('[role="menu"]') ||
+                e.target.closest('[role="dialog"]'))
         ) {
             return;
         }
 
-        const subjectRoute = subject.name.toLowerCase().replace(/\s+/g, "-");
         const currentPath = router.state.location.pathname;
-
         router.navigate({
-            to: `${currentPath}/${subjectRoute}`,
+            to: `${currentPath}/modules`,
+            search: {
+                subjectId: subject.id,
+            },
         });
     };
+
+    useEffect(() => {
+        const fetchImageUrl = async () => {
+            if (subject.thumbnail_id) {
+                try {
+                    const url = await getPublicUrl(subject.thumbnail_id);
+                    setImageUrl(url);
+                } catch (error) {
+                    console.error("Failed to fetch image URL:", error);
+                }
+            }
+        };
+
+        fetchImageUrl();
+    }, [subject.thumbnail_id]);
 
     return(
         <div onClick={handleCardClick} className="cursor-pointer w-full ">
@@ -45,7 +58,7 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
                 {imageUrl ? (
                     <img
                         src={imageUrl}
-                        alt={subject.name}
+                        alt={subject.subject_name}
                         className={``}
                     />
                 ) : (
@@ -53,7 +66,7 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
                     />
                 )}
                 <div className="flex items-center justify-between gap-5">
-                    <div className="text-body font-semibold">{subject.name}</div>
+                    <div className="text-body font-semibold">{subject.subject_name}</div>
                 </div>
             </div>
         </div>
