@@ -204,11 +204,6 @@ export function QuestionDisplay() {
           >
             Review Later
           </Button>
-          {!isPracticeMode && (
-            <p>
-              Time Spent: {questionTimeSpent[currentQuestion.question_id] || 0}
-            </p>
-          )}
 
           <Button
             variant="outline"
