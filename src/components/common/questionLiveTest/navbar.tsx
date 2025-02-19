@@ -67,7 +67,7 @@ export function Navbar() {
       assessment: {
         assessmentId: assessment_id,
         entireTestDurationLeftInSeconds: state.entireTestTimer,
-        timeElapsedInSeconds: 0,
+        timeElapsedInSeconds: state.assessment?.duration? - state.entireTestTimer : 0, 
         status: "END",
         tabSwitchCount: state.tabSwitchCount || 0,
       },
@@ -78,7 +78,7 @@ export function Navbar() {
           questionId: question.question_id,
           questionDurationLeftInSeconds:
             state.questionTimers?.[question.question_id] || 0,
-          timeTakenInSeconds: 0,
+          timeTakenInSeconds: state.questionTimeSpent[question.question_id] || 0,
           responseData: {
             type: question.question_type,
             optionIds: state.answers?.[question.question_id] || [],
