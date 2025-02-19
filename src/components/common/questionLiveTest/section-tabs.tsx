@@ -113,7 +113,7 @@ export function SectionTabs() {
                 )}
               </div>
             </button>
-            {!assessment.can_switch_section && isActive && (
+            {!assessment.can_switch_section && assessment?.distribution_duration == distribution_duration_types.SECTION && isActive && (
               <button
                 onClick={handleEndSection}
                 className="ml-2 px-3 py-1 text-sm border rounded hover:bg-gray-50"

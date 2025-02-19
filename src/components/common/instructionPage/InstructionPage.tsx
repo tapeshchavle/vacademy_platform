@@ -5,7 +5,7 @@ import { GET_TEXT_VIA_IDS } from "@/constants/urls";
 import { fetchDataByIds } from "@/services/GetDataById";
 import { RichText, Assessment as AssessmentType } from "@/types/assessment";
 import AssessmentNavbar from "./AssessmentNavbar";
-import {AssessmentInstructions} from "./AssessmentInstructions"
+import { AssessmentInstructions } from "./AssessmentInstructions";
 
 const InstructionPage = () => {
   const [instructions, setInstructions] = useState<RichText>();
@@ -39,15 +39,16 @@ const InstructionPage = () => {
       </div>
 
       <main className="pt-24 pb-16 p-4 lg:p-8 lg:pt-24 lg:pb-16">
-        {assessmentInfo && instructions &&  (
+        {assessmentInfo && instructions && (
           <AssessmentInstructions
             instructions={instructions.content}
             duration={assessmentInfo.duration}
             preview={assessmentInfo.preview_time > 0 ? true : false}
             canSwitchSections={assessmentInfo.can_switch_section}
+            assessment_attempts={assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 1}
+            assessmentInfo={assessmentInfo}
           />
         )}
-
         {/* {assessment.section_dtos.map((section: Section) => (
           <div key={section.id} className="section-container">
             <Separator orientation="horizontal" className="my-4" />
@@ -58,7 +59,6 @@ const InstructionPage = () => {
         <div className="fixed bottom-0 left-0 right-0 bg-white z-50">
           <div className="pb-4 px-4">
             <AssessmentStartModal />
-            
           </div>
         </div>
       </main>

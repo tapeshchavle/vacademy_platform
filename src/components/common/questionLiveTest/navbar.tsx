@@ -58,27 +58,40 @@ export function Navbar() {
 
   const [helpType, setHelpType] = useState<HelpType["type"]>(null);
 
+  const [playMode, setPlayMode] = useState<string | null>(null);
+
   const formatDataFromStore = (assessment_id: string) => {
     const state = useAssessmentStore.getState();
-    console.log(state);
+    console.log(state.questionStates[1]);
     return {
       attemptId: state.assessment?.attempt_id,
       clientLastSync: new Date().toISOString(),
       assessment: {
         assessmentId: assessment_id,
         entireTestDurationLeftInSeconds: state.entireTestTimer,
-        timeElapsedInSeconds: 0,
+        timeElapsedInSeconds: state.assessment?.duration
+          ? state.assessment.duration * 60 - state.entireTestTimer
+          : 0,
         status: "END",
         tabSwitchCount: state.tabSwitchCount || 0,
       },
       sections: state.assessment?.section_dtos?.map((section, idx) => ({
         sectionId: section.id,
-        timeElapsedInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+        sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+        timeElapsedInSeconds: section.duration
+          ? section.duration * 60 - (state.sectionTimers?.[idx]?.timeLeft || 0)
+          : 0,
         questions: section.question_preview_dto_list?.map((question) => ({
           questionId: question.question_id,
           questionDurationLeftInSeconds:
             state.questionTimers?.[question.question_id] || 0,
-          timeTakenInSeconds: 0,
+          timeTakenInSeconds:
+            state.questionTimeSpent[question.question_id] || 0,
+          isMarkedForReview:
+            state.questionStates[question.question_id].isMarkedForReview ||
+            false,
+          isVisited:
+            state.questionStates[question.question_id].isVisited || false,
           responseData: {
             type: question.question_type,
             optionIds: state.answers?.[question.question_id] || [],
@@ -145,7 +158,7 @@ export function Navbar() {
     let backButtonListener: PluginListenerHandle | null = null;
 
     const setupBackButtonListener = async () => {
-      backButtonListener = await App.addListener('backButton', () => {
+      backButtonListener = await App.addListener("backButton", () => {
         setShowSubmitModal(true);
         return false;
       });
@@ -175,6 +188,21 @@ export function Navbar() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
+  }, []);
+
+
+  useEffect(() => {
+    const fetchPlayMode = async () => {
+      const storedMode = await Preferences.get({
+        key: "InstructionID_and_AboutID",
+      });
+      if (storedMode.value) {
+        const parsedData = JSON.parse(storedMode.value);
+        setPlayMode(parsedData.play_mode);
+      }
+    };
+
+    fetchPlayMode();
   }, []);
 
   useEffect(() => {
@@ -254,7 +282,6 @@ export function Navbar() {
                 // Remove from Capacitor Storage
                 await Storage.remove({ key: storageKey });
                 console.log(`${storageKey} removed from Capacitor Storage`);
-
               } else {
                 console.error("Attempt ID not found in Assessment_questions.");
               }
@@ -267,9 +294,10 @@ export function Navbar() {
     };
 
     submitData();
-    // if (document.fullscreenElement) {
-    //   document.exitFullscreen();
-    // }
+    // fullScreen.exit();
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
   };
 
   if (isAllTimeUp && !showTimesUpModal) {
@@ -305,21 +333,30 @@ export function Navbar() {
         <div className="">
           {entireTestTimer && (
             <div className="flex items-center gap-2 text-lg  justify-center">
-              <div className="flex items-center space-x-4">
-                {formatTime(entireTestTimer)
-                  .split(":")
-                  .map((time, index, array) => (
-                    <div key={index} className="relative flex items-center">
-                      <span className="border border-gray-400 px-2 py-1 rounded">
-                        {time}
-                      </span>
-                      {index < array.length - 1 && (
-                        <span className="absolute right-[-10px] text-lg">
-                          :
-                        </span>
-                      )}
+              <div className="flex items-center space-x-4">                
+                {playMode !== "PRACTICE" && entireTestTimer && (
+                  <div className="flex items-center gap-2 text-lg justify-center">
+                    <div className="flex items-center space-x-4">
+                      {formatTime(entireTestTimer)
+                        .split(":")
+                        .map((time, index, array) => (
+                          <div
+                            key={index}
+                            className="relative flex items-center"
+                          >
+                            <span className="border border-gray-400 px-2 py-1 rounded">
+                              {time}
+                            </span>
+                            {index < array.length - 1 && (
+                              <span className="absolute right-[-10px] text-lg">
+                                :
+                              </span>
+                            )}
+                          </div>
+                        ))}
                     </div>
-                  ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

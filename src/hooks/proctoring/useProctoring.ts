@@ -45,7 +45,7 @@ export function useProctoring({
   const { tabFocusStatus } = useTabFocusDetection({
     disabled: preventTabSwitch === false,
   })
-  console.log(tabFocusStatus, 'from proctoring')
+  // console.log(tabFocusStatus, 'from proctoring')
   const { fullScreenStatus } = useFullScreenDetection({
     disabled: forceFullScreen === false,
   })

@@ -49,6 +49,9 @@ interface AssessmentStore {
   questionStartTime: Record<string, number>;
   setQuestionStartTime: (questionId: string, startTime: number) => void;
   calculateTimeTaken: (questionId: string) => number;
+  questionTimeSpent: Record<string, number>;
+  initializeQuestionTime: (questionId: string) => void;
+  incrementQuestionTime: (questionId: string) => void;
 }
 
 export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
@@ -60,6 +63,9 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   answers: {},
   sectionTimers: {},
   questionTimers: {},
+  questionStartTime: {},
+  questionTimeSpent: {},
+
 
   setAssessment: (assessment) =>
     set((state) => {
@@ -441,6 +447,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       entireTestTimer: state.entireTestTimer,
       tabSwitchCount: state.tabSwitchCount,
       questionStartTime: state.questionStartTime,
+      questionTimeSpent: state.questionTimeSpent,
     };
 
     const storageKey = `ASSESSMENT_STATE_${attemptId}`;
@@ -492,7 +499,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     }
   },
 
-  questionStartTime: {},
   setQuestionStartTime: (questionId: string, startTime: number) =>
     set((state) => ({
       questionStartTime: {
@@ -507,6 +513,23 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     if (!startTime) return 0;
     return Date.now() - startTime;
   },
+
+
+  initializeQuestionTime: (questionId) =>
+    set((state) => ({
+      questionTimeSpent: {
+        ...state.questionTimeSpent,
+        [questionId]: state.questionTimeSpent[questionId] || 0, 
+      },
+    })),
+
+  incrementQuestionTime: (questionId) =>
+    set((state) => ({
+      questionTimeSpent: {
+        ...state.questionTimeSpent,
+        [questionId]: (state.questionTimeSpent[questionId] || 0) + 1, 
+      },
+    })),
 }));
 
 export default useAssessmentStore;

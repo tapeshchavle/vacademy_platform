@@ -8,6 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useProctoring } from "@/hooks"
 import { AlertCircle } from 'lucide-react'
 
 interface SubmitModalProps {
@@ -17,6 +18,14 @@ interface SubmitModalProps {
 }
 
 export function SubmitModal({ open, onOpenChange, onConfirm }: SubmitModalProps) {
+  useProctoring({
+    forceFullScreen: false, // Disable forced full-screen mode
+    preventTabSwitch: false,
+    preventContextMenu: false,
+    preventUserSelection: false,
+    preventCopy: false,
+  })
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
