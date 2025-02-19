@@ -16,6 +16,7 @@ import {
 import { useState, useEffect } from "react";
 import { Storage } from "@capacitor/storage";
 import dayjs from "dayjs";
+import { restartAssessment } from "../-utils.ts/useFetchRestartAssessment";
 
 interface AssessmentProps {
   assessmentInfo: Assessment;
@@ -66,7 +67,7 @@ export const AssessmentCard = ({
         assessmentInfo.recent_attempt_status === "LIVE"
       ) {
         setShowRestartDialog(true);
-      } else {
+      } else if (assessmentInfo.recent_attempt_status !== "ENDED") {
         // Store assessment info and navigate to examination
         await Storage.set({
           key: "InstructionID_and_AboutID",
@@ -85,9 +86,10 @@ export const AssessmentCard = ({
   const handleRestartAssessment = async () => {
     setIsRestarting(true);
     try {
-      await fetch(`/api/restart-assessment/${assessmentInfo.assessment_id}`, {
-        method: "POST",
-      });
+      restartAssessment(assessmentInfo.assessment_id);
+      // await fetch(`/api/restart-assessment/${assessmentInfo.assessment_id}`, {
+      //   method: "POST",
+      // });
       // navigate({
       //   to: `/assessment/examination/${assessmentInfo.assessment_id}`,
       // });
@@ -100,7 +102,7 @@ export const AssessmentCard = ({
   }; 
 
   const getButtonLabel = () => {
-    if ((assessmentInfo?.user_attempts ?? 1) < assessmentInfo.assessment_attempts) {
+    if ((assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 1) < (assessmentInfo.created_attempts ?? 1)) {
       return "Join Assessment";
     }
     if (["LIVE", "PREVIEW"].includes(assessmentInfo?.recent_attempt_status ?? "")) {
@@ -111,6 +113,24 @@ export const AssessmentCard = ({
     }
     return "Join Assessment";
   };
+
+
+
+  // const getButtonLabel = () => {
+  //   const totalAttempts = assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 1;
+  //   const createdAttempts = assessmentInfo.created_attempts ?? 1;
+  //   const recentStatus = assessmentInfo.recent_attempt_status;
+  //   console.log("totalAttempts", totalAttempts, "createdAttempts", createdAttempts, "recentStatus", recentStatus);
+  //   if (recentStatus === "LIVE") return "Restart";
+  //   if (totalAttempts < createdAttempts) {
+  //     if (!recentStatus) return "Join Assessment";
+  //     if (recentStatus === "ENDED") return "Join Assessment";
+  //   }
+    
+  //   return "Ended";
+  // };
+  
+  
 
  
   return (

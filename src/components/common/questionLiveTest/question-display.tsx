@@ -24,9 +24,20 @@ export function QuestionDisplay() {
     assessment,
     updateQuestionTimer,
     moveToNextQuestion,
+    questionTimeSpent, initializeQuestionTime, incrementQuestionTime,
   } = useAssessmentStore();
 
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
+
+  useEffect(() => {
+    initializeQuestionTime(currentQuestion?.question_id); // Ensure the timer exists
+
+    const interval = setInterval(() => {
+      incrementQuestionTime(currentQuestion?.question_id);
+    }, 1000); // Increment every second
+
+    return () => clearInterval(interval); // Cleanup when component unmounts
+  }, [currentQuestion, initializeQuestionTime, incrementQuestionTime]);
 
   useEffect(() => {
     if (
@@ -135,8 +146,9 @@ export function QuestionDisplay() {
                   calculateMarkingScheme(currentQuestion.marking_json).data
                     .totalMark
                 }{" "}
-                Marks
+                Marks | {" "}
               </span>
+              <span>{currentQuestion.question_type}</span>
             </div>
           </div>
 
@@ -170,6 +182,7 @@ export function QuestionDisplay() {
           >
             Review Later
           </Button>
+          <p>Time Spent on Question: {questionTimeSpent[currentQuestion.question_id] || 0} seconds</p>
 
           <Button
             variant="outline"
