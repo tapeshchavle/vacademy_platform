@@ -448,7 +448,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       tabSwitchCount: state.tabSwitchCount,
       questionStartTime: state.questionStartTime,
       questionTimeSpent: state.questionTimeSpent,
-      
     };
 
     const storageKey = `ASSESSMENT_STATE_${attemptId}`;
@@ -500,7 +499,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     }
   },
 
-  questionStartTime: {},
   setQuestionStartTime: (questionId: string, startTime: number) =>
     set((state) => ({
       questionStartTime: {
@@ -516,13 +514,12 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     return Date.now() - startTime;
   },
 
-  questionTimeSpent: {},
 
   initializeQuestionTime: (questionId) =>
     set((state) => ({
       questionTimeSpent: {
         ...state.questionTimeSpent,
-        [questionId]: state.questionTimeSpent[questionId] || 0, // Start at 0 if not exists
+        [questionId]: state.questionTimeSpent[questionId] || 0, 
       },
     })),
 
@@ -530,7 +527,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     set((state) => ({
       questionTimeSpent: {
         ...state.questionTimeSpent,
-        [questionId]: (state.questionTimeSpent[questionId] || 0) + 1, // Increment by 1 sec
+        [questionId]: (state.questionTimeSpent[questionId] || 0) + 1, 
       },
     })),
 }));

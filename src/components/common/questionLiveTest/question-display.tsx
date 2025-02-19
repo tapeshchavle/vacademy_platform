@@ -30,11 +30,15 @@ export function QuestionDisplay() {
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
 
   useEffect(() => {
-    initializeQuestionTime(currentQuestion?.question_id); // Ensure the timer exists
+    if (currentQuestion?.question_id) {
+    initializeQuestionTime(currentQuestion?.question_id); 
+    }
 
     const interval = setInterval(() => {
-      incrementQuestionTime(currentQuestion?.question_id);
-    }, 1000); // Increment every second
+      if (currentQuestion?.question_id) {
+        incrementQuestionTime(currentQuestion.question_id);
+      }
+    }, 1000); 
 
     return () => clearInterval(interval); // Cleanup when component unmounts
   }, [currentQuestion, initializeQuestionTime, incrementQuestionTime]);
