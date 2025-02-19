@@ -25,7 +25,7 @@ export function QuestionDisplay() {
     assessment,
     updateQuestionTimer,
     moveToNextQuestion,
-    questionTimeSpent,
+    // questionTimeSpent,
     initializeQuestionTime,
     incrementQuestionTime,
   } = useAssessmentStore();
