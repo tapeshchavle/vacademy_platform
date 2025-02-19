@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -7,27 +8,38 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { useProctoring } from "@/hooks"
-import { AlertCircle } from 'lucide-react'
+} from "@/components/ui/alert-dialog";
+import { useProctoring } from "@/hooks";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 interface SubmitModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onConfirm: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
 }
 
 export function SubmitModal({ open, onOpenChange, onConfirm }: SubmitModalProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useProctoring({
-    forceFullScreen: false, // Disable forced full-screen mode
+    forceFullScreen: false,
     preventTabSwitch: false,
     preventContextMenu: false,
     preventUserSelection: false,
     preventCopy: false,
-  })
+  });
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      onConfirm();
+    } catch  {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
@@ -40,17 +52,28 @@ export function SubmitModal({ open, onOpenChange, onConfirm }: SubmitModalProps)
         </AlertDialogHeader>
         <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
           <AlertDialogAction
-            onClick={onConfirm}
-            className="w-full bg-primary-500 text-white"
+            onClick={handleSubmit}
+            className="w-full bg-primary-500 text-white relative"
+            disabled={isSubmitting}
           >
-            Submit
+            {isSubmitting ? (
+              <div className="flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Submitting...
+              </div>
+            ) : (
+              "Submit"
+            )}
           </AlertDialogAction>
-          <AlertDialogCancel className="w-full mt-0">
-            Cancel 
+          <AlertDialogCancel 
+            className="w-full mt-0" 
+            disabled={isSubmitting}
+            onClick={() => !isSubmitting && onOpenChange(false)}
+          >
+            Cancel
           </AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }
-
