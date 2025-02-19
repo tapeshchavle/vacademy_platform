@@ -16,7 +16,7 @@ import {
 import { useState, useEffect } from "react";
 import { Storage } from "@capacitor/storage";
 import dayjs from "dayjs";
-import { restartAssessment } from "../-utils.ts/useFetchRestartAssessment";
+// import { restartAssessment } from "../-utils.ts/useFetchRestartAssessment";
 
 interface AssessmentProps {
   assessmentInfo: Assessment;
@@ -86,7 +86,7 @@ export const AssessmentCard = ({
   const handleRestartAssessment = async () => {
     setIsRestarting(true);
     try {
-      restartAssessment(assessmentInfo.assessment_id);
+      // restartAssessment(assessmentInfo.assessment_id);
       // await fetch(`/api/restart-assessment/${assessmentInfo.assessment_id}`, {
       //   method: "POST",
       // });
