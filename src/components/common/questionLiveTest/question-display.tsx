@@ -3,12 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   distribution_duration_types,
   QUESTION_TYPES,
 } from "@/types/assessment";
 import { processHtmlString } from "@/lib/utils";
+import { Preferences } from "@capacitor/preferences";
 
 export function QuestionDisplay() {
   const {
@@ -24,27 +25,49 @@ export function QuestionDisplay() {
     assessment,
     updateQuestionTimer,
     moveToNextQuestion,
-    questionTimeSpent, initializeQuestionTime, incrementQuestionTime,
+    questionTimeSpent,
+    initializeQuestionTime,
+    incrementQuestionTime,
   } = useAssessmentStore();
 
-  const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
+  const [playMode, setPlayMode] = useState<string | null>(null);
 
   useEffect(() => {
-    if (currentQuestion?.question_id) {
-    initializeQuestionTime(currentQuestion?.question_id); 
-    }
+    const fetchPlayMode = async () => {
+      const storedMode = await Preferences.get({
+        key: "InstructionID_and_AboutID",
+      });
+      if (storedMode.value) {
+        const parsedData = JSON.parse(storedMode.value);
+        setPlayMode(parsedData.play_mode);
+      }
+    };
+
+    fetchPlayMode();
+  }, []);
+
+  const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
+  const isPracticeMode = playMode === "PRACTICE";
+
+  useEffect(() => {
+    if (isPracticeMode || !currentQuestion?.question_id) return;
+    initializeQuestionTime(currentQuestion.question_id);
 
     const interval = setInterval(() => {
-      if (currentQuestion?.question_id) {
-        incrementQuestionTime(currentQuestion.question_id);
-      }
-    }, 1000); 
+      incrementQuestionTime(currentQuestion.question_id);
+    }, 1000);
 
-    return () => clearInterval(interval); // Cleanup when component unmounts
-  }, [currentQuestion, initializeQuestionTime, incrementQuestionTime]);
+    return () => clearInterval(interval);
+  }, [
+    currentQuestion,
+    initializeQuestionTime,
+    incrementQuestionTime,
+    isPracticeMode,
+  ]);
 
   useEffect(() => {
     if (
+      isPracticeMode ||
       !currentQuestion ||
       assessment?.distribution_duration !== distribution_duration_types.QUESTION
     )
@@ -60,7 +83,12 @@ export function QuestionDisplay() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentQuestion, assessment?.distribution_duration, questionTimers]);
+  }, [
+    currentQuestion,
+    assessment?.distribution_duration,
+    questionTimers,
+    isPracticeMode,
+  ]);
 
   if (!currentQuestion) {
     return (
@@ -74,7 +102,7 @@ export function QuestionDisplay() {
     );
   }
 
-  if (isTimeUp) {
+  if (isTimeUp && !isPracticeMode) {
     return (
       <Alert variant="destructive" className="mb-6">
         <AlertCircle className="h-4 w-4" />
@@ -116,15 +144,6 @@ export function QuestionDisplay() {
     }
   };
 
-  const formatTime = (ms: number) => {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
-      2,
-      "0"
-    )}`;
-  };
-
   return (
     <div className="space-y-6 mx-auto">
       <div className="flex flex-col items-start justify-between w-full">
@@ -134,30 +153,30 @@ export function QuestionDisplay() {
               <span className="text-lg text-gray-700">
                 Question {currentQuestion.question_order}
               </span>
-              <div className="flex items-center gap-2">
-                {assessment?.distribution_duration ===
+              {!isPracticeMode &&
+                assessment?.distribution_duration ===
                   distribution_duration_types.QUESTION && (
                   <span className="text-base text-primary-500">
-                    {formatTime(questionTimers[currentQuestion.question_id])}
+                    {new Date(questionTimers[currentQuestion.question_id] || 0)
+                      .toISOString()
+                      .substr(14, 5)}
                   </span>
                 )}
-              </div>
             </div>
 
-            <div className="">
+            <div>
               <span className="text-base text-gray-600">
                 {
                   calculateMarkingScheme(currentQuestion.marking_json).data
                     .totalMark
                 }{" "}
-                Marks | {" "}
+                Marks |{" "}
               </span>
               <span>{currentQuestion.question_type}</span>
             </div>
           </div>
 
           <p className="text-lg text-gray-800">
-            {/* {parseHtmlToString(currentQuestion.question.content)} */}
             {processHtmlString(currentQuestion.question.content).map(
               (item, index) =>
                 item.type === "text" ? (
@@ -167,7 +186,6 @@ export function QuestionDisplay() {
                     key={index}
                     src={item.content}
                     alt={`Question image ${index + 1}`}
-                    className=""
                   />
                 )
             )}
@@ -186,7 +204,11 @@ export function QuestionDisplay() {
           >
             Review Later
           </Button>
-          <p>Time Spent on Question: {questionTimeSpent[currentQuestion.question_id] || 0} seconds</p>
+          {!isPracticeMode && (
+            <p>
+              Time Spent: {questionTimeSpent[currentQuestion.question_id] || 0}
+            </p>
+          )}
 
           <Button
             variant="outline"
@@ -211,12 +233,11 @@ export function QuestionDisplay() {
           >
             <div className="relative flex items-center">
               <div
-                className={`w-6 h-6 border rounded-md flex items-center justify-center 
-                  ${
-                    currentAnswer.includes(option.id)
-                      ? "bg-green-500 border-green-500"
-                      : "border-gray-300"
-                  }`}
+                className={`w-6 h-6 border rounded-md flex items-center justify-center ${
+                  currentAnswer.includes(option.id)
+                    ? "bg-green-500 border-green-500"
+                    : "border-gray-300"
+                }`}
                 onClick={() => handleAnswerChange(option.id)}
               >
                 {currentAnswer.includes(option.id) && (
@@ -226,21 +247,19 @@ export function QuestionDisplay() {
             </div>
 
             <label
-              className={`flex-grow cursor-pointer text-sm 
-                ${currentAnswer.includes(option.id) ? "font-semibold" : "text-gray-700"}`}
+              className={`flex-grow cursor-pointer text-sm ${
+                currentAnswer.includes(option.id)
+                  ? "font-semibold"
+                  : "text-gray-700"
+              }`}
               onClick={() => handleAnswerChange(option.id)}
             >
-              {`(${String.fromCharCode(97 + index)})  `}
+              {`(${String.fromCharCode(97 + index)}) `}
               {processHtmlString(option.text.content).map((item, index) =>
                 item.type === "text" ? (
                   <span key={index}>{item.content}</span>
                 ) : (
-                  <img
-                    key={index}
-                    src={item.content}
-                    alt={`Question image ${index + 1}`}
-                    className=""
-                  />
+                  <img key={index} src={item.content} alt={`Option ${index}`} />
                 )
               )}
             </label>

@@ -15,7 +15,7 @@ interface StoreState {
 
 const useStore = create<StoreState>((set) => ({
   sideBarState: sideBarStateType.DEFAULT,
-  sideBarOpen: true,
+  sideBarOpen: false,
   instituteName: "",
   instituteLogoFileUrl: "",
   setSidebarOpen: () => set((state) => ({ sideBarOpen: !state.sideBarOpen })),

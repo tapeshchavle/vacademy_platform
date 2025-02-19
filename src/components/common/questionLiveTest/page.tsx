@@ -20,23 +20,36 @@ export default function Page() {
   // Function to format data from assessment-store
   const formatDataFromStore = (assessment_id: string) => {
     const state = useAssessmentStore.getState();
+    console.log(state.questionStates[1]);
     return {
       attemptId: state.assessment?.attempt_id,
       clientLastSync: new Date().toISOString(),
       assessment: {
         assessmentId: assessment_id,
         entireTestDurationLeftInSeconds: state.entireTestTimer,
-        timeElapsedInSeconds: state.assessment?.duration? - state.entireTestTimer : 0, 
+        timeElapsedInSeconds: state.assessment?.duration
+          ? state.assessment.duration * 60 - state.entireTestTimer
+          : 0,
         status: "LIVE",
         tabSwitchCount: state.tabSwitchCount || 0,
       },
       sections: state.assessment?.section_dtos?.map((section, idx) => ({
         sectionId: section.id,
-        timeElapsedInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+        sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+        timeElapsedInSeconds: section.duration
+          ? section.duration * 60 - (state.sectionTimers?.[idx]?.timeLeft || 0)
+          : 0,
         questions: section.question_preview_dto_list?.map((question) => ({
           questionId: question.question_id,
-          questionDurationLeftInSeconds: state.questionTimers?.[question.question_id] || 0,
-          timeTakenInSeconds: state.questionTimeSpent[question.question_id] || 0,
+          questionDurationLeftInSeconds:
+            state.questionTimers?.[question.question_id] || 0,
+          timeTakenInSeconds:
+          state.questionTimeSpent[question.question_id] || 0,
+          isMarkedForReview:
+            state.questionStates[question.question_id].isMarkedForReview ||
+            false,
+          isVisited:
+            state.questionStates[question.question_id].isVisited || false,
           responseData: {
             type: question.question_type,
             optionIds: state.answers?.[question.question_id] || [],
@@ -101,7 +114,18 @@ export default function Page() {
     const sent = async () => {
       // Check if isSubmitted is false and time is not up before sending data
       const state = useAssessmentStore.getState();
-      if (!isSubmitted && state.entireTestTimer > 0) {
+      const InstructionID_and_AboutID = await Preferences.get({
+        key: "InstructionID_and_AboutID",
+      });
+      const assessment_id_json = InstructionID_and_AboutID.value
+        ? JSON.parse(InstructionID_and_AboutID.value)
+        : null;
+
+      if (
+        !isSubmitted &&
+        state.entireTestTimer > 0 &&
+        assessment_id_json?.play_mode === "EXAM"
+      ) {
         await sendData();
       }
     };
