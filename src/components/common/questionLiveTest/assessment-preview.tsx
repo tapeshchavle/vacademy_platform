@@ -142,28 +142,18 @@ export function AssessmentPreview() {
 
   if (!assessment) return null;
 
-  // const fetchAssessmentData = async () => {
-  //   const result = await Preferences.get({ key: "InstructionID_and_AboutID" });
-  //   if (result.value) {
-  //     setAssessmentData(JSON.parse(result.value)); // Assuming the value is stored as JSON
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   fetchAssessmentData();
-  // }, []);
 
   return (
     <>
       <div className="flex flex-col w-full bg-gray-50">
         {/* Navbar with Timer */}
         <div className="sticky top-0 z-20 bg-white border-b">
-          <div className="flex flex-col bg-primary-50 items-center justify-center sm:flex-row  p-4">
-            {/* <h1 className="text-base font-semibold">{AssessmentData.name}</h1> */}
+          <div className="flex bg-primary-50 items-center justify-center sm:flex-row  p-4">
+            <h1 className="text-base ml-5 font-semibold">Preview</h1>
             {/* <h1 className="text-base font-semibold">
             {assessmentData ? assessmentData.name : "Loading..."}
           </h1> */}
-            <div className="flex items-center justify-center space-x-4 w-full">
+            <div className="flex items-center justify-center space-x-4 mr-14 w-full">
               {formatTime(timeLeft)
                 .split(":")
                 .map((time, index, array) => (

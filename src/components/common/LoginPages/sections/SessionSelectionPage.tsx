@@ -24,6 +24,12 @@ const SessionSelectionPage = () => {
     fetchSessionList();
   }, []);
 
+  useEffect(() => {
+    if (sessionList.length === 1) {
+      handleSessionSelect(sessionList[0]); 
+    }
+  }, [sessionList]);
+
   const fetchSessionList = async () => {
     try {
       setLoading(true);
@@ -78,7 +84,6 @@ const SessionSelectionPage = () => {
       // Cleanup: Remove previous studentData & sessionList from storage
       await Preferences.remove({ key: "studentData" });
       await Preferences.remove({ key: "sessionList" });
-      await Preferences.remove({ key: "DifferentSessions" });
       await Preferences.remove({ key: "students" });
       
 
@@ -94,7 +99,7 @@ const SessionSelectionPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin" />
+        <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
       </div>
     );
   }

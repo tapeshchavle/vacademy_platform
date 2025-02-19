@@ -62,7 +62,7 @@ export function Footer({ onToggleSidebar }: FooterProps) {
         variant="outline"
         size="icon"
         onClick={onToggleSidebar}
-        className="md:block"
+        className=""
       >
         {/* <PanelLeft className="h-4 w-4" /> */}
         <ListBulletIcon className="h-4 w-4" />
