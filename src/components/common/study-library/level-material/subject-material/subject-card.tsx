@@ -59,7 +59,7 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
                     <img
                         src={imageUrl}
                         alt={subject.subject_name}
-                        className={``}
+                        className="w-full rounded-lg object-cover"
                     />
                 ) : (
                     <SubjectDefaultImage

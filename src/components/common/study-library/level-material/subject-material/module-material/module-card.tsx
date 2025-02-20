@@ -60,10 +60,10 @@ export const ModuleCard = ({module}:{module:Module}) => {
                 <img
                     src={imageUrl}
                     alt={module.module_name}
-                    className="h-[200px] w-full rounded-lg object-cover"
+                    className="w-full rounded-lg object-cover"
                 />
             ) : (
-                <div className="flex h-[200px] w-full items-center justify-center rounded-lg bg-neutral-100">
+                <div className="flex w-full items-center justify-center rounded-lg bg-neutral-100">
                     <span className="text-neutral-400">No Image</span>
                 </div>
                 // <div className="w-full flex items-center justify-center">
