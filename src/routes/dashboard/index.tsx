@@ -16,7 +16,7 @@ export function Dashboard() {
   const [assessmentCount, setAssessmentCount] = useState<number>();
   const { setNavHeading } = useNavHeadingStore();
   useEffect(() => {
-    setNavHeading("Dashoard");
+    setNavHeading("Dashboard");
     fetchStaticData(setUsername, setData, setAssessmentCount);
   }, []);
   return (
