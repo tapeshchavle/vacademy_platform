@@ -457,7 +457,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       value: JSON.stringify(dataToSave),
     });
 
-    // localStorage.setItem(storageKey, JSON.stringify(dataToSave));
   },
 
   loadState: async () => {

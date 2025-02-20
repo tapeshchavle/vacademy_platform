@@ -15,7 +15,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { useProctoring } from "@/hooks";
-import { App } from '@capacitor/app';
+import { App } from "@capacitor/app";
 import { useLocation } from "@tanstack/react-router";
 import { PluginListenerHandle } from "@capacitor/core";
 
@@ -35,21 +35,22 @@ export function AssessmentPreview() {
   });
   const [showWarningModal, setShowWarningModal] = useState(false);
   const { fullScreen } = useProctoring({
-      forceFullScreen: true,
-      preventTabSwitch: true,
-      preventContextMenu: true,
-      preventUserSelection: true,
-      preventCopy: true,
-    });
+    forceFullScreen: true,
+    preventTabSwitch: true,
+    preventContextMenu: true,
+    preventUserSelection: true,
+    preventCopy: true,
+  });
 
   const location = useLocation();
-  const [backButtonListener, setBackButtonListener] = useState<PluginListenerHandle | null>(null);
+  const [backButtonListener, setBackButtonListener] =
+    useState<PluginListenerHandle | null>(null);
 
   useEffect(() => {
     const setupBackButtonListener = async () => {
-      if (location.pathname === '/restricted-page') {
-        const listener = await App.addListener('backButton', () => {
-          console.log('Back button is disabled on this page');
+      if (location.pathname === "/restricted-page") {
+        const listener = await App.addListener("backButton", () => {
+          console.log("Back button is disabled on this page");
         });
         setBackButtonListener(listener);
       }
@@ -81,7 +82,7 @@ export function AssessmentPreview() {
   };
   const handleStartAssessment = async () => {
     await startAssessment();
-    router.navigate({ to: newPath });
+    router.navigate({ to: newPath, replace: true });
   };
 
   useEffect(() => {
@@ -103,7 +104,6 @@ export function AssessmentPreview() {
 
     setAssessmentData();
   }, []);
-
 
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -141,7 +141,6 @@ export function AssessmentPreview() {
   };
 
   if (!assessment) return null;
-
 
   return (
     <>
