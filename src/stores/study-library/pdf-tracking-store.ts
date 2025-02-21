@@ -31,18 +31,25 @@ export const useTrackingStore = create<TrackingStore>((set) => ({
         try {
             const storedData = await loadFromStorage();
             const existingActivities = storedData.data;
-
+    
             set(() => {
+                // Find existing activity for current session
                 const existingActivityIndex = existingActivities.findIndex(
                     (item) => item.activity_id === activity.activity_id
                 );
-
+    
                 let updatedData;
                 if (existingActivityIndex !== -1 && isUpdate) {
+                    // Update existing activity
                     const existingActivity = existingActivities[existingActivityIndex];
-                    updatedData = [...existingActivities];
                     
-                    updatedData[existingActivityIndex] = {
+                    // Remove the existing activity before adding updated version
+                    updatedData = existingActivities.filter(
+                        (item) => item.activity_id !== activity.activity_id
+                    );
+                    
+                    // Add the updated activity
+                    updatedData.push({
                         ...existingActivity,
                         start_time: activity.start_time,
                         end_time: activity.end_time,
@@ -56,16 +63,20 @@ export const useTrackingStore = create<TrackingStore>((set) => ({
                                 ...activity.page_views.map((t) => JSON.stringify(t))
                             ])
                         ).map((t) => JSON.parse(t))
-                    };
+                    });
                 } else {
-                    updatedData = [...existingActivities, activity];
+                    // For new activity, remove any existing activities with the same ID first
+                    updatedData = existingActivities.filter(
+                        (item) => item.activity_id !== activity.activity_id
+                    );
+                    updatedData.push(activity);
                 }
-
+    
                 Preferences.set({
                     key: STORAGE_KEY,
                     value: JSON.stringify({ data: updatedData })
                 });
-
+    
                 return { trackingData: { data: updatedData } };
             });
         } catch (error) {

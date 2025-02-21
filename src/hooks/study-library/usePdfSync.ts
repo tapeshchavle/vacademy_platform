@@ -62,7 +62,7 @@ export const usePDFSync = () => {
                 };
 
                 try {
-                    if (activity.page_views.length === 1 && activity.new_activity) {
+                    if (activity.page_views.length >= 1 && activity.new_activity) {
                         await addUpdateDocumentActivity.mutateAsync({
                             slideId: activeItem?.slide_id || "",
                             chapterId: chapterId || "",
@@ -71,18 +71,7 @@ export const usePDFSync = () => {
                         activity.sync_status = 'SYNCED';
                         activity.new_activity = false;  // Move this here, after successful API call
                         updatedActivities.push(activity);
-                    } else {
-                        await addUpdateDocumentActivity.mutateAsync({
-                            slideId: activeItem?.slide_id || "",
-                            chapterId: chapterId || "",
-                            requestPayload: apiPayload
-                        });
-                        activity.sync_status = 'SYNCED';
-                        updatedActivities.push(activity);
                     }
-
-                    activity.sync_status = 'SYNCED';
-                    updatedActivities.push(activity);
                 } catch (error) {
                     console.error('API call failed:', error);
                     updatedActivities.push(activity);
