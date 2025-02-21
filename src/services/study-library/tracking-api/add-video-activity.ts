@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
-import { ADD_VIDEO_ACTIVITY } from "@/constants/urls";
+import { ADD_UPDATE_VIDEO_ACTIVITY } from "@/constants/urls";
 import { TrackingDataType } from "@/types/tracking-data-type";
 
 export const useAddVideoActivity = () => {
@@ -8,17 +8,17 @@ export const useAddVideoActivity = () => {
     return useMutation({
         mutationFn: async ({
             slideId,
-            userId,
+            chapterId,
             requestPayload
         }: {
             slideId: string;
-            userId: string;
+            chapterId: string;
             requestPayload: TrackingDataType;
         }) => {
             const payload = requestPayload
 
             return authenticatedAxiosInstance.post(
-                `${ADD_VIDEO_ACTIVITY}?slideId=${slideId}&userId=${userId}`,
+                `${ADD_UPDATE_VIDEO_ACTIVITY}?slideId=${slideId}&chapterId=${chapterId}`,
                 payload,
             );
         }

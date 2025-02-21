@@ -1,20 +1,21 @@
 // usePDFSync.ts
 import { ActivitySchema } from '@/schemas/study-library/pdf-tracking-schema';
 import { useAddDocumentActivity } from '@/services/study-library/tracking-api/add-document-activity';
-import { useUpdateDocumentActivity } from '@/services/study-library/tracking-api/update-document-activity';
 import { useContentStore } from '@/stores/study-library/chapter-sidebar-store';
 import { TrackingDataType } from '@/types/tracking-data-type';
 import { calculateAndUpdatePageViews } from '@/utils/study-library/tracking/calculateAndUpdatePageViews';
 import { Preferences } from '@capacitor/preferences';
+import { useRouter } from '@tanstack/react-router';
 import { z } from 'zod';
 
 const STORAGE_KEY = 'pdf_tracking_data';
 const USER_ID_KEY = 'StudentDetails';
 
 export const usePDFSync = () => {
-    const addDocumentActivity = useAddDocumentActivity();
-    const updateDocumentActivity = useUpdateDocumentActivity();
+    const addUpdateDocumentActivity = useAddDocumentActivity();
     const {activeItem} = useContentStore();
+    const router = useRouter();
+    const {chapterId} = router.state.location.search;
 
     const syncPDFTrackingData = async () => {
         try {
@@ -45,7 +46,7 @@ export const usePDFSync = () => {
                     id: activity.activity_id,
                     source_id: activity.source_id,
                     source_type: activity.source,
-                    user_id: userId,
+                    user_id: chapterId || "",
                     slide_id: activeItem?.slide_id || "",
                     start_time_in_millis: activity.start_time_in_millis,
                     end_time_in_millis: activity.end_time_in_millis,
@@ -56,22 +57,24 @@ export const usePDFSync = () => {
                         start_time_in_millis: view.start_time_in_millis,
                         end_time_in_millis: view.end_time_in_millis,
                         page_number: view.page
-                    }))
+                    })),
+                    new_activity: activity.new_activity
                 };
 
                 try {
                     if (activity.page_views.length === 1 && activity.new_activity) {
-                        await addDocumentActivity.mutateAsync({
+                        await addUpdateDocumentActivity.mutateAsync({
                             slideId: activeItem?.slide_id || "",
-                            userId,
+                            chapterId: chapterId || "",
                             requestPayload: apiPayload
                         });
                         activity.sync_status = 'SYNCED';
                         activity.new_activity = false;  // Move this here, after successful API call
                         updatedActivities.push(activity);
                     } else {
-                        await updateDocumentActivity.mutateAsync({
-                            activityId: activity.activity_id,
+                        await addUpdateDocumentActivity.mutateAsync({
+                            slideId: activeItem?.slide_id || "",
+                            chapterId: chapterId || "",
                             requestPayload: apiPayload
                         });
                         activity.sync_status = 'SYNCED';
