@@ -2,37 +2,19 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { truncateString } from "@/lib/reusable/truncateString";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { BookOpenText, PlayCircle } from "@phosphor-icons/react";
-import { ReactNode, useEffect } from "react";
+import { ReactNode } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { Slide, useSlides } from "@/hooks/study-library/use-slides";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 
 export const ChapterSidebarSlides = () => {
     const { open } = useSidebar();
-    const { setItems, activeItem, setActiveItem } = useContentStore();
+    const { activeItem, setActiveItem } = useContentStore();
     const router = useRouter();
-    const { chapterId, slideId } = router.state.location.search;
+    const { chapterId } = router.state.location.search;
     const { slides, isLoading } = useSlides(chapterId || "");
 
-    useEffect(() => {
-        if (slides?.length) {
-            setItems(slides);
-
-            // If we have a slideId in URL, find that slide
-            if (slideId) {
-                const targetSlide: Slide = slides.find(
-                    (slide: Slide) => slide.slide_id === slideId,
-                );
-                if (targetSlide) {
-                    setActiveItem(targetSlide);
-                    return;
-                }
-            }
-
-            // If no slideId or slide not found, set first slide as active
-            setActiveItem(slides[0]);
-        }
-    }, [slides, slideId]);
+   
     
     const getIcon = (slide: Slide): ReactNode => {
         const type = slide.video_url != null ? "VIDEO" : slide.document_type;

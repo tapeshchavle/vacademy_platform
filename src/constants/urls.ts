@@ -17,10 +17,8 @@ export const ASSESSMENT_SUBMIT = `${BASE_URL}/assessment-service/assessment/lear
 export const RESTART_ASSESSMENT = `${BASE_URL}/assessment-service/assessment/learner/restart`;
 
 
-export const ADD_VIDEO_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-video-activity`
-export const UPDATE_VIDEO_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/update-video-activity`
-export const ADD_DOCUMENT_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-document-activity`
-export const UPDATE_DOCUMENT_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/update-document-activity`
+export const ADD_UPDATE_VIDEO_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-or-update-video-activity`
+export const ADD_UPDATE_DOCUMENT_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-or-update-document-activity`
 
 export const INIT_STUDY_LIBRARY = `${BASE_URL}/admin-core-service/v1/learner-study-library/init-details`
 export const MODULES_WITH_CHAPTERS = `${BASE_URL}/admin-core-service/v1/learner-study-library/modules-with-chapters`
