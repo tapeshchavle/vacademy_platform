@@ -4,10 +4,10 @@ import { Module } from "@/stores/study-library/use-modules-with-chapters-store";
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-export const ModuleCard = ({module}:{module:Module}) => {
+export const ModuleCard = ({ module }: { module: Module }) => {
 
     const router = useRouter();
-    const {open} = useSidebar();
+    const { open } = useSidebar();
     const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
     const handleCardClick = (e: React.MouseEvent) => {
@@ -45,43 +45,43 @@ export const ModuleCard = ({module}:{module:Module}) => {
 
         fetchImageUrl();
     }, [module.thumbnail_id]);
-    
 
-    return(
-        <div onClick={handleCardClick} className="cursor-pointer w-full items-center flex justify-center">
-        <div
-            className={`flex w-[310px] xs:w-[340px] sm:w-full ${open?"md-tablet:w-[270px]":"md-tablet:w-[340px]"} flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6`}
-        >
-            <div className="flex items-center justify-between text-title font-semibold">
-                <div>{module.module_name}</div>
-            </div>
 
-            {imageUrl ? (
-                <img
-                    src={imageUrl}
-                    alt={module.module_name}
-                    className="w-full rounded-lg object-cover"
-                />
-            ) : (
-                <div className="flex w-full items-center justify-center rounded-lg bg-neutral-100">
-                    <span className="text-neutral-400">No Image</span>
-                </div>
-                // <div className="w-full flex items-center justify-center">
-                // <SubjectDefaultImage />
-                // </div>
-            )}
-
-            <div className="flex flex-col gap-2">
-                <div className="flex gap-2 text-subtitle font-semibold">
-                    <div className="text-primary-500">0</div>
-                    <div>Chapters</div>
+    return (
+        <div onClick={handleCardClick} className="cursor-pointer w-full items-center flex justify-center h-[380px]">
+            <div
+                className={`flex w-[310px] xs:w-[340px] sm:w-full ${open ? "md-tablet:w-[270px]" : "md-tablet:w-[340px]"} h-full flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6`}
+            >
+                <div className="flex items-center justify-between text-title font-semibold">
+                    <div>{module.module_name}</div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                    <div className="text-caption text-neutral-500">{module.description}</div>
+                {imageUrl ? (
+                    <img
+                        src={imageUrl}
+                        alt={module.module_name}
+                        className="w-full rounded-lg object-cover h-[80%]"
+                    />
+                ) : (
+                    <div className="flex w-full items-center justify-center rounded-lg bg-neutral-100 h-[80%]">
+                        <span className="text-neutral-400">No Image</span>
+                    </div>
+                    // <div className="w-full flex items-center justify-center">
+                    // <SubjectDefaultImage />
+                    // </div>
+                )}
+
+                <div className="flex flex-col gap-2">
+                    <div className="flex gap-2 text-subtitle font-semibold">
+                        <div className="text-primary-500">0</div>
+                        <div>Chapters</div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <div className="text-caption text-neutral-500">{module.description}</div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
     )
 }
