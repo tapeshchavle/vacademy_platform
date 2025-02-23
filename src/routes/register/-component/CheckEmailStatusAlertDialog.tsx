@@ -1,6 +1,11 @@
 import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
 import { useEffect, useState } from "react";
-import { useForm, Controller, FormProvider } from "react-hook-form";
+import {
+  useForm,
+  Controller,
+  FormProvider,
+  UseFormReturn,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRef } from "react";
 import { z } from "zod";
@@ -23,6 +28,10 @@ import { TokenKey } from "@/constants/auth/tokens";
 import { getOpenRegistrationUserDetailsByEmail } from "../-utils/helper";
 import { OpenTestAssessmentRegistrationDetails } from "@/types/open-test";
 import { useNavigate } from "@tanstack/react-router";
+import {
+  DynamicSchemaData,
+  ParticipantsDataInterface,
+} from "@/types/assessment-open-registration";
 
 // Define Zod Schema
 const formSchema = z.object({
@@ -38,9 +47,15 @@ type FormValues = z.infer<typeof formSchema>;
 const CheckEmailStatusAlertDialog = ({
   registrationData,
   registrationForm,
+  setParticipantsDto,
+  setUserAlreadyRegistered,
 }: {
   registrationData: OpenTestAssessmentRegistrationDetails;
-  registrationForm: any;
+  registrationForm: UseFormReturn<DynamicSchemaData>;
+  setParticipantsDto: React.Dispatch<
+    React.SetStateAction<ParticipantsDataInterface>
+  >;
+  setUserAlreadyRegistered: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
   const navigate = useNavigate();
   const [isOtpSent, setIsOTPSent] = useState(false);
@@ -114,12 +129,15 @@ const CheckEmailStatusAlertDialog = ({
       setIsOTPSent(true);
       startTimer();
       toast.success("OTP sent successfully");
+      setUserAlreadyRegistered(false);
     },
     onError: () => {
-      toast.error("this email is not registered", {
-        description: "Please try again with a registered email",
+      toast.error("This email is not registered", {
+        description: "Please register yourself to attempt this assessment",
         duration: 3000,
       });
+      setUserAlreadyRegistered(true);
+      handleCloseAlertDialog();
     },
   });
 
@@ -150,6 +168,19 @@ const CheckEmailStatusAlertDialog = ({
         userId,
         psIds
       );
+      if (userDetails) {
+        setParticipantsDto({
+          username: userDetails.username,
+          user_id: userDetails.user_id,
+          email: userDetails.email,
+          full_name: userDetails.full_name,
+          mobile_number: userDetails.mobile_number,
+          file_id: userDetails.face_file_id || "",
+          guardian_email: userDetails.parents_email,
+          guardian_mobile_number: userDetails.parents_mobile_number,
+          reattempt_count: getTestDetailsOfParticipants.remaining_attempts,
+        });
+      }
       if (
         getTestDetailsOfParticipants.is_already_registered &&
         getTestDetailsOfParticipants.remaining_attempts > 0
@@ -158,6 +189,39 @@ const CheckEmailStatusAlertDialog = ({
           to: `/assessment/examination/${assessmentId}/assessmentPreview`,
         });
       } else {
+        registrationForm.reset((prevValues) => ({
+          ...prevValues,
+          email: {
+            ...registrationForm.getValues("email"),
+            value: userDetails?.email || "",
+          },
+          full_name: {
+            ...registrationForm.getValues("full_name"),
+            value: userDetails?.full_name || "",
+          },
+          phone_number: {
+            ...registrationForm.getValues("phone_number"),
+            value: userDetails?.mobile_number || "",
+          },
+          ...(registrationForm.getValues("gender") && {
+            gender: {
+              ...registrationForm.getValues("gender"),
+              value: userDetails?.gender || "",
+            },
+          }),
+          ...(registrationForm.getValues("state") && {
+            state: {
+              ...registrationForm.getValues("state"),
+              value: userDetails?.region || "",
+            },
+          }),
+          ...(registrationForm.getValues("city") && {
+            city: {
+              ...registrationForm.getValues("city"),
+              value: userDetails?.city || "",
+            },
+          }),
+        }));
         handleCloseAlertDialog();
       }
     },

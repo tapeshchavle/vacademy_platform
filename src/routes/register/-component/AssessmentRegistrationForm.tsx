@@ -2,29 +2,65 @@ import { MyButton } from "@/components/design-system/button";
 import { MyInput } from "@/components/design-system/input";
 import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
-import { SSDCLogoMobile, SSDCLogoWeb } from "@/svgs";
+import { VacademyLogoWeb } from "@/svgs";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
-import { getOpenTestRegistrationDetails } from "../-services/open-registration-services";
+import {
+  getOpenTestRegistrationDetails,
+  handleGetParticipantsTest,
+  handleGetStudentDetailsOfInstitute,
+  handleGetUserId,
+  handleRegisterOpenParticipant,
+} from "../-services/open-registration-services";
 import { Route } from "..";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { convertToLocalDateTime } from "@/constants/helper";
 import { parseHtmlToString } from "@/lib/utils";
-import { calculateTimeLeft, getDynamicSchema } from "../-utils/helper";
+import {
+  calculateTimeLeft,
+  getDynamicSchema,
+  getOpenRegistrationUserDetailsByEmail,
+} from "../-utils/helper";
 import SelectField from "@/components/design-system/select-field";
-import { AssessmentCustomFieldOpenRegistration } from "@/types/assessment-open-registration";
+import {
+  AssessmentCustomFieldOpenRegistration,
+  DynamicSchemaData,
+  ParticipantsDataInterface,
+} from "@/types/assessment-open-registration";
 import CheckEmailStatusAlertDialog from "./CheckEmailStatusAlertDialog";
+import AssessmentClosedExpiredComponent from "./AssessmentClosedExpiredComponent";
+import {
+  getTokenDecodedData,
+  getTokenFromStorage,
+} from "@/lib/auth/sessionUtility";
+import { TokenKey } from "@/constants/auth/tokens";
+import { AxiosError } from "axios";
+import { toast } from "sonner";
 
 const AssessmentRegistrationForm = () => {
+  const [userAlreadyRegistered, setUserAlreadyRegistered] = useState(false);
   const { code } = Route.useSearch();
   const { data, isLoading } = useSuspenseQuery(
     getOpenTestRegistrationDetails(code)
   );
-  const zodSchema = getDynamicSchema(data.assessment_custom_fields);
+
+  const [participantsDto, setParticipantsDto] =
+    useState<ParticipantsDataInterface>({
+      username: "",
+      user_id: "",
+      email: "",
+      full_name: "",
+      mobile_number: "",
+      file_id: "",
+      guardian_email: "",
+      guardian_mobile_number: "",
+      reattempt_count: 0,
+    });
+  const zodSchema = getDynamicSchema(data.assessment_custom_fields || []);
   type FormValues = z.infer<typeof zodSchema>;
 
   const [timeLeft, setTimeLeft] = useState(
@@ -37,7 +73,7 @@ const AssessmentRegistrationForm = () => {
   const formRef = useRef<HTMLDivElement>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(zodSchema),
-    defaultValues: data.assessment_custom_fields.reduce(
+    defaultValues: (data.assessment_custom_fields || []).reduce(
       (
         defaults: Record<
           string,
@@ -80,17 +116,125 @@ const AssessmentRegistrationForm = () => {
           value: string;
           is_mandatory: boolean;
           type: string;
-          comma_separated_options?: string[]; // Fixed key name
+          comma_separated_options?: string[];
         }
       >
     ),
     mode: "onChange",
   });
-
   form.watch();
 
   const scrollToForm = () => {
     formRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleRegisterParticipant = useMutation({
+    mutationFn: async ({
+      assessment_custom_fields,
+      institute_id,
+      assessment_id,
+      participantsDto,
+      custom_field_request_list,
+    }: {
+      assessment_custom_fields: AssessmentCustomFieldOpenRegistration[];
+      institute_id: string;
+      assessment_id: string;
+      participantsDto: ParticipantsDataInterface;
+      custom_field_request_list: DynamicSchemaData;
+    }) => {
+      return handleRegisterOpenParticipant(
+        assessment_custom_fields,
+        institute_id,
+        assessment_id,
+        participantsDto,
+        custom_field_request_list
+      );
+    },
+    onSuccess: () => {
+      toast.success("You have been registered successfully!");
+      navigate({
+        to: `/assessment/examination/${data.assessment_public_dto.assessment_id}/assessmentPreview`,
+      });
+    },
+    onError: (error: unknown) => {
+      if (error instanceof AxiosError) {
+        toast.error(error.message, {
+          className: "error-toast",
+          duration: 2000,
+        });
+      } else {
+        console.error("Unexpected error:", error);
+      }
+    },
+  });
+
+  const handleGetUserIdMutation = useMutation({
+    mutationFn: async ({
+      institute_id,
+      custom_field_request_list,
+    }: {
+      institute_id: string;
+      custom_field_request_list: DynamicSchemaData;
+    }) => {
+      return handleGetUserId(institute_id, custom_field_request_list);
+    },
+    onSuccess: async (response) => {
+      const participantsData = {
+        username: response.username,
+        user_id: response.user_id,
+        email: response.email,
+        full_name: response.full_name,
+        mobile_number: response.mobile_number,
+        file_id: response.face_file_id,
+        guardian_email: response.parents_email,
+        guardian_mobile_number: response.parents_mobile_number,
+        reattempt_count: 1,
+      };
+      const registerParticipant = await handleRegisterOpenParticipant(
+        data.assessment_custom_fields,
+        data.institute_id,
+        data.assessment_public_dto.assessment_id,
+        participantsData,
+        form.getValues()
+      );
+      if (registerParticipant.status === 200) {
+        toast.success("You have been registered successfully!");
+        navigate({
+          to: `/assessment/examination/${data.assessment_public_dto.assessment_id}/assessmentPreview`,
+        });
+      }
+    },
+    onError: (error: unknown) => {
+      if (error instanceof AxiosError) {
+        toast.error(error.message, {
+          className: "error-toast",
+          duration: 2000,
+        });
+      } else {
+        console.error("Unexpected error:", error);
+      }
+    },
+  });
+
+  function onSubmit(values: FormValues) {
+    if (userAlreadyRegistered) {
+      handleGetUserIdMutation.mutate({
+        institute_id: data.institute_id,
+        custom_field_request_list: values,
+      });
+    } else {
+      handleRegisterParticipant.mutate({
+        assessment_custom_fields: data.assessment_custom_fields,
+        institute_id: data.institute_id,
+        assessment_id: data.assessment_public_dto.assessment_id,
+        participantsDto,
+        custom_field_request_list: values,
+      });
+    }
+  }
+
+  const onInvalid = (err: unknown) => {
+    console.error(err);
   };
 
   useEffect(() => {
@@ -105,21 +249,64 @@ const AssessmentRegistrationForm = () => {
     return () => clearInterval(timer);
   }, [data.assessment_public_dto.bound_start_time]);
 
+  useEffect(() => {
+    const fetchToken = async () => {
+      const accessToken = await getTokenFromStorage(TokenKey.accessToken);
+      if (accessToken) {
+        const decodedData = getTokenDecodedData(accessToken);
+        const userId = decodedData?.user;
+        const assessmentId = data.assessment_public_dto.assessment_id;
+        const instituteId = data.institute_id;
+        const getAllStudentDetails =
+          await handleGetStudentDetailsOfInstitute(instituteId);
+        const userDetails = getOpenRegistrationUserDetailsByEmail(
+          getAllStudentDetails,
+          decodedData?.email
+        );
+        const psIds = userDetails?.package_session_id;
+        const getTestDetailsOfParticipants = await handleGetParticipantsTest(
+          assessmentId,
+          instituteId,
+          userId,
+          psIds
+        );
+        if (
+          getTestDetailsOfParticipants.is_already_registered &&
+          getTestDetailsOfParticipants.remaining_attempts > 0
+        ) {
+          navigate({
+            to: `/assessment/examination/${assessmentId}/assessmentPreview`,
+          });
+        }
+      }
+    };
+
+    fetchToken();
+  }, []);
+
   if (isLoading) return <DashboardLoader />;
+
+  if (!data?.can_register)
+    return (
+      <AssessmentClosedExpiredComponent
+        isExpired={true}
+        assessmentName={data.assessment_public_dto.assessment_name}
+      />
+    );
 
   return (
     <>
-      <CheckEmailStatusAlertDialog registrationData={data} registrationForm={form} />
+      <CheckEmailStatusAlertDialog
+        registrationData={data}
+        registrationForm={form}
+        setParticipantsDto={setParticipantsDto}
+        setUserAlreadyRegistered={setUserAlreadyRegistered}
+      />
       <div className="flex w-full items-center justify-center bg-[linear-gradient(180deg,#FFF9F4_0%,#E6E6FA_100%)] gap-8 flex-col sm:flex-row">
         <div className="flex justify-center items-center w-full mt-4">
           <div className="flex flex-col w-full sm:w-3/4 items-center justify-center gap-6">
-            <div className="block sm:hidden">
-              <SSDCLogoMobile />
-            </div>
-            <div className="hidden sm:block">
-              <SSDCLogoWeb />
-            </div>
-            <h1 className="text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
+            <VacademyLogoWeb />
+            <h1 className="-mt-12 text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
               {data?.assessment_public_dto?.assessment_name}
             </h1>
             <div className="flex items-center gap-4 text-sm flex-col sm:flex-row">
@@ -256,7 +443,7 @@ const AssessmentRegistrationForm = () => {
                     buttonType="primary"
                     scale="large"
                     layoutVariant="default"
-                    onClick={() => console.log(form.getValues())}
+                    onClick={form.handleSubmit(onSubmit, onInvalid)}
                   >
                     Register
                   </MyButton>

@@ -1,4 +1,8 @@
-import { AssessmentCustomFieldOpenRegistration } from "@/types/assessment-open-registration";
+import {
+  AssessmentCustomFieldOpenRegistration,
+  DynamicSchemaData,
+  OpenRegistrationUserDetails,
+} from "@/types/assessment-open-registration";
 import { UserDetailsOpenTest } from "@/types/open-test";
 import { z } from "zod";
 
@@ -35,26 +39,79 @@ export const getDynamicSchema = (
         const options = field.comma_separated_options
           ? field.comma_separated_options.split(",").map((opt) => opt.trim())
           : [];
-        schema[field.field_key] =
-          field.is_mandatory && options.length > 0
-            ? z.enum([...(options as [string, ...string[]])], {
-                message: `${field.field_key} is required`,
-              })
-            : z.enum([...(options as [string, ...string[]])]).optional();
+
+        schema[field.field_key] = z.object({
+          name: z.string(),
+          value:
+            field.is_mandatory && options.length > 0
+              ? z.string().refine((val) => options.includes(val), {
+                  message: `${field.field_name} must be one of the available options`,
+                })
+              : z.string(),
+          is_mandatory: z.boolean(),
+          type: z.string(),
+          comma_separated_options: z.array(z.string()).optional(),
+        });
       } else {
-        schema[field.field_key] = field.is_mandatory
-          ? z.string().min(1, `${field.field_key} is required`)
-          : z.string().optional();
+        schema[field.field_key] = z.object({
+          name: z.string(),
+          value: field.is_mandatory
+            ? z.string().min(1, `${field.field_name} is required`)
+            : z.string(),
+          is_mandatory: z.boolean(),
+          type: z.string(),
+        });
       }
       return schema;
     }, {})
   );
+
   return dynamicSchema;
 };
 
 export const getOpenRegistrationUserDetailsByEmail = (
   users: UserDetailsOpenTest[],
-  email: string
+  email: string | undefined
 ): UserDetailsOpenTest | null => {
   return users.find((user) => user.email === email) || null;
 };
+
+export function transformIntoCustomFieldRequestListData(
+  data1: AssessmentCustomFieldOpenRegistration[],
+  data2: DynamicSchemaData
+) {
+  return {
+    custom_field_request_list: data1.map((field) => ({
+      id: field.id,
+      assessment_custom_field_id: field.id,
+      assessment_custom_field_key: field.field_key,
+      answer: data2[field.field_key]?.value || "",
+    })),
+  };
+}
+
+export function mergeDataToGetUserId(
+  data1: OpenRegistrationUserDetails,
+  data2: DynamicSchemaData
+): OpenRegistrationUserDetails {
+  const result: OpenRegistrationUserDetails = { ...data1 }; // Copy structure
+
+  Object.keys(result).forEach((key) => {
+    if (
+      key in data2 &&
+      typeof data2[key as keyof DynamicSchemaData] === "object" &&
+      "value" in data2[key as keyof DynamicSchemaData]
+    ) {
+      const value = data2[key as keyof DynamicSchemaData].value;
+
+      if (
+        typeof value === "string" &&
+        typeof result[key as keyof OpenRegistrationUserDetails] === "string"
+      ) {
+        (result[key as keyof OpenRegistrationUserDetails] as string) = value;
+      }
+    }
+  });
+
+  return result;
+}

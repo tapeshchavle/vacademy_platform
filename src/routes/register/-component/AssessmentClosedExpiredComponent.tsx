@@ -2,26 +2,20 @@ import { Separator } from "@/components/ui/separator";
 import {
   CloseRegistrationMobile,
   CloseRegistrationWeb,
-  SSDCLogoMobile,
-  SSDCLogoWeb,
+  VacademyLogoWeb,
 } from "@/svgs";
 
 const AssessmentClosedExpiredComponent = ({
   isExpired,
+  assessmentName,
 }: {
   isExpired: boolean;
+  assessmentName: string;
 }) => {
   return (
     <div className="flex flex-col w-screen h-screen items-center justify-center gap-2 p-10 bg-[linear-gradient(180deg,#FFF9F4_0%,#E6E6FA_100%)]">
-      <div className="block sm:hidden">
-        <SSDCLogoMobile />
-      </div>
-      <div className="hidden sm:block">
-        <SSDCLogoWeb />
-      </div>
-      <h1 className="text-sm sm:text-lg text-center">
-        The Human Eye and The Colourful World
-      </h1>
+      <VacademyLogoWeb />
+      <h1 className="text-sm sm:text-lg text-center">{assessmentName}</h1>
       <Separator className="mt-2" />
       <div className="block sm:hidden">
         <CloseRegistrationMobile />

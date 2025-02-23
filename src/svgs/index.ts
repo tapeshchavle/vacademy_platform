@@ -8,3 +8,5 @@ export { default as SSDCLogoWeb } from "./ssdc-logo-web.svg";
 export { default as SSDCLogoMobile } from "./ssdc-logo-mobile.svg";
 export { default as RegistrationCompletedMobile } from "./registration-completed-mobile.svg";
 export { default as RegistrationCompletedWeb } from "./registration-completed-web.svg";
+export { default as VacademyLogoWeb } from "./vacademy-logo-web.svg";
+export { default as VacademyLogoMobile } from "./vacademy-logo-mobile.svg";

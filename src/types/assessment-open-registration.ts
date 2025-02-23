@@ -4,7 +4,7 @@ interface About {
   content: string | null;
 }
 
-interface AssessmentPublicDto {
+export interface AssessmentPublicDto {
   assessment_id: string;
   assessment_name: string;
   about: About;
@@ -42,4 +42,44 @@ export interface AssessmentDataOpenRegistration {
   can_register: boolean;
   error_message: string | null;
   assessment_custom_fields: AssessmentCustomFieldOpenRegistration[];
+}
+
+export interface ParticipantsDataInterface {
+  username: string;
+  user_id: string;
+  email: string;
+  full_name: string;
+  mobile_number: string;
+  file_id: string;
+  guardian_email: string;
+  guardian_mobile_number: string;
+  reattempt_count: number;
+}
+
+export interface DynamicField {
+  name: string;
+  value: string;
+  is_mandatory: boolean;
+  type: string;
+  comma_separated_options?: string[];
+}
+
+export type DynamicSchemaData = Record<string, DynamicField>;
+
+export interface OpenRegistrationUserDetails {
+  id: string;
+  username: string;
+  email: string;
+  full_name: string;
+  address_line: string;
+  city: string;
+  region: string;
+  pin_code: string;
+  mobile_number: string;
+  date_of_birth: string; // Using string since the date is in ISO format
+  gender: string;
+  password: string;
+  profile_pic_file_id: string;
+  roles: string[]; // Array of strings
+  root_user: boolean;
 }
