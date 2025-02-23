@@ -32,6 +32,7 @@ import {
   DynamicSchemaData,
   ParticipantsDataInterface,
 } from "@/types/assessment-open-registration";
+import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 
 // Define Zod Schema
 const formSchema = z.object({
@@ -43,13 +44,20 @@ const formSchema = z.object({
 
 // Define Form Values Type
 type FormValues = z.infer<typeof formSchema>;
+interface TimeLeft {
+  hours: number;
+  minutes: number;
+  seconds: number;
+}
 
 const CheckEmailStatusAlertDialog = ({
+  timeLeft,
   registrationData,
   registrationForm,
   setParticipantsDto,
   setUserAlreadyRegistered,
 }: {
+  timeLeft: TimeLeft;
   registrationData: OpenTestAssessmentRegistrationDetails;
   registrationForm: UseFormReturn<DynamicSchemaData>;
   setParticipantsDto: React.Dispatch<
@@ -57,6 +65,7 @@ const CheckEmailStatusAlertDialog = ({
   >;
   setUserAlreadyRegistered: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
+  const [userHasAttemptCount, setUserHasAttemptCount] = useState(false);
   const navigate = useNavigate();
   const [isOtpSent, setIsOTPSent] = useState(false);
   const [open, setOpen] = useState(false);
@@ -188,6 +197,18 @@ const CheckEmailStatusAlertDialog = ({
         navigate({
           to: `/assessment/examination/${assessmentId}/assessmentPreview`,
         });
+        setUserHasAttemptCount(true);
+      } else if (
+        getTestDetailsOfParticipants.is_already_registered &&
+        getTestDetailsOfParticipants.remaining_attempts === 0
+      ) {
+        toast.error(
+          "Your remaining attempts are over to attempt this assessment!",
+          {
+            description: "Your attempts are over!",
+            duration: 3000,
+          }
+        );
       } else {
         registrationForm.reset((prevValues) => ({
           ...prevValues,
@@ -258,6 +279,15 @@ const CheckEmailStatusAlertDialog = ({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  if (userHasAttemptCount)
+    return (
+      <AssessmentRegistrationCompleted
+        assessmentName={registrationData.assessment_public_dto.assessment_name}
+        timeLeft={timeLeft}
+        assessmentId={registrationData.assessment_public_dto.assessment_id}
+      />
+    );
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>

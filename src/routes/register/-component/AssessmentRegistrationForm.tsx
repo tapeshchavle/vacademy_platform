@@ -40,6 +40,7 @@ import {
 import { TokenKey } from "@/constants/auth/tokens";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
+import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 
 const AssessmentRegistrationForm = () => {
   const [userAlreadyRegistered, setUserAlreadyRegistered] = useState(false);
@@ -152,9 +153,6 @@ const AssessmentRegistrationForm = () => {
     },
     onSuccess: () => {
       toast.success("You have been registered successfully!");
-      navigate({
-        to: `/assessment/examination/${data.assessment_public_dto.assessment_id}/assessmentPreview`,
-      });
     },
     onError: (error: unknown) => {
       if (error instanceof AxiosError) {
@@ -199,9 +197,6 @@ const AssessmentRegistrationForm = () => {
       );
       if (registerParticipant.status === 200) {
         toast.success("You have been registered successfully!");
-        navigate({
-          to: `/assessment/examination/${data.assessment_public_dto.assessment_id}/assessmentPreview`,
-        });
       }
     },
     onError: (error: unknown) => {
@@ -294,9 +289,22 @@ const AssessmentRegistrationForm = () => {
       />
     );
 
+  if (
+    handleRegisterParticipant.status === "success" ||
+    handleGetUserIdMutation.status === "success"
+  )
+    return (
+      <AssessmentRegistrationCompleted
+        assessmentName={data.assessment_public_dto.assessment_name}
+        timeLeft={timeLeft}
+        assessmentId={data.assessment_public_dto.assessment_id}
+      />
+    );
+
   return (
     <>
       <CheckEmailStatusAlertDialog
+        timeLeft={timeLeft}
         registrationData={data}
         registrationForm={form}
         setParticipantsDto={setParticipantsDto}
