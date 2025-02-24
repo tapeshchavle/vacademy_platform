@@ -13,51 +13,134 @@ import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { ASSESSMENT_SAVE } from "@/constants/urls";
 import { toast } from "sonner";
 
+export function convertToLocalDateTime(utcDate: string): string {
+  const date = new Date(utcDate);
+
+  const options: Intl.DateTimeFormatOptions = {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  };
+
+  const formattedDate = date.toLocaleString("en-GB", options);
+  return formattedDate
+    .replace(",", "")
+    .replace(/\s(am|pm)/i, (match) => match.toUpperCase());
+}
+
+// Function to format data from assessment-store
+export const formatDataFromStore = (assessment_id: string) => {
+  const state = useAssessmentStore.getState();
+  return {
+    attemptId: state.assessment?.attempt_id,
+    clientLastSync: new Date().toISOString(),
+    assessment: {
+      assessmentId: assessment_id,
+      entireTestDurationLeftInSeconds: state.entireTestTimer,
+      timeElapsedInSeconds: state.assessment?.duration
+        ? state.assessment.duration * 60 - state.entireTestTimer
+        : 0,
+      status: "LIVE",
+      tabSwitchCount: state.tabSwitchCount || 0,
+    },
+    sections: state.assessment?.section_dtos?.map((section, idx) => ({
+      sectionId: section.id,
+      sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+      timeElapsedInSeconds: section.duration
+        ? section.duration * 60 - (state.sectionTimers?.[idx]?.timeLeft || 0)
+        : 0,
+      questions: section.question_preview_dto_list?.map((question) => ({
+        questionId: question.question_id,
+        questionDurationLeftInSeconds:
+          state.questionTimers?.[question.question_id] || 0,
+        timeTakenInSeconds:
+        state.questionTimeSpent[question.question_id] || 0,
+        isMarkedForReview:
+          state.questionStates[question.question_id].isMarkedForReview ||
+          false,
+        isVisited:
+          state.questionStates[question.question_id].isVisited || false,
+        responseData: {
+          type: question.question_type,
+          optionIds: state.answers?.[question.question_id] || [],
+        },
+      })),
+    })),
+  };
+};
+
 export default function Page() {
   const { loadState, saveState } = useAssessmentStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Function to format data from assessment-store
-  const formatDataFromStore = (assessment_id: string) => {
-    const state = useAssessmentStore.getState();
-    console.log(state.questionStates[1]);
-    return {
-      attemptId: state.assessment?.attempt_id,
-      clientLastSync: new Date().toISOString(),
-      assessment: {
-        assessmentId: assessment_id,
-        entireTestDurationLeftInSeconds: state.entireTestTimer,
-        timeElapsedInSeconds: state.assessment?.duration
-          ? state.assessment.duration * 60 - state.entireTestTimer
-          : 0,
-        status: "LIVE",
-        tabSwitchCount: state.tabSwitchCount || 0,
-      },
-      sections: state.assessment?.section_dtos?.map((section, idx) => ({
-        sectionId: section.id,
-        sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
-        timeElapsedInSeconds: section.duration
-          ? section.duration * 60 - (state.sectionTimers?.[idx]?.timeLeft || 0)
-          : 0,
-        questions: section.question_preview_dto_list?.map((question) => ({
-          questionId: question.question_id,
-          questionDurationLeftInSeconds:
-            state.questionTimers?.[question.question_id] || 0,
-          timeTakenInSeconds:
-          state.questionTimeSpent[question.question_id] || 0,
-          isMarkedForReview:
-            state.questionStates[question.question_id].isMarkedForReview ||
-            false,
-          isVisited:
-            state.questionStates[question.question_id].isVisited || false,
-          responseData: {
-            type: question.question_type,
-            optionIds: state.answers?.[question.question_id] || [],
-          },
-        })),
-      })),
-    };
-  };
+  // const formatDataFromStore = async (assessment_id: string) => {
+  //   const state = useAssessmentStore.getState();
+
+  //   // Get server time from Capacitor Preferences
+  //   const serverTimeStr = await Preferences.get({
+  //     key: "server_start_end_time",
+  //   });
+
+  //   const data = JSON.parse(serverTimeStr?.value?.toString() || "{}");
+  //   console.log("Server time data:", data.start_time);
+
+  //   if (!data?.start_time) {
+  //     console.error("Invalid server time data.");
+  //     return null;
+  //   }
+
+  //   // Convert server time to local Date object
+  //   const serverStartTime = new Date(data.start_time);  // Ensure it's a Date object
+  //   const elapsedSeconds = state.assessment?.duration
+  //     ? state.assessment.duration * 60 - state.entireTestTimer
+  //     : 0;
+
+  //   // Add elapsed time to get the correct synced client time
+  //   const clientLastSyncTime = new Date(serverStartTime.getTime() + elapsedSeconds * 1000);
+
+  //   console.log("Client last sync time:", clientLastSyncTime);
+
+  //   return {
+  //     attemptId: state.assessment?.attempt_id,
+  //     clientLastSync: clientLastSyncTime.toISOString(),
+  //     assessment: {
+  //       assessmentId: assessment_id,
+  //       entireTestDurationLeftInSeconds: state.entireTestTimer,
+  //       timeElapsedInSeconds: elapsedSeconds,
+  //       status: "LIVE",
+  //       tabSwitchCount: state.tabSwitchCount || 0,
+  //     },
+  //     sections: state.assessment?.section_dtos?.map((section, idx) => ({
+  //       sectionId: section.id,
+  //       sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+  //       timeElapsedInSeconds: section.duration
+  //         ? section.duration * 60 - (state.sectionTimers?.[idx]?.timeLeft || 0)
+  //         : 0,
+  //       questions: section.question_preview_dto_list?.map((question) => ({
+  //         questionId: question.question_id,
+  //         questionDurationLeftInSeconds:
+  //           state.questionTimers?.[question.question_id] || 0,
+  //         timeTakenInSeconds:
+  //           state.questionTimeSpent[question.question_id] || 0,
+  //         isMarkedForReview:
+  //           state.questionStates?.[question.question_id]?.isMarkedForReview ||
+  //           false,
+  //         isVisited:
+  //           state.questionStates?.[question.question_id]?.isVisited || false,
+  //         responseData: {
+  //           type: question.question_type,
+  //           optionIds: state.answers?.[question.question_id] || [],
+  //         },
+  //       })),
+  //     })),
+  //   };
+  // };
+
+
+  
 
   // update API function to send data
   const sendFormattedData = async () => {

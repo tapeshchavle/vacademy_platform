@@ -110,6 +110,13 @@ export const fetchAssessmentData = async (
   }
 };
 
+export const storeAssessmentInfo = async (assessmentInfo: any) => {
+  await Storage.set({
+    key: "InstructionID_and_AboutID",
+    value: JSON.stringify(assessmentInfo),
+  });
+};
+
 export const fetchPreviewData = async (assessment_id: string) => {
   try {
     const { student, institute } = await getStoredDetails();
@@ -179,7 +186,7 @@ export const fetchPreviewData = async (assessment_id: string) => {
         assessment: { ...response.data, ...durationData },
       }));
     }
-    
+
     return response.data;
   } catch (error) {
     console.error("Error fetching assessments:", error);

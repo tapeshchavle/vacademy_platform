@@ -1,14 +1,20 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
+import ReportPage from "./-components/reportMain";
+import AssessmentReportList from "./-components/reportMain";
+import { TestReportDialog } from "../../../components/common/student-test-records/test-report-dialog";
+import InstructionPage from "@/components/common/instructionPage/InstructionPage";
+import { LayoutContainer } from "@/components/common/layout-container/layout-container";
 
-export const Route = createFileRoute('/assessment/reports/')({
+export const Route = createFileRoute("/assessment/reports/")({
   component: RouteComponent,
-})
+});
 
 function RouteComponent() {
-return (
-    <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}></div>
-            Hello This is Report Page! coming Soon.....
-        </div>
-)
+  return (
+    // <ReportPage />
+    <LayoutContainer>
+      <AssessmentReportList />
+    </LayoutContainer> 
+    // <InstructionPage />
+  );
 }

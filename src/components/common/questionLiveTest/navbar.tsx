@@ -29,6 +29,7 @@ import { Storage } from "@capacitor/storage";
 import { useProctoring } from "@/hooks";
 import { App } from "@capacitor/app";
 import { PluginListenerHandle } from "@capacitor/core";
+import { disableProtection } from "@/constants/helper";
 
 export function Navbar() {
   const {
@@ -60,12 +61,33 @@ export function Navbar() {
 
   const [playMode, setPlayMode] = useState<string | null>(null);
 
-  const formatDataFromStore = (assessment_id: string) => {
+  const formatDataFromStore = async (assessment_id: string) => {
     const state = useAssessmentStore.getState();
-    console.log(state.questionStates[1]);
+
+    // Fetch server_start_end_time from Capacitor Storage
+    const { value: serverStartTime } = await Preferences.get({
+      key: "server_start_end_time",
+    });
+
+    if (!serverStartTime) {
+      console.error("server_start_end_time not found in storage.");
+      return null;
+    }
+
+    const startTime = new Date(serverStartTime); // Convert to Date object
+
+    // Calculate elapsed test time
+    const timeElapsedInSeconds = state.assessment?.duration
+      ? state.assessment.duration * 60 - state.entireTestTimer
+      : 0;
+
+    // Compute the correct clientLastSync by adding elapsed time to server start time
+    const clientLastSync = new Date(
+      startTime.getTime() + timeElapsedInSeconds * 1000
+    ).toISOString();
     return {
       attemptId: state.assessment?.attempt_id,
-      clientLastSync: new Date().toISOString(),
+      clientLastSync,
       assessment: {
         assessmentId: assessment_id,
         entireTestDurationLeftInSeconds: state.entireTestTimer,
@@ -190,7 +212,6 @@ export function Navbar() {
     };
   }, []);
 
-
   useEffect(() => {
     const fetchPlayMode = async () => {
       const storedMode = await Preferences.get({
@@ -264,6 +285,8 @@ export function Navbar() {
         submitAssessment();
         toast.success("Assessment submitted successfully!");
 
+        disableProtection();
+
         navigate({
           to: "/assessment/examination",
           replace: true,
@@ -334,7 +357,7 @@ export function Navbar() {
         <div className="">
           {entireTestTimer && (
             <div className="flex items-center gap-2 text-lg  justify-center">
-              <div className="flex items-center space-x-4">                
+              <div className="flex items-center space-x-4">
                 {playMode !== "PRACTICE" && entireTestTimer && (
                   <div className="flex items-center gap-2 text-lg justify-center">
                     <div className="flex items-center space-x-4">

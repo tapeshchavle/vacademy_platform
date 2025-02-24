@@ -6,7 +6,7 @@ import { useLocation } from "@tanstack/react-router";
 import { fetchPreviewData } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
 import { useProctoring } from "@/hooks/proctoring/useProctoring";
 import { AssessmentPreview } from "../questionLiveTest/assessment-preview";
-import { PrivacyScreen } from "@capacitor-community/privacy-screen";
+import { enableProtection } from "@/constants/helper";
 
 const AssessmentStartModal = () => {
   const location = useLocation();
@@ -17,13 +17,7 @@ const AssessmentStartModal = () => {
   // const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [examHasStarted, setExamHasStarted] = useState(false);
   const navigate = useNavigate();
-  const enableProtection = async () => {
-    await PrivacyScreen.enable();
-  };
 
-  // const disableProtection = async () => {
-  //   await PrivacyScreen.disable();
-  // };
   const { fullScreen } = useProctoring({
     forceFullScreen: true,
     // preventTabSwitch: true,

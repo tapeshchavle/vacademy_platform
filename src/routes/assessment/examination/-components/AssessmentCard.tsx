@@ -16,6 +16,11 @@ import {
 import { useState, useEffect } from "react";
 import { Storage } from "@capacitor/storage";
 import dayjs from "dayjs";
+import { restartAssessment } from "../-utils.ts/useFetchRestartAssessment";
+import {
+  fetchPreviewData,
+  storeAssessmentInfo,
+} from "../-utils.ts/useFetchAssessment";
 // import { restartAssessment } from "../-utils.ts/useFetchRestartAssessment";
 
 interface AssessmentProps {
@@ -60,7 +65,9 @@ export const AssessmentCard = ({
 
   const handleAction = async () => {
     // Check if user still has attempts remaining
-    if ((assessmentInfo?.user_attempts ?? 1) <= assessmentInfo.assessment_attempts) {
+    if (
+      (assessmentInfo?.user_attempts ?? 1) <= assessmentInfo.assessment_attempts
+    ) {
       // If status is PREVIEW or LIVE, show restart dialog
       if (
         assessmentInfo.recent_attempt_status === "PREVIEW" ||
@@ -68,13 +75,10 @@ export const AssessmentCard = ({
       ) {
         setShowRestartDialog(true);
       } else if (assessmentInfo.recent_attempt_status !== "ENDED") {
-        // Store assessment info and navigate to examination
-        await Storage.set({
-          key: "InstructionID_and_AboutID",
-          value: JSON.stringify(assessmentInfo),
-        });
+        storeAssessmentInfo(assessmentInfo);
         navigate({
           to: `/assessment/examination/${assessmentInfo.assessment_id}`,
+          replace: true,
         });
       }
     } else {
@@ -86,26 +90,64 @@ export const AssessmentCard = ({
   const handleRestartAssessment = async () => {
     setIsRestarting(true);
     try {
-      // restartAssessment(assessmentInfo.assessment_id);
-      // await fetch(`/api/restart-assessment/${assessmentInfo.assessment_id}`, {
-      //   method: "POST",
-      // });
-      // navigate({
-      //   to: `/assessment/examination/${assessmentInfo.assessment_id}`,
-      // });
+      // Ensure data is stored before proceeding
+      await storeAssessmentInfo(assessmentInfo);
+
+      const isRestarted = await restartAssessment(
+        assessmentInfo.assessment_id,
+        assessmentInfo.last_attempt_id
+      );
+      console.log("isRestarted", isRestarted);
+
+      if (isRestarted) {
+        navigate({
+          to: `/assessment/examination/${assessmentInfo.assessment_id}/LearnerLiveTest`,
+          
+        });
+      } else {
+        console.error("Restart failed, not navigating.");
+      }
     } catch (error) {
       console.error("Failed to restart assessment:", error);
     } finally {
       setIsRestarting(false);
       setShowRestartDialog(false);
     }
-  }; 
+  };
+
+  //   const handleRestartAssessment = async () => {
+  //     setIsRestarting(true);
+  //     storeAssessmentInfo(assessmentInfo);
+
+  //     try {
+  //         const isRestarted = await restartAssessment(assessmentInfo.assessment_id, assessmentInfo.last_attempt_id);
+
+  //         if (isRestarted) {
+  //             navigate({
+  //                 to: `/assessment/examination/${assessmentInfo.assessment_id}/LearnerLiveTest`,
+  //             });
+  //         } else {
+  //             console.error("Restart failed, not navigating.");
+  //         }
+  //     } catch (error) {
+  //         console.error("Failed to restart assessment:", error);
+  //     } finally {
+  //         setIsRestarting(false);
+  //         setShowRestartDialog(false);
+  //     }
+  // };
 
   const getButtonLabel = () => {
-    if (["LIVE", "PREVIEW"].includes(assessmentInfo?.recent_attempt_status ?? "")) {
+    if (
+      ["LIVE", "PREVIEW"].includes(assessmentInfo?.recent_attempt_status ?? "")
+    ) {
       return "Resume";
     }
-    if ((assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 1) < (assessmentInfo.created_attempts ?? 1)) {
+    if (
+      (assessmentInfo.user_attempts ??
+        assessmentInfo.assessment_attempts ??
+        1) < (assessmentInfo.created_attempts ?? 1)
+    ) {
       return "Join Assessment";
     }
     if (assessmentInfo.recent_attempt_status === "ENDED") {
@@ -144,18 +186,19 @@ export const AssessmentCard = ({
               <div>Duration: {assessmentInfo.duration} minutes</div>
             </div>
           </div>
-          {assessmentType !== assessmentTypes.UPCOMING && assessmentType !== assessmentTypes.PAST && (
-            <div className="w-full md:w-auto">
-              <MyButton
-                buttonType="secondary"
-                className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
-                onClick={handleAction}
-                disabled={assessmentInfo.recent_attempt_status === "ENDED"}
-              >
-                {getButtonLabel()}
-              </MyButton>
-            </div>
-          )}
+          {assessmentType !== assessmentTypes.UPCOMING &&
+            assessmentType !== assessmentTypes.PAST && (
+              <div className="w-full md:w-auto">
+                <MyButton
+                  buttonType="secondary"
+                  className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
+                  onClick={handleAction}
+                  disabled={assessmentInfo.recent_attempt_status === "ENDED"}
+                >
+                  {getButtonLabel()}
+                </MyButton>
+              </div>
+            )}
         </div>
       </Card>
 
