@@ -3,10 +3,10 @@ import { LayoutContainer } from "@/components/common/layout-container/layout-con
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { useEffect, useState } from "react";
 import { CourseData } from "@/types/dashbaord/types";
-import { DashboardImg } from "@/assets/svgs";
 import { fetchStaticData } from "./-lib/utils";
 import { DashboardTabs } from "./-components/DashboardTabs";
 import { Helmet } from "react-helmet";
+import { DashboardImg } from "@/assets/svgs";
 
 export const Route = createFileRoute("/dashboard/")({
   component: () => (
