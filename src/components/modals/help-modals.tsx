@@ -91,6 +91,11 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
                   duration={assessmentInfo.duration}
                   preview={assessmentInfo.preview_time > 0 ? true : false}
                   canSwitchSections={assessmentInfo.can_switch_section}
+                  assessment_attempts={
+                    assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 1
+                  }
+                  assessmentInfo={assessmentInfo}
+                  
                 />
               )}
               <p>Current Section Instructions:</p>
@@ -160,7 +165,7 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
               className="min-h-[100px]"
             />
             <Button
-              className="w-full bg-orange-500 hover:bg-orange-600"
+              className="w-full bg-primary-500"
               onClick={() => {
                 // addRequest(type, reason);
                 setReason("");

@@ -103,9 +103,8 @@ export const fetchAssessmentData = async (
       }
     );
     return response.data;
-  } catch (error) {
-    console.error("Error fetching assessments:", error);
-    // toast.error("Failed to fetch assessments.");
+  } catch {
+    console.error("Error fetching assessments:");
   } finally {
     // setLoading(false);
   }
@@ -175,7 +174,6 @@ export const fetchPreviewData = async (assessment_id: string) => {
         value: JSON.stringify({ ...response.data, ...durationData }),
       });
 
-      // ✅ UPDATE STORE SAFELY (Use Zustand's setState Outside Component)
       useAssessmentStore.setState((state) => ({
         ...state,
         assessment: { ...response.data, ...durationData },
@@ -185,7 +183,6 @@ export const fetchPreviewData = async (assessment_id: string) => {
     return response.data;
   } catch (error) {
     console.error("Error fetching assessments:", error);
-    toast.error("Failed to fetch assessments.")
   }
 };
 

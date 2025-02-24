@@ -18,7 +18,7 @@ export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
         value="grid"
         aria-label="Grid view"
         className={`p-2 border rounded ${
-          view === "grid" ? "border-orange-500 " : ""
+          view === "grid" ? "border-primary-500 " : ""
         }`}
       >   
         <LayoutGrid className="h-4 w-4" />
@@ -28,7 +28,7 @@ export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
         aria-label="List view"
         className={`p-2 border rounded hover:bg-gray-50 ${
           view === "list"
-            ? "border-orange-500 text-orange-500"
+            ? "border-primary-500 text-primary-500"
             : "border-gray-200"
         }`}
       >

@@ -74,7 +74,7 @@ export function SectionTabs() {
   }
 
   return (
-    <div className="flex gap-2 px-4 py-2 border-b bg-white overflow-x-auto">
+    <div className="flex gap-2 px-4 pt-2 border-b bg-white overflow-x-auto">
       {assessment?.section_dtos?.map((section, index) => {
         const timer = sectionTimers[index]
         const isTimeUp = timer?.timeLeft === 0
@@ -93,7 +93,7 @@ export function SectionTabs() {
               className={cn(
                 "relative px-4 py-2 rounded-t-lg text-sm",
                 isActive &&
-                  "border border-b-0 border-orange-500 bg-orange-50 text-orange-500",
+                  "border border-b-0 border-primary-500 bg-orange-50 text-primary-500",
                 !isActive && "border border-transparent hover:bg-gray-50",
                 (!isAvailable || isTimeUp) && "opacity-50 cursor-not-allowed"
               )}
@@ -113,7 +113,7 @@ export function SectionTabs() {
                 )}
               </div>
             </button>
-            {!assessment.can_switch_section && isActive && (
+            {!assessment.can_switch_section && assessment?.distribution_duration == distribution_duration_types.SECTION && isActive && (
               <button
                 onClick={handleEndSection}
                 className="ml-2 px-3 py-1 text-sm border rounded hover:bg-gray-50"

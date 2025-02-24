@@ -1,82 +1,122 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import PDFViewer from "./pdf-viewer";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { EmptySlideMaterial } from "@/assets/svgs";
-import { useState } from "react";
 import YouTubePlayer from "./youtube-player";
+import { convertHtmlToPdf } from "@/utils/html-to-pdf";
+import { useFileUpload } from "@/hooks/use-file-upload";
+import { DashboardLoader } from "@/components/core/dashboard-loader";
 
 export const SlideMaterial = () => {
-    const { items, activeItemId, setActiveItem } = useContentStore();
-    const activeItem = items.find((item) => item.id === activeItemId);
+    const { activeItem } = useContentStore();
     const selectionRef = useRef(null);
-    const [isEditing, setIsEditing] = useState(false);
-    const [heading, setHeading] = useState(activeItem?.name || "");
+    const [heading, setHeading] = useState(activeItem?.document_title || activeItem?.video_title || "");
+    const [content, setContent] = useState<JSX.Element | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const { uploadFile, getPublicUrl } = useFileUpload();
 
-    const handleHeadingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setHeading(e.target.value);
-    };
+    const handleConvertAndUpload = async (htmlString: string | null): Promise<string | null> => {
+        if (htmlString == null) return null;
+        try {
+            setIsUploading(true);
 
-    const saveHeading = () => {
-        if (activeItem) {
-            const updatedItem = { ...activeItem, name: heading };
-            setActiveItem(updatedItem); // Use setActiveItem to update the store
+            // Step 1: Convert HTML to PDF
+            const pdfBlob = await convertHtmlToPdf(htmlString);
+
+            // Step 2: Convert Blob to File
+            const pdfFile = new File([pdfBlob], 'document.pdf', { type: 'application/pdf' });
+
+            // Step 3: Upload the PDF file
+            const uploadedFileId = await uploadFile({
+                file: pdfFile,
+                setIsUploading,
+                userId: 'your-user-id',
+                source: 'PDF',
+                sourceId: crypto.randomUUID(), // Optional
+                publicUrl: true, // Set to true to get a public URL
+            });
+
+            if (uploadedFileId) {
+                const publicUrl = await getPublicUrl(uploadedFileId);
+                return publicUrl; // Return the public URL as a string
+            }
+        } catch (error) {
+            console.error('Upload Failed:', error);
+        } finally {
+            setIsUploading(false);
         }
-        setIsEditing(false);
+        return null; // Return null if the upload fails
     };
 
-    const renderContent = () => {
+    const loadContent = async () => {
         if (!activeItem) {
-            return (
+            setContent(
                 <div className="flex h-[500px] flex-col items-center justify-center rounded-lg py-10">
                     <EmptySlideMaterial />
                     <p className="mt-4 text-neutral-500">No study material has been added yet</p>
-                </div>
+                </div>,
             );
+            return;
         }
 
-        switch (activeItem.type) {
-            case "pdf":
-                return <PDFViewer />;
-            case "video":
-                return <YouTubePlayer videoUrl={`https://www.youtube.com/watch?v=cXYuduvIcdg`} videoTitle={activeItem.name} />;
-            default:
-                return null;
+        if (activeItem.video_url != null) {
+            console.log("video url: ", activeItem.video_url);
+            setContent(
+                <div key={`video-${activeItem.slide_id}`} className="h-full w-full">
+                    <YouTubePlayer videoUrl={activeItem.video_url || ""} />
+                </div>,
+            );
+            return;
+        }
+
+        if (activeItem?.document_type == "PDF") {
+            const url = await getPublicUrl(activeItem?.document_data || "");
+            setContent(<PDFViewer pdfUrl={url} />);
+            return;
+        }
+
+        if (activeItem?.document_type == "DOC") {
+            const url = await handleConvertAndUpload(activeItem.document_data);
+            if (url == null) {
+                setContent(<p>Error generating PDF URL</p>);
+                return;
+            }
+            if (isUploading) {
+                setContent(<DashboardLoader />);
+                return;
+            }
+            setContent(<PDFViewer pdfUrl={url} />);
+            return;
         }
     };
 
     useEffect(() => {
         if (activeItem) {
-            setHeading(activeItem.name);
+            setHeading(activeItem.document_title || activeItem.video_title || "");
+            setContent(null);
+            loadContent();
+        }
+    }, [activeItem]);
+
+    useEffect(() => {
+        if (activeItem) {
+            setHeading(activeItem.slide_title || "");
         }
     }, [activeItem]);
 
     return (
         <div className="flex w-full flex-col" ref={selectionRef}>
             <div className="-mx-8 -my-3 flex items-center justify-between gap-6 border-b border-neutral-300 px-8 py-2">
-                {isEditing ? (
-                    <input
-                        type="text"
-                        value={heading}
-                        onChange={handleHeadingChange}
-                        onBlur={saveHeading}
-                        className="w-full text-subtitle font-semibold text-neutral-600 focus:outline-none"
-                        autoFocus
-                    />
-                ) : (
-                    <h3
-                        className="text-subtitle font-semibold text-neutral-600"
-                        onClick={() => setIsEditing(true)}
-                    >
-                        {heading || "No content selected"}
-                    </h3>
-                )}
+                <h3 className="text-subtitle font-semibold text-neutral-600">
+                    {heading || "No content selected"}
+                </h3>
             </div>
             <div
                 className={`mx-auto mt-8 ${
-                    activeItem?.type == "pdf" ? "h-[calc(100vh-200px)]" : "h-full"
-                } w-full overflow-hidden `}
+                    activeItem?.document_type == "PDF" ? "h-[calc(100vh-200px)]" : "h-full"
+                } w-full overflow-hidden`}
             >
-                {renderContent()}
+                {content}
             </div>
         </div>
     );

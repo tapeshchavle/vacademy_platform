@@ -25,6 +25,10 @@ import { ASSESSMENT_SUBMIT } from "@/constants/urls";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { Preferences } from "@capacitor/preferences";
 import { toast } from "sonner";
+import { Storage } from "@capacitor/storage";
+import { useProctoring } from "@/hooks";
+import { App } from "@capacitor/app";
+import { PluginListenerHandle } from "@capacitor/core";
 
 export function Navbar() {
   const {
@@ -44,30 +48,50 @@ export function Navbar() {
   interface HelpType {
     type: "instructions" | "alerts" | "reattempt" | "time" | null;
   }
+  const { fullScreen } = useProctoring({
+    forceFullScreen: true,
+    preventTabSwitch: true,
+    preventContextMenu: true,
+    preventUserSelection: true,
+    preventCopy: true,
+  });
 
   const [helpType, setHelpType] = useState<HelpType["type"]>(null);
 
+  const [playMode, setPlayMode] = useState<string | null>(null);
+
   const formatDataFromStore = (assessment_id: string) => {
-    console.log("here   ");
     const state = useAssessmentStore.getState();
-    console.log(state);
+    console.log(state.questionStates[1]);
     return {
       attemptId: state.assessment?.attempt_id,
       clientLastSync: new Date().toISOString(),
       assessment: {
         assessmentId: assessment_id,
         entireTestDurationLeftInSeconds: state.entireTestTimer,
-        timeElapsedInSeconds: 0,
+        timeElapsedInSeconds: state.assessment?.duration
+          ? state.assessment.duration * 60 - state.entireTestTimer
+          : 0,
         status: "END",
         tabSwitchCount: state.tabSwitchCount || 0,
       },
       sections: state.assessment?.section_dtos?.map((section, idx) => ({
         sectionId: section.id,
-        timeElapsedInSeconds: state.sectionTimers?.[idx] || 0,
-        questions: section.question_preview_dto_list?.map((question, qidx) => ({
+        sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+        timeElapsedInSeconds: section.duration
+          ? section.duration * 60 - (state.sectionTimers?.[idx]?.timeLeft || 0)
+          : 0,
+        questions: section.question_preview_dto_list?.map((question) => ({
           questionId: question.question_id,
-          questionDurationLeftInSeconds: state.questionTimers?.[qidx] || 0,
-          timeTakenInSeconds: 0,
+          questionDurationLeftInSeconds:
+            state.questionTimers?.[question.question_id] || 0,
+          timeTakenInSeconds:
+            state.questionTimeSpent[question.question_id] || 0,
+          isMarkedForReview:
+            state.questionStates[question.question_id].isMarkedForReview ||
+            false,
+          isVisited:
+            state.questionStates[question.question_id].isVisited || false,
           responseData: {
             type: question.question_type,
             optionIds: state.answers?.[question.question_id] || [],
@@ -101,22 +125,47 @@ export function Navbar() {
           },
         }
       );
-      console.log(response.data);
 
-      // Save announcements in local storage
-      await Preferences.set({
-        key: "announcements",
-        value: JSON.stringify(response.data),
-      });
+      if (response.data) {
+        const { value } = await Storage.get({ key: "Assessment_questions" });
+
+        if (value) {
+          try {
+            const parsedData = JSON.parse(value);
+            const attemptId = parsedData?.attempt_id;
+
+            if (attemptId) {
+              const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+              await Storage.remove({ key: storageKey });
+            } else {
+              console.error("Attempt ID not found in Assessment_questions.");
+            }
+          } catch (error) {
+            console.error("Error parsing Assessment_questions:", error);
+          }
+        } else {
+          console.error("No data found in Assessment_questions.");
+        }
+      }
 
       return response.data;
     } catch (error) {
       console.error("Error sending data:", error);
-      // throw error;
     }
   };
 
   useEffect(() => {
+    let backButtonListener: PluginListenerHandle | null = null;
+
+    const setupBackButtonListener = async () => {
+      backButtonListener = await App.addListener("backButton", () => {
+        setShowSubmitModal(true);
+        return false;
+      });
+    };
+
+    setupBackButtonListener();
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
@@ -124,7 +173,6 @@ export function Navbar() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // setWarningCount((prev) => prev + 1);
         incrementTabSwitchCount();
         setShowWarningModal(true);
       }
@@ -134,9 +182,27 @@ export function Navbar() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      if (backButtonListener) {
+        backButtonListener.remove();
+      }
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
+  }, []);
+
+
+  useEffect(() => {
+    const fetchPlayMode = async () => {
+      const storedMode = await Preferences.get({
+        key: "InstructionID_and_AboutID",
+      });
+      if (storedMode.value) {
+        const parsedData = JSON.parse(storedMode.value);
+        setPlayMode(parsedData.play_mode);
+      }
+    };
+
+    fetchPlayMode();
   }, []);
 
   useEffect(() => {
@@ -154,13 +220,18 @@ export function Navbar() {
     return () => clearInterval(timer);
   }, []);
 
+  const handleWarningClose = () => {
+    setShowWarningModal(false);
+    if (tabSwitchCount >= 3) {
+      handleSubmit();
+    }
+  };
   const formatTime = (timeInSeconds: number) => {
     // Calculate hours, minutes, and seconds directly from seconds
     const hours = Math.floor(timeInSeconds / 3600);
     const minutes = Math.floor((timeInSeconds % 3600) / 60);
     const seconds = timeInSeconds % 60;
 
-    // Pad with zeros if needed
     const padNumber = (num: number) => num.toString().padStart(2, "0");
 
     return `${padNumber(hours)}:${padNumber(minutes)}:${padNumber(seconds)}`;
@@ -172,38 +243,66 @@ export function Navbar() {
 
   const handleSubmit = async () => {
     let attemptCount = 0;
+    const state = useAssessmentStore.getState();
+    const attemptId = state.assessment?.attempt_id;
+
+    if (!attemptId) {
+      console.error("Attempt ID is missing. Cannot proceed with submission.");
+      toast.error("Submission failed: Attempt ID is missing.");
+      return;
+    }
+
     const submitData = async () => {
       const success = await sendFormattedData();
       if (!success && attemptCount < 5) {
         attemptCount++;
         const retryInterval = 10000 + attemptCount * 5000; // 10, 15, 20, 25, 30 seconds
-        console.log(`Retrying data submission in ${retryInterval / 1000} seconds...`);
+
         setTimeout(submitData, retryInterval);
-        toast.error("Failed to submit assessment. retrying...");
+        toast.error("Failed to submit assessment. Retrying...");
       } else if (success) {
-        console.log("Data submitted successfully!");
         submitAssessment();
-        // Show success toast
-        toast.success("Data submitted successfully!");
+        toast.success("Assessment submitted successfully!");
+
         navigate({
           to: "/assessment/examination",
         });
+
+        setTimeout(async () => {
+          const { value } = await Storage.get({ key: "Assessment_questions" });
+
+          if (value) {
+            try {
+              const parsedData = JSON.parse(value);
+              const attemptId = parsedData?.attempt_id;
+
+              if (attemptId) {
+                const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+
+                // Remove from Capacitor Storage
+                await Storage.remove({ key: storageKey });
+                console.log(`${storageKey} removed from Capacitor Storage`);
+              } else {
+                console.error("Attempt ID not found in Assessment_questions.");
+              }
+            } catch (error) {
+              console.error("Error parsing Assessment_questions:", error);
+            }
+          }
+        }, 2000);
       }
     };
 
     submitData();
+    // fullScreen.exit();
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
   };
 
   if (isAllTimeUp && !showTimesUpModal) {
     setShowTimesUpModal(true);
   }
-
-  const handleWarningClose = () => {
-    setShowWarningModal(false);
-    if (tabSwitchCount >= 3) {
-      handleSubmit();
-    }
-  };
 
   return (
     <>
@@ -234,23 +333,35 @@ export function Navbar() {
         <div className="">
           {entireTestTimer && (
             <div className="flex items-center gap-2 text-lg  justify-center">
-              <div className="flex items-center space-x-1">
-                {formatTime(entireTestTimer)
-                  .split(":")
-                  .map((time, index, array) => (
-                    <div key={index} className="relative flex items-center">
-                      <span className="border border-gray-400 px-2 py-1 rounded">
-                        {time}
-                      </span>
-                      {index < array.length - 1 && (
-                        <span className="absolute right-[-4px] text-lg">:</span>
-                      )}
+              <div className="flex items-center space-x-4">                
+                {playMode !== "PRACTICE" && entireTestTimer && (
+                  <div className="flex items-center gap-2 text-lg justify-center">
+                    <div className="flex items-center space-x-4">
+                      {formatTime(entireTestTimer)
+                        .split(":")
+                        .map((time, index, array) => (
+                          <div
+                            key={index}
+                            className="relative flex items-center"
+                          >
+                            <span className="border border-gray-400 px-2 py-1 rounded">
+                              {time}
+                            </span>
+                            {index < array.length - 1 && (
+                              <span className="absolute right-[-10px] text-lg">
+                                :
+                              </span>
+                            )}
+                          </div>
+                        ))}
                     </div>
-                  ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
+
         <div className="flex items-center gap-4">
           <MyButton
             type="submit"
@@ -283,7 +394,14 @@ export function Navbar() {
             warning {tabSwitchCount} of 3. If you attempt to leave again, your
             test will be automatically submitted.
           </AlertDialogDescription>
-          <AlertDialogAction onClick={handleWarningClose}>
+          <AlertDialogAction
+            onClick={() => {
+              fullScreen.trigger();
+              setTimeout(() => {
+                handleWarningClose();
+              }, 100);
+            }}
+          >
             Return to Test
           </AlertDialogAction>
         </AlertDialogContent>

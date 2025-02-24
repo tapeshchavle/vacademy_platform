@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,6 +40,8 @@ export function EmailLogin({
 }) {
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [email, setEmail] = useState("");
+  const [timer, setTimer] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -49,6 +51,25 @@ export function EmailLogin({
       email: "",
     },
   });
+  const startTimer = () => {
+    setTimer(60);
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    timerRef.current = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
   const otpForm = useForm<OtpFormValues>({
     resolver: zodResolver(otpSchema),
@@ -61,6 +82,7 @@ export function EmailLogin({
     mutationFn: (email: string) => axios.post(REQUEST_OTP, { email }),
     onSuccess: () => {
       setIsOtpSent(true);
+      startTimer(); // Add this line
       toast.success("OTP sent successfully");
     },
     onError: () => {
@@ -70,55 +92,26 @@ export function EmailLogin({
       });
     },
   });
+  // const sendOtpMutation = useMutation({
+  //   mutationFn: (email: string) => axios.post(REQUEST_OTP, { email }),
+  //   onSuccess: () => {
+  //     setIsOtpSent(true);
+  //     toast.success("OTP sent successfully");
+  //   },
+  //   onError: () => {
+  //     toast.error("this email is not registered", {
+  //       description: "Please try again with a registered email",
+  //       duration: 3000,
+  //     });
+  //   },
+  // });
 
   const verifyOtpMutation = useMutation({
     mutationFn: (data: { email: string; otp: string }) =>
       axios.post(LOGIN_OTP, data),
     onSuccess: async (response) => {
-      // handleUserAuthentication(response.data);
-      // try {
-      //   // Store tokens in Capacitor Storage
-      //   await setTokenInStorage(
-      //     TokenKey.accessToken,
-      //     response.data.accessToken
-      //   );
-      //   await setTokenInStorage(
-      //     TokenKey.refreshToken,
-      //     response.data.refreshToken
-      //   );
-
-      //   const decodedData = await getTokenDecodedData(
-      //     response.data.accessToken
-      //   );
-      //   const authorities = decodedData.authorities;
-      //   const userId = decodedData.user;
-      //   const authorityKeys = authorities ? Object.keys(authorities) : [];
-
-      //   if (authorityKeys.length > 1) {
-      //     navigate({ to: "/institute-selection" });
-      //   } else {
-      //     const instituteId = authorityKeys[0];
-      //     try {
-      //     await fetchAndStoreInstituteDetails(instituteId, userId);
-      //     } catch (error) {
-      //       console.error("Error fetching institute details:", error);
-      //     }
-
-      //     try {
-      //       await fetchAndStoreStudentDetails(instituteId, userId);
-      //     } catch (error) {
-      //       console.error("Failed to fetch student details:", error);
-      //       toast.error("Failed to fetch student details");
-      //     }
-
-      //     navigate({ to: "/dashboard" });
-      //   }
-      // } catch (error) {
-      //   console.error("Error processing decoded data:", error);
-      // }
-
       try {
-        // Store tokens in Capacitor Storage
+        // Store tokens
         await setTokenInStorage(
           TokenKey.accessToken,
           response.data.accessToken
@@ -129,44 +122,31 @@ export function EmailLogin({
         );
 
         // Decode token to get user data
-        const decodedData = await getTokenDecodedData(response.data.accessToken);
-
-        // Check authorities in decoded data
+        const decodedData = await getTokenDecodedData(
+          response.data.accessToken
+        );
         const authorities = decodedData?.authorities;
         const userId = decodedData?.user;
         const authorityKeys = authorities ? Object.keys(authorities) : [];
 
         if (authorityKeys.length > 1) {
-          // Redirect to InstituteSelection if multiple authorities are found
           navigate({ to: "/institute-selection" });
         } else {
-          // Get the single institute ID
-          const instituteId = authorities
-            ? Object.keys(authorities)[0]
-            : undefined;
+          const instituteId = authorityKeys[0];
 
           if (instituteId && userId) {
             try {
               await fetchAndStoreInstituteDetails(instituteId, userId);
+              await fetchAndStoreStudentDetails(instituteId, userId);
             } catch (error) {
-              console.error("Error fetching institute details:", error);
+              console.error("Error fetching details:", error);
+              toast.error("Failed to fetch details");
             }
           } else {
             console.error("Institute ID or User ID is undefined");
           }
 
-          try {
-            if (instituteId && userId) {
-              await fetchAndStoreStudentDetails(instituteId, userId);
-            } else {
-              console.error("Institute ID or User ID is undefined");
-            }
-          } catch (error) {
-            console.error("Failed to fetch student details:", error);
-            toast.error("Failed to fetch student details");
-          }
-          // Navigate after successful fetch
-          navigate({ to: "/dashboard" });
+          navigate({ to: "/login/SessionSelectionPage" });
         }
       } catch (error) {
         console.error("Error processing decoded data:", error);
@@ -337,7 +317,7 @@ export function EmailLogin({
                 >
                   Back
                 </MyButton>
-                <MyButton
+                {/* <MyButton
                   type="button"
                   scale="medium"
                   buttonType="text"
@@ -345,6 +325,16 @@ export function EmailLogin({
                   onClick={() => sendOtpMutation.mutate(email)}
                 >
                   Resend OTP
+                </MyButton> */}
+                <MyButton
+                  type="button"
+                  scale="medium"
+                  buttonType="text"
+                  className={timer > 0 ? "text-gray-500" : "text-primary-500"}
+                  onClick={() => timer === 0 && sendOtpMutation.mutate(email)}
+                  disabled={timer > 0}
+                >
+                  {timer > 0 ? `Resend OTP in ${timer}s` : "Resend OTP"}
                 </MyButton>
               </div>
             </div>

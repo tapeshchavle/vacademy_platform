@@ -21,6 +21,7 @@ export type Assessment = {
   recent_attempt_start_date: string | null;
   assessment_attempts: number;
   user_attempts: number | null;
+  created_attempts: number | null;
   preview_time: number;
   last_attempt_id: string | null;
   assessment_user_registration_id: string | null;

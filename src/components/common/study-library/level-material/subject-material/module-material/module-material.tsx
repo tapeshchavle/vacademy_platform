@@ -2,37 +2,33 @@ import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore
 import { useRouter } from "@tanstack/react-router";
 import { CaretLeft } from "phosphor-react";
 import { useEffect } from "react";
-import { ModuleType } from "./module-card";
 import { Modules } from "./modules";
+import { useModulesWithChaptersStore } from "@/stores/study-library/use-modules-with-chapters-store";
+import { getSubjectName } from "@/utils/study-library/get-name-by-id/getSubjectNameById";
 
-const moduleDummyData: ModuleType[] = [
-    {
-        name: "Live Sessions",
-        description: "All live sessions are present here"
-    },
-    {
-        name: "NCERT",
-        description: "All NCERT chapters are present here"
-    },
-]
 
-export const ModuleMaterial = ({subject, level, course}:{subject:string; level:string; course:string}) => {
+export const ModuleMaterial = () => {
 
     const {setNavHeading} = useNavHeadingStore();
     const router = useRouter();
-    const modules: ModuleType[] = moduleDummyData;
+    const searchParams = router.state.location.search;
+    const subjectId: string = searchParams.subjectId || "";
+
+    const { modulesWithChaptersData } = useModulesWithChaptersStore();
+    
 
     const handleBackClick = () => {
         router.navigate({
-            to: `/study-library/courses/$course/levels/$level/subjects`,
-            params: {course: course, level: level}
+            to: `/study-library/courses/levels/subjects`
         })
     };
+
+    const subjectName = getSubjectName(subjectId)
 
     const heading = (
         <div className="flex items-center gap-2">
             <CaretLeft onClick={handleBackClick} className="cursor-pointer size-5" />
-            <div>{subject}</div>
+            <div>{subjectName}</div>
         </div>
     );
 
@@ -42,8 +38,7 @@ export const ModuleMaterial = ({subject, level, course}:{subject:string; level:s
 
     return(
         <Modules
-            modules={modules}
-            subject={subject}
+            modules={modulesWithChaptersData}
         />
     )
 }

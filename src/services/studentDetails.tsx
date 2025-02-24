@@ -1,80 +1,8 @@
-// import { useMutation } from '@tanstack/react-query';
-// import { Storage } from '@capacitor/storage';
-
-// // Type definitions
-// interface StudentDetails {
-//   id: string;
-//   name: string;
-//   // Add other student properties as needed
-// }
-
-// interface FetchStudentParams {
-//   userId: string;
-//   instituteId: string;
-// }
-
-// // Function to fetch student details from API
-// const fetchStudentDetailsFromAPI = async ({ userId, instituteId }: FetchStudentParams) => {
-//   const response = await fetch(`https://backend-stage.vacademy.io/admin-core-service/learner/info/v1/details${userId}&instituteId=${instituteId}`);
-//   if (!response.ok) {
-//     throw new Error('Failed to fetch student details');
-//   }
-//   return response.json();
-// };
-
-// // Custom hook to fetch and store student details
-// export const useFetchStudentDetails = () => {
-//   const mutation = useMutation({
-//     mutationFn: fetchStudentDetailsFromAPI,
-//     onSuccess: async (data: StudentDetails) => {
-//       try {
-//         // Store the fetched data in Capacitor Storage
-//         await Storage.set({
-//           key: `student-${data.id}`,
-//           value: JSON.stringify(data)
-//         });
-        
-//         console.log('Student details stored successfully');
-//       } catch (error) {
-//         console.error('Error storing student details:', error);
-//       }
-//     },
-//     onError: (error) => {
-//       console.error('Error fetching student details:', error);
-//     }
-//   });
-
-//   // Function to retrieve stored student details
-//   const getStoredStudentDetails = async (studentId: string): Promise<StudentDetails | null> => {
-//     try {
-//       const { value } = await Storage.get({ key: `student-${studentId}` });
-//       return value ? JSON.parse(value) : null;
-//     } catch (error) {
-//       console.error('Error retrieving stored student details:', error);
-//       return null;
-//     }
-//   };
-
-//   return {
-//     fetchAndStoreStudentDetails: mutation.mutate,
-//     getStoredStudentDetails,
-//     isLoading: mutation.isPending,
-//     error: mutation.error,
-//     data: mutation.data
-//   };
-// };
-
-
-
-
-
-
 import { Preferences } from "@capacitor/preferences";
-import { toast } from "sonner"; // Assuming you're using sonner for toasts
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { STUDENT_DETAIL } from "@/constants/urls";
 
-interface StudentDetails {
+interface Student {
   id: string;
   username: string;
   user_id: string;
@@ -103,52 +31,184 @@ interface StudentDetails {
   updated_at: string;
 }
 
+interface Batch {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  session_ids: string[];
+}
+
+interface Institute {
+  id: string;
+  name: string;
+  batches_for_sessions: Batch[];
+}
+
 export const fetchAndStoreStudentDetails = async (
   instituteId: string,
   userId: string
-): Promise<StudentDetails | null> => {
+) => {
   try {
-    // Call API to get student details
-    const studentDetailsResponse = await authenticatedAxiosInstance({
+    const response = await authenticatedAxiosInstance({
       method: "GET",
       url: STUDENT_DETAIL,
-      params: {
-        instituteId,
-        userId,
-      },
+      params: { instituteId, userId },
     });
 
-    // Ensure response data is valid
-    if (!studentDetailsResponse?.data) {
-      throw new Error("Invalid response data");
+    if (response.status === 200) {
+      // Case: With Package Session (Multiple Entries)
+      const students: Student[] = response.data;
+
+      // Store raw student details
+      await Preferences.set({
+        key: "students",
+        value: JSON.stringify(students),
+      });
+
+      // Fetch stored institute details
+      const instituteData = await Preferences.get({ key: "InstituteDetails" });
+      if (!instituteData.value) throw new Error("No institute data found!");
+
+      const institute: Institute = JSON.parse(instituteData.value);
+
+      // Ensure batches_for_sessions exist
+      if (!institute.batches_for_sessions)
+        throw new Error("No batches found in institute details!");
+
+      // Extract package_session_id from student details
+      const packageSessionIds = students.map(
+        (student) => student.package_session_id
+      );
+
+      // Match all package_session_id with batches_for_sessions
+      const matchedSessions = institute.batches_for_sessions.filter(
+        (batch: Batch) => packageSessionIds.includes(batch.id)
+      );
+
+      console.log("Mapped Sessions:", matchedSessions);
+
+      // Store mapped sessions in sessionList
+      await Preferences.set({
+        key: "sessionList",
+        value: JSON.stringify(matchedSessions),
+      });
+
+      console.log("Mapped sessions stored successfully in sessionList!");
+    } else if (response.status === 201) {
+      // Case: Without Package Session (Single Entry)
+      const student: Student = response.data[0];
+
+      // Store single student entry in "StudentDetails"
+      await Preferences.set({
+        key: "StudentDetails",
+        value: JSON.stringify(student),
+      });
+
+      console.log("Single student entry stored in StudentDetails.");
+      // navigate({ to: "/dashboard" });
     }
-
-    const studentDetails: StudentDetails = studentDetailsResponse.data;
-
-    // Store student details in Capacitor Preferences
-    await Preferences.set({
-      key: "StudentDetails",
-      value: JSON.stringify(studentDetails), // Convert object to string before storing
-    });
-
-    return studentDetails;
   } catch (error) {
-    console.error("Failed to fetch student details:", error);
-    toast.error("Failed to fetch student details. Please try again.");
+    console.error("Failed to fetch and store student details:", error);
+    throw error;
+  }
+};
+
+const storeMappedSessions = async () => {
+  try {
+    // Get Student Details
+    const studentData = await Preferences.get({ key: "students" });
+    // if (!studentData.value) throw new Error("No student data found!");
+
+    const students: Student[] = studentData.value ? JSON.parse(studentData.value) : [];
+    console.log("Student Details:", students);
+
+    // Get Institute Details
+    const instituteData = await Preferences.get({ key: "InstituteDetails" });
+    if (!instituteData.value) throw new Error("No institute data found!");
+
+    const institute: Institute = JSON.parse(instituteData.value);
+    console.log("Institute Details:", institute);
+
+    // Extract package_session_id from students
+    const sessionIds = students.map((s: Student) => s.package_session_id);
+    console.log("Extracted package_session_id list:", sessionIds);
+
+    // Filter batches that match package_session_id
+    const matchedSessions = institute.batches_for_sessions.filter(
+      (batch: Batch) => sessionIds.includes(batch.id)
+    );
+
+    console.log("Matched Sessions:", matchedSessions);
+
+  } catch (error) {
+    console.error("Error in storing mapped sessions:", error);
+  }
+};
+
+// Call this function where needed (e.g., after fetching student & institute data)
+storeMappedSessions();
+
+export const getStoredStudentDetails = async (): Promise<Student[] | null> => {
+  try {
+    console.log("Retrieving stored student details...");
+    const { value } = await Preferences.get({ key: "students" });
+    console.log("Stored student details retrieved:", value);
+    return value ? (JSON.parse(value) as Student[]) : null;
+  } catch (error) {
+    console.error("Error parsing stored student details:", error);
     return null;
   }
 };
 
-// Helper function to retrieve stored student details
-export const getStoredStudentDetails = async (): Promise<StudentDetails | null> => {
+export const getMappedSessions = async (): Promise<Batch[] | null> => {
   try {
-    const { value } = await Preferences.get({ key: "StudentDetails" });
+    // Try fetching multiple students first
+    let studentData = await Preferences.get({ key: "students" });
 
-    if (!value) return null;
+    if (!studentData.value) {
+      // If no multiple students found, check for single student case
+      studentData = await Preferences.get({ key: "StudentDetails" });
+      if (!studentData.value) {
+        console.warn("No student data found! Returning null.");
+        return null; // Instead of throwing an error
+      }
+    }
 
-    return JSON.parse(value) as StudentDetails;
+    const student: Student = JSON.parse(studentData.value);
+
+    // Fetch stored institute details
+    const instituteData = await Preferences.get({ key: "InstituteDetails" });
+    if (!instituteData.value) {
+      console.warn("No institute data found! Returning null.");
+      return null;
+    }
+
+    const institute: Institute = JSON.parse(instituteData.value);
+
+    // Ensure batches_for_sessions exist
+    if (
+      !institute.batches_for_sessions ||
+      institute.batches_for_sessions.length === 0
+    ) {
+      console.warn("No batches found in institute details! Returning null.");
+      return null;
+    }
+
+    // Filter student package_session_id with institute batches_for_sessions
+    const matchedSessions = institute.batches_for_sessions.filter(
+      (batch: Batch) => batch.id === student.package_session_id
+    );
+
+    if (matchedSessions.length === 0) {
+      console.warn("No matching sessions found!");
+      return null;
+    }
+
+    console.log("Mapped Sessions:", matchedSessions);
+    return matchedSessions;
   } catch (error) {
-    console.error("Error parsing stored student details:", error);
+    console.error("Error mapping sessions:", error);
     return null;
   }
 };

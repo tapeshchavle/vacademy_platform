@@ -49,17 +49,23 @@ interface AssessmentStore {
   questionStartTime: Record<string, number>;
   setQuestionStartTime: (questionId: string, startTime: number) => void;
   calculateTimeTaken: (questionId: string) => number;
+  questionTimeSpent: Record<string, number>;
+  initializeQuestionTime: (questionId: string) => void;
+  incrementQuestionTime: (questionId: string) => void;
 }
 
 export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   assessment: null,
   currentSection: 0,
   currentQuestion: null,
-  currentQuestionIndex:0,
+  currentQuestionIndex: 0,
   questionStates: {},
   answers: {},
   sectionTimers: {},
   questionTimers: {},
+  questionStartTime: {},
+  questionTimeSpent: {},
+
 
   setAssessment: (assessment) =>
     set((state) => {
@@ -159,8 +165,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
         [question.question_id]: Date.now(),
       },
     })),
-
-    
 
   setQuestionState: (questionId, state) =>
     set((prevState) => ({
@@ -425,6 +429,13 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
 
   saveState: async () => {
     const state = get();
+    const attemptId = state?.assessment?.attempt_id;
+
+    if (!attemptId) {
+      console.error("Attempt ID is missing");
+      return;
+    }
+
     const dataToSave = {
       assessment: state.assessment,
       currentSection: state.currentSection,
@@ -436,21 +447,49 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       entireTestTimer: state.entireTestTimer,
       tabSwitchCount: state.tabSwitchCount,
       questionStartTime: state.questionStartTime,
+      questionTimeSpent: state.questionTimeSpent,
     };
 
+    const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+
     await Storage.set({
-      key: "ASSESSMENT_STATE",
+      key: storageKey,
       value: JSON.stringify(dataToSave),
     });
 
-    localStorage.setItem("ASSESSMENT_STATE", JSON.stringify(dataToSave));
+    // localStorage.setItem(storageKey, JSON.stringify(dataToSave));
   },
 
   loadState: async () => {
-    let savedState = localStorage.getItem("ASSESSMENT_STATE");
+    const getAttemptId = async () => {
+      const { value } = await Storage.get({ key: "Assessment_questions" });
+
+      if (!value) {
+        console.error("No data found in Assessment_questions.");
+        return null;
+      }
+
+      try {
+        const parsedData = JSON.parse(value);
+        return parsedData?.attempt_id || null;
+      } catch (error) {
+        console.error("Error parsing Assessment_questions:", error);
+        return null;
+      }
+    };
+    const attemptId = await getAttemptId();
+
+    if (!attemptId) {
+      console.error("Attempt ID is required to load state");
+      return;
+    }
+
+    const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+    // let savedState = localStorage.getItem(storageKey);
+    let { value: savedState } = await Storage.get({ key: storageKey });
 
     if (!savedState) {
-      const { value } = await Storage.get({ key: "ASSESSMENT_STATE" });
+      const { value } = await Storage.get({ key: storageKey });
       savedState = value;
     }
 
@@ -460,7 +499,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     }
   },
 
-  questionStartTime: {},
   setQuestionStartTime: (questionId: string, startTime: number) =>
     set((state) => ({
       questionStartTime: {
@@ -475,6 +513,23 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     if (!startTime) return 0;
     return Date.now() - startTime;
   },
+
+
+  initializeQuestionTime: (questionId) =>
+    set((state) => ({
+      questionTimeSpent: {
+        ...state.questionTimeSpent,
+        [questionId]: state.questionTimeSpent[questionId] || 0, 
+      },
+    })),
+
+  incrementQuestionTime: (questionId) =>
+    set((state) => ({
+      questionTimeSpent: {
+        ...state.questionTimeSpent,
+        [questionId]: (state.questionTimeSpent[questionId] || 0) + 1, 
+      },
+    })),
 }));
 
 export default useAssessmentStore;

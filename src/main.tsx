@@ -40,7 +40,7 @@ if (!rootElement.innerHTML) {
         <StrictMode>
             <ThemeProvider defaultTheme="light" storageKey="ui-theme">
                 <QueryClientProvider client={queryClient}>
-                    <SidebarProvider>
+                    <SidebarProvider >
                         <RouterProvider router={router} />
                         <Toaster />
                     </SidebarProvider>

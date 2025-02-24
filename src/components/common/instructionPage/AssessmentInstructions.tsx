@@ -1,10 +1,15 @@
 import { StatusCheck } from "@/components/design-system/chips";
-import {parseHtmlToString} from "@/lib/utils"
+import { parseHtmlToString } from "@/lib/utils";
+
 interface AssessmentInstructionsProps {
   instructions: string;
   duration: number;
   preview: boolean;
   canSwitchSections: boolean;
+  assessment_attempts: number;
+  assessmentInfo: {
+    created_attempts: number | null;
+  };
 }
 
 export const AssessmentInstructions = ({
@@ -12,11 +17,19 @@ export const AssessmentInstructions = ({
   duration,
   preview,
   canSwitchSections,
+  assessment_attempts,
+  assessmentInfo,
 }: AssessmentInstructionsProps) => {
   return (
-    <>
-      <div className="font-bold">Assessment Instructions</div>
-      <div className="text-gray-700 whitespace-pre-line text-sm font-normal">
+    <div className="w-full sm:w-screen">
+      <div className="flex justify- text-primary-500 text-sm font-normal mb-2">
+        Attempts:{" "}
+        <span className="font-bold">
+          {assessmentInfo.created_attempts ?? 0}/{assessment_attempts}
+        </span>
+      </div>
+      <div className="font-bold text-lg mb-2">Assessment Instructions</div>
+      <div className="text-gray-700 whitespace-pre-line text-sm font-normal mb-4">
         {parseHtmlToString(instructions)}
       </div>
       <div className="mt-4 gap-4 text-sm font-bold">
@@ -24,7 +37,7 @@ export const AssessmentInstructions = ({
           Assessment Duration:
           <div className="flex items-center gap-2 font-normal">
             <div>Entire Assessment Duration</div>
-            <span>{duration}</span>
+            <span>{duration} minutes</span>
           </div>
         </div>
         <div className="flex items-center justify-between text-gray-600 font-normal mb-4">
@@ -44,6 +57,6 @@ export const AssessmentInstructions = ({
           {canSwitchSections && <StatusCheck />}
         </div>
       </div>
-    </>
+    </div>
   );
 };

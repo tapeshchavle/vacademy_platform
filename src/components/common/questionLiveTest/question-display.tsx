@@ -1,17 +1,15 @@
-// import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Flag, X, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   distribution_duration_types,
   QUESTION_TYPES,
 } from "@/types/assessment";
-import {parseHtmlToString} from "@/lib/utils"
+import { processHtmlString } from "@/lib/utils";
+import { Preferences } from "@capacitor/preferences";
 
 export function QuestionDisplay() {
   const {
@@ -27,17 +25,54 @@ export function QuestionDisplay() {
     assessment,
     updateQuestionTimer,
     moveToNextQuestion,
+    // questionTimeSpent,
+    initializeQuestionTime,
+    incrementQuestionTime,
   } = useAssessmentStore();
 
+  const [playMode, setPlayMode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPlayMode = async () => {
+      const storedMode = await Preferences.get({
+        key: "InstructionID_and_AboutID",
+      });
+      if (storedMode.value) {
+        const parsedData = JSON.parse(storedMode.value);
+        setPlayMode(parsedData.play_mode);
+      }
+    };
+
+    fetchPlayMode();
+  }, []);
+
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
-  
+  const isPracticeMode = playMode === "PRACTICE";
+
+  useEffect(() => {
+    if (isPracticeMode || !currentQuestion?.question_id) return;
+    initializeQuestionTime(currentQuestion.question_id);
+
+    const interval = setInterval(() => {
+      incrementQuestionTime(currentQuestion.question_id);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [
+    currentQuestion,
+    initializeQuestionTime,
+    incrementQuestionTime,
+    isPracticeMode,
+  ]);
+
   useEffect(() => {
     if (
+      isPracticeMode ||
       !currentQuestion ||
       assessment?.distribution_duration !== distribution_duration_types.QUESTION
     )
       return;
-  
+
     const timer = setInterval(() => {
       const timeLeft = questionTimers[currentQuestion.question_id] || 0;
       if (timeLeft > 0) {
@@ -46,11 +81,14 @@ export function QuestionDisplay() {
         moveToNextQuestion();
       }
     }, 1000);
-  
+
     return () => clearInterval(timer);
-  }, [currentQuestion, assessment?.distribution_duration, questionTimers]);
-  
-  
+  }, [
+    currentQuestion,
+    assessment?.distribution_duration,
+    questionTimers,
+    isPracticeMode,
+  ]);
 
   if (!currentQuestion) {
     return (
@@ -64,7 +102,7 @@ export function QuestionDisplay() {
     );
   }
 
-  if (isTimeUp) {
+  if (isTimeUp && !isPracticeMode) {
     return (
       <Alert variant="destructive" className="mb-6">
         <AlertCircle className="h-4 w-4" />
@@ -95,108 +133,131 @@ export function QuestionDisplay() {
 
     setAnswer(currentQuestion.question_id, newAnswer);
   };
+
   const calculateMarkingScheme = (marking_json: string) => {
     try {
       const marking_scheme = JSON.parse(marking_json);
-      // console.log(marking_scheme)
-      return marking_scheme; 
+      return marking_scheme;
     } catch (error) {
       console.error("Error parsing marking_json:", error);
       return 0;
     }
   };
 
-  const formatTime = (ms: number) => {
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
-      2,
-      "0"
-    )}`;
-  };
-
   return (
     <div className="space-y-6 mx-auto">
-      <div className="flex flex-col items-start justify-between">
-        <div className="w-full sm:w-3/4">
-          <div className="flex items-baseline gap-5 sm:mb-2">
+      <div className="flex flex-col items-start justify-between w-full">
+        <div className="w-full">
+          <div className="flex items-baseline justify-between gap-5 mb-2">
             <div className="flex items-baseline gap-8">
               <span className="text-lg text-gray-700">
                 Question {currentQuestion.question_order}
               </span>
+              {!isPracticeMode &&
+                assessment?.distribution_duration ===
+                  distribution_duration_types.QUESTION && (
+                  <span className="text-base text-primary-500">
+                    {new Date(questionTimers[currentQuestion.question_id] || 0)
+                      .toISOString()
+                      .substr(14, 5)}
+                  </span>
+                )}
+            </div>
+
+            <div>
               <span className="text-base text-gray-600">
                 {
                   calculateMarkingScheme(currentQuestion.marking_json).data
                     .totalMark
                 }{" "}
-                Marks
+                Marks |{" "}
               </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {assessment?.distribution_duration ===
-                distribution_duration_types.QUESTION && (
-                <span className="text-base text-orange-500">
-                  {formatTime(questionTimers[currentQuestion.question_id])}
-                </span>
-              )}
+              <span>{currentQuestion.question_type}</span>
             </div>
           </div>
 
           <p className="text-lg text-gray-800">
-            {parseHtmlToString(currentQuestion.question.content)}
+            {processHtmlString(currentQuestion.question.content).map(
+              (item, index) =>
+                item.type === "text" ? (
+                  <span key={index}>{item.content}</span>
+                ) : (
+                  <img
+                    key={index}
+                    src={item.content}
+                    alt={`Question image ${index + 1}`}
+                  />
+                )
+            )}
           </p>
         </div>
-        <div className="flex gap-2 mt-4 md:mt-4 sm:mt-0 w-full sm:w-auto justify-between">
+        <div className="flex gap-2 mt-4 w-full justify-between">
           <Button
             variant="outline"
             size="sm"
-            className={isMarkedForReview ? "text-orange-500" : ""}
+            className={
+              isMarkedForReview
+                ? "text-primary-500 hover:text-primary-500 hover:bg-transparent"
+                : ""
+            }
             onClick={() => markForReview(currentQuestion.question_id)}
-            disabled={isDisabled}
           >
-            <Flag className="mr-2 h-4 w-4" />
             Review Later
           </Button>
+
           <Button
             variant="outline"
             size="sm"
             onClick={() => clearResponse(currentQuestion.question_id)}
             disabled={currentAnswer.length === 0 || isDisabled}
           >
-            <X className="mr-2 h-4 w-4" />
             Clear Response
           </Button>
         </div>
       </div>
 
-      {/* {currentQuestion.imageDetails &&
-        currentQuestion.imageDetails.length > 0 && (
-          <div className="relative h-64 w-full mt-4">
-            <Image
-            src="/placeholder.svg"
-            alt="Question diagram"
-            fill
-            className="object-contain"
-          />
-          </div>
-        )} */}
-
       <div className="space-y-4">
-        {currentQuestion.options.map((option) => (
+        {currentQuestion?.options?.map((option, index) => (
           <div
             key={option.id}
-            className="flex items-center space-x-2 rounded-lg border p-4  w-full"
+            className={`flex flex-row-reverse items-center justify-between rounded-lg border p-4 w-full ${
+              currentAnswer.includes(option.id)
+                ? "border-primary-500 bg-primary-50"
+                : "border-gray-200"
+            }`}
           >
-            <Checkbox
-              id={option.id}
-              checked={currentAnswer.includes(option.id)}
-              onCheckedChange={() => handleAnswerChange(option.id)}
-              disabled={isDisabled}
-            />
-            <Label htmlFor={option.id} className="flex-grow cursor-pointer">
-              {parseHtmlToString(option.text.content)}
-            </Label>
+            <div className="relative flex items-center">
+              <div
+                className={`w-6 h-6 border rounded-md flex items-center justify-center ${
+                  currentAnswer.includes(option.id)
+                    ? "bg-green-500 border-green-500"
+                    : "border-gray-300"
+                }`}
+                onClick={() => handleAnswerChange(option.id)}
+              >
+                {currentAnswer.includes(option.id) && (
+                  <span className="text-white font-bold">✔</span>
+                )}
+              </div>
+            </div>
+
+            <label
+              className={`flex-grow cursor-pointer text-sm ${
+                currentAnswer.includes(option.id)
+                  ? "font-semibold"
+                  : "text-gray-700"
+              }`}
+              onClick={() => handleAnswerChange(option.id)}
+            >
+              {`(${String.fromCharCode(97 + index)}) `}
+              {processHtmlString(option.text.content).map((item, index) =>
+                item.type === "text" ? (
+                  <span key={index}>{item.content}</span>
+                ) : (
+                  <img key={index} src={item.content} alt={`Option ${index}`} />
+                )
+              )}
+            </label>
           </div>
         ))}
       </div>
