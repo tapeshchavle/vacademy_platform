@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 
 const AssessmentRegistrationForm = () => {
+  const [isAlreadyLoggedIn, setIsAlreadyLoggedIn] = useState(false);
   const [userAlreadyRegistered, setUserAlreadyRegistered] = useState(false);
   const { code } = Route.useSearch();
   const { data, isLoading } = useSuspenseQuery(
@@ -269,9 +270,7 @@ const AssessmentRegistrationForm = () => {
           getTestDetailsOfParticipants.is_already_registered &&
           getTestDetailsOfParticipants.remaining_attempts > 0
         ) {
-          navigate({
-            to: `/assessment/examination/${assessmentId}/assessmentPreview`,
-          });
+          setIsAlreadyLoggedIn(true);
         }
       }
     };
@@ -291,7 +290,8 @@ const AssessmentRegistrationForm = () => {
 
   if (
     handleRegisterParticipant.status === "success" ||
-    handleGetUserIdMutation.status === "success"
+    handleGetUserIdMutation.status === "success" ||
+    isAlreadyLoggedIn
   )
     return (
       <AssessmentRegistrationCompleted

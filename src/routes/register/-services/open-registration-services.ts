@@ -74,7 +74,7 @@ export const handleRegisterOpenParticipant = async (
       custom_field_request_list: transformIntoCustomFieldRequestListData(
         assessment_custom_fields,
         custom_field_request_list
-      ),
+      ).custom_field_request_list,
     },
   });
   return response?.data;
