@@ -61,7 +61,7 @@ export const handleRegisterOpenParticipant = async (
   participantsDto: ParticipantsDataInterface,
   custom_field_request_list: DynamicSchemaData
 ) => {
-  const response = await authenticatedAxiosInstance({
+  const response = await axios({
     method: "POST",
     url: REGISTER_PARTICIPANT_URL,
     params: {
@@ -114,7 +114,7 @@ export const handleGetUserId = async (
     roles: [],
     root_user: true,
   };
-  const response = await authenticatedAxiosInstance({
+  const response = await axios({
     method: "POST",
     url: GET_USERID_URL,
     params: {

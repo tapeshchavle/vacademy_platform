@@ -27,7 +27,6 @@ import {
 import { TokenKey } from "@/constants/auth/tokens";
 import { getOpenRegistrationUserDetailsByEmail } from "../-utils/helper";
 import { OpenTestAssessmentRegistrationDetails } from "@/types/open-test";
-import { useNavigate } from "@tanstack/react-router";
 import {
   DynamicSchemaData,
   ParticipantsDataInterface,
@@ -66,7 +65,6 @@ const CheckEmailStatusAlertDialog = ({
   setUserAlreadyRegistered: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
   const [userHasAttemptCount, setUserHasAttemptCount] = useState(false);
-  const navigate = useNavigate();
   const [isOtpSent, setIsOTPSent] = useState(false);
   const [open, setOpen] = useState(false);
   const form = useForm<FormValues>({
@@ -194,9 +192,6 @@ const CheckEmailStatusAlertDialog = ({
         getTestDetailsOfParticipants.is_already_registered &&
         getTestDetailsOfParticipants.remaining_attempts > 0
       ) {
-        navigate({
-          to: `/assessment/examination/${assessmentId}/assessmentPreview`,
-        });
         setUserHasAttemptCount(true);
       } else if (
         getTestDetailsOfParticipants.is_already_registered &&
