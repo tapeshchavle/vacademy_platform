@@ -2,7 +2,7 @@ import { Storage } from '@capacitor/storage';
 import { useAssessmentStore } from "@/stores/assessment-store";
 import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
 import { RESTART_ASSESSMENT } from '@/constants/urls';
-import { formatDataFromStore } from '@/components/common/questionLiveTest/page';
+// import { formatDataFromStore } from '@/components/common/questionLiveTest/page';
 
 // export async function restartAssessment(assessmentId, attemptId) {
 //   try {
@@ -53,13 +53,143 @@ import { formatDataFromStore } from '@/components/common/questionLiveTest/page';
 //   }
 // }
 
+const formatStoredAssessmentData = (storedData) => {
+  if (!storedData || !storedData.assessment) {
+    console.error("Invalid stored assessment data.");
+    return null;
+  }
+
+  return {
+    attemptId: storedData.assessment?.attempt_id,
+    clientLastSync: new Date().toISOString(),
+    assessment: {
+      assessmentId: storedData.assessment?.assessment_id,
+      entireTestDurationLeftInSeconds: storedData.entireTestTimer || 0,
+      timeElapsedInSeconds: storedData.assessment?.preview_total_time
+        ? storedData.assessment.preview_total_time * 60 - storedData.entireTestTimer
+        : 0,
+      status: "LIVE",
+      tabSwitchCount: storedData.tabSwitchCount || 0,
+    },
+    sections: storedData.assessment?.section_dtos?.map((section, idx) => ({
+      sectionId: section.id,
+      sectionDurationLeftInSeconds: storedData.sectionTimers?.[section.id]?.timeLeft || 0,
+      timeElapsedInSeconds: section.duration
+        ? section.duration * 60 - (storedData.sectionTimers?.[section.id]?.timeLeft || 0)
+        : 0,
+      questions: section.question_preview_dto_list?.map((question) => ({
+        questionId: question.question_id,
+        questionDurationLeftInSeconds:
+          storedData.questionTimers?.[question.question_id] || 0,
+        timeTakenInSeconds: storedData.questionTimeSpent?.[question.question_id] || 0,
+        isMarkedForReview:
+          storedData.questionStates?.[question.question_id]?.isMarkedForReview || false,
+        isVisited:
+          storedData.questionStates?.[question.question_id]?.isVisited || false,
+        responseData: {
+          type: question.question_type,
+          optionIds: storedData.answers?.[question.question_id] || [],
+        },
+      })),
+    })),
+  };
+};
+
+
+// const formatStoredAssessmentData = (storedData) => {
+//   if (!storedData || !storedData.assessment) {
+//     console.error("Invalid stored assessment data.");
+//     return null;
+//   }
+
+//   return {
+//     attemptId: storedData.assessment?.attempt_id,
+//     clientLastSync: new Date().toISOString(),
+//     assessment: {
+//       assessmentId: storedData.assessment?.assessment_id,
+//       entireTestDurationLeftInSeconds: storedData.entireTestTimer || 0,
+//       timeElapsedInSeconds: storedData.assessment?.preview_total_time
+//         ? storedData.assessment.preview_total_time * 60 - storedData.entireTestTimer
+//         : 0,
+//       status: "LIVE",
+//       tabSwitchCount: storedData.tabSwitchCount || 0,
+//     },
+//     sections: storedData.assessment?.section_dtos?.map((section, idx) => ({
+//       sectionId: section.id,
+//       sectionDurationLeftInSeconds: storedData.sectionTimers?.[section.id]?.timeLeft || 0,
+//       timeElapsedInSeconds: section.duration
+//         ? section.duration * 60 - (storedData.sectionTimers?.[section.id]?.timeLeft || 0)
+//         : 0,
+//       questions: section.question_preview_dto_list?.map((question) => ({
+//         questionId: question.question_id,
+//         questionDurationLeftInSeconds: storedData.questionTimers?.[question.question_id] || 0,
+//         timeTakenInSeconds: storedData.questionTimeSpent?.[question.question_id] || 0,
+//         isMarkedForReview: storedData.questionStates?.[question.question_id]?.isMarkedForReview || false,
+//         isVisited: storedData.questionStates?.[question.question_id]?.isVisited || false,
+//         responseData: {
+//           type: question.question_type,
+//           optionIds: storedData.answers?.[question.question_id] || [],
+//         },
+//       })),
+//     })),
+//   };
+// };
+
+
+// const formatDataFromStore = (assessment_id: string) => {
+//   const state = useAssessmentStore.getState();
+//   console.log("state in formatDataFromStore",state, "assessment_id", assessment_id);
+//   return {
+//     attemptId: state.assessment?.attempt_id,
+//     clientLastSync: new Date().toISOString(),
+//     assessment: {
+//       assessmentId: assessment_id,
+//       entireTestDurationLeftInSeconds: state.entireTestTimer,
+//       timeElapsedInSeconds: state.assessment?.duration
+//         ? state.assessment.duration * 60 - state.entireTestTimer
+//         : 0,
+//       status: "LIVE",
+//       tabSwitchCount: state.tabSwitchCount || 0,
+//     },
+//     sections: state.assessment?.section_dtos?.map((section, idx) => ({
+//       sectionId: section.id,
+//       sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+//       timeElapsedInSeconds: section.duration
+//         ? section.duration * 60 - (state.sectionTimers?.[idx]?.timeLeft || 0)
+//         : 0,
+//       questions: section.question_preview_dto_list?.map((question) => ({
+//         questionId: question.question_id,
+//         questionDurationLeftInSeconds:
+//           state.questionTimers?.[question.question_id] || 0,
+//         timeTakenInSeconds:
+//         state.questionTimeSpent[question.question_id] || 0,
+//         isMarkedForReview:
+//           state.questionStates[question.question_id].isMarkedForReview ||
+//           false,
+//         isVisited:
+//           state.questionStates[question.question_id].isVisited || false,
+//         responseData: {
+//           type: question.question_type,
+//           optionIds: state.answers?.[question.question_id] || [],
+//         },
+//       })),
+//     })),
+//   };
+// };
+
+
 export async function restartAssessment(assessmentId, attemptId) { 
     console.log('Restarting assessment:', { assessmentId, attemptId });
+    const storedAssessmentData = await Storage.get({ key: `ASSESSMENT_STATE_${attemptId}` });
+
+    console.log('Stored Assessment Data:', storedAssessmentData);
+    const body = storedAssessmentData.value ? formatStoredAssessmentData(JSON.parse(storedAssessmentData.value)) : {};
+    console.log('Restarting assessment with body:', body);
     try {
       // API Call
       const restartApiResponse = await authenticatedAxiosInstance.post(
         `${RESTART_ASSESSMENT}`,
-        { json_content: JSON.stringify(formatDataFromStore(assessmentId)) },
+        body, //api body
         { params: { assessmentId, attemptId } }
       );
   
@@ -107,21 +237,10 @@ export const storeFormattedData = async (formattedData: any, preview_response : 
     }
   
     state.setAssessment(preview_response);
-    // state.setSections(formattedData.sections);
-    // Populate useAssessmentStore
     useAssessmentStore.setState({
-      assessment: {
-        attempt_id: attemptId,
-        assessment_id: formattedData.assessment.assessmentId,
-        duration:
-          (formattedData.assessment.timeElapsedInSeconds +
-            formattedData.assessment.entireTestDurationLeftInSeconds) /
-          60,
-        status: formattedData.assessment.status,
-        tabSwitchCount: formattedData.assessment.tabSwitchCount,
-      },
-      currentSection: 0, // Assuming the first section is current
-      currentQuestion: 0, // Set based on UI logic
+      assessment: preview_response,
+      currentSection: 0, 
+      currentQuestion: preview_response.section_dtos[0].question_preview_dto_list[0], 
       questionStates: Object.fromEntries(
         formattedData.sections.flatMap((section: any) =>
           section.questions.map((question: any) => [

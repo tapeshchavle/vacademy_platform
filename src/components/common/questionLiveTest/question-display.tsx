@@ -122,7 +122,7 @@ export function QuestionDisplay() {
     questionTimers[currentQuestion.question_id] === 0;
 
   const handleAnswerChange = (optionId: string) => {
-    if (isDisabled) return;
+    // if (isDisabled) return;
 
     const newAnswer =
       currentQuestion.question_type === QUESTION_TYPES.MCQM
@@ -209,7 +209,9 @@ export function QuestionDisplay() {
             variant="outline"
             size="sm"
             onClick={() => clearResponse(currentQuestion.question_id)}
-            disabled={currentAnswer.length === 0 || isDisabled}
+            // disabled={currentAnswer.length === 0 || isDisabled}
+            disabled={currentAnswer.length === 0 }
+
           >
             Clear Response
           </Button>

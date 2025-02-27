@@ -56,11 +56,9 @@ export const formatDataFromStore = (assessment_id: string) => {
         questionId: question.question_id,
         questionDurationLeftInSeconds:
           state.questionTimers?.[question.question_id] || 0,
-        timeTakenInSeconds:
-        state.questionTimeSpent[question.question_id] || 0,
+        timeTakenInSeconds: state.questionTimeSpent[question.question_id] || 0,
         isMarkedForReview:
-          state.questionStates[question.question_id].isMarkedForReview ||
-          false,
+          state.questionStates[question.question_id].isMarkedForReview || false,
         isVisited:
           state.questionStates[question.question_id].isVisited || false,
         responseData: {
@@ -138,9 +136,6 @@ export default function Page() {
   //     })),
   //   };
   // };
-
-
-  
 
   // update API function to send data
   const sendFormattedData = async () => {
