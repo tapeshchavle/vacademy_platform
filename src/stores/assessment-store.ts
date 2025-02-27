@@ -430,6 +430,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   saveState: async () => {
     const state = get();
     const attemptId = state?.assessment?.attempt_id;
+    console.log("Attempt ID:", attemptId , "state", state);
 
     if (!attemptId) {
       console.error("Attempt ID is missing");

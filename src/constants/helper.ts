@@ -47,3 +47,8 @@ export const disableProtection = async () => {
 export const enableProtection = async () => {
   await PrivacyScreen.enable();
 };
+
+export const getSubjectNameById = (subjects: Subject[], id: string | null): string => {
+  const subject = subjects.find((item) => item.id === id);
+  return subject?.subject_name || "N/A";
+};

@@ -3,11 +3,9 @@ import { Card } from "@/components/ui/card";
 import { format } from "date-fns";
 import { Preferences } from "@capacitor/preferences";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
-import { STUDENT_REPORT_URL } from "@/constants/urls";
+import { STUDENT_REPORT_DETAIL_URL, STUDENT_REPORT_URL } from "@/constants/urls";
 import { MyButton } from "@/components/design-system/button";
 import { StatusChip } from "@/components/design-system/chips";
-import { TestReportDialog } from "../../../../components/common/student-test-records/test-report-dialog";
-import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 
 export const viewStudentReport = async (
@@ -17,7 +15,7 @@ export const viewStudentReport = async (
 ) => {
   const response = await authenticatedAxiosInstance({
     method: "GET",
-    url: STUDENT_REPORT_URL,
+    url: STUDENT_REPORT_DETAIL_URL,
     params: {
       assessmentId,
       attemptId,
@@ -52,48 +50,45 @@ const AssessmentReportList = () => {
   const [error, setError] = useState(null);
   const pageSize = 10;
   const observer = useRef();
-  //   const [studentReportData, setStudentReportData] = useState(data);
-  //   const [selectedTest, setSelectedTest] = useState(null);
 
-  const lastReportElementRef = useCallback(
-    (node) => {
-      if (loading) return;
-      if (observer.current) observer.current.disconnect();
+  // const lastReportElementRef = useCallback(
+  //   (node) => {
+  //     if (loading) return;
+  //     if (observer.current) observer.current.disconnect();
 
-      observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          setPageNo((prevPageNo) => prevPageNo + 1);
-        }
-      });
+  //     observer.current = new IntersectionObserver((entries) => {
+  //       if (entries[0].isIntersecting && hasMore) {
+  //         setPageNo((prevPageNo) => prevPageNo + 1);
+  //       }
+  //     });
 
-      if (node) observer.current.observe(node);
-    },
-    [loading, hasMore]
-  );
+  //     if (node) observer.current.observe(node);
+  //   },
+  //   [loading, hasMore]
+  // );
 
-  const getStudentReport = async (
-    studentId: string | undefined,
-    instituteId: string | undefined,
-    pageNo: number,
-    pageSize: number,
-    selectedFilter: StudentReportFilterInterface
-  ) => {
-    const response = await authenticatedAxiosInstance({
-      method: "POST",
-      url: STUDENT_REPORT_URL,
-      params: {
-        studentId,
-        instituteId,
-        pageNo,
-        pageSize,
-      },
-      data: selectedFilter,
-    });
-    return response?.data;
-  };
+  // const getStudentReport = async (
+  //   studentId: string | undefined,
+  //   instituteId: string | undefined,
+  //   pageNo: number,
+  //   pageSize: number,
+  //   selectedFilter: StudentReportFilterInterface
+  // ) => {
+  //   const response = await authenticatedAxiosInstance({
+  //     method: "POST",
+  //     url: STUDENT_REPORT_URL,
+  //     params: {
+  //       studentId,
+  //       instituteId,
+  //       pageNo,
+  //       pageSize,
+  //     },
+  //     data: selectedFilter,
+  //   });
+  //   return response?.data;
+  // };
 
   const handleViewReport = (report: any) => {
-    console.log("report from function", report);
     navigate({
       to: `/assessment/reports/student-report`,
       search: {

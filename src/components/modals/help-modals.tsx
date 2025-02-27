@@ -99,11 +99,11 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
                 />
               )}
               <p>Current Section Instructions:</p>
-              <div className="">
+              {/* <div className="">
                 <SectionDetails
                   section={assessment.section_dtos[currentSection]}
                 />
-              </div>
+              </div> */}
             </div>
             <div className="">
               {/* {open && type === "instructions" && (

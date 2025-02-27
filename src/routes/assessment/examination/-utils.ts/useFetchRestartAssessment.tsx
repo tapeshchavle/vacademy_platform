@@ -78,8 +78,9 @@ export async function restartAssessment(assessmentId, attemptId) {
       // Store data properly
       await Storage.set({ key: 'Assessment_questions', value: JSON.stringify(preview_response) });
       console.log('Stored Assessment Data:', await Storage.get({ key: 'Assessment_questions' }));
-  
-      storeFormattedData(learner_assessment_attempt_data_dto, preview_response.attemptId);
+      
+      console.log('preview_response.attemptId', preview_response, preview_response.attempt_id);
+      storeFormattedData(learner_assessment_attempt_data_dto, preview_response );
   
       await Storage.set({ key: 'Announcements', value: JSON.stringify(update_status_response) });
       console.log('Stored Announcements:', await Storage.get({ key: 'Announcements' }));
@@ -95,15 +96,18 @@ export async function restartAssessment(assessmentId, attemptId) {
 
 
 
-export const storeFormattedData = async (formattedData: any, attemptId : any) => {
+export const storeFormattedData = async (formattedData: any, preview_response : any) => {
     const state = useAssessmentStore.getState();
-    // const attemptId = formattedData.attemptId;
+    const attemptId = preview_response.attempt_id;
+    console.log("formattedData",formattedData,"preview_response",preview_response, "attemptId", attemptId);
   console.log(attemptId);
     if (!attemptId) {
       console.error("Attempt ID is missing in formatted data");
       return;
     }
   
+    state.setAssessment(preview_response);
+    // state.setSections(formattedData.sections);
     // Populate useAssessmentStore
     useAssessmentStore.setState({
       assessment: {
@@ -117,7 +121,7 @@ export const storeFormattedData = async (formattedData: any, attemptId : any) =>
         tabSwitchCount: formattedData.assessment.tabSwitchCount,
       },
       currentSection: 0, // Assuming the first section is current
-      currentQuestion: null, // Set based on UI logic
+      currentQuestion: 0, // Set based on UI logic
       questionStates: Object.fromEntries(
         formattedData.sections.flatMap((section: any) =>
           section.questions.map((question: any) => [
