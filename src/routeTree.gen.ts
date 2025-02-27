@@ -12,17 +12,20 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as StudyLibraryIndexImport } from './routes/study-library/index'
+import { Route as RegisterIndexImport } from './routes/register/index'
 import { Route as LogoutIndexImport } from './routes/logout/index'
 import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as InstituteSelectionIndexImport } from './routes/institute-selection/index'
 import { Route as DashboardIndexImport } from './routes/dashboard/index'
 import { Route as StudyLibraryCoursesIndexImport } from './routes/study-library/courses/index'
+import { Route as RegisterLoginIndexImport } from './routes/register/login/index'
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
 import { Route as LoginSessionSelectionPageIndexImport } from './routes/login/SessionSelectionPage/index'
 import { Route as DashboardNotificationsIndexImport } from './routes/dashboard/notifications/index'
 import { Route as AssessmentReportsIndexImport } from './routes/assessment/reports/index'
 import { Route as AssessmentExaminationIndexImport } from './routes/assessment/examination/index'
 import { Route as StudyLibraryCoursesLevelsIndexImport } from './routes/study-library/courses/levels/index'
+import { Route as RegisterLoginForgotPasswordIndexImport } from './routes/register/login/forgot-password/index'
 import { Route as AssessmentExaminationAssessmentIdIndexImport } from './routes/assessment/examination/$assessmentId/index'
 import { Route as AssessmentExaminationAssessmentIdAssessmentPreviewImport } from './routes/assessment/examination/$assessmentId/assessmentPreview'
 import { Route as AssessmentExaminationAssessmentIdLearnerLiveTestImport } from './routes/assessment/examination/$assessmentId/LearnerLiveTest'
@@ -36,6 +39,12 @@ import { Route as StudyLibraryCoursesLevelsSubjectsModulesChaptersSlidesIndexImp
 const StudyLibraryIndexRoute = StudyLibraryIndexImport.update({
   id: '/study-library/',
   path: '/study-library/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const RegisterIndexRoute = RegisterIndexImport.update({
+  id: '/register/',
+  path: '/register/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -66,6 +75,12 @@ const DashboardIndexRoute = DashboardIndexImport.update({
 const StudyLibraryCoursesIndexRoute = StudyLibraryCoursesIndexImport.update({
   id: '/study-library/courses/',
   path: '/study-library/courses/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const RegisterLoginIndexRoute = RegisterLoginIndexImport.update({
+  id: '/register/login/',
+  path: '/register/login/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -107,6 +122,13 @@ const StudyLibraryCoursesLevelsIndexRoute =
   StudyLibraryCoursesLevelsIndexImport.update({
     id: '/study-library/courses/levels/',
     path: '/study-library/courses/levels/',
+    getParentRoute: () => rootRoute,
+  } as any)
+
+const RegisterLoginForgotPasswordIndexRoute =
+  RegisterLoginForgotPasswordIndexImport.update({
+    id: '/register/login/forgot-password/',
+    path: '/register/login/forgot-password/',
     getParentRoute: () => rootRoute,
   } as any)
 
@@ -191,6 +213,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LogoutIndexImport
       parentRoute: typeof rootRoute
     }
+    '/register/': {
+      id: '/register/'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/study-library/': {
       id: '/study-library/'
       path: '/study-library'
@@ -233,6 +262,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginForgotPasswordIndexImport
       parentRoute: typeof rootRoute
     }
+    '/register/login/': {
+      id: '/register/login/'
+      path: '/register/login'
+      fullPath: '/register/login'
+      preLoaderRoute: typeof RegisterLoginIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/study-library/courses/': {
       id: '/study-library/courses/'
       path: '/study-library/courses'
@@ -259,6 +295,13 @@ declare module '@tanstack/react-router' {
       path: '/assessment/examination/$assessmentId'
       fullPath: '/assessment/examination/$assessmentId'
       preLoaderRoute: typeof AssessmentExaminationAssessmentIdIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/register/login/forgot-password/': {
+      id: '/register/login/forgot-password/'
+      path: '/register/login/forgot-password'
+      fullPath: '/register/login/forgot-password'
+      preLoaderRoute: typeof RegisterLoginForgotPasswordIndexImport
       parentRoute: typeof rootRoute
     }
     '/study-library/courses/levels/': {
@@ -306,16 +349,19 @@ export interface FileRoutesByFullPath {
   '/institute-selection': typeof InstituteSelectionIndexRoute
   '/login': typeof LoginIndexRoute
   '/logout': typeof LogoutIndexRoute
+  '/register': typeof RegisterIndexRoute
   '/study-library': typeof StudyLibraryIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/assessment/reports': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
   '/login/SessionSelectionPage': typeof LoginSessionSelectionPageIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
+  '/register/login': typeof RegisterLoginIndexRoute
   '/study-library/courses': typeof StudyLibraryCoursesIndexRoute
   '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
+  '/register/login/forgot-password': typeof RegisterLoginForgotPasswordIndexRoute
   '/study-library/courses/levels': typeof StudyLibraryCoursesLevelsIndexRoute
   '/study-library/courses/levels/subjects': typeof StudyLibraryCoursesLevelsSubjectsIndexRoute
   '/study-library/courses/levels/subjects/modules': typeof StudyLibraryCoursesLevelsSubjectsModulesIndexRoute
@@ -328,16 +374,19 @@ export interface FileRoutesByTo {
   '/institute-selection': typeof InstituteSelectionIndexRoute
   '/login': typeof LoginIndexRoute
   '/logout': typeof LogoutIndexRoute
+  '/register': typeof RegisterIndexRoute
   '/study-library': typeof StudyLibraryIndexRoute
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/assessment/reports': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
   '/login/SessionSelectionPage': typeof LoginSessionSelectionPageIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
+  '/register/login': typeof RegisterLoginIndexRoute
   '/study-library/courses': typeof StudyLibraryCoursesIndexRoute
   '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
+  '/register/login/forgot-password': typeof RegisterLoginForgotPasswordIndexRoute
   '/study-library/courses/levels': typeof StudyLibraryCoursesLevelsIndexRoute
   '/study-library/courses/levels/subjects': typeof StudyLibraryCoursesLevelsSubjectsIndexRoute
   '/study-library/courses/levels/subjects/modules': typeof StudyLibraryCoursesLevelsSubjectsModulesIndexRoute
@@ -351,16 +400,19 @@ export interface FileRoutesById {
   '/institute-selection/': typeof InstituteSelectionIndexRoute
   '/login/': typeof LoginIndexRoute
   '/logout/': typeof LogoutIndexRoute
+  '/register/': typeof RegisterIndexRoute
   '/study-library/': typeof StudyLibraryIndexRoute
   '/assessment/examination/': typeof AssessmentExaminationIndexRoute
   '/assessment/reports/': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications/': typeof DashboardNotificationsIndexRoute
   '/login/SessionSelectionPage/': typeof LoginSessionSelectionPageIndexRoute
   '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
+  '/register/login/': typeof RegisterLoginIndexRoute
   '/study-library/courses/': typeof StudyLibraryCoursesIndexRoute
   '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId/': typeof AssessmentExaminationAssessmentIdIndexRoute
+  '/register/login/forgot-password/': typeof RegisterLoginForgotPasswordIndexRoute
   '/study-library/courses/levels/': typeof StudyLibraryCoursesLevelsIndexRoute
   '/study-library/courses/levels/subjects/': typeof StudyLibraryCoursesLevelsSubjectsIndexRoute
   '/study-library/courses/levels/subjects/modules/': typeof StudyLibraryCoursesLevelsSubjectsModulesIndexRoute
@@ -375,16 +427,19 @@ export interface FileRouteTypes {
     | '/institute-selection'
     | '/login'
     | '/logout'
+    | '/register'
     | '/study-library'
     | '/assessment/examination'
     | '/assessment/reports'
     | '/dashboard/notifications'
     | '/login/SessionSelectionPage'
     | '/login/forgot-password'
+    | '/register/login'
     | '/study-library/courses'
     | '/assessment/examination/$assessmentId/LearnerLiveTest'
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId'
+    | '/register/login/forgot-password'
     | '/study-library/courses/levels'
     | '/study-library/courses/levels/subjects'
     | '/study-library/courses/levels/subjects/modules'
@@ -396,16 +451,19 @@ export interface FileRouteTypes {
     | '/institute-selection'
     | '/login'
     | '/logout'
+    | '/register'
     | '/study-library'
     | '/assessment/examination'
     | '/assessment/reports'
     | '/dashboard/notifications'
     | '/login/SessionSelectionPage'
     | '/login/forgot-password'
+    | '/register/login'
     | '/study-library/courses'
     | '/assessment/examination/$assessmentId/LearnerLiveTest'
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId'
+    | '/register/login/forgot-password'
     | '/study-library/courses/levels'
     | '/study-library/courses/levels/subjects'
     | '/study-library/courses/levels/subjects/modules'
@@ -417,16 +475,19 @@ export interface FileRouteTypes {
     | '/institute-selection/'
     | '/login/'
     | '/logout/'
+    | '/register/'
     | '/study-library/'
     | '/assessment/examination/'
     | '/assessment/reports/'
     | '/dashboard/notifications/'
     | '/login/SessionSelectionPage/'
     | '/login/forgot-password/'
+    | '/register/login/'
     | '/study-library/courses/'
     | '/assessment/examination/$assessmentId/LearnerLiveTest'
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId/'
+    | '/register/login/forgot-password/'
     | '/study-library/courses/levels/'
     | '/study-library/courses/levels/subjects/'
     | '/study-library/courses/levels/subjects/modules/'
@@ -440,16 +501,19 @@ export interface RootRouteChildren {
   InstituteSelectionIndexRoute: typeof InstituteSelectionIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
   LogoutIndexRoute: typeof LogoutIndexRoute
+  RegisterIndexRoute: typeof RegisterIndexRoute
   StudyLibraryIndexRoute: typeof StudyLibraryIndexRoute
   AssessmentExaminationIndexRoute: typeof AssessmentExaminationIndexRoute
   AssessmentReportsIndexRoute: typeof AssessmentReportsIndexRoute
   DashboardNotificationsIndexRoute: typeof DashboardNotificationsIndexRoute
   LoginSessionSelectionPageIndexRoute: typeof LoginSessionSelectionPageIndexRoute
   LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
+  RegisterLoginIndexRoute: typeof RegisterLoginIndexRoute
   StudyLibraryCoursesIndexRoute: typeof StudyLibraryCoursesIndexRoute
   AssessmentExaminationAssessmentIdLearnerLiveTestRoute: typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
   AssessmentExaminationAssessmentIdAssessmentPreviewRoute: typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   AssessmentExaminationAssessmentIdIndexRoute: typeof AssessmentExaminationAssessmentIdIndexRoute
+  RegisterLoginForgotPasswordIndexRoute: typeof RegisterLoginForgotPasswordIndexRoute
   StudyLibraryCoursesLevelsIndexRoute: typeof StudyLibraryCoursesLevelsIndexRoute
   StudyLibraryCoursesLevelsSubjectsIndexRoute: typeof StudyLibraryCoursesLevelsSubjectsIndexRoute
   StudyLibraryCoursesLevelsSubjectsModulesIndexRoute: typeof StudyLibraryCoursesLevelsSubjectsModulesIndexRoute
@@ -462,12 +526,14 @@ const rootRouteChildren: RootRouteChildren = {
   InstituteSelectionIndexRoute: InstituteSelectionIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
   LogoutIndexRoute: LogoutIndexRoute,
+  RegisterIndexRoute: RegisterIndexRoute,
   StudyLibraryIndexRoute: StudyLibraryIndexRoute,
   AssessmentExaminationIndexRoute: AssessmentExaminationIndexRoute,
   AssessmentReportsIndexRoute: AssessmentReportsIndexRoute,
   DashboardNotificationsIndexRoute: DashboardNotificationsIndexRoute,
   LoginSessionSelectionPageIndexRoute: LoginSessionSelectionPageIndexRoute,
   LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
+  RegisterLoginIndexRoute: RegisterLoginIndexRoute,
   StudyLibraryCoursesIndexRoute: StudyLibraryCoursesIndexRoute,
   AssessmentExaminationAssessmentIdLearnerLiveTestRoute:
     AssessmentExaminationAssessmentIdLearnerLiveTestRoute,
@@ -475,6 +541,7 @@ const rootRouteChildren: RootRouteChildren = {
     AssessmentExaminationAssessmentIdAssessmentPreviewRoute,
   AssessmentExaminationAssessmentIdIndexRoute:
     AssessmentExaminationAssessmentIdIndexRoute,
+  RegisterLoginForgotPasswordIndexRoute: RegisterLoginForgotPasswordIndexRoute,
   StudyLibraryCoursesLevelsIndexRoute: StudyLibraryCoursesLevelsIndexRoute,
   StudyLibraryCoursesLevelsSubjectsIndexRoute:
     StudyLibraryCoursesLevelsSubjectsIndexRoute,
@@ -500,16 +567,19 @@ export const routeTree = rootRoute
         "/institute-selection/",
         "/login/",
         "/logout/",
+        "/register/",
         "/study-library/",
         "/assessment/examination/",
         "/assessment/reports/",
         "/dashboard/notifications/",
         "/login/SessionSelectionPage/",
         "/login/forgot-password/",
+        "/register/login/",
         "/study-library/courses/",
         "/assessment/examination/$assessmentId/LearnerLiveTest",
         "/assessment/examination/$assessmentId/assessmentPreview",
         "/assessment/examination/$assessmentId/",
+        "/register/login/forgot-password/",
         "/study-library/courses/levels/",
         "/study-library/courses/levels/subjects/",
         "/study-library/courses/levels/subjects/modules/",
@@ -529,6 +599,9 @@ export const routeTree = rootRoute
     "/logout/": {
       "filePath": "logout/index.tsx"
     },
+    "/register/": {
+      "filePath": "register/index.tsx"
+    },
     "/study-library/": {
       "filePath": "study-library/index.tsx"
     },
@@ -547,6 +620,9 @@ export const routeTree = rootRoute
     "/login/forgot-password/": {
       "filePath": "login/forgot-password/index.tsx"
     },
+    "/register/login/": {
+      "filePath": "register/login/index.tsx"
+    },
     "/study-library/courses/": {
       "filePath": "study-library/courses/index.tsx"
     },
@@ -558,6 +634,9 @@ export const routeTree = rootRoute
     },
     "/assessment/examination/$assessmentId/": {
       "filePath": "assessment/examination/$assessmentId/index.tsx"
+    },
+    "/register/login/forgot-password/": {
+      "filePath": "register/login/forgot-password/index.tsx"
     },
     "/study-library/courses/levels/": {
       "filePath": "study-library/courses/levels/index.tsx"

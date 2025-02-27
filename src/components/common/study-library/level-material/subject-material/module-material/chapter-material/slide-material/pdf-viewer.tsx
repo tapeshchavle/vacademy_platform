@@ -113,7 +113,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
     
         addActivity({
             activity_id: activityId.current,
-            source: 'pdf',
+            source: 'PDF',
             source_id: documentId || '',
             start_time: startTime.current,
             end_time: getISTTime(),
@@ -128,7 +128,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
             new_activity: true
         }, true);
     
-    }, [elapsedTime, documentId, totalPages, addActivity]);
+    }, [elapsedTime, documentId]);
 
     const handleDocumentLoad = (e: DocumentLoadEvent) => {
         setTotalPages(e.doc.numPages);
@@ -140,6 +140,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
             console.log("integrate add document activity api now");
             syncPDFTrackingData();
             setIsFirstView(false);
+            
             
             // Start the 2-minute interval for update notifications
             if (!updateIntervalRef.current) {

@@ -9,7 +9,7 @@ export const SidebarItemsData: SidebarItemsType[] = [
     },
     {
         icon: BookOpen,
-        title: "Study Library",
+        title: "Learning Center",
         to: "/study-library",
     },
     {

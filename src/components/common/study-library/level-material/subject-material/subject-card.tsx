@@ -51,20 +51,21 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
     }, [subject.thumbnail_id]);
 
     return(
-        <div onClick={handleCardClick} className="cursor-pointer w-full ">
+        <div onClick={handleCardClick} className="cursor-pointer w-full h-[300px]">
             <div
-                className={`relative flex flex-col items-center justify-center gap-4 border rounded-lg border-neutral-200 bg-neutral-50 p-4  w-full`}
+                className={`h-full relative flex flex-col items-center justify-center gap-4 border rounded-lg border-neutral-200 bg-neutral-50 p-4  w-full`}
             >
-                {imageUrl ? (
-                    <img
-                        src={imageUrl}
-                        alt={subject.subject_name}
-                        className={``}
-                    />
-                ) : (
-                    <SubjectDefaultImage
-                    />
-                )}
+                <div className="h-[85%]">
+                    {imageUrl ? (
+                        <img
+                            src={imageUrl}
+                            alt={subject.subject_name}
+                            className="size-full rounded-lg object-cover "
+                        />
+                    ) : (
+                        <SubjectDefaultImage />
+                    )}
+                </div>
                 <div className="flex items-center justify-between gap-5">
                     <div className="text-body font-semibold">{subject.subject_name}</div>
                 </div>
