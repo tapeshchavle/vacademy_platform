@@ -29,7 +29,7 @@ export const Modules = ({modules: initialModules }:ModulesProps) => {
                 {modules?.map((moduleWithChapters, index) => (
                     <ModuleCard
                         key={index}
-                        module={moduleWithChapters.module}
+                        module={moduleWithChapters}
                     />
                 ))}
             </div>
