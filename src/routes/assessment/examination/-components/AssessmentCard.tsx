@@ -102,11 +102,11 @@ export const AssessmentCard = ({
   }; 
 
   const getButtonLabel = () => {
-    if ((assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 1) < (assessmentInfo.created_attempts ?? 1)) {
-      return "Join Assessment";
-    }
     if (["LIVE", "PREVIEW"].includes(assessmentInfo?.recent_attempt_status ?? "")) {
       return "Resume";
+    }
+    if ((assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 1) < (assessmentInfo.created_attempts ?? 1)) {
+      return "Join Assessment";
     }
     if (assessmentInfo.recent_attempt_status === "ENDED") {
       return "Ended";
@@ -114,25 +114,6 @@ export const AssessmentCard = ({
     return "Join Assessment";
   };
 
-
-
-  // const getButtonLabel = () => {
-  //   const totalAttempts = assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 1;
-  //   const createdAttempts = assessmentInfo.created_attempts ?? 1;
-  //   const recentStatus = assessmentInfo.recent_attempt_status;
-  //   console.log("totalAttempts", totalAttempts, "createdAttempts", createdAttempts, "recentStatus", recentStatus);
-  //   if (recentStatus === "LIVE") return "Restart";
-  //   if (totalAttempts < createdAttempts) {
-  //     if (!recentStatus) return "Join Assessment";
-  //     if (recentStatus === "ENDED") return "Join Assessment";
-  //   }
-    
-  //   return "Ended";
-  // };
-  
-  
-
- 
   return (
     <>
       <Card className="w-full p-6 space-y-6" onClick={handleOpen}>
@@ -163,16 +144,18 @@ export const AssessmentCard = ({
               <div>Duration: {assessmentInfo.duration} minutes</div>
             </div>
           </div>
-          <div className="w-full md:w-auto">
-            <MyButton
-              buttonType="secondary"
-              className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
-              onClick={handleAction}
-              disabled={assessmentInfo.recent_attempt_status === "ENDED"}
-            >
-              {getButtonLabel()}
-            </MyButton>
-          </div>
+          {assessmentType !== assessmentTypes.UPCOMING && assessmentType !== assessmentTypes.PAST && (
+            <div className="w-full md:w-auto">
+              <MyButton
+                buttonType="secondary"
+                className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
+                onClick={handleAction}
+                disabled={assessmentInfo.recent_attempt_status === "ENDED"}
+              >
+                {getButtonLabel()}
+              </MyButton>
+            </div>
+          )}
         </div>
       </Card>
 

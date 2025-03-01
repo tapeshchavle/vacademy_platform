@@ -266,6 +266,7 @@ export function Navbar() {
 
         navigate({
           to: "/assessment/examination",
+          replace: true,
         });
 
         setTimeout(async () => {
