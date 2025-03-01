@@ -16,7 +16,13 @@ import {
 } from "@/lib/auth/sessionUtility";
 import { EmailLogin } from "./EmailOtpForm";
 import { UsernameLogin } from "./UsernamePasswordForm";
+import { Preferences } from "@capacitor/preferences";
 // type FormValues = z.infer<typeof loginSchema>;
+
+const getFromStorage = async (key: string) => {
+  const result = await Preferences.get({ key });
+  return result.value;
+};
 
 export function LoginForm() {
   // const { hasSeenAnimation, setHasSeenAnimation } = useAnimationStore();
@@ -38,15 +44,33 @@ export function LoginForm() {
 
 
   
+  // useEffect(() => {
+  //   const redirect = async () => {
+  //     const token = await getTokenFromStorage(TokenKey.accessToken);
+  //       if (!isNullOrEmptyOrUndefined(token)) {
+  //         navigate({ to: "/dashboard" });
+  //       }
+  //     };
+  //     redirect();
+  //   }, []);
+
   useEffect(() => {
     const redirect = async () => {
       const token = await getTokenFromStorage(TokenKey.accessToken);
-        if (!isNullOrEmptyOrUndefined(token)) {
-          navigate({ to: "/dashboard" });
-        }
-      };
-      redirect();
-    }, []);
+      const studentDetails = await getFromStorage("StudentDetails");
+      const instituteDetails = await getFromStorage("InstituteDetails");
+
+      if (
+        !isNullOrEmptyOrUndefined(token) &&
+        !isNullOrEmptyOrUndefined(studentDetails) &&
+        !isNullOrEmptyOrUndefined(instituteDetails)
+      ) {
+        navigate({ to: "/dashboard" });
+      }
+    };
+
+    redirect();
+  }, []);
     
     // Conditionally render the splash screen
     // if (showSplash) {
