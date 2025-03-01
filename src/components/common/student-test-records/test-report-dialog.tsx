@@ -16,12 +16,12 @@ import { Clock } from "phosphor-react";
 import { parseHtmlToString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
 import { useRouter } from "@tanstack/react-router";
-// import { Report } from "@/routes/assessment/reports/-components/reportMain";
 import {
   ParsedHistoryState,
+  Report,
+  Section,
   TestReportDialogProps,
-} from "@/types/assessments/assessment-data-report";
-import { Section } from "@/types/assessments/assessment-data-type";
+} from "@/types/assessments/assessment-data-type";
 
 export const TestReportDialog = ({
   testReport,
@@ -30,8 +30,25 @@ export const TestReportDialog = ({
 }: TestReportDialogProps) => {
   const report = useRouter();
   const [instituteDetails, setInstituteDetails] = useState<any>(null);
-  const { state } = report.__store.state.location.state as ParsedHistoryState;
-  const studentReport: Report = state?.report || {};
+  // const { state } = report.__store.state.location.state as ParsedHistoryState;
+  // const studentReport: Report = state?.report || {};
+  const locationState = report.__store.state.location
+    .state as ParsedHistoryState;
+  const defaultReport: Report = {
+    assessment_id: "",
+    attempt_id: "",
+    assessment_name: "",
+    assessment_status: "",
+    subject_id: "",
+    start_time: "",
+    end_time: "",
+    total_marks: 0,
+    duration_in_seconds: 0,
+    sections: {},
+    attempt_date: "",
+  };
+
+  const studentReport: Report = locationState?.report || defaultReport;
   useEffect(() => {
     const fetchInstituteDetails = async () => {
       const response = await Preferences.get({ key: "InstituteDetails" });
@@ -42,7 +59,7 @@ export const TestReportDialog = ({
     fetchInstituteDetails();
   }, []);
   const sectionsInfo = assessmentDetails[1]?.saved_data.sections?.map(
-    (section : Section) => ({
+    (section: Section) => ({
       name: section.name,
       id: section.id,
     })
@@ -144,7 +161,8 @@ export const TestReportDialog = ({
               <h1>Rank</h1>
               <div className="flex items-center gap-1">
                 {testReport.question_overall_detail_dto.rank === 1 && (
-                  <Crown className="size-6" />
+                  // <Crown className="size-6" />
+                  <Crown />
                 )}
                 <p className="text-neutral-500">
                   {testReport.question_overall_detail_dto.rank}

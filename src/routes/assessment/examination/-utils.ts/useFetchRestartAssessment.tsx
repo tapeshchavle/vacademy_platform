@@ -178,8 +178,8 @@ export const storeFormattedData = async (formattedData: any, preview_response : 
       currentSection: 0, 
       currentQuestion: preview_response.section_dtos[0].question_preview_dto_list[0], 
       questionStates: Object.fromEntries(
-        formattedData.sections.flatMap((section: any) =>
-          section.questions.map((question: any) => [
+        formattedData.sections.flatMap((section: Section) =>
+          section.questions.map((question: Question) => [
             question.questionId,
             {
               isAnswered: question.responseData.optionIds.length > 0,
@@ -191,30 +191,30 @@ export const storeFormattedData = async (formattedData: any, preview_response : 
         )
       ),
       answers: Object.fromEntries(
-        formattedData.sections.flatMap((section: any) =>
-          section.questions.map((question: any) => [
+        formattedData.sections.flatMap((section: Section) =>
+          section.questions.map((question: Question) => [
             question.questionId,
             question.responseData.optionIds || [],
           ])
         )
       ),
       sectionTimers: Object.fromEntries(
-        formattedData.sections.map((section: any) => [
+        formattedData.sections.map((section: Section) => [
           section.sectionId,
           { timeLeft: section.sectionDurationLeftInSeconds },
         ])
       ),
       questionTimers: Object.fromEntries(
-        formattedData.sections.flatMap((section: any) =>
-          section.questions.map((question: any) => [
+        formattedData.sections.flatMap((section: Section) =>
+          section.questions.map((question: Question) => [
             question.questionId,
             question.questionDurationLeftInSeconds,
           ])
         )
       ),
       questionTimeSpent: Object.fromEntries(
-        formattedData.sections.flatMap((section: any) =>
-          section.questions.map((question: any) => [
+        formattedData.sections.flatMap((section: Section) =>
+          section.questions.map((question: Question) => [
             question.questionId,
             question.timeTakenInSeconds,
           ])

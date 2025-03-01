@@ -10,9 +10,8 @@ import {
 import { MyButton } from "@/components/design-system/button";
 // import { StatusChip } from "@/components/design-system/chips";
 import { useNavigate } from "@tanstack/react-router";
+import { Report } from "@/types/assessments/assessment-data-type";
 import { getSubjectNameById } from "@/constants/helper";
-
-
 
 export const viewStudentReport = async (
   assessmentId: string,
@@ -46,9 +45,7 @@ export const handleGetStudentReport = ({
     staleTime: 60 * 60 * 1000,
   };
 };
-interface CustomState {
-  report: Report;
-}
+
 const AssessmentReportList = () => {
   const navigate = useNavigate();
   const [reports, setReports] = useState<Report[]>([]);
@@ -59,7 +56,17 @@ const AssessmentReportList = () => {
   const pageSize = 10;
   const observer = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement | null>(null);
+  const [instituteDetails, setInstituteDetails] = useState<any>(null);
 
+  useEffect(() => {
+    const fetchInstituteDetails = async () => {
+      const response = await Preferences.get({ key: "InstituteDetails" });
+      console.log("response InstituteDetails", response);
+      setInstituteDetails(response?.value ? JSON.parse(response.value) : null);
+    };
+
+    fetchInstituteDetails();
+  }, []);
   const handleViewReport = (report: Report) => {
     navigate({
       to: `/assessment/reports/student-report`,
@@ -67,7 +74,7 @@ const AssessmentReportList = () => {
         assessmentId: report.assessment_id,
         attemptId: report.attempt_id,
       },
-      state: { report } as CustomState,
+      state: { report } as any,
     });
   };
 
@@ -191,12 +198,11 @@ const AssessmentReportList = () => {
                 </div>
                 <div className="space-y-2 text-xs lg:text-sm text-gray-600">
                   <div>Attempt Date: {formatDateTime(report.attempt_date)}</div>
-                  <div>Subject: {report.subject}</div>
-                  {/* Subject:{" "}
+                  Subject:{" "}
                   {getSubjectNameById(
                     instituteDetails?.subjects || [],
                     report?.subject_id
-                  ) || ""} */}
+                  ) || ""}
                   <div>
                     Duration: {Math.floor(report.duration_in_seconds / 60)}{" "}
                     minutes
