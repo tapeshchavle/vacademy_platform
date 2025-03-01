@@ -1,20 +1,21 @@
 // useVideoSync.ts
 import { ActivitySchema } from '@/schemas/study-library/youtube-video-tracking-schema';
 import { useAddVideoActivity } from '@/services/study-library/tracking-api/add-video-activity';
-import { useUpdateVideoActivity } from '@/services/study-library/tracking-api/update-video-activity';
 import { useContentStore } from '@/stores/study-library/chapter-sidebar-store';
 import { TrackingDataType } from '@/types/tracking-data-type';
 import { calculateAndUpdateTimestamps } from '@/utils/study-library/tracking/calculateAndUpdateTimestamps';
 import { Preferences } from '@capacitor/preferences';
+import { useRouter } from '@tanstack/react-router';
 import { z } from 'zod';
 
 const STORAGE_KEY = 'video_tracking_data';
 const USER_ID_KEY = 'StudentDetails';
 
 export const useVideoSync = () => {
-    const addVideoActivity = useAddVideoActivity();
-    const updateVideoActivity = useUpdateVideoActivity();
+    const addUpdateVideoActivity = useAddVideoActivity();
     const {activeItem} = useContentStore();
+    const router = useRouter();
+    const {chapterId} = router.state.location.search;
 
     const syncVideoTrackingData = async () => {
         try {
@@ -59,16 +60,17 @@ export const useVideoSync = () => {
                         start_time_in_millis: timestamp.start,
                         end_time_in_millis: timestamp.end
                     })),
-                    documents: null
+                    documents: null,
+                    new_activity: activity.new_activity
                 };
 
                 try {
                     if (activity.new_activity && apiPayload.videos && apiPayload.videos.length>0) {
                         console.log("Hitting add video activity api: ", activity.new_activity)
                         try{
-                            await addVideoActivity.mutateAsync({
+                            await addUpdateVideoActivity.mutateAsync({
                                 slideId: activeItem?.slide_id || "",
-                                userId,
+                                chapterId: chapterId || "",
                                 requestPayload: apiPayload
                             });
                             activity.sync_status = 'SYNCED';
@@ -80,8 +82,9 @@ export const useVideoSync = () => {
                     } else {
                         if(apiPayload.videos && apiPayload.videos.length>0){
                             try{
-                                await updateVideoActivity.mutateAsync({
-                                    activityId: activity.activity_id,
+                                await addUpdateVideoActivity.mutateAsync({
+                                    slideId: activeItem?.slide_id || "",
+                                    chapterId: chapterId || "",
                                     requestPayload: apiPayload
                                 });
                                 activity.sync_status = 'SYNCED';

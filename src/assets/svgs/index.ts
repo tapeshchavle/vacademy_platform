@@ -6,11 +6,11 @@ import SsdcLogo_Login from "./ssdc_logo.svg";
 import LoginImage from "./login-image.svg";
 import ImportFileImage from "./import-file.svg";
 import EmptySubjectMaterial from "./empty-subject-material.svg";
-import SubjectDefaultImage from './subject-default-image.svg';
-import EmptyModulesImage from './empty_modules_image.svg'
-import EmptyChaptersImage from './empty_chapters_image.svg'
-import EmptySlideMaterial from './empty-slide-material.svg'
-import DashboardImg from "./dashboardImg.svg"
+import SubjectDefaultImage from "./subject-default-image.svg";
+import EmptyModulesImage from "./empty_modules_image.svg";
+import EmptyChaptersImage from "./empty_chapters_image.svg";
+import EmptySlideMaterial from "./empty-slide-material.svg";
+import DashboardImg from "./dashboardImg.svg";
 import PlayCircle from "./PlayCircle.svg";
 
 export {
@@ -27,7 +27,5 @@ export {
   EmptyChaptersImage,
   EmptySlideMaterial,
   DashboardImg,
-  PlayCircle,
+  PlayCircle
 };
-
-

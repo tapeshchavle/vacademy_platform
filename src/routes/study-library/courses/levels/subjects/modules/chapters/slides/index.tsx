@@ -16,6 +16,8 @@ import { getChapterName } from '@/utils/study-library/get-name-by-id/getChapterB
 import { useContentStore } from '@/stores/study-library/chapter-sidebar-store'
 import { InitStudyLibraryProvider } from '@/providers/study-library/init-study-library-provider'
 import { ModulesWithChaptersProvider } from '@/providers/study-library/modules-with-chapters-provider'
+import { useSlides } from '@/hooks/study-library/use-slides'
+import { Slide } from '@/types/dashbaord/types'
 
 interface ChapterSearchParams {
   subjectId: string
@@ -39,11 +41,32 @@ export const Route = createFileRoute(
 })
 
 function Chapters() {
-  const {subjectId, moduleId, chapterId} = Route.useSearch();
+  const {subjectId, moduleId, chapterId, slideId} = Route.useSearch();
   const [inputSearch, setInputSearch] = useState("");
   const { open, state, toggleSidebar } = useSidebar();
   const navigate = useNavigate();
-  const { activeItem } = useContentStore();
+  const { setItems, activeItem, setActiveItem } = useContentStore();
+  const { slides } = useSlides(chapterId || "");
+
+  useEffect(() => {
+    if (slides?.length) {
+        setItems(slides);
+
+        // If we have a slideId in URL, find that slide
+        if (slideId) {
+            const targetSlide: Slide = slides.find(
+                (slide: Slide) => slide.slide_id === slideId,
+            );
+            if (targetSlide) {
+                setActiveItem(targetSlide);
+                return;
+            }
+        }
+
+        // If no slideId or slide not found, set first slide as active
+        setActiveItem(slides[0]);
+    }
+}, [slides, slideId]);
 
   const handleSubjectRoute = () => {
       navigate({

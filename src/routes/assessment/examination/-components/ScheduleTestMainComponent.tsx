@@ -5,7 +5,7 @@ import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore
 import { assessmentTypes } from "@/types/assessment";
 import { fetchAssessmentData } from "../-utils.ts/useFetchAssessment";
 import { AssessmentCard } from "../-components/AssessmentCard";
-import { EmptyScheduleTest } from "@/svgs";
+import {  EmptyAssessment } from "@/svgs";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 // import PullToRefresh from "./PullToRefresh";
 
@@ -127,6 +127,10 @@ export const ScheduleTestMainComponent = () => {
     [loadingMore, selectedTab, page, hasMorePages]
   );
 
+  if (loading) {
+    return <DashboardLoader />;
+  }
+
   return (
     <div className="items-center gap-4 min-h-full">
       <Tabs
@@ -167,13 +171,14 @@ export const ScheduleTestMainComponent = () => {
             })
           ) : (
             <div className="flex h-screen flex-col items-center justify-center">
-              <img src={EmptyScheduleTest} alt="No Tests Available" />
+              {/* <img src={EmptyAssessment} alt="No Tests Available" /> */}
+              <EmptyAssessment />
               <span className="text-neutral-600">No tests found.</span>
             </div>
+            // <EmptyAssessment />
+
           )}
-          {loading && (
-            <div className="text-center text-primary-500 py-4">Loading...</div>
-          )}
+          {loading && <div className="text-center text-primary-500 py-4">Loading...</div>}
           {loadingMore && (
             <div className="">
               <div className="text-center text-primary-500 py-4">

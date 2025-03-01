@@ -1,17 +1,52 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import PDFViewer from "./pdf-viewer";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { EmptySlideMaterial } from "@/assets/svgs";
-import { useState } from "react";
 import YouTubePlayer from "./youtube-player";
-import { getPublicUrl } from "@/services/upload_file";
+import { convertHtmlToPdf } from "@/utils/html-to-pdf";
+import { useFileUpload } from "@/hooks/use-file-upload";
+import { DashboardLoader } from "@/components/core/dashboard-loader";
 
 export const SlideMaterial = () => {
     const { activeItem } = useContentStore();
     const selectionRef = useRef(null);
-    const [heading, setHeading] =  useState(activeItem?.document_title || activeItem?.video_title || "")
+    const [heading, setHeading] = useState(activeItem?.document_title || activeItem?.video_title || "");
     const [content, setContent] = useState<JSX.Element | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const { uploadFile, getPublicUrl } = useFileUpload();
 
+    const handleConvertAndUpload = async (htmlString: string | null): Promise<string | null> => {
+        if (htmlString == null) return null;
+        try {
+            setIsUploading(true);
+
+            // Step 1: Convert HTML to PDF
+            const pdfBlob = await convertHtmlToPdf(htmlString);
+
+            // Step 2: Convert Blob to File
+            const pdfFile = new File([pdfBlob], 'document.pdf', { type: 'application/pdf' });
+
+            // Step 3: Upload the PDF file
+            const uploadedFileId = await uploadFile({
+                file: pdfFile,
+                setIsUploading,
+                userId: 'your-user-id',
+                source: 'PDF',
+                sourceId: crypto.randomUUID(), // Optional
+                publicUrl: true, // Set to true to get a public URL
+            });
+
+            if (uploadedFileId) {
+                const publicUrl = await getPublicUrl(uploadedFileId);
+                return publicUrl; // Return the public URL as a string
+            }
+        } catch (error) {
+            console.error('Upload Failed:', error);
+        } finally {
+            setIsUploading(false);
+        }
+        return null; // Return null if the upload fails
+    };
 
     const loadContent = async () => {
         if (!activeItem) {
@@ -28,25 +63,31 @@ export const SlideMaterial = () => {
             console.log("video url: ", activeItem.video_url);
             setContent(
                 <div key={`video-${activeItem.slide_id}`} className="h-full w-full">
-                    <YouTubePlayer
-                        videoUrl={activeItem.video_url || ""}
-                    />
+                    <YouTubePlayer videoUrl={activeItem.video_url || ""} />
                 </div>,
             );
             return;
         }
 
         if (activeItem?.document_type == "PDF") {
-            const url = await getPublicUrl(activeItem?.document_data);
+            const url = await getPublicUrl(activeItem?.document_data || "");
             setContent(<PDFViewer pdfUrl={url} />);
             return;
         }
 
         if (activeItem?.document_type == "DOC") {
+            const url = await handleConvertAndUpload(activeItem.document_data);
+            if (url == null) {
+                setContent(<p>Error generating PDF URL</p>);
+                return;
+            }
+            if (isUploading) {
+                setContent(<DashboardLoader />);
+                return;
+            }
+            setContent(<PDFViewer pdfUrl={url} />);
             return;
         }
-
-        return;
     };
 
     useEffect(() => {
@@ -66,16 +107,14 @@ export const SlideMaterial = () => {
     return (
         <div className="flex w-full flex-col" ref={selectionRef}>
             <div className="-mx-8 -my-3 flex items-center justify-between gap-6 border-b border-neutral-300 px-8 py-2">
-                <h3
-                    className="text-subtitle font-semibold text-neutral-600"
-                >
+                <h3 className="text-subtitle font-semibold text-neutral-600">
                     {heading || "No content selected"}
                 </h3>
             </div>
             <div
                 className={`mx-auto mt-8 ${
                     activeItem?.document_type == "PDF" ? "h-[calc(100vh-200px)]" : "h-full"
-                } w-full overflow-hidden `}
+                } w-full overflow-hidden`}
             >
                 {content}
             </div>

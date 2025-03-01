@@ -22,7 +22,6 @@ export function convertToLocalDateTime(utcDate: string): string {
     .replace(",", "")
     .replace(/\s(am|pm)/i, (match) => match.toUpperCase());
 }
-
 export function extractDateTime(utcDate: string) {
   const [date, time] = [
     utcDate.split(" ").slice(0, 3).join(" "),
