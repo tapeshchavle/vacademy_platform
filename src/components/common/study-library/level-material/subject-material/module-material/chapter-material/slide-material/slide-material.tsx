@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import PDFViewer from "./pdf-viewer";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { EmptySlideMaterial } from "@/assets/svgs";
-import YouTubePlayer from "./youtube-player";
+import { YouTubePlayerComp } from "./youtube-player";
 import { convertHtmlToPdf } from "@/utils/html-to-pdf";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
+import { extractVideoId } from "@/utils/study-library/tracking/extractVideoId";
 
 export const SlideMaterial = () => {
     const { activeItem } = useContentStore();
@@ -63,7 +64,7 @@ export const SlideMaterial = () => {
             console.log("video url: ", activeItem.video_url);
             setContent(
                 <div key={`video-${activeItem.slide_id}`} className="h-full w-full">
-                    <YouTubePlayer videoUrl={activeItem.video_url || ""} />
+                    <YouTubePlayerComp videoId={extractVideoId(activeItem.video_url) || ""} />
                 </div>,
             );
             return;

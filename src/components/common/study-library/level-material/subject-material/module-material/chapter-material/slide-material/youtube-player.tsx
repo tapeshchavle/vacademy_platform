@@ -5,88 +5,69 @@ import { getEpochTimeInMillis } from "./utils";
 import { convertTimeToSeconds } from "@/utils/study-library/tracking/convertTimeToSeconds";
 import { formatVideoTime } from "@/utils/study-library/tracking/formatVideoTime";
 import { calculateNetDuration } from "@/utils/study-library/tracking/calculateNetDuration";
-import { extractVideoId } from "@/utils/study-library/tracking/extractVideoId";
 import { useVideoSync } from "@/hooks/study-library/useVideoSync";
+import YouTube, { YouTubeEvent, YouTubePlayer, YouTubeProps } from 'react-youtube';
+import { MyButton } from "@/components/design-system/button";
+import { MyInput } from "@/components/design-system/input";
+import { Check, FastForward, Pause, Play, Rewind } from "@phosphor-icons/react";
 
-interface YTPlayer {
-   destroy(): void;
-   getCurrentTime(): number;
-   getDuration(): number;
-}
-
-interface YouTubePlayerEvent {
-    target: YTPlayer;
-    data: number;
-}
-
-interface YouTubePlayerOptions {
-    height?: string | number;
-    width?: string | number;
-    videoId?: string;
-    playerVars?: {
-        autoplay?: number;
-        controls?: number;
-        showinfo?: number;
-        rel?: number;
-        [key: string]: number | undefined;
-    };
-    events?: {
-        onReady?: (event: YouTubePlayerEvent) => void;
-        onStateChange?: (event: YouTubePlayerEvent) => void;
-        onError?: (event: YouTubePlayerEvent) => void;
-        onPlaybackQualityChange?: (event: YouTubePlayerEvent) => void;
-        onPlaybackRateChange?: (event: YouTubePlayerEvent) => void;
-    };
-}
-
-declare global {
-    interface Window {
-        onYouTubeIframeAPIReady: () => void;
-        YT: {
-            Player: new (
-                container: HTMLElement | string,
-                options: YouTubePlayerOptions
-            ) => YTPlayer;
-            PlayerState: {
-                PLAYING: number;
-                PAUSED: number;
-                ENDED: number;
-                BUFFERING: number;
-            };
-        };
-    }
+// Add the YouTube PlayerState enum to avoid window.YT references
+enum PlayerState {
+    UNSTARTED = -1,
+    ENDED = 0,
+    PLAYING = 1,
+    PAUSED = 2,
+    BUFFERING = 3,
+    CUED = 5
 }
 
 interface YouTubePlayerProps {
-   videoUrl: string;
-   videoTitle?: string;
+    videoId: string;
+    videoTitle?: string;
 }
 
-export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
-   const { addActivity } = useTrackingStore();
-   const playerRef = useRef<YTPlayer | null>(null);
-   const playerContainerRef = useRef<HTMLDivElement>(null);
-   const activityId = useRef(uuidv4());
-   const currentTimestamps = useRef<Array<{id: string, start_time: string, end_time: string, start: number, end: number}>>([]);
-   const videoStartTime = useRef<number>(0);
-   const videoEndTime = useRef<number>(0);
-   const [elapsedTime, setElapsedTime] = useState(0);
-   const timerRef = useRef<NodeJS.Timeout | null>(null);
-   const currentStartTimeRef = useRef('');
-   const timestampDurationRef = useRef(0);
-   const [isFirstPlay, setIsFirstPlay] = useState(true);
-   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
-   const { syncVideoTrackingData } = useVideoSync();
-   const currentStartTimeInEpochRef = useRef<number>(0);
-    
-    
+export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => {
+    const { addActivity } = useTrackingStore();
+    const activityId = useRef(uuidv4());
+    const currentTimestamps = useRef<Array<{ id: string, start_time: string, end_time: string, start: number, end: number }>>([]);
+    const videoStartTime = useRef<number>(0);
+    const videoEndTime = useRef<number>(0);
+    const [elapsedTime, setElapsedTime] = useState(0);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const currentStartTimeRef = useRef('');
+    const timestampDurationRef = useRef(0);
+    const [isFirstPlay, setIsFirstPlay] = useState(true);
+    const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const { syncVideoTrackingData } = useVideoSync();
+    const currentStartTimeInEpochRef = useRef<number>(0);
+
+    const [isPlayed, setIsPlayed] = useState(false);
+    const [player, setPlayer] = useState<YouTubePlayer | null>(null);
+    const [playerReady, setPlayerReady] = useState(false);
+    const [duration, setDuration] = useState(0);
+    const [minutesInput, setMinutesInput] = useState("");
+    const [secondsInput, setSecondsInput] = useState("");
+
+    // Helper function to safely get a number from potentially a Promise<number>
+    const safeGetNumber = async (value: any): Promise<number> => {
+        if (value === undefined || value === null) return 0;
+        if (typeof value === 'number') return value;
+        if (value instanceof Promise) {
+            try {
+                const resolved = await value;
+                return typeof resolved === 'number' ? resolved : 0;
+            } catch {
+                return 0;
+            }
+        }
+        return 0;
+    };
+
     const calculatePercentageWatched = (totalDuration: number) => {
         const netDuration = calculateNetDuration(currentTimestamps.current);
         return ((netDuration / totalDuration) * 100).toFixed(2);
     };
-   
 
-   
     const clearUpdateInterval = useCallback(() => {
         if (updateIntervalRef.current) {
             clearInterval(updateIntervalRef.current);
@@ -94,149 +75,307 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({ videoUrl }) => {
         }
     }, []);
 
-   const startTimer = useCallback(() => {
-       if (timerRef.current) return;
-       timerRef.current = setInterval(() => {
-           setElapsedTime(prev => prev + 1);
-        //    setTimestampDuration(prev => prev + 1);
-           timestampDurationRef.current += 1
-       }, 1000);
-   }, []);
+    const startTimer = useCallback(() => {
+        if (timerRef.current) return;
+        timerRef.current = setInterval(() => {
+            setElapsedTime(prev => prev + 1);
+            timestampDurationRef.current += 1;
+        }, 1000);
+    }, []);
 
+    const stopTimer = useCallback(() => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+    }, []);
 
-   const stopTimer = useCallback(() => {
-       if (timerRef.current) {
-           clearInterval(timerRef.current);
-           timerRef.current = null;
-       }
-   }, []);
+    // Get duration when player is ready
+    useEffect(() => {
+        if (!player) return;
 
-   
+        const getDuration = async () => {
+            try {
+                const dur = await safeGetNumber(player.getDuration());
+                setDuration(dur);
+            } catch (error) {
+                console.error("Error getting duration:", error);
+            }
+        };
 
-   useEffect(() => {
-    const videoId = extractVideoId(videoUrl);
-    const endTime = videoEndTime.current || getEpochTimeInMillis();
+        getDuration();
+    }, [player]);
 
-    
-    const newActivity = {
-        activity_id: activityId.current,
-        source: 'YOUTUBE',
-        source_id: videoId,
-        start_time: videoStartTime.current,
-        end_time: endTime,
-        duration: elapsedTime.toString(),
-        timestamps: currentTimestamps.current,
-        percentage_watched: calculatePercentageWatched(
-            playerRef.current?.getDuration() || 0
-        ),
-        sync_status: 'STALE' as const, // Always set to STALE when updating
-        current_start_time: currentStartTimeRef.current,
-        current_start_time_in_epoch: currentStartTimeInEpochRef.current,
-        new_activity: true
+    // Activity tracking effect
+    useEffect(() => {
+        const endTime = videoEndTime.current || getEpochTimeInMillis();
+
+        const newActivity = {
+            activity_id: activityId.current,
+            source: 'YOUTUBE',
+            source_id: videoId,
+            start_time: videoStartTime.current,
+            end_time: endTime,
+            duration: elapsedTime.toString(),
+            timestamps: currentTimestamps.current,
+            percentage_watched: calculatePercentageWatched(duration),
+            sync_status: 'STALE' as const,
+            current_start_time: currentStartTimeRef.current,
+            current_start_time_in_epoch: currentStartTimeInEpochRef.current,
+            new_activity: true
+        };
+
+        addActivity(newActivity, true);
+    }, [elapsedTime, duration, videoId, addActivity]);
+
+    const opts: YouTubeProps['opts'] = {
+        height: '100%',
+        width: '100%',
+        playerVars: {
+            // autoplay: 0,
+            controls: 1,
+            // showinfo: 0,
+            rel: 0,
+        },
     };
 
-    addActivity(newActivity, true);
-}, [elapsedTime]);
+    const togglePause = () => {
+        setIsPlayed(false);
+        console.log("video is paused");
+    };
 
+    const togglePlay = () => {
+        setIsPlayed(true);
+        console.log("Video is played");
+    };
 
-   useEffect(() => {
-       const videoId = extractVideoId(videoUrl);
-       if (!videoId) return;
+    const onPlayerReady: YouTubeProps['onReady'] = (event: YouTubeEvent) => {
+        console.log("Player ready");
+        setPlayer(event.target);
+        setPlayerReady(true);
+    };
 
-       const tag = document.createElement("script");
-       tag.src = "https://www.youtube.com/iframe_api";
-       const firstScriptTag = document.getElementsByTagName("script")[0];
-       firstScriptTag?.parentNode?.insertBefore(tag, firstScriptTag);
+    // Control video playback based on isPlayed state
+    useEffect(() => {
+        if (!player || !playerReady) return;
 
-       window.onYouTubeIframeAPIReady = () => {
-           if (!playerContainerRef.current) return;
+        try {
+            if (isPlayed) {
+                player.playVideo();
+            } else {
+                player.pauseVideo();
+            }
+        } catch (error) {
+            console.error("Error controlling video playback:", error);
+        }
+        console.log("current time", player.getCurrentTime());
+        console.log("video len: ", player.getDuration());
+    }, [isPlayed, player, playerReady]);
 
-           const player = new window.YT.Player(playerContainerRef.current, {
-               height: "100%",
-               width: "100%",
-               videoId: videoId,
-               playerVars: {
-                   autoplay: 0,
-                   controls: 1,
-                   showinfo: 0,
-                   rel: 0,
-               },
-               events: {
-                   onReady: () => {
-                       console.log("Player ready");
-                   },
-                   onStateChange: (event) => {
-                       const now = getEpochTimeInMillis();
-                       const currentTime = player.getCurrentTime();
+    // Clean up on unmount
+    useEffect(() => {
+        return () => {
+            clearUpdateInterval();
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        };
+    }, [clearUpdateInterval]);
 
-                       
-                       if (event.data === window.YT.PlayerState.PLAYING) {
-                           startTimer();
-                           
-                           if (!videoStartTime.current) {
-                               videoStartTime.current = now;
-                            }
+    const onStateChange = async (event: YouTubeEvent) => {
+        if (!player) return;
 
-                            if (isFirstPlay) {
-                                console.log("integrate add video activity api now");
-                                syncVideoTrackingData();
-                                setIsFirstPlay(false);
-                                
-                                // Start the 2-minute interval for update notifications
-                                if (!updateIntervalRef.current) {
-                                    updateIntervalRef.current = setInterval(() => {
-                                        console.log("integrate update video activity api now");
-                                        syncVideoTrackingData();
-                                    }, 2 * 60 * 1000); // 2 minutes in milliseconds
-                                }
-                            }
+        const now = getEpochTimeInMillis();
 
-                            currentStartTimeRef.current = formatVideoTime(currentTime);
-                            currentStartTimeInEpochRef.current =  convertTimeToSeconds(currentStartTimeRef.current)*1000;
-                            console.log("play state")
-                            
-                        } else if (event.data === window.YT.PlayerState.PAUSED || 
-                            event.data === window.YT.PlayerState.ENDED) {
-                                stopTimer();
-                                videoEndTime.current = now;
-                        
-                                const currentStartTimeInSeconds = convertTimeToSeconds(currentStartTimeRef.current);
-                                const endTimeInSeconds = currentStartTimeInSeconds + timestampDurationRef.current;
-                                const endTimeStamp = formatVideoTime(endTimeInSeconds);
+        // Handle different state events without directly referencing YT.PlayerState
+        const PLAYING_STATE = PlayerState.PLAYING;
+        const PAUSED_STATE = PlayerState.PAUSED;
+        const ENDED_STATE = PlayerState.ENDED;
 
-                                // const startDate = new Date(videoStartTime.current + (currentStartTimeInSeconds * 1000));
-                                // const endDate = new Date(videoStartTime.current + (endTimeInSeconds * 1000));
-                        
-                                currentTimestamps.current.push({
-                                    id: uuidv4(), // Add this line to generate unique ID
-                                    start_time: currentStartTimeRef.current,
-                                    end_time: endTimeStamp,
-                                    start: convertTimeToSeconds(currentStartTimeRef.current)*1000,
-                                    end: convertTimeToSeconds(endTimeStamp)*1000
-                                });
-                        
-                                currentStartTimeRef.current = formatVideoTime(currentTime);
-                                timestampDurationRef.current = 0;
-                        }
-                   }
-               },
-           });
-           playerRef.current = player;
-       };
+        // Safely get the current time
+        let currentTime = 0;
+        try {
+            currentTime = await safeGetNumber(player.getCurrentTime());
+        } catch (error) {
+            console.error("Error getting current time:", error);
+        }
 
-       return () => {
-           if (playerRef.current) {
-               playerRef.current.destroy();
-           }
-           clearUpdateInterval(); 
-       };
-   }, [videoUrl]);
+        if (event.data === PLAYING_STATE) {
+            startTimer();
 
-   return (
-       <div className="aspect-video w-full">
-           <div ref={playerContainerRef} />
-       </div>
-   );
+            if (!videoStartTime.current) {
+                videoStartTime.current = now;
+            }
+
+            if (isFirstPlay) {
+                console.log("integrate add video activity api now");
+                syncVideoTrackingData();
+                setIsFirstPlay(false);
+
+                if (!updateIntervalRef.current) {
+                    updateIntervalRef.current = setInterval(() => {
+                        console.log("integrate update video activity api now");
+                        syncVideoTrackingData();
+                    }, 2 * 60 * 1000);
+                }
+            }
+
+            currentStartTimeRef.current = formatVideoTime(currentTime);
+            currentStartTimeInEpochRef.current = convertTimeToSeconds(currentStartTimeRef.current) * 1000;
+            setIsPlayed(true);
+            console.log("play state");
+
+        } else if (event.data === PAUSED_STATE || event.data === ENDED_STATE) {
+            stopTimer();
+            videoEndTime.current = now;
+
+            const currentStartTimeInSeconds = convertTimeToSeconds(currentStartTimeRef.current);
+            const endTimeInSeconds = currentStartTimeInSeconds + timestampDurationRef.current;
+            const endTimeStamp = formatVideoTime(endTimeInSeconds);
+
+            currentTimestamps.current.push({
+                id: uuidv4(),
+                start_time: currentStartTimeRef.current,
+                end_time: endTimeStamp,
+                start: convertTimeToSeconds(currentStartTimeRef.current) * 1000,
+                end: convertTimeToSeconds(endTimeStamp) * 1000
+            });
+
+            currentStartTimeRef.current = formatVideoTime(currentTime);
+            timestampDurationRef.current = 0;
+            setIsPlayed(false);
+        }
+    };
+
+    const handleNumericInput = (
+        e: React.ChangeEvent<HTMLInputElement>, 
+        setter: React.Dispatch<React.SetStateAction<string>>
+      ) => {
+        const value = e.target.value;
+        // Only allow numbers
+        if (value === '' || /^\d+$/.test(value)) {
+          setter(value);
+        }
+      };
+
+    const seekToTimestamp = async () => {
+        if (!player || !playerReady) return;
+        
+        // Convert inputs to numbers
+        const minutes = minutesInput === "" ? 0 : parseInt(minutesInput);
+        const seconds = secondsInput === "" ? 0 : parseInt(secondsInput);
+        
+        // Calculate total seconds
+        const totalSeconds = (minutes * 60) + seconds;
+        
+        try {
+          // Get video duration
+          const videoDuration = await safeGetNumber(player.getDuration());
+          
+          // Ensure timestamp is within valid range
+          if (totalSeconds <= 0) {
+            player.seekTo(0, true);
+          } else if (totalSeconds >= videoDuration) {
+            player.seekTo(videoDuration, true);
+          } else {
+            player.seekTo(totalSeconds, true);
+          }
+          
+          // Optional: Clear inputs after seeking
+          // setMinutesInput("");
+          // setSecondsInput("");
+        } catch (error) {
+          console.error("Error seeking to timestamp:", error);
+        }
+      };
+
+    return (
+        <div className="w-full flex flex-col items-center gap-4">
+            <div className="aspect-video w-full relative h-full items-center flex justify-center">
+                <div className="size-full absolute z-[9999]"></div>
+                <YouTube
+                    videoId={videoId}
+                    opts={opts}
+                    onReady={onPlayerReady}
+                    className="h-full w-full"
+                    onStateChange={onStateChange}
+                />
+            </div>
+            <div className="flex gap-2 justify-between items-center w-full">
+                <div className="w-full flex gap-2 items-center justify-center">
+                <MyButton
+                    buttonType="primary"
+                    scale="medium"
+                    layoutVariant="icon"
+                    onClick={togglePlay}
+                    disable={!playerReady || isPlayed}
+                >
+                    <Play />
+                </MyButton>
+                <MyButton
+                    buttonType="secondary"
+                    scale="medium"
+                    layoutVariant="icon"
+                    onClick={togglePause}
+                    disable={!playerReady || !isPlayed}
+                >
+                    <Pause />
+                </MyButton>
+                <MyButton buttonType="secondary" scale="medium" layoutVariant="icon" onClick={() => {
+                    if (player) {
+                        safeGetNumber(player.getCurrentTime()).then(currentTime => {
+                            const newTime = currentTime - 10;
+                            // If less than 10 seconds from start, go to beginning
+                            player.seekTo(Math.max(newTime, 0), true);
+                        });
+                    }
+                }}>
+                    <Rewind />
+                </MyButton>
+
+                <MyButton buttonType="secondary" scale="medium" layoutVariant="icon" onClick={() => {
+                    if (player) {
+                        safeGetNumber(player.getCurrentTime()).then(currentTime => {
+                            const newTime = currentTime + 10;
+                            safeGetNumber(player.getDuration()).then(duration => {
+                                // If less than 10 seconds from the end, go to end of video
+                                player.seekTo(Math.min(newTime, duration), true);
+                            });
+                        });
+                    }
+                }}>
+                    <FastForward />
+                </MyButton>
+                </div>
+                <div className="flex items-center gap-1">
+                    <MyInput
+                        inputType="text"
+                        inputPlaceholder="Min"
+                        input={minutesInput}
+                        onChangeFunction={(e) => handleNumericInput(e, setMinutesInput)}
+                        size="small"
+                        className="w-12 h-full"
+                        />
+                    <span>:</span>
+                    <MyInput
+                        inputType="text"
+                        inputPlaceholder="Sec"
+                        input={secondsInput}
+                        onChangeFunction={(e) => handleNumericInput(e, setSecondsInput)}
+                        size="small"
+                        className="w-12 h-full"
+                        />
+                    <MyButton 
+                        buttonType="secondary" 
+                        scale="medium" 
+                        layoutVariant="icon"
+                        onClick={seekToTimestamp}
+                        disable={!playerReady}
+                        >
+                        <Check />
+                    </MyButton>
+                </div>
+            </div>
+        </div>
+    );
 };
-
-export default YouTubePlayer;
