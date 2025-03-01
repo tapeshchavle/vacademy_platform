@@ -131,6 +131,7 @@ export interface AssessmentReportStudentInterface {
     total_marks: number;
     assessment_name: string;
     subject_id: string;
+    __store: any;
 }
 
 export interface AssessmentReportInterface {

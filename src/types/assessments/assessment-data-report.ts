@@ -41,3 +41,26 @@ export interface AssessmentTestReport {
     all_sections: AllSections;
     question_overall_detail_dto: QuestionOverallDetailDTO;
 }
+
+export interface TestReportDialogProps {
+    testReport: AssessmentTestReport | null;
+    examType: string | undefined;
+    assessmentDetails: StepData[];
+  }
+
+
+export interface Report {
+    assessment_id: string;
+    attempt_id: string;
+    assessment_name: string;
+    assessment_status: string;
+    attempt_date: string;
+    subject_id: string;
+    duration_in_seconds: number;
+    total_marks: number;
+    start_time: string;
+    end_time: string;
+  }
+export interface ParsedHistoryState {
+    report?: Report; 
+  }

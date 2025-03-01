@@ -32,9 +32,9 @@ export function extractDateTime(utcDate: string) {
   return { date, time };
 }
 
-export function getInstituteId() {
-  const accessToken = getTokenFromStorage(TokenKey.accessToken);
-  const data = getTokenDecodedData(accessToken);
+export async function getInstituteId() {
+  const accessToken = await getTokenFromStorage(TokenKey.accessToken);
+  const data = accessToken ? await getTokenDecodedData(accessToken) : null;
   const INSTITUTE_ID = data && Object.keys(data.authorities)[0];
   return INSTITUTE_ID;
 }
@@ -48,7 +48,12 @@ export const enableProtection = async () => {
   await PrivacyScreen.enable();
 };
 
+interface Subject {
+  id: string;
+  subject_name: string;
+}
+
 export const getSubjectNameById = (subjects: Subject[], id: string | null): string => {
-  const subject = subjects.find((item) => item.id === id);
+  const subject = subjects.find((item: Subject) => item.id === id);
   return subject?.subject_name || "N/A";
 };

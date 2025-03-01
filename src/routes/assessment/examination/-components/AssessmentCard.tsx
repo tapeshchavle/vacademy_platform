@@ -14,14 +14,12 @@ import {
   AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
-import { Storage } from "@capacitor/storage";
 import dayjs from "dayjs";
 import { restartAssessment } from "../-utils.ts/useFetchRestartAssessment";
 import {
-  fetchPreviewData,
+  // fetchPreviewData,
   storeAssessmentInfo,
 } from "../-utils.ts/useFetchAssessment";
-// import { restartAssessment } from "../-utils.ts/useFetchRestartAssessment";
 
 interface AssessmentProps {
   assessmentInfo: Assessment;
@@ -90,32 +88,6 @@ export const AssessmentCard = ({
     }
   };
 
-  // const handleAction = async () => {
-  //   // Check if user still has attempts remaining
-  //   console.log("assessmentInfo", assessmentInfo);
-  //   if ((assessmentInfo?.user_attempts ?? 1) < assessmentInfo.assessment_attempts) {
-  //     // If status is PREVIEW or LIVE, show restart dialog
-  //     if (
-  //       assessmentInfo.recent_attempt_status === "PREVIEW" ||
-  //       assessmentInfo.recent_attempt_status === "LIVE"
-  //     ) {
-  //       setShowRestartDialog(true);
-  //     } else if (assessmentInfo.recent_attempt_status !== "ENDED") {
-  //       // Store assessment info and navigate to examination
-  //       await Storage.set({
-  //         key: "InstructionID_and_AboutID",
-  //         value: JSON.stringify(assessmentInfo),
-  //       });
-  //       navigate({
-  //         to: `/assessment/examination/${assessmentInfo.assessment_id}`,
-  //       }); 
-  //     }
-  //   } else {
-  //     // No more attempts remaining
-  //     return;
-  //   }
-  // };
-
   const handleRestartAssessment = async () => {
     setIsRestarting(true);
     try {
@@ -124,7 +96,7 @@ export const AssessmentCard = ({
 
       const isRestarted = await restartAssessment(
         assessmentInfo.assessment_id,
-        assessmentInfo.last_attempt_id
+        assessmentInfo.last_attempt_id ?? ""
       );
       console.log("isRestarted", isRestarted);
 

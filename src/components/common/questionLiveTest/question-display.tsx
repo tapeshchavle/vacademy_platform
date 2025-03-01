@@ -47,7 +47,7 @@ export function QuestionDisplay() {
   }, []);
 
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
-  const isPracticeMode = playMode === "PRACTICE";
+  const isPracticeMode = playMode === "PRACTICE" || playMode === "SURVEY";
 
   useEffect(() => {
     if (isPracticeMode || !currentQuestion?.question_id) return;
@@ -117,9 +117,9 @@ export function QuestionDisplay() {
   const currentAnswer = answers[currentQuestion.question_id] || [];
   const isMarkedForReview =
     questionStates[currentQuestion.question_id]?.isMarkedForReview;
-  const isDisabled =
-    questionStates[currentQuestion.question_id]?.isDisabled ||
-    questionTimers[currentQuestion.question_id] === 0;
+  // const isDisabled =
+  //   questionStates[currentQuestion.question_id]?.isDisabled ||
+  //   questionTimers[currentQuestion.question_id] === 0;
 
   const handleAnswerChange = (optionId: string) => {
     // if (isDisabled) return;

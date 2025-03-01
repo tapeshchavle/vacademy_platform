@@ -1,8 +1,6 @@
 import { DotOutline, Export } from "@phosphor-icons/react";
 import { MyButton } from "@/components/design-system/button";
 import { Separator } from "@radix-ui/react-separator";
-// import { getSubjectNameById } from "@/routes/assessment/question-papers/-utils/helper";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   convertToLocalDateTime,
   extractDateTime,
@@ -11,43 +9,29 @@ import {
 import { ResponseBreakdownComponent } from "./response-breakdown-component";
 import { MarksBreakdownComponent } from "./marks-breakdown-component";
 import { Crown } from "@/svgs";
-// import { getAssessmentDetails } from "@/routes/assessment/create-assessment/$assessmentId/$examtype/-services/assessment-services";
 import { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // import { StatusChips } from "@/components/design-system/chips";
-import { AssessmentTestReport } from "@/types/assessments/assessment-data-report";
 import { Clock } from "phosphor-react";
 import { parseHtmlToString } from "@/lib/utils";
-import { AssessmentReportStudentInterface } from "@/types/assessments/assessment-overview";
-// import { getAssessmentDetails } from "@/services/reports/assessment-services";
 import { Preferences } from "@capacitor/preferences";
-import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
-import { GET_ASSESSMENT_DETAILS } from "@/constants/urls";
-import { Card } from "@/components/ui/card";
-import { getAssessmentDetails } from "@/routes/assessment/reports/student-report";
-// import { getAssessmentDetails } from "@/services/reports/assessment-services";
-
-interface TestReportDialogProps {
-  testReport: AssessmentTestReport;
-  studentReport: AssessmentReportStudentInterface;
-  examType: string | undefined;
-}
-
-
+import { useRouter } from "@tanstack/react-router";
+// import { Report } from "@/routes/assessment/reports/-components/reportMain";
+import {
+  ParsedHistoryState,
+  TestReportDialogProps,
+} from "@/types/assessments/assessment-data-report";
+import { Section } from "@/types/assessments/assessment-data-type";
 
 export const TestReportDialog = ({
   testReport,
-  studentReport,
   examType,
+  assessmentDetails,
 }: TestReportDialogProps) => {
-  // const { data: instituteDetails } = useSuspenseQuery(useInstituteQuery());
-  // const instituteDetails = Preferences.get({ key: "InstituteDetails" });
+  const report = useRouter();
   const [instituteDetails, setInstituteDetails] = useState<any>(null);
-  console.log("testReport", testReport);
-  console.log("studentReport", studentReport);
-  const report = studentReport.__store.state.resolvedLocation.state.report;
-  console.log("report", report);
-
+  const { state } = report.__store.state.location.state as ParsedHistoryState;
+  const studentReport: Report = state?.report || {};
   useEffect(() => {
     const fetchInstituteDetails = async () => {
       const response = await Preferences.get({ key: "InstituteDetails" });
@@ -57,15 +41,8 @@ export const TestReportDialog = ({
 
     fetchInstituteDetails();
   }, []);
-  const { data: assessmentDetails } = useSuspenseQuery(
-    getAssessmentDetails({
-      assessmentId: studentReport.assessment_id,
-      instituteId: instituteDetails?.id,
-      type: examType,
-    })
-  );
   const sectionsInfo = assessmentDetails[1]?.saved_data.sections?.map(
-    (section) => ({
+    (section : Section) => ({
       name: section.name,
       id: section.id,
     })
@@ -76,9 +53,12 @@ export const TestReportDialog = ({
   );
 
   console.log("testReport", testReport, "selectedSection", selectedSection);
-  const currentSectionAllQuestions = testReport.all_sections[selectedSection!];
+  const currentSectionAllQuestions = testReport?.all_sections[selectedSection!];
   console.log("currentSectionAllQuestions", currentSectionAllQuestions);
 
+  if (testReport === null || studentReport === null || examType === undefined) {
+    return;
+  }
   const responseData = {
     attempted:
       testReport.question_overall_detail_dto.correctAttempt +
@@ -102,16 +82,16 @@ export const TestReportDialog = ({
           <div className="flex justify-between">
             <div className="flex flex-col gap-4">
               <div className="text-h2 font-semibold">
-                {report.assessment_name}
+                {studentReport.assessment_name}
               </div>
             </div>
             <div className="hidden md:block lg:block">
               <MyButton
-              buttonType="secondary"
-              scale="large"
-              layoutVariant="default"
+                buttonType="secondary"
+                scale="large"
+                layoutVariant="default"
               >
-              <Export /> Export
+                <Export /> Export
               </MyButton>
             </div>
           </div>
@@ -121,7 +101,7 @@ export const TestReportDialog = ({
               Subject:{" "}
               {getSubjectNameById(
                 instituteDetails?.subjects || [],
-                studentReport.subject_id
+                studentReport?.subject_id
               ) || ""}
             </div>
             <div>
@@ -371,29 +351,29 @@ export const TestReportDialog = ({
                           </div>
                         </div>
                         {/* <StatusChips
-                                                    status={
-                                                        review.answer_status == "CORRECT"
-                                                            ? "active"
-                                                            : review.answer_status == "INCORRECT"
-                                                              ? "error"
-                                                              : "inactive"
-                                                    }
-                                                    showIcon={false}
-                                                >
-                                                    {review.mark} Marks
-                                                </StatusChips>
-                                                <StatusChips
-                                                    status={
-                                                        review.answer_status == "CORRECT"
-                                                            ? "active"
-                                                            : review.answer_status == "INCORRECT"
-                                                              ? "error"
-                                                              : "inactive"
-                                                    }
-                                                    className="rounded-full"
-                                                >
-                                                    <></>
-                                                </StatusChips> */}
+                          status={
+                            review.answer_status == "CORRECT"
+                              ? "active"
+                              : review.answer_status == "INCORRECT"
+                                ? "error"
+                                : "inactive"
+                          }
+                          showIcon={false}
+                        >
+                          {review.mark} Marks
+                        </StatusChips>
+                        <StatusChips
+                          status={
+                            review.answer_status == "CORRECT"
+                              ? "active"
+                              : review.answer_status == "INCORRECT"
+                                ? "error"
+                                : "inactive"
+                          }
+                          className="rounded-full"
+                        >
+                          <></>
+                        </StatusChips> */}
                       </div>
                     </div>
                     {review.answer_status !== "CORRECT" && (
@@ -439,10 +419,6 @@ export const TestReportDialog = ({
         </div>
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white shadow-md">
           <div className="flex justify-center md:hidden lg:hidden">
-            {/* <MyButton variant="primary" onClick={() => console.log("Exporting report...")}>
-              <Export className="mr-2" />
-              Export Report
-            </MyButton> */}
             <MyButton
               buttonType="secondary"
               scale="large"

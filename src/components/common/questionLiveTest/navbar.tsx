@@ -358,7 +358,7 @@ export function Navbar() {
           {entireTestTimer && (
             <div className="flex items-center gap-2 text-lg  justify-center">
               <div className="flex items-center space-x-4">
-                {playMode !== "PRACTICE" && entireTestTimer && (
+                {playMode !== "PRACTICE" && playMode !== "SURVEY" && entireTestTimer && (
                   <div className="flex items-center gap-2 text-lg justify-center">
                     <div className="flex items-center space-x-4">
                       {formatTime(entireTestTimer)
@@ -405,11 +405,11 @@ export function Navbar() {
         onConfirm={handleSubmit}
       />
 
-      {/* <TimesUpModal
+      <TimesUpModal
         open={showTimesUpModal}
         onOpenChange={setShowTimesUpModal}
         onFinish={handleSubmit}
-      /> */}
+      />
 
       <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
         <AlertDialogContent>

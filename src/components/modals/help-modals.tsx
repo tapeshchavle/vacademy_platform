@@ -16,7 +16,7 @@ import { AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import useAlertsStore from "@/stores/alerts-store";
-import SectionDetails from "../common/instructionPage/SectionDetails";
+// import SectionDetails from "../common/instructionPage/SectionDetails";
 import { AssessmentInstructions } from "../common/instructionPage/AssessmentInstructions";
 import { GET_TEXT_VIA_IDS } from "@/constants/urls";
 import { fetchDataByIds } from "@/services/GetDataById";
@@ -36,6 +36,7 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
   const [reason, setReason] = useState("");
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
    const { assessment , currentSection} = useAssessmentStore();
+   console.log(currentSection);
   // const { assessment, currentSection } = useAssessmentStore();
   // const { alerts, requests, addRequest } = useAlertsStore();
   const { alerts } = useAlertsStore();
@@ -98,8 +99,8 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
                   
                 />
               )}
-              <p>Current Section Instructions:</p>
-              {/* <div className="">
+              {/* <p>Current Section Instructions:</p>
+              <div className="">
                 <SectionDetails
                   section={assessment.section_dtos[currentSection]}
                 />

@@ -57,7 +57,7 @@ export function SectionTimer() {
   return (
     <div className="flex items-center gap-2 text-lg font-mono">
       <Clock className="h-5 w-5" />
-      {playMode !== "PRACTICE" && (
+      {playMode !== "PRACTICE" && playMode !== "SURVEY" && (
         <span className={currentTimer.timeLeft < 60000 ? "text-red-500" : ""}>
           {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
         </span>
