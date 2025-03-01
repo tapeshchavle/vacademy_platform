@@ -10,3 +10,4 @@ export { default as RegistrationCompletedMobile } from "./registration-completed
 export { default as RegistrationCompletedWeb } from "./registration-completed-web.svg";
 export { default as VacademyLogoWeb } from "./vacademy-logo-web.svg";
 export { default as VacademyLogoMobile } from "./vacademy-logo-mobile.svg";
+export { default as EmptyAssessment } from "./EmptyTestPage.svg";
