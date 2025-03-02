@@ -9,7 +9,7 @@ import { useVideoSync } from "@/hooks/study-library/useVideoSync";
 import YouTube, { YouTubeEvent, YouTubePlayer, YouTubeProps } from 'react-youtube';
 import { MyButton } from "@/components/design-system/button";
 import { MyInput } from "@/components/design-system/input";
-import { Check, FastForward, Pause, Play, Rewind } from "@phosphor-icons/react";
+import { ArrowsOut, Check, FastForward, Pause, Play, Rewind } from "@phosphor-icons/react";
 
 // Add the YouTube PlayerState enum to avoid window.YT references
 enum PlayerState {
@@ -47,6 +47,8 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
     const [duration, setDuration] = useState(0);
     const [minutesInput, setMinutesInput] = useState("");
     const [secondsInput, setSecondsInput] = useState("");
+    const [isFullscreen, setIsFullscreen] = useState(false); // Fullscreen state
+    const iframeRef = useRef<HTMLIFrameElement | null>(null);  // Ref for the iframe
 
     // Helper function to safely get a number from potentially a Promise<number>
     const safeGetNumber = async (value: any): Promise<number> => {
@@ -124,7 +126,6 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
             current_start_time_in_epoch: currentStartTimeInEpochRef.current,
             new_activity: true
         };
-
         addActivity(newActivity, true);
     }, [elapsedTime, duration, videoId, addActivity]);
 
@@ -149,10 +150,18 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
         console.log("Video is played");
     };
 
-    const onPlayerReady: YouTubeProps['onReady'] = (event: YouTubeEvent) => {
+    const onPlayerReady: YouTubeProps['onReady'] = async (event: YouTubeEvent) => {
         console.log("Player ready");
         setPlayer(event.target);
         setPlayerReady(true);
+
+        // Get the iframe element
+        try {
+            const iframe = await event.target.getIframe();
+            iframeRef.current = iframe;
+        } catch (error) {
+            console.error("Error getting iframe:", error);
+        }
     };
 
     // Control video playback based on isPlayed state
@@ -248,51 +257,83 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
     };
 
     const handleNumericInput = (
-        e: React.ChangeEvent<HTMLInputElement>, 
+        e: React.ChangeEvent<HTMLInputElement>,
         setter: React.Dispatch<React.SetStateAction<string>>
-      ) => {
+    ) => {
         const value = e.target.value;
         // Only allow numbers
         if (value === '' || /^\d+$/.test(value)) {
-          setter(value);
+            setter(value);
         }
-      };
+    };
 
     const seekToTimestamp = async () => {
         if (!player || !playerReady) return;
-        
+
         // Convert inputs to numbers
         const minutes = minutesInput === "" ? 0 : parseInt(minutesInput);
         const seconds = secondsInput === "" ? 0 : parseInt(secondsInput);
-        
+
         // Calculate total seconds
         const totalSeconds = (minutes * 60) + seconds;
-        
+
         try {
-          // Get video duration
-          const videoDuration = await safeGetNumber(player.getDuration());
-          
-          // Ensure timestamp is within valid range
-          if (totalSeconds <= 0) {
-            player.seekTo(0, true);
-          } else if (totalSeconds >= videoDuration) {
-            player.seekTo(videoDuration, true);
-          } else {
-            player.seekTo(totalSeconds, true);
-          }
-          
-          // Optional: Clear inputs after seeking
-          // setMinutesInput("");
-          // setSecondsInput("");
+            // Get video duration
+            const videoDuration = await safeGetNumber(player.getDuration());
+
+            // Ensure timestamp is within valid range
+            if (totalSeconds <= 0) {
+                player.seekTo(0, true);
+            } else if (totalSeconds >= videoDuration) {
+                player.seekTo(videoDuration, true);
+            } else {
+                player.seekTo(totalSeconds, true);
+            }
+
+            // Optional: Clear inputs after seeking
+            // setMinutesInput("");
+            // setSecondsInput("");
         } catch (error) {
-          console.error("Error seeking to timestamp:", error);
+            console.error("Error seeking to timestamp:", error);
         }
-      };
+    };
+
+    const toggleFullscreen = useCallback(async () => {
+        if (!iframeRef.current) {
+            console.error("Iframe not available");
+            return;
+        }
+
+        try {
+            if (!document.fullscreenElement) {
+                await iframeRef.current.requestFullscreen();
+                setIsFullscreen(true);
+            } else {
+                await document.exitFullscreen();
+                setIsFullscreen(false);
+            }
+        } catch (error) {
+            console.error("Error toggling fullscreen:", error);
+        }
+    }, []);
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        };
+    }, []);
+
 
     return (
         <div className="w-full flex flex-col items-center gap-4">
             <div className="aspect-video w-full relative h-full items-center flex justify-center">
-                <div className="size-full absolute z-[9999]"></div>
+                <div className={`size-full absolute z-[9999] ${isFullscreen ? "h-[100vh] w-[100vw]": "w-full h-full"}`}></div>
                 <YouTube
                     videoId={videoId}
                     opts={opts}
@@ -302,50 +343,64 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
                 />
             </div>
             <div className="flex gap-2 justify-between items-center w-full">
-                <div className="w-full flex gap-2 items-center justify-center">
-                <MyButton
-                    buttonType="primary"
-                    scale="medium"
-                    layoutVariant="icon"
-                    onClick={togglePlay}
-                    disable={!playerReady || isPlayed}
-                >
-                    <Play />
-                </MyButton>
-                <MyButton
-                    buttonType="secondary"
-                    scale="medium"
-                    layoutVariant="icon"
-                    onClick={togglePause}
-                    disable={!playerReady || !isPlayed}
-                >
-                    <Pause />
-                </MyButton>
-                <MyButton buttonType="secondary" scale="medium" layoutVariant="icon" onClick={() => {
-                    if (player) {
-                        safeGetNumber(player.getCurrentTime()).then(currentTime => {
-                            const newTime = currentTime - 10;
-                            // If less than 10 seconds from start, go to beginning
-                            player.seekTo(Math.max(newTime, 0), true);
-                        });
+                <div className="w-full flex gap-2 items-center justify-start">
+                    {isPlayed ?
+                        <MyButton
+                            buttonType="secondary"
+                            scale="medium"
+                            layoutVariant="icon"
+                            onClick={togglePause}
+                            disable={!playerReady || !isPlayed}
+                        >
+                            <Pause />
+                        </MyButton>
+                        :
+                        <MyButton
+                            buttonType="primary"
+                            scale="medium"
+                            layoutVariant="icon"
+                            onClick={togglePlay}
+                            disable={!playerReady || isPlayed}
+                        >
+                            <Play />
+                        </MyButton>
                     }
-                }}>
-                    <Rewind />
-                </MyButton>
 
-                <MyButton buttonType="secondary" scale="medium" layoutVariant="icon" onClick={() => {
-                    if (player) {
-                        safeGetNumber(player.getCurrentTime()).then(currentTime => {
-                            const newTime = currentTime + 10;
-                            safeGetNumber(player.getDuration()).then(duration => {
-                                // If less than 10 seconds from the end, go to end of video
-                                player.seekTo(Math.min(newTime, duration), true);
+                    <MyButton buttonType="secondary" scale="medium" layoutVariant="icon" onClick={() => {
+                        if (player) {
+                            safeGetNumber(player.getCurrentTime()).then(currentTime => {
+                                const newTime = currentTime - 10;
+                                // If less than 10 seconds from start, go to beginning
+                                player.seekTo(Math.max(newTime, 0), true);
+
                             });
-                        });
-                    }
-                }}>
-                    <FastForward />
-                </MyButton>
+                        }
+                    }}>
+                        <Rewind />
+                    </MyButton>
+
+                    <MyButton buttonType="secondary" scale="medium" layoutVariant="icon" onClick={() => {
+                        if (player) {
+                            safeGetNumber(player.getCurrentTime()).then(currentTime => {
+                                const newTime = currentTime + 10;
+                                safeGetNumber(player.getDuration()).then(duration => {
+                                    // If less than 10 seconds from the end, go to end of video
+                                    player.seekTo(Math.min(newTime, duration), true);
+                                });
+                            });
+                        }
+                    }}>
+                        <FastForward />
+                    </MyButton>
+                    <MyButton
+                        buttonType="secondary"
+                        scale="medium"
+                        layoutVariant="icon"
+                        onClick={toggleFullscreen}
+                        disable={!iframeRef.current}
+                    >
+                        <ArrowsOut />
+                    </MyButton>
                 </div>
                 <div className="flex items-center gap-1">
                     <MyInput
@@ -355,7 +410,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
                         onChangeFunction={(e) => handleNumericInput(e, setMinutesInput)}
                         size="small"
                         className="w-12 h-full"
-                        />
+                    />
                     <span>:</span>
                     <MyInput
                         inputType="text"
@@ -364,14 +419,14 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
                         onChangeFunction={(e) => handleNumericInput(e, setSecondsInput)}
                         size="small"
                         className="w-12 h-full"
-                        />
-                    <MyButton 
-                        buttonType="secondary" 
-                        scale="medium" 
+                    />
+                    <MyButton
+                        buttonType="secondary"
+                        scale="medium"
                         layoutVariant="icon"
                         onClick={seekToTimestamp}
                         disable={!playerReady}
-                        >
+                    >
                         <Check />
                     </MyButton>
                 </div>
