@@ -162,7 +162,9 @@ export const AssessmentCard = ({
                   "DD MMM YYYY, hh:mm A"
                 )}
               </div>
-              <div>Duration: {assessmentInfo.duration} minutes</div>
+                <div>
+                Duration: {Math.floor(assessmentInfo.duration / 60)} hours {assessmentInfo.duration % 60} minutes
+                </div>
             </div>
           </div>
           {assessmentType !== assessmentTypes.UPCOMING &&

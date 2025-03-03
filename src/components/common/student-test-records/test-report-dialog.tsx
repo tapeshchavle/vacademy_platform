@@ -227,7 +227,7 @@ export const TestReportDialog = ({
                   </p>
                 </div>
               </div>
-              <div className="-mb-8 flex items-center justify-between gap-4">
+              <div className=" flex items-center justify-between gap-4">
                 <div className="flex items-center">
                   <DotOutline
                     size={70}

@@ -203,10 +203,11 @@ const AssessmentReportList = () => {
                     instituteDetails?.subjects || [],
                     report?.subject_id
                   ) || ""}
-                  <div>
-                    Duration: {Math.floor(report.duration_in_seconds / 60)}{" "}
+                    <div>
+                    Duration: {Math.floor(report.duration_in_seconds / 3600)}{" "}
+                    hours {Math.floor((report.duration_in_seconds % 3600) / 60)}{" "}
                     minutes
-                  </div>
+                    </div>
                   <div>Marks: {report.total_marks}</div>
                 </div>
               </div>
