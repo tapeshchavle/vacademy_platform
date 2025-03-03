@@ -320,7 +320,7 @@ export const TestReportDialog = ({
           <div className="text-h3 font-semibold text-primary-500">
             Answer Review
           </div>
-          <div className="flex w-full flex-col gap-10">
+          <div className="flex w-full flex-col gap-10 pb-10 md:pb-0">
             {currentSectionAllQuestions &&
             currentSectionAllQuestions.length > 0 ? (
               currentSectionAllQuestions.map((review, index) => (
@@ -435,8 +435,8 @@ export const TestReportDialog = ({
             )}
           </div>
         </div>
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white shadow-md">
-          <div className="flex justify-center md:hidden lg:hidden">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white shadow-md md:hidden lg:hidden">
+          <div className="flex justify-center">
             <MyButton
               buttonType="secondary"
               scale="large"
