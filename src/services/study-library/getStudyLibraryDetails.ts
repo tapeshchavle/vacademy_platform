@@ -15,7 +15,6 @@ export const fetchStudyLibraryDetails = async (packageSessionId: string) => {
 
 export const useStudyLibraryQuery = (packageSessionId: string) => {
     const setStudyLibraryData = useStudyLibraryStore((state) => state.setStudyLibraryData);
-    console.log("package id: ", packageSessionId)
 
     return {
         queryKey: ["GET_INIT_STUDY_LIBRARY"],
