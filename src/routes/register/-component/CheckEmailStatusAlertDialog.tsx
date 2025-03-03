@@ -55,6 +55,8 @@ const CheckEmailStatusAlertDialog = ({
   registrationForm,
   setParticipantsDto,
   setUserAlreadyRegistered,
+  userHasAttemptCount,
+  setUserHasAttemptCount,
 }: {
   timeLeft: TimeLeft;
   registrationData: OpenTestAssessmentRegistrationDetails;
@@ -63,8 +65,9 @@ const CheckEmailStatusAlertDialog = ({
     React.SetStateAction<ParticipantsDataInterface>
   >;
   setUserAlreadyRegistered: React.Dispatch<React.SetStateAction<boolean>>;
+  userHasAttemptCount: boolean;
+  setUserHasAttemptCount: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
-  const [userHasAttemptCount, setUserHasAttemptCount] = useState(false);
   const [isOtpSent, setIsOTPSent] = useState(false);
   const [open, setOpen] = useState(false);
   const form = useForm<FormValues>({

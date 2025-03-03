@@ -5,7 +5,6 @@ import { Separator } from "@/components/ui/separator";
 import { VacademyLogoWeb } from "@/svgs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -43,6 +42,7 @@ import { toast } from "sonner";
 import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 
 const AssessmentRegistrationForm = () => {
+  const [userHasAttemptCount, setUserHasAttemptCount] = useState(false);
   const [isAlreadyLoggedIn, setIsAlreadyLoggedIn] = useState(false);
   const [userAlreadyRegistered, setUserAlreadyRegistered] = useState(false);
   const { code } = Route.useSearch();
@@ -71,7 +71,6 @@ const AssessmentRegistrationForm = () => {
     )
   );
 
-  const navigate = useNavigate();
   const formRef = useRef<HTMLDivElement>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(zodSchema),
@@ -309,164 +308,158 @@ const AssessmentRegistrationForm = () => {
         registrationForm={form}
         setParticipantsDto={setParticipantsDto}
         setUserAlreadyRegistered={setUserAlreadyRegistered}
+        userHasAttemptCount={userHasAttemptCount}
+        setUserHasAttemptCount={setUserHasAttemptCount}
       />
-      <div className="flex w-full items-center justify-center bg-[linear-gradient(180deg,#FFF9F4_0%,#E6E6FA_100%)] gap-8 flex-col sm:flex-row">
-        <div className="flex justify-center items-center w-full mt-4">
-          <div className="flex flex-col w-full sm:w-3/4 items-center justify-center gap-6">
-            <VacademyLogoWeb />
-            <h1 className="-mt-12 text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
-              {data?.assessment_public_dto?.assessment_name}
-            </h1>
-            <div className="flex items-center gap-4 text-sm flex-col sm:flex-row">
-              <MyButton
-                type="button"
-                buttonType="primary"
-                scale="large"
-                layoutVariant="default"
-                className="block sm:hidden"
-                onClick={scrollToForm}
-              >
-                Register Now!
-              </MyButton>
-              <span className="font-thin">
-                {timeLeft.hours} hrs : {timeLeft.minutes} min :{" "}
-                {timeLeft.seconds} sec
-              </span>
-            </div>
-            <div className="text-sm flex items-center gap-2">
-              <span className="text-neutral-400">Already Registered?</span>
-              <span
-                className="text-primary-500 cursor-pointer"
-                onClick={() =>
-                  navigate({
-                    to: "/register/login",
-                  })
-                }
-              >
-                Login with Email
-              </span>
-            </div>
-            <Separator />
-            <h1 className="text-sm font-thin">
-              Important Dates - Mark Your Calendar!
-            </h1>
-            <div className="text-sm flex flex-col gap-4 px-4">
-              <div className="flex flex-col">
-                <h1>Registration Window:</h1>
+      {!userHasAttemptCount && (
+        <div className="flex w-full items-center justify-center bg-[linear-gradient(180deg,#FFF9F4_0%,#E6E6FA_100%)] gap-8 flex-col sm:flex-row">
+          <div className="flex justify-center items-center w-full mt-4">
+            <div className="flex flex-col w-full sm:w-3/4 items-center justify-center gap-6">
+              <VacademyLogoWeb />
+              <h1 className="-mt-12 text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
+                {data?.assessment_public_dto?.assessment_name}
+              </h1>
+              <div className="flex items-center gap-4 text-sm flex-col sm:flex-row">
+                <MyButton
+                  type="button"
+                  buttonType="primary"
+                  scale="large"
+                  layoutVariant="default"
+                  className="block sm:hidden"
+                  onClick={scrollToForm}
+                >
+                  Register Now!
+                </MyButton>
                 <span className="font-thin">
-                  Opens:{" "}
-                  {convertToLocalDateTime(
-                    data.assessment_public_dto.registration_open_date
-                  )}
-                </span>
-                <span className="font-thin">
-                  Closes:{" "}
-                  {convertToLocalDateTime(
-                    data.assessment_public_dto.registration_close_date
-                  )}
+                  {timeLeft.hours} hrs : {timeLeft.minutes} min :{" "}
+                  {timeLeft.seconds} sec
                 </span>
               </div>
-              <div className="flex flex-col">
-                <h1>Assessment Live Dates</h1>
-                <span className="font-thin">
-                  Starts:{" "}
-                  {convertToLocalDateTime(
-                    data.assessment_public_dto.bound_start_time
-                  )}
-                </span>
-                <span className="font-thin">
-                  Ends:{" "}
-                  {convertToLocalDateTime(
-                    data.assessment_public_dto.bound_end_time
-                  )}
-                </span>
-              </div>
-              {data.assessment_public_dto.about.content && (
+              <Separator />
+              <h1 className="text-sm font-thin">
+                Important Dates - Mark Your Calendar!
+              </h1>
+              <div className="text-sm flex flex-col gap-4 px-4">
                 <div className="flex flex-col">
-                  <h1>About Assessment</h1>
+                  <h1>Registration Window:</h1>
                   <span className="font-thin">
-                    {parseHtmlToString(
-                      data.assessment_public_dto.about.content
+                    Opens:{" "}
+                    {convertToLocalDateTime(
+                      data.assessment_public_dto.registration_open_date
+                    )}
+                  </span>
+                  <span className="font-thin">
+                    Closes:{" "}
+                    {convertToLocalDateTime(
+                      data.assessment_public_dto.registration_close_date
                     )}
                   </span>
                 </div>
-              )}
+                <div className="flex flex-col">
+                  <h1>Assessment Live Dates</h1>
+                  <span className="font-thin">
+                    Starts:{" "}
+                    {convertToLocalDateTime(
+                      data.assessment_public_dto.bound_start_time
+                    )}
+                  </span>
+                  <span className="font-thin">
+                    Ends:{" "}
+                    {convertToLocalDateTime(
+                      data.assessment_public_dto.bound_end_time
+                    )}
+                  </span>
+                </div>
+                {data.assessment_public_dto.about.content && (
+                  <div className="flex flex-col">
+                    <h1>About Assessment</h1>
+                    <span className="font-thin">
+                      {parseHtmlToString(
+                        data.assessment_public_dto.about.content
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <Separator className="block sm:hidden mx-4" />
+          <div
+            className="flex justify-center items-center w-full"
+            ref={formRef}
+          >
+            <div className="flex justify-center items-start w-full  sm:w-3/4 flex-col bg-white rounded-xl p-4 shadow-md mx-4 mb-4">
+              <h1>Assessment Registration Form</h1>
+              <span className="text-sm text-neutral-500">
+                Register for the assessment by completing the details below.
+              </span>
+              <FormProvider {...form}>
+                <form className="w-full flex flex-col gap-6 mt-4 sm:max-h-[70vh] sm:overflow-auto">
+                  {Object.entries(form.getValues()).map(([key, value]) => (
+                    <FormField
+                      key={key}
+                      control={form.control}
+                      name={`${key}.value`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            {value.type === "dropdown" ? (
+                              <SelectField
+                                label={value.name}
+                                name={`${key}.value`}
+                                options={
+                                  value.comma_separated_options?.map(
+                                    (option: string, index: number) => ({
+                                      value: option,
+                                      label: option,
+                                      _id: index,
+                                    })
+                                  ) || []
+                                }
+                                control={form.control}
+                                required={value.is_mandatory}
+                                className="!w-full"
+                              />
+                            ) : (
+                              <MyInput
+                                inputType="text"
+                                inputPlaceholder={value.name}
+                                input={field.value}
+                                onChangeFunction={field.onChange}
+                                required={value.is_mandatory}
+                                size="large"
+                                label={value.name}
+                                className="!max-w-full !w-full"
+                              />
+                            )}
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                  <div className="flex items-center justify-center flex-col gap-4">
+                    <MyButton
+                      type="button"
+                      buttonType="primary"
+                      scale="large"
+                      layoutVariant="default"
+                      onClick={form.handleSubmit(onSubmit, onInvalid)}
+                    >
+                      Register
+                    </MyButton>
+                    <p
+                      className="border-none !text-primary-500 !text-sm mb-2 cursor-pointer"
+                      onClick={() => form.reset()}
+                    >
+                      Reset Form
+                    </p>
+                  </div>
+                </form>
+              </FormProvider>
             </div>
           </div>
         </div>
-        <Separator className="block sm:hidden mx-4" />
-        <div className="flex justify-center items-center w-full" ref={formRef}>
-          <div className="flex justify-center items-start w-full  sm:w-3/4 flex-col bg-white rounded-xl p-4 shadow-md mx-4 mb-4">
-            <h1>Assessment Registration Form</h1>
-            <span className="text-sm text-neutral-500">
-              Register for the assessment by completing the details below.
-            </span>
-            <FormProvider {...form}>
-              <form className="w-full flex flex-col gap-6 mt-4 sm:max-h-[70vh] sm:overflow-auto">
-                {Object.entries(form.getValues()).map(([key, value]) => (
-                  <FormField
-                    key={key}
-                    control={form.control}
-                    name={`${key}.value`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          {value.type === "dropdown" ? (
-                            <SelectField
-                              label={value.name}
-                              name={`${key}.value`}
-                              options={
-                                value.comma_separated_options?.map(
-                                  (option: string, index: number) => ({
-                                    value: option,
-                                    label: option,
-                                    _id: index,
-                                  })
-                                ) || []
-                              }
-                              control={form.control}
-                              required={value.is_mandatory}
-                              className="!w-full"
-                            />
-                          ) : (
-                            <MyInput
-                              inputType="text"
-                              inputPlaceholder={value.name}
-                              input={field.value}
-                              onChangeFunction={field.onChange}
-                              required={value.is_mandatory}
-                              size="large"
-                              label={value.name}
-                              className="!max-w-full !w-full"
-                            />
-                          )}
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                ))}
-                <div className="flex items-center justify-center flex-col gap-4">
-                  <MyButton
-                    type="button"
-                    buttonType="primary"
-                    scale="large"
-                    layoutVariant="default"
-                    onClick={form.handleSubmit(onSubmit, onInvalid)}
-                  >
-                    Register
-                  </MyButton>
-                  <p
-                    className="border-none !text-primary-500 !text-sm mb-2 cursor-pointer"
-                    onClick={() => form.reset()}
-                  >
-                    Reset Form
-                  </p>
-                </div>
-              </form>
-            </FormProvider>
-          </div>
-        </div>
-      </div>
+      )}
     </>
   );
 };
