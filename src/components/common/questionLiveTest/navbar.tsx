@@ -29,7 +29,7 @@ import { Storage } from "@capacitor/storage";
 import { useProctoring } from "@/hooks";
 import { App } from "@capacitor/app";
 import { PluginListenerHandle } from "@capacitor/core";
-import { disableProtection } from "@/constants/helper";
+// import { disableProtection } from "@/constants/helper";
 
 export function Navbar() {
   const {
@@ -285,7 +285,7 @@ export function Navbar() {
         submitAssessment();
         toast.success("Assessment submitted successfully!");
 
-        disableProtection();
+        // disableProtection();
 
         navigate({
           to: "/assessment/examination",

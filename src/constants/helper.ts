@@ -3,7 +3,7 @@ import {
   getTokenFromStorage,
 } from "@/lib/auth/sessionUtility";
 import { TokenKey } from "e:/Vidyayatan/frontend-admin-dashboard/src/constants/auth/tokens";
-import { PrivacyScreen } from "@capacitor-community/privacy-screen";
+// import { PrivacyScreen } from "@capacitor-community/privacy-screen";
 
 export function convertToLocalDateTime(utcDate: string): string {
   const date = new Date(utcDate);
@@ -39,13 +39,13 @@ export async function getInstituteId() {
 }
 
 // protection
-export const disableProtection = async () => {
-  await PrivacyScreen.disable();
-};
+// export const disableProtection = async () => {
+//   await PrivacyScreen.disable();
+// };
 
-export const enableProtection = async () => {
-  await PrivacyScreen.enable();
-};
+// export const enableProtection = async () => {
+//   await PrivacyScreen.enable();
+// };
 
 interface Subject {
   id: string;

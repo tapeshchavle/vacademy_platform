@@ -6,7 +6,7 @@ import { useLocation } from "@tanstack/react-router";
 import { fetchPreviewData } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
 import { useProctoring } from "@/hooks/proctoring/useProctoring";
 import { AssessmentPreview } from "../questionLiveTest/assessment-preview";
-import { enableProtection } from "@/constants/helper";
+// import { enableProtection } from "@/constants/helper";
 
 const AssessmentStartModal = () => {
   const location = useLocation();
@@ -42,7 +42,7 @@ const AssessmentStartModal = () => {
         setTimeout(() => {
           setIsOpen(false);
           setExamHasStarted(true);
-          enableProtection();
+          // enableProtection();
           navigate({
             to: `/assessment/examination/${assessmentId}/assessmentPreview`,
             replace: true,
