@@ -6,9 +6,10 @@ import {
 import { UserDetailsOpenTest } from "@/types/open-test";
 import { z } from "zod";
 
-export const calculateTimeDifference = (startDate: string) => {
-  const now: number = new Date().getTime(); // Get current time in milliseconds
-
+export const calculateTimeDifference = (
+  serverTime: number,
+  startDate: string
+) => {
   // Parse the startDate correctly
   const startTime: number = new Date(Date.parse(startDate)).getTime();
 
@@ -17,14 +18,12 @@ export const calculateTimeDifference = (startDate: string) => {
     return { hours: 0, minutes: 0, seconds: 0 };
   }
 
-  const difference: number = startTime - now;
+  const difference: number = startTime - serverTime;
 
   return difference > 0 ? true : false;
 };
 
-export const calculateTimeLeft = (startDate: string) => {
-  const now: number = new Date().getTime(); // Get current time in milliseconds
-
+export const calculateTimeLeft = (serverTime: number, startDate: string) => {
   // Parse the startDate correctly
   const startTime: number = new Date(Date.parse(startDate)).getTime();
 
@@ -33,7 +32,7 @@ export const calculateTimeLeft = (startDate: string) => {
     return { hours: 0, minutes: 0, seconds: 0 };
   }
 
-  const difference: number = startTime - now;
+  const difference: number = startTime - serverTime;
 
   if (difference <= 0) {
     return { hours: 0, minutes: 0, seconds: 0 }; // Assessment already started
