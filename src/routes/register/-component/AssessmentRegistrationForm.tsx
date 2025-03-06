@@ -42,29 +42,26 @@ import { AxiosError } from "axios";
 import { toast } from "sonner";
 import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 
-const case1 = (startDate: string) => {
-  const currentTime: number = new Date().getTime();
+const case1 = (serverTime: number, startDate: string) => {
   const registrationStartDate: number = new Date(
     Date.parse(startDate)
   ).getTime();
-  return currentTime < registrationStartDate;
+  return serverTime < registrationStartDate;
 };
 
-const case2 = (startDate: string, endDate: string) => {
-  const currentTime: number = new Date().getTime();
+const case2 = (serverTime: number, startDate: string, endDate: string) => {
   const registrationStartDate: number = new Date(
     Date.parse(startDate)
   ).getTime();
   const registrationEndDate: number = new Date(Date.parse(endDate)).getTime();
   return (
-    registrationStartDate <= currentTime && currentTime <= registrationEndDate
+    registrationStartDate <= serverTime && serverTime <= registrationEndDate
   );
 };
 
-const case3 = (endDate: string) => {
-  const currentTime: number = new Date().getTime();
+const case3 = (serverTime: number, endDate: string) => {
   const registrationEndDate: number = new Date(Date.parse(endDate)).getTime();
-  return currentTime > registrationEndDate;
+  return serverTime > registrationEndDate;
 };
 
 const AssessmentRegistrationForm = () => {
@@ -76,17 +73,25 @@ const AssessmentRegistrationForm = () => {
     getOpenTestRegistrationDetails(code)
   );
 
+  const serverTime = useRef(
+    new Date(Date.parse(data.server_time_in_gmt)).getTime()
+  );
+
   const [case1Status] = useState(
-    case1(data.assessment_public_dto.registration_open_date)
+    case1(serverTime.current, data.assessment_public_dto.registration_open_date)
   );
   const [case2Status] = useState(
     case2(
+      serverTime.current,
       data.assessment_public_dto.registration_open_date,
       data.assessment_public_dto.registration_close_date
     )
   );
   const [case3Status] = useState(
-    case3(data.assessment_public_dto.registration_close_date)
+    case3(
+      serverTime.current,
+      data.assessment_public_dto.registration_close_date
+    )
   );
 
   const [participantsDto, setParticipantsDto] =
@@ -106,6 +111,7 @@ const AssessmentRegistrationForm = () => {
 
   const [timeLeft, setTimeLeft] = useState(
     calculateTimeLeft(
+      serverTime.current,
       convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
     )
   );
@@ -113,6 +119,7 @@ const AssessmentRegistrationForm = () => {
   const [timeLeftForRegistrationCase1, setTimeLeftForRegistrationCase1] =
     useState(
       calculateTimeLeft(
+        serverTime.current,
         convertToLocalDateTime(
           data.assessment_public_dto.registration_open_date
         )
@@ -122,6 +129,7 @@ const AssessmentRegistrationForm = () => {
   const [timeLeftForRegistrationCase2, setTimeLeftForRegistrationCase2] =
     useState(
       calculateTimeLeft(
+        serverTime.current,
         convertToLocalDateTime(
           data.assessment_public_dto.registration_close_date
         )
@@ -291,8 +299,17 @@ const AssessmentRegistrationForm = () => {
 
   useEffect(() => {
     const timer = setInterval(() => {
+      serverTime.current = serverTime.current + 1000;
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []); // Empty dependency array ensures it only runs once
+
+  useEffect(() => {
+    const timer = setInterval(() => {
       setTimeLeft(
         calculateTimeLeft(
+          serverTime.current,
           convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
         )
       );
@@ -305,6 +322,7 @@ const AssessmentRegistrationForm = () => {
     const timer = setInterval(() => {
       setTimeLeftForRegistrationCase1(
         calculateTimeLeft(
+          serverTime.current,
           convertToLocalDateTime(
             data.assessment_public_dto.registration_open_date
           )
@@ -319,6 +337,7 @@ const AssessmentRegistrationForm = () => {
     const timer = setInterval(() => {
       setTimeLeftForRegistrationCase2(
         calculateTimeLeft(
+          serverTime.current,
           convertToLocalDateTime(
             data.assessment_public_dto.registration_close_date
           )
@@ -367,7 +386,10 @@ const AssessmentRegistrationForm = () => {
   if (
     userAlreadyRegistered &&
     case3Status &&
-    calculateTimeDifference(data.assessment_public_dto.bound_end_time)
+    calculateTimeDifference(
+      serverTime.current,
+      data.assessment_public_dto.bound_end_time
+    )
   )
     return (
       <AssessmentClosedExpiredComponent
@@ -379,7 +401,10 @@ const AssessmentRegistrationForm = () => {
   if (
     userAlreadyRegistered &&
     case3Status &&
-    !calculateTimeDifference(data.assessment_public_dto.bound_end_time)
+    !calculateTimeDifference(
+      serverTime.current,
+      data.assessment_public_dto.bound_end_time
+    )
   )
     return (
       <AssessmentClosedExpiredComponent
@@ -479,6 +504,7 @@ const AssessmentRegistrationForm = () => {
           userHasAttemptCount={userHasAttemptCount}
           setUserHasAttemptCount={setUserHasAttemptCount}
           case3Status={case3Status}
+          serverTime={serverTime.current}
         />
       )}
       {!userHasAttemptCount && case2Status && (
