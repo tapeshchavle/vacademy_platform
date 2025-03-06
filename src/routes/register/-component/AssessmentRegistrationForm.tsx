@@ -20,6 +20,7 @@ import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { convertToLocalDateTime } from "@/constants/helper";
 import { parseHtmlToString } from "@/lib/utils";
 import {
+  calculateTimeDifference,
   calculateTimeLeft,
   getDynamicSchema,
   getOpenRegistrationUserDetailsByEmail,
@@ -41,6 +42,31 @@ import { AxiosError } from "axios";
 import { toast } from "sonner";
 import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 
+const case1 = (startDate: string) => {
+  const currentTime: number = new Date().getTime();
+  const registrationStartDate: number = new Date(
+    Date.parse(startDate)
+  ).getTime();
+  return currentTime < registrationStartDate;
+};
+
+const case2 = (startDate: string, endDate: string) => {
+  const currentTime: number = new Date().getTime();
+  const registrationStartDate: number = new Date(
+    Date.parse(startDate)
+  ).getTime();
+  const registrationEndDate: number = new Date(Date.parse(endDate)).getTime();
+  return (
+    registrationStartDate <= currentTime && currentTime <= registrationEndDate
+  );
+};
+
+const case3 = (endDate: string) => {
+  const currentTime: number = new Date().getTime();
+  const registrationEndDate: number = new Date(Date.parse(endDate)).getTime();
+  return currentTime > registrationEndDate;
+};
+
 const AssessmentRegistrationForm = () => {
   const [userHasAttemptCount, setUserHasAttemptCount] = useState(false);
   const [isAlreadyLoggedIn, setIsAlreadyLoggedIn] = useState(false);
@@ -48,6 +74,19 @@ const AssessmentRegistrationForm = () => {
   const { code } = Route.useSearch();
   const { data, isLoading } = useSuspenseQuery(
     getOpenTestRegistrationDetails(code)
+  );
+
+  const [case1Status] = useState(
+    case1(data.assessment_public_dto.registration_open_date)
+  );
+  const [case2Status] = useState(
+    case2(
+      data.assessment_public_dto.registration_open_date,
+      data.assessment_public_dto.registration_close_date
+    )
+  );
+  const [case3Status] = useState(
+    case3(data.assessment_public_dto.registration_close_date)
   );
 
   const [participantsDto, setParticipantsDto] =
@@ -70,6 +109,24 @@ const AssessmentRegistrationForm = () => {
       convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
     )
   );
+
+  const [timeLeftForRegistrationCase1, setTimeLeftForRegistrationCase1] =
+    useState(
+      calculateTimeLeft(
+        convertToLocalDateTime(
+          data.assessment_public_dto.registration_open_date
+        )
+      )
+    );
+
+  const [timeLeftForRegistrationCase2, setTimeLeftForRegistrationCase2] =
+    useState(
+      calculateTimeLeft(
+        convertToLocalDateTime(
+          data.assessment_public_dto.registration_close_date
+        )
+      )
+    );
 
   const formRef = useRef<HTMLDivElement>(null);
   const form = useForm<FormValues>({
@@ -245,6 +302,34 @@ const AssessmentRegistrationForm = () => {
   }, [data.assessment_public_dto.bound_start_time]);
 
   useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeftForRegistrationCase1(
+        calculateTimeLeft(
+          convertToLocalDateTime(
+            data.assessment_public_dto.registration_open_date
+          )
+        )
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [data.assessment_public_dto.registration_open_date]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeftForRegistrationCase2(
+        calculateTimeLeft(
+          convertToLocalDateTime(
+            data.assessment_public_dto.registration_close_date
+          )
+        )
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [data.assessment_public_dto.registration_close_date]);
+
+  useEffect(() => {
     const fetchToken = async () => {
       const accessToken = await getTokenFromStorage(TokenKey.accessToken);
       if (accessToken) {
@@ -279,7 +364,23 @@ const AssessmentRegistrationForm = () => {
 
   if (isLoading) return <DashboardLoader />;
 
-  if (!data?.can_register)
+  if (
+    userAlreadyRegistered &&
+    case3Status &&
+    calculateTimeDifference(data.assessment_public_dto.bound_end_time)
+  )
+    return (
+      <AssessmentClosedExpiredComponent
+        isExpired={false}
+        assessmentName={data.assessment_public_dto.assessment_name}
+      />
+    );
+
+  if (
+    userAlreadyRegistered &&
+    case3Status &&
+    !calculateTimeDifference(data.assessment_public_dto.bound_end_time)
+  )
     return (
       <AssessmentClosedExpiredComponent
         isExpired={true}
@@ -288,9 +389,10 @@ const AssessmentRegistrationForm = () => {
     );
 
   if (
-    handleRegisterParticipant.status === "success" ||
-    handleGetUserIdMutation.status === "success" ||
-    isAlreadyLoggedIn
+    (handleRegisterParticipant.status === "success" ||
+      handleGetUserIdMutation.status === "success" ||
+      isAlreadyLoggedIn) &&
+    case2Status
   )
     return (
       <AssessmentRegistrationCompleted
@@ -302,16 +404,84 @@ const AssessmentRegistrationForm = () => {
 
   return (
     <>
-      <CheckEmailStatusAlertDialog
-        timeLeft={timeLeft}
-        registrationData={data}
-        registrationForm={form}
-        setParticipantsDto={setParticipantsDto}
-        setUserAlreadyRegistered={setUserAlreadyRegistered}
-        userHasAttemptCount={userHasAttemptCount}
-        setUserHasAttemptCount={setUserHasAttemptCount}
-      />
-      {!userHasAttemptCount && (
+      {case1Status && (
+        <div className="flex justify-center items-center w-full mt-4">
+          <div className="flex flex-col w-full sm:w-3/4 items-center justify-center gap-6">
+            <VacademyLogoWeb />
+            <h1 className="-mt-12 text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
+              {data?.assessment_public_dto?.assessment_name}
+            </h1>
+            <div className="flex items-center gap-4 text-sm flex-col ">
+              <span>Registration goes live in</span>
+              <span className="font-thin">
+                {timeLeftForRegistrationCase1.hours} hrs :{" "}
+                {timeLeftForRegistrationCase1.minutes} min :{" "}
+                {timeLeftForRegistrationCase1.seconds} sec
+              </span>
+            </div>
+            <Separator />
+            <h1 className="text-sm font-thin">
+              Important Dates - Mark Your Calendar!
+            </h1>
+            <div className="text-sm flex flex-col gap-4 px-4">
+              <div className="flex flex-col">
+                <h1>Registration Window:</h1>
+                <span className="font-thin">
+                  Opens:{" "}
+                  {convertToLocalDateTime(
+                    data.assessment_public_dto.registration_open_date
+                  )}
+                </span>
+                <span className="font-thin">
+                  Closes:{" "}
+                  {convertToLocalDateTime(
+                    data.assessment_public_dto.registration_close_date
+                  )}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <h1>Assessment Live Dates</h1>
+                <span className="font-thin">
+                  Starts:{" "}
+                  {convertToLocalDateTime(
+                    data.assessment_public_dto.bound_start_time
+                  )}
+                </span>
+                <span className="font-thin">
+                  Ends:{" "}
+                  {convertToLocalDateTime(
+                    data.assessment_public_dto.bound_end_time
+                  )}
+                </span>
+              </div>
+              {data.assessment_public_dto.about.content && (
+                <div className="flex flex-col">
+                  <h1>About Assessment</h1>
+                  <span className="font-thin">
+                    {parseHtmlToString(
+                      data.assessment_public_dto.about.content
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {(case2Status || case3Status) && (
+        <CheckEmailStatusAlertDialog
+          timeLeft={timeLeft}
+          registrationData={data}
+          registrationForm={form}
+          setParticipantsDto={setParticipantsDto}
+          userAlreadyRegistered={userAlreadyRegistered}
+          setUserAlreadyRegistered={setUserAlreadyRegistered}
+          userHasAttemptCount={userHasAttemptCount}
+          setUserHasAttemptCount={setUserHasAttemptCount}
+          case3Status={case3Status}
+        />
+      )}
+      {!userHasAttemptCount && case2Status && (
         <div className="flex w-full items-center justify-center bg-[linear-gradient(180deg,#FFF9F4_0%,#E6E6FA_100%)] gap-8 flex-col sm:flex-row">
           <div className="flex justify-center items-center w-full mt-4">
             <div className="flex flex-col w-full sm:w-3/4 items-center justify-center gap-6">
@@ -330,10 +500,15 @@ const AssessmentRegistrationForm = () => {
                 >
                   Register Now!
                 </MyButton>
-                <span className="font-thin">
-                  {timeLeft.hours} hrs : {timeLeft.minutes} min :{" "}
-                  {timeLeft.seconds} sec
-                </span>
+                {(timeLeftForRegistrationCase2.hours > 0 ||
+                  timeLeftForRegistrationCase2.minutes > 0 ||
+                  timeLeftForRegistrationCase2.seconds > 0) && (
+                  <span className="font-thin">
+                    {timeLeftForRegistrationCase2.hours} hrs :{" "}
+                    {timeLeftForRegistrationCase2.minutes} min :{" "}
+                    {timeLeftForRegistrationCase2.seconds} sec
+                  </span>
+                )}
               </div>
               <Separator />
               <h1 className="text-sm font-thin">

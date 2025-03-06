@@ -6,6 +6,22 @@ import {
 import { UserDetailsOpenTest } from "@/types/open-test";
 import { z } from "zod";
 
+export const calculateTimeDifference = (startDate: string) => {
+  const now: number = new Date().getTime(); // Get current time in milliseconds
+
+  // Parse the startDate correctly
+  const startTime: number = new Date(Date.parse(startDate)).getTime();
+
+  if (isNaN(startTime)) {
+    console.error("Invalid date format");
+    return { hours: 0, minutes: 0, seconds: 0 };
+  }
+
+  const difference: number = startTime - now;
+
+  return difference > 0 ? true : false;
+};
+
 export const calculateTimeLeft = (startDate: string) => {
   const now: number = new Date().getTime(); // Get current time in milliseconds
 
