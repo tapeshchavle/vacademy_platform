@@ -50,7 +50,7 @@ export const formatDataFromStore = (assessment_id: string) => {
       sectionId: section.id,
       sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
       timeElapsedInSeconds: section.duration
-        ? section.duration * 60 - (state.sectionTimers?.[idx]?.timeLeft || 0)
+        ? (state.sectionTimers?.[idx]?.timeLeft || 0) - section.duration * 60
         : 0,
       questions: section.question_preview_dto_list?.map((question) => ({
         questionId: question.question_id,
