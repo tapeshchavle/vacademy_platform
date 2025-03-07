@@ -99,7 +99,7 @@ export function SectionTabs() {
               )}
             >
               <div className="flex items-center gap-1 min-w-max">
-                <span>Section {index + 1}</span>
+                <span>{section.name}</span>
                 {assessment.distribution_duration === distribution_duration_types.SECTION && (
                   <span
                     className={cn(
