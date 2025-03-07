@@ -25,13 +25,17 @@ import {
   handleGetStudentDetailsOfInstitute,
 } from "../-services/open-registration-services";
 import { TokenKey } from "@/constants/auth/tokens";
-import { getOpenRegistrationUserDetailsByEmail } from "../-utils/helper";
+import {
+  calculateTimeDifference,
+  getOpenRegistrationUserDetailsByEmail,
+} from "../-utils/helper";
 import { OpenTestAssessmentRegistrationDetails } from "@/types/open-test";
 import {
   DynamicSchemaData,
   ParticipantsDataInterface,
 } from "@/types/assessment-open-registration";
 import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
+import AssessmentClosedExpiredComponent from "./AssessmentClosedExpiredComponent";
 
 // Define Zod Schema
 const formSchema = z.object({
@@ -54,7 +58,12 @@ const CheckEmailStatusAlertDialog = ({
   registrationData,
   registrationForm,
   setParticipantsDto,
+  userAlreadyRegistered,
   setUserAlreadyRegistered,
+  userHasAttemptCount,
+  setUserHasAttemptCount,
+  case3Status,
+  serverTime
 }: {
   timeLeft: TimeLeft;
   registrationData: OpenTestAssessmentRegistrationDetails;
@@ -62,9 +71,13 @@ const CheckEmailStatusAlertDialog = ({
   setParticipantsDto: React.Dispatch<
     React.SetStateAction<ParticipantsDataInterface>
   >;
+  userAlreadyRegistered: boolean;
   setUserAlreadyRegistered: React.Dispatch<React.SetStateAction<boolean>>;
+  userHasAttemptCount: boolean;
+  setUserHasAttemptCount: React.Dispatch<React.SetStateAction<boolean>>;
+  case3Status: boolean;
+  serverTime: number
 }) => {
-  const [userHasAttemptCount, setUserHasAttemptCount] = useState(false);
   const [isOtpSent, setIsOTPSent] = useState(false);
   const [open, setOpen] = useState(false);
   const form = useForm<FormValues>({
@@ -274,6 +287,21 @@ const CheckEmailStatusAlertDialog = ({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  if (
+    !userAlreadyRegistered &&
+    case3Status &&
+    !calculateTimeDifference(
+      serverTime,
+      registrationData.assessment_public_dto.bound_end_time
+    )
+  )
+    return (
+      <AssessmentClosedExpiredComponent
+        isExpired={true}
+        assessmentName={registrationData.assessment_public_dto.assessment_name}
+      />
+    );
 
   if (userHasAttemptCount)
     return (
