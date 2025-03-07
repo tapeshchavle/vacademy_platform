@@ -25,7 +25,7 @@ const AssessmentRegistrationCompleted = ({
   const navigate = useNavigate();
   const handleNavigateAssessment = () => {
     navigate({
-      to: `/assessment/examination/${assessmentId}/assessmentPreview`,
+      to: `/assessment/examination/${assessmentId}`,
     });
   };
   return (
