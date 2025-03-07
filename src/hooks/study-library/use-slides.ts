@@ -20,6 +20,10 @@ export interface Slide {
     slide_id: string;
     source_type: string;
     status: string;
+    slide_order: 0,
+    published_data: string | null,
+    published_url: string | null,
+    image_file_id: string | null,
 }
 
 export const useSlides = (chapterId: string) => {
