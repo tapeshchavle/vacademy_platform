@@ -29,6 +29,7 @@ import { Storage } from "@capacitor/storage";
 import { useProctoring } from "@/hooks";
 import { App } from "@capacitor/app";
 import { PluginListenerHandle } from "@capacitor/core";
+import { formatDataFromStore } from "./page";
 // import { disableProtection } from "@/constants/helper";
 
 export function Navbar() {
@@ -61,68 +62,6 @@ export function Navbar() {
 
   const [playMode, setPlayMode] = useState<string | null>(null);
 
-  const formatDataFromStore = async (assessment_id: string) => {
-    const state = useAssessmentStore.getState();
-
-    // Fetch server_start_end_time from Capacitor Storage
-    const { value: serverStartTime } = await Preferences.get({
-      key: "server_start_end_time",
-    });
-
-    if (!serverStartTime) {
-      console.error("server_start_end_time not found in storage.");
-      return null;
-    }
-
-    const startTime = new Date(serverStartTime); // Convert to Date object
-
-    // Calculate elapsed test time
-    const timeElapsedInSeconds = state.assessment?.duration
-      ? state.assessment.duration * 60 - state.entireTestTimer
-      : 0;
-
-    // Compute the correct clientLastSync by adding elapsed time to server start time
-    const clientLastSync = new Date(
-      startTime.getTime() + timeElapsedInSeconds * 1000
-    ).toISOString();
-    return {
-      attemptId: state.assessment?.attempt_id,
-      clientLastSync,
-      assessment: {
-        assessmentId: assessment_id,
-        entireTestDurationLeftInSeconds: state.entireTestTimer,
-        timeElapsedInSeconds: state.assessment?.duration
-          ? state.assessment.duration * 60 - state.entireTestTimer
-          : 0,
-        status: "END",
-        tabSwitchCount: state.tabSwitchCount || 0,
-      },
-      sections: state.assessment?.section_dtos?.map((section, idx) => ({
-        sectionId: section.id,
-        sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
-        timeElapsedInSeconds: section.duration
-          ? section.duration * 60 - (state.sectionTimers?.[idx]?.timeLeft || 0)
-          : 0,
-        questions: section.question_preview_dto_list?.map((question) => ({
-          questionId: question.question_id,
-          questionDurationLeftInSeconds:
-            state.questionTimers?.[question.question_id] || 0,
-          timeTakenInSeconds:
-            state.questionTimeSpent[question.question_id] || 0,
-          isMarkedForReview:
-            state.questionStates[question.question_id].isMarkedForReview ||
-            false,
-          isVisited:
-            state.questionStates[question.question_id].isVisited || false,
-          responseData: {
-            type: question.question_type,
-            optionIds: state.answers?.[question.question_id] || [],
-          },
-        })),
-      })),
-    };
-  };
-
   const sendFormattedData = async () => {
     try {
       const state = useAssessmentStore.getState();
@@ -134,9 +73,8 @@ export function Navbar() {
         ? JSON.parse(InstructionID_and_AboutID.value)
         : null;
       const formattedData = formatDataFromStore(
-        assessment_id_json?.assessment_id
+        assessment_id_json?.assessment_id, 'END'
       );
-      console.log("Formatted Data:", formattedData);
       const response = await authenticatedAxiosInstance.post(
         `${ASSESSMENT_SUBMIT}`,
         { json_content: JSON.stringify(formattedData) },

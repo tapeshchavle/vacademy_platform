@@ -32,18 +32,25 @@ export function convertToLocalDateTime(utcDate: string): string {
 }
 
 // Function to format data from assessment-store
-export const formatDataFromStore = (assessment_id: string) => {
+const { value } = await Preferences.get({ key: 'server_start_end_time' });
+const parsedValue = value ? JSON.parse(value) : {};
+const start_time = parsedValue.start_time ? new Date(parsedValue.start_time).getTime() : 0;
+
+export const formatDataFromStore = async (assessment_id: string, status: string) => {
   const state = useAssessmentStore.getState();
+  const attemptId = state.assessment?.attempt_id;
+  const timeElapsedInSeconds = state.assessment?.duration
+    ? state.assessment.duration * 60 - state.entireTestTimer
+    : 0;
+  const clientLastSync = new Date(start_time + timeElapsedInSeconds * 1000).toISOString();
   return {
-    attemptId: state.assessment?.attempt_id,
-    clientLastSync: new Date().toISOString(),
+    attemptId: attemptId,
+    clientLastSync,
     assessment: {
       assessmentId: assessment_id,
       entireTestDurationLeftInSeconds: state.entireTestTimer,
-      timeElapsedInSeconds: state.assessment?.duration
-        ? state.assessment.duration * 60 - state.entireTestTimer
-        : 0,
-      status: "LIVE",
+      timeElapsedInSeconds,
+      status: status,
       tabSwitchCount: state.tabSwitchCount || 0,
     },
     sections: state.assessment?.section_dtos?.map((section, idx) => ({
@@ -58,9 +65,8 @@ export const formatDataFromStore = (assessment_id: string) => {
           state.questionTimers?.[question.question_id] || 0,
         timeTakenInSeconds: state.questionTimeSpent[question.question_id] || 0,
         isMarkedForReview:
-          state.questionStates[question.question_id].isMarkedForReview || false,
-        isVisited:
-          state.questionStates[question.question_id].isVisited || false,
+          state.questionStates[question.question_id]?.isMarkedForReview || false,
+        isVisited: state.questionStates[question.question_id]?.isVisited || false,
         responseData: {
           type: question.question_type,
           optionIds: state.answers?.[question.question_id] || [],
@@ -84,8 +90,8 @@ export default function Page() {
       const assessment_id_json = InstructionID_and_AboutID.value
         ? JSON.parse(InstructionID_and_AboutID.value)
         : null;
-      const formattedData = formatDataFromStore(
-        assessment_id_json?.assessment_id
+      const formattedData = await formatDataFromStore(
+        assessment_id_json?.assessment_id, 'LIVE'
       );
       const response = await authenticatedAxiosInstance.post(
         `${ASSESSMENT_SAVE}`,
@@ -148,7 +154,7 @@ export default function Page() {
 
     const interval = setInterval(() => {
       sent();
-    }, 60000);
+    }, 10000);
 
     // Cleanup function to clear the interval
     return () => clearInterval(interval);

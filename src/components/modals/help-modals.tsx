@@ -35,8 +35,8 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
   const [assessmentInfo, setAssessmentInfo] = useState<AssessmentType>();
   const [reason, setReason] = useState("");
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-   const { assessment , currentSection} = useAssessmentStore();
-   console.log(currentSection);
+  const { assessment } = useAssessmentStore();
+  //  const { assessment , currentSection} = useAssessmentStore();
   // const { assessment, currentSection } = useAssessmentStore();
   // const { alerts, requests, addRequest } = useAlertsStore();
   const { alerts } = useAlertsStore();
