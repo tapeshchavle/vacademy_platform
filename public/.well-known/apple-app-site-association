@@ -4,7 +4,7 @@
     "details": [
       {
         "appID": "35NLZB49QN.io.vacademy.student.app",
-        "paths": ["*"]
+        "paths": ["/assessment/examination", "/assessment/reports"]
       }
     ]
   }
