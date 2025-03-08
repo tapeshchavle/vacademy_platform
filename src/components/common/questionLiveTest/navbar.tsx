@@ -72,7 +72,7 @@ export function Navbar() {
       const assessment_id_json = InstructionID_and_AboutID.value
         ? JSON.parse(InstructionID_and_AboutID.value)
         : null;
-      const formattedData = formatDataFromStore(
+      const formattedData = await formatDataFromStore(
         assessment_id_json?.assessment_id, 'END'
       );
       const response = await authenticatedAxiosInstance.post(
