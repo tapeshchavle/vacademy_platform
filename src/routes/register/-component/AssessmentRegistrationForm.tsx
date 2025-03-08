@@ -423,7 +423,6 @@ const AssessmentRegistrationForm = () => {
       <AssessmentRegistrationCompleted
         assessmentName={data.assessment_public_dto.assessment_name}
         timeLeft={timeLeft}
-        assessmentId={data.assessment_public_dto.assessment_id}
       />
     );
 
