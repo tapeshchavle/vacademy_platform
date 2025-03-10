@@ -60,24 +60,23 @@ export const SlideMaterial = () => {
             return;
         }
 
-        if (activeItem.video_url != null) {
-            console.log("video url: ", activeItem.video_url);
+        if (activeItem.published_url != null) {
             setContent(
                 <div key={`video-${activeItem.slide_id}`} className="h-full w-full">
-                    <YouTubePlayerComp videoId={extractVideoId(activeItem.video_url) || ""} />
+                    <YouTubePlayerComp videoId={extractVideoId(activeItem.published_url) || ""} />
                 </div>,
             );
             return;
         }
 
         if (activeItem?.document_type == "PDF") {
-            const url = await getPublicUrl(activeItem?.document_data || "");
+            const url = await getPublicUrl(activeItem?.published_data || "");
             setContent(<PDFViewer pdfUrl={url} />);
             return;
         }
 
         if (activeItem?.document_type == "DOC") {
-            const url = await handleConvertAndUpload(activeItem.document_data);
+            const url = await handleConvertAndUpload(activeItem.published_data);
             if (url == null) {
                 setContent(<p>Error generating PDF URL</p>);
                 return;
