@@ -17,7 +17,7 @@ export const ChapterSidebarSlides = () => {
    
     
     const getIcon = (slide: Slide): ReactNode => {
-        const type = slide.video_url != null ? "VIDEO" : slide.document_type;
+        const type = slide.published_url != null ? "VIDEO" : slide.document_type;
         switch (type) {
             case "VIDEO":
                 return <PlayCircle className="size-6" />;
