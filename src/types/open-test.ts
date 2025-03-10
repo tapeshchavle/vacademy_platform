@@ -71,4 +71,5 @@ export interface OpenTestAssessmentRegistrationDetails {
   can_register: boolean;
   error_message: string | null;
   assessment_custom_fields: AssessmentCustomField[];
+  server_time_in_gmt: string;
 }

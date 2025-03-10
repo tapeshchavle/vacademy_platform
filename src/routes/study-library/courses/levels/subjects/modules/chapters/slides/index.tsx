@@ -16,8 +16,7 @@ import { getChapterName } from '@/utils/study-library/get-name-by-id/getChapterB
 import { useContentStore } from '@/stores/study-library/chapter-sidebar-store'
 import { InitStudyLibraryProvider } from '@/providers/study-library/init-study-library-provider'
 import { ModulesWithChaptersProvider } from '@/providers/study-library/modules-with-chapters-provider'
-import { useSlides } from '@/hooks/study-library/use-slides'
-import { Slide } from '@/types/dashbaord/types'
+import { useSlides, Slide } from '@/hooks/study-library/use-slides'
 
 interface ChapterSearchParams {
   subjectId: string
@@ -54,7 +53,7 @@ function Chapters() {
 
         // If we have a slideId in URL, find that slide
         if (slideId) {
-            const targetSlide: Slide = slides.find(
+            const targetSlide: Slide | null = slides.find(
                 (slide: Slide) => slide.slide_id === slideId,
             );
             if (targetSlide) {

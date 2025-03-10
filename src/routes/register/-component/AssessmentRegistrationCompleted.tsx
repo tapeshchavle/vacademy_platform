@@ -16,16 +16,14 @@ interface TimeLeft {
 const AssessmentRegistrationCompleted = ({
   assessmentName,
   timeLeft,
-  assessmentId,
 }: {
   assessmentName: string;
   timeLeft: TimeLeft;
-  assessmentId: string;
 }) => {
   const navigate = useNavigate();
   const handleNavigateAssessment = () => {
     navigate({
-      to: `/assessment/examination/${assessmentId}/assessmentPreview`,
+      to: `/assessment/examination`,
     });
   };
   return (
@@ -44,9 +42,14 @@ const AssessmentRegistrationCompleted = ({
         <h1 className="text-primary-500 text-sm sm:text-lg">
           Assessment goes live in
         </h1>
-        <span className="font-thin text-sm">
-          {timeLeft.hours} hrs : {timeLeft.minutes} min : {timeLeft.seconds} sec
-        </span>
+        {(timeLeft.hours > 0 ||
+          timeLeft.minutes > 0 ||
+          timeLeft.seconds > 0) && (
+          <span className="font-thin">
+            {timeLeft.hours} hrs : {timeLeft.minutes} min : {timeLeft.seconds}{" "}
+            sec
+          </span>
+        )}
       </div>
       <MyButton
         type="button"

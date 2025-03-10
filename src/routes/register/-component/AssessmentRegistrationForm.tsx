@@ -5,7 +5,6 @@ import { Separator } from "@/components/ui/separator";
 import { VacademyLogoWeb } from "@/svgs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -21,6 +20,7 @@ import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { convertToLocalDateTime } from "@/constants/helper";
 import { parseHtmlToString } from "@/lib/utils";
 import {
+  calculateTimeDifference,
   calculateTimeLeft,
   getDynamicSchema,
   getOpenRegistrationUserDetailsByEmail,
@@ -42,12 +42,56 @@ import { AxiosError } from "axios";
 import { toast } from "sonner";
 import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 
+const case1 = (serverTime: number, startDate: string) => {
+  const registrationStartDate: number = new Date(
+    Date.parse(startDate)
+  ).getTime();
+  return serverTime < registrationStartDate;
+};
+
+const case2 = (serverTime: number, startDate: string, endDate: string) => {
+  const registrationStartDate: number = new Date(
+    Date.parse(startDate)
+  ).getTime();
+  const registrationEndDate: number = new Date(Date.parse(endDate)).getTime();
+  return (
+    registrationStartDate <= serverTime && serverTime <= registrationEndDate
+  );
+};
+
+const case3 = (serverTime: number, endDate: string) => {
+  const registrationEndDate: number = new Date(Date.parse(endDate)).getTime();
+  return serverTime > registrationEndDate;
+};
+
 const AssessmentRegistrationForm = () => {
+  const [userHasAttemptCount, setUserHasAttemptCount] = useState(false);
   const [isAlreadyLoggedIn, setIsAlreadyLoggedIn] = useState(false);
   const [userAlreadyRegistered, setUserAlreadyRegistered] = useState(false);
   const { code } = Route.useSearch();
   const { data, isLoading } = useSuspenseQuery(
     getOpenTestRegistrationDetails(code)
+  );
+
+  const serverTime = useRef(
+    new Date(Date.parse(data.server_time_in_gmt)).getTime()
+  );
+
+  const [case1Status] = useState(
+    case1(serverTime.current, data.assessment_public_dto.registration_open_date)
+  );
+  const [case2Status] = useState(
+    case2(
+      serverTime.current,
+      data.assessment_public_dto.registration_open_date,
+      data.assessment_public_dto.registration_close_date
+    )
+  );
+  const [case3Status] = useState(
+    case3(
+      serverTime.current,
+      data.assessment_public_dto.registration_close_date
+    )
   );
 
   const [participantsDto, setParticipantsDto] =
@@ -67,11 +111,31 @@ const AssessmentRegistrationForm = () => {
 
   const [timeLeft, setTimeLeft] = useState(
     calculateTimeLeft(
+      serverTime.current,
       convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
     )
   );
 
-  const navigate = useNavigate();
+  const [timeLeftForRegistrationCase1, setTimeLeftForRegistrationCase1] =
+    useState(
+      calculateTimeLeft(
+        serverTime.current,
+        convertToLocalDateTime(
+          data.assessment_public_dto.registration_open_date
+        )
+      )
+    );
+
+  const [timeLeftForRegistrationCase2, setTimeLeftForRegistrationCase2] =
+    useState(
+      calculateTimeLeft(
+        serverTime.current,
+        convertToLocalDateTime(
+          data.assessment_public_dto.registration_close_date
+        )
+      )
+    );
+
   const formRef = useRef<HTMLDivElement>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(zodSchema),
@@ -235,8 +299,17 @@ const AssessmentRegistrationForm = () => {
 
   useEffect(() => {
     const timer = setInterval(() => {
+      serverTime.current = serverTime.current + 1000;
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []); // Empty dependency array ensures it only runs once
+
+  useEffect(() => {
+    const timer = setInterval(() => {
       setTimeLeft(
         calculateTimeLeft(
+          serverTime.current,
           convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
         )
       );
@@ -244,6 +317,36 @@ const AssessmentRegistrationForm = () => {
 
     return () => clearInterval(timer);
   }, [data.assessment_public_dto.bound_start_time]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeftForRegistrationCase1(
+        calculateTimeLeft(
+          serverTime.current,
+          convertToLocalDateTime(
+            data.assessment_public_dto.registration_open_date
+          )
+        )
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [data.assessment_public_dto.registration_open_date]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeftForRegistrationCase2(
+        calculateTimeLeft(
+          serverTime.current,
+          convertToLocalDateTime(
+            data.assessment_public_dto.registration_close_date
+          )
+        )
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [data.assessment_public_dto.registration_close_date]);
 
   useEffect(() => {
     const fetchToken = async () => {
@@ -280,7 +383,29 @@ const AssessmentRegistrationForm = () => {
 
   if (isLoading) return <DashboardLoader />;
 
-  if (!data?.can_register)
+  if (
+    userAlreadyRegistered &&
+    case3Status &&
+    calculateTimeDifference(
+      serverTime.current,
+      data.assessment_public_dto.bound_end_time
+    )
+  )
+    return (
+      <AssessmentClosedExpiredComponent
+        isExpired={false}
+        assessmentName={data.assessment_public_dto.assessment_name}
+      />
+    );
+
+  if (
+    userAlreadyRegistered &&
+    case3Status &&
+    !calculateTimeDifference(
+      serverTime.current,
+      data.assessment_public_dto.bound_end_time
+    )
+  )
     return (
       <AssessmentClosedExpiredComponent
         isExpired={true}
@@ -289,61 +414,33 @@ const AssessmentRegistrationForm = () => {
     );
 
   if (
-    handleRegisterParticipant.status === "success" ||
-    handleGetUserIdMutation.status === "success" ||
-    isAlreadyLoggedIn
+    (handleRegisterParticipant.status === "success" ||
+      handleGetUserIdMutation.status === "success" ||
+      isAlreadyLoggedIn) &&
+    case2Status
   )
     return (
       <AssessmentRegistrationCompleted
         assessmentName={data.assessment_public_dto.assessment_name}
         timeLeft={timeLeft}
-        assessmentId={data.assessment_public_dto.assessment_id}
       />
     );
 
   return (
     <>
-      <CheckEmailStatusAlertDialog
-        timeLeft={timeLeft}
-        registrationData={data}
-        registrationForm={form}
-        setParticipantsDto={setParticipantsDto}
-        setUserAlreadyRegistered={setUserAlreadyRegistered}
-      />
-      <div className="flex w-full items-center justify-center bg-[linear-gradient(180deg,#FFF9F4_0%,#E6E6FA_100%)] gap-8 flex-col sm:flex-row">
+      {case1Status && (
         <div className="flex justify-center items-center w-full mt-4">
           <div className="flex flex-col w-full sm:w-3/4 items-center justify-center gap-6">
             <VacademyLogoWeb />
             <h1 className="-mt-12 text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
               {data?.assessment_public_dto?.assessment_name}
             </h1>
-            <div className="flex items-center gap-4 text-sm flex-col sm:flex-row">
-              <MyButton
-                type="button"
-                buttonType="primary"
-                scale="large"
-                layoutVariant="default"
-                className="block sm:hidden"
-                onClick={scrollToForm}
-              >
-                Register Now!
-              </MyButton>
+            <div className="flex items-center gap-4 text-sm flex-col ">
+              <span>Registration goes live in</span>
               <span className="font-thin">
-                {timeLeft.hours} hrs : {timeLeft.minutes} min :{" "}
-                {timeLeft.seconds} sec
-              </span>
-            </div>
-            <div className="text-sm flex items-center gap-2">
-              <span className="text-neutral-400">Already Registered?</span>
-              <span
-                className="text-primary-500 cursor-pointer"
-                onClick={() =>
-                  navigate({
-                    to: "/register/login",
-                  })
-                }
-              >
-                Login with Email
+                {timeLeftForRegistrationCase1.hours} hrs :{" "}
+                {timeLeftForRegistrationCase1.minutes} min :{" "}
+                {timeLeftForRegistrationCase1.seconds} sec
               </span>
             </div>
             <Separator />
@@ -394,79 +491,175 @@ const AssessmentRegistrationForm = () => {
             </div>
           </div>
         </div>
-        <Separator className="block sm:hidden mx-4" />
-        <div className="flex justify-center items-center w-full" ref={formRef}>
-          <div className="flex justify-center items-start w-full  sm:w-3/4 flex-col bg-white rounded-xl p-4 shadow-md mx-4 mb-4">
-            <h1>Assessment Registration Form</h1>
-            <span className="text-sm text-neutral-500">
-              Register for the assessment by completing the details below.
-            </span>
-            <FormProvider {...form}>
-              <form className="w-full flex flex-col gap-6 mt-4 sm:max-h-[70vh] sm:overflow-auto">
-                {Object.entries(form.getValues()).map(([key, value]) => (
-                  <FormField
-                    key={key}
-                    control={form.control}
-                    name={`${key}.value`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          {value.type === "dropdown" ? (
-                            <SelectField
-                              label={value.name}
-                              name={`${key}.value`}
-                              options={
-                                value.comma_separated_options?.map(
-                                  (option: string, index: number) => ({
-                                    value: option,
-                                    label: option,
-                                    _id: index,
-                                  })
-                                ) || []
-                              }
-                              control={form.control}
-                              required={value.is_mandatory}
-                              className="!w-full"
-                            />
-                          ) : (
-                            <MyInput
-                              inputType="text"
-                              inputPlaceholder={value.name}
-                              input={field.value}
-                              onChangeFunction={field.onChange}
-                              required={value.is_mandatory}
-                              size="large"
-                              label={value.name}
-                              className="!max-w-full !w-full"
-                            />
-                          )}
-                        </FormControl>
-                      </FormItem>
+      )}
+      {(case2Status || case3Status) && (
+        <CheckEmailStatusAlertDialog
+          timeLeft={timeLeft}
+          registrationData={data}
+          registrationForm={form}
+          setParticipantsDto={setParticipantsDto}
+          userAlreadyRegistered={userAlreadyRegistered}
+          setUserAlreadyRegistered={setUserAlreadyRegistered}
+          userHasAttemptCount={userHasAttemptCount}
+          setUserHasAttemptCount={setUserHasAttemptCount}
+          case3Status={case3Status}
+          serverTime={serverTime.current}
+        />
+      )}
+      {!userHasAttemptCount && case2Status && (
+        <div className="flex w-full items-center justify-center bg-[linear-gradient(180deg,#FFF9F4_0%,#E6E6FA_100%)] gap-8 flex-col sm:flex-row">
+          <div className="flex justify-center items-center w-full mt-4">
+            <div className="flex flex-col w-full sm:w-3/4 items-center justify-center gap-6">
+              <VacademyLogoWeb />
+              <h1 className="-mt-12 text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
+                {data?.assessment_public_dto?.assessment_name}
+              </h1>
+              <div className="flex items-center gap-4 text-sm flex-col sm:flex-row">
+                <MyButton
+                  type="button"
+                  buttonType="primary"
+                  scale="large"
+                  layoutVariant="default"
+                  className="block sm:hidden"
+                  onClick={scrollToForm}
+                >
+                  Register Now!
+                </MyButton>
+                {(timeLeftForRegistrationCase2.hours > 0 ||
+                  timeLeftForRegistrationCase2.minutes > 0 ||
+                  timeLeftForRegistrationCase2.seconds > 0) && (
+                  <span className="font-thin">
+                    {timeLeftForRegistrationCase2.hours} hrs :{" "}
+                    {timeLeftForRegistrationCase2.minutes} min :{" "}
+                    {timeLeftForRegistrationCase2.seconds} sec
+                  </span>
+                )}
+              </div>
+              <Separator />
+              <h1 className="text-sm font-thin">
+                Important Dates - Mark Your Calendar!
+              </h1>
+              <div className="text-sm flex flex-col gap-4 px-4">
+                <div className="flex flex-col">
+                  <h1>Registration Window:</h1>
+                  <span className="font-thin">
+                    Opens:{" "}
+                    {convertToLocalDateTime(
+                      data.assessment_public_dto.registration_open_date
                     )}
-                  />
-                ))}
-                <div className="flex items-center justify-center flex-col gap-4">
-                  <MyButton
-                    type="button"
-                    buttonType="primary"
-                    scale="large"
-                    layoutVariant="default"
-                    onClick={form.handleSubmit(onSubmit, onInvalid)}
-                  >
-                    Register
-                  </MyButton>
-                  <p
-                    className="border-none !text-primary-500 !text-sm mb-2 cursor-pointer"
-                    onClick={() => form.reset()}
-                  >
-                    Reset Form
-                  </p>
+                  </span>
+                  <span className="font-thin">
+                    Closes:{" "}
+                    {convertToLocalDateTime(
+                      data.assessment_public_dto.registration_close_date
+                    )}
+                  </span>
                 </div>
-              </form>
-            </FormProvider>
+                <div className="flex flex-col">
+                  <h1>Assessment Live Dates</h1>
+                  <span className="font-thin">
+                    Starts:{" "}
+                    {convertToLocalDateTime(
+                      data.assessment_public_dto.bound_start_time
+                    )}
+                  </span>
+                  <span className="font-thin">
+                    Ends:{" "}
+                    {convertToLocalDateTime(
+                      data.assessment_public_dto.bound_end_time
+                    )}
+                  </span>
+                </div>
+                {data.assessment_public_dto.about.content && (
+                  <div className="flex flex-col">
+                    <h1>About Assessment</h1>
+                    <span className="font-thin">
+                      {parseHtmlToString(
+                        data.assessment_public_dto.about.content
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <Separator className="block sm:hidden mx-4" />
+          <div
+            className="flex justify-center items-center w-full"
+            ref={formRef}
+          >
+            <div className="flex justify-center items-start w-full  sm:w-3/4 flex-col bg-white rounded-xl p-4 shadow-md mx-4 mb-4">
+              <h1>Assessment Registration Form</h1>
+              <span className="text-sm text-neutral-500">
+                Register for the assessment by completing the details below.
+              </span>
+              <FormProvider {...form}>
+                <form className="w-full flex flex-col gap-6 mt-4 sm:max-h-[70vh] sm:overflow-auto">
+                  {Object.entries(form.getValues()).map(([key, value]) => (
+                    <FormField
+                      key={key}
+                      control={form.control}
+                      name={`${key}.value`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            {value.type === "dropdown" ? (
+                              <SelectField
+                                label={value.name}
+                                name={`${key}.value`}
+                                options={
+                                  value.comma_separated_options?.map(
+                                    (option: string, index: number) => ({
+                                      value: option,
+                                      label: option,
+                                      _id: index,
+                                    })
+                                  ) || []
+                                }
+                                control={form.control}
+                                required={value.is_mandatory}
+                                className="!w-full"
+                              />
+                            ) : (
+                              <MyInput
+                                inputType="text"
+                                inputPlaceholder={value.name}
+                                input={field.value}
+                                onChangeFunction={field.onChange}
+                                required={value.is_mandatory}
+                                size="large"
+                                label={value.name}
+                                className="!max-w-full !w-full"
+                              />
+                            )}
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                  <div className="flex items-center justify-center flex-col gap-4">
+                    <MyButton
+                      type="button"
+                      buttonType="primary"
+                      scale="large"
+                      layoutVariant="default"
+                      onClick={form.handleSubmit(onSubmit, onInvalid)}
+                    >
+                      Register
+                    </MyButton>
+                    <p
+                      className="border-none !text-primary-500 !text-sm mb-2 cursor-pointer"
+                      onClick={() => form.reset()}
+                    >
+                      Reset Form
+                    </p>
+                  </div>
+                </form>
+              </FormProvider>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 };
