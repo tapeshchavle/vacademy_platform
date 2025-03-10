@@ -45,10 +45,12 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
     const [player, setPlayer] = useState<YouTubePlayer | null>(null);
     const [playerReady, setPlayerReady] = useState(false);
     const [duration, setDuration] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
     const [minutesInput, setMinutesInput] = useState("");
     const [secondsInput, setSecondsInput] = useState("");
     const [isFullscreen, setIsFullscreen] = useState(false); // Fullscreen state
     const iframeRef = useRef<HTMLIFrameElement | null>(null);  // Ref for the iframe
+    const progressIntervalRef = useRef<NodeJS.Timeout | null>(null); // For updating progress bar
 
     // Helper function to safely get a number from potentially a Promise<number>
     const safeGetNumber = async (value: any): Promise<number> => {
@@ -89,6 +91,29 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
         if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
+        }
+    }, []);
+
+    // Start progress tracking interval when player is playing
+    const startProgressTracking = useCallback(() => {
+        if (progressIntervalRef.current) return;
+        progressIntervalRef.current = setInterval(async () => {
+            if (player) {
+                try {
+                    const time = await safeGetNumber(player.getCurrentTime());
+                    setCurrentTime(time);
+                } catch (error) {
+                    console.error("Error getting current time for progress bar:", error);
+                }
+            }
+        }, 250); // Update 4 times per second for smoother progress
+    }, [player]);
+
+    // Stop progress tracking interval
+    const stopProgressTracking = useCallback(() => {
+        if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
         }
     }, []);
 
@@ -134,7 +159,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
         width: '100%',
         playerVars: {
             // autoplay: 0,
-            controls: 1,
+            controls: 0,
             // showinfo: 0,
             rel: 0,
         },
@@ -171,25 +196,26 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
         try {
             if (isPlayed) {
                 player.playVideo();
+                startProgressTracking();
             } else {
                 player.pauseVideo();
+                stopProgressTracking();
             }
         } catch (error) {
             console.error("Error controlling video playback:", error);
         }
-        console.log("current time", player.getCurrentTime());
-        console.log("video len: ", player.getDuration());
-    }, [isPlayed, player, playerReady]);
+    }, [isPlayed, player, playerReady, startProgressTracking, stopProgressTracking]);
 
     // Clean up on unmount
     useEffect(() => {
         return () => {
             clearUpdateInterval();
+            stopProgressTracking();
             if (timerRef.current) {
                 clearInterval(timerRef.current);
             }
         };
-    }, [clearUpdateInterval]);
+    }, [clearUpdateInterval, stopProgressTracking]);
 
     const onStateChange = async (event: YouTubeEvent) => {
         if (!player) return;
@@ -205,12 +231,14 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
         let currentTime = 0;
         try {
             currentTime = await safeGetNumber(player.getCurrentTime());
+            setCurrentTime(currentTime); // Update state with current time
         } catch (error) {
             console.error("Error getting current time:", error);
         }
 
         if (event.data === PLAYING_STATE) {
             startTimer();
+            startProgressTracking();
 
             if (!videoStartTime.current) {
                 videoStartTime.current = now;
@@ -236,6 +264,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
 
         } else if (event.data === PAUSED_STATE || event.data === ENDED_STATE) {
             stopTimer();
+            stopProgressTracking();
             videoEndTime.current = now;
 
             const currentStartTimeInSeconds = convertTimeToSeconds(currentStartTimeRef.current);
@@ -290,6 +319,9 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
                 player.seekTo(totalSeconds, true);
             }
 
+            // Update currentTime state to reflect new position
+            setCurrentTime(totalSeconds);
+            
             // Optional: Clear inputs after seeking
             // setMinutesInput("");
             // setSecondsInput("");
@@ -329,6 +361,25 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
         };
     }, []);
 
+    // Format time for display
+    const formatTime = (timeInSeconds: number) => {
+        const minutes = Math.floor(timeInSeconds / 60);
+        const seconds = Math.floor(timeInSeconds % 60);
+        return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    };
+
+    // Handle progress bar click for seeking
+    const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!player || !playerReady || duration <= 0) return;
+        
+        const progressBar = e.currentTarget;
+        const rect = progressBar.getBoundingClientRect();
+        const clickPosition = (e.clientX - rect.left) / rect.width;
+        const seekTime = clickPosition * duration;
+        
+        player.seekTo(seekTime, true);
+        setCurrentTime(seekTime);
+    };
 
     return (
         <div className="w-full flex flex-col items-center gap-4">
@@ -342,6 +393,24 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
                     onStateChange={onStateChange}
                 />
             </div>
+            
+            {/* Progress Bar */}
+            <div className="w-full flex flex-col gap-1">
+                <div 
+                    className="w-full h-2 bg-gray-200 rounded-full cursor-pointer"
+                    onClick={handleProgressBarClick}
+                >
+                    <div 
+                        className="h-full bg-primary-500 rounded-full"
+                        style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                    ></div>
+                </div>
+                <div className="flex justify-between text-xs text-gray-600">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                </div>
+            </div>
+            
             <div className="flex gap-2 justify-between items-center w-full">
                 <div className="w-full flex gap-2 items-center justify-start">
                     {isPlayed ?
@@ -372,7 +441,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
                                 const newTime = currentTime - 10;
                                 // If less than 10 seconds from start, go to beginning
                                 player.seekTo(Math.max(newTime, 0), true);
-
+                                setCurrentTime(Math.max(newTime, 0));
                             });
                         }
                     }}>
@@ -386,6 +455,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
                                 safeGetNumber(player.getDuration()).then(duration => {
                                     // If less than 10 seconds from the end, go to end of video
                                     player.seekTo(Math.min(newTime, duration), true);
+                                    setCurrentTime(Math.min(newTime, duration));
                                 });
                             });
                         }
