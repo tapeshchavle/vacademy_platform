@@ -30,8 +30,8 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3(@capacitor/core@7.0.1)
       '@capacitor/preferences':
-        specifier: ^6.0.3
-        version: 6.0.3(@capacitor/core@7.0.1)
+        specifier: ^7.0.0
+        version: 7.0.0(@capacitor/core@7.0.1)
       '@capacitor/storage':
         specifier: ^1.2.5
         version: 1.2.5(@capacitor/core@7.0.1)
@@ -551,10 +551,10 @@ packages:
     peerDependencies:
       '@capacitor/core': ^6.0.0
 
-  '@capacitor/preferences@6.0.3':
-    resolution: {integrity: sha512-3I1BbhhCBTMBziVvr0fU7RCRXqGvhUW/apHLRJSaJAWonASya5rp6AWsHv1lW1tkF0avUOMwp6e7iNA4UUGu8g==}
+  '@capacitor/preferences@7.0.0':
+    resolution: {integrity: sha512-crlTtTIWcdlLfQULJ9ZiCPpvpm51WoZ8CIVG3+XSJGyavjD4bscHP15U24ya5SjpYmI44bGY9lvhvcSCfB5+AA==}
     peerDependencies:
-      '@capacitor/core': ^6.0.0
+      '@capacitor/core': '>=7.0.0'
 
   '@capacitor/storage@1.2.5':
     resolution: {integrity: sha512-pWhnw4U7wN/zFV4lA4BLMypSufTktCbk548Yk4whSb0KAq3R0mLfSubRIHkGdcPqQWCsM6g/zUuszurhz6ncWQ==}
@@ -5603,7 +5603,7 @@ snapshots:
     dependencies:
       '@capacitor/core': 7.0.1
 
-  '@capacitor/preferences@6.0.3(@capacitor/core@7.0.1)':
+  '@capacitor/preferences@7.0.0(@capacitor/core@7.0.1)':
     dependencies:
       '@capacitor/core': 7.0.1
 
