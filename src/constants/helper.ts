@@ -2,7 +2,7 @@ import {
   getTokenDecodedData,
   getTokenFromStorage,
 } from "@/lib/auth/sessionUtility";
-import { TokenKey } from "e:/Vidyayatan/frontend-admin-dashboard/src/constants/auth/tokens";
+import { TokenKey } from "./auth/tokens";
 // import { PrivacyScreen } from "@capacitor-community/privacy-screen";
 
 export function convertToLocalDateTime(utcDate: string): string {
