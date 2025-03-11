@@ -10,6 +10,7 @@ import YouTube, { YouTubeEvent, YouTubePlayer, YouTubeProps } from 'react-youtub
 import { MyButton } from "@/components/design-system/button";
 import { MyInput } from "@/components/design-system/input";
 import { ArrowsOut, Check, FastForward, Pause, Play, Rewind } from "@phosphor-icons/react";
+import { Preferences } from "@capacitor/preferences";
 
 // Add the YouTube PlayerState enum to avoid window.YT references
 enum PlayerState {
@@ -45,10 +46,22 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
     const [player, setPlayer] = useState<YouTubePlayer | null>(null);
     const [playerReady, setPlayerReady] = useState(false);
     const [duration, setDuration] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0)
     const [minutesInput, setMinutesInput] = useState("");
     const [secondsInput, setSecondsInput] = useState("");
     const [isFullscreen, setIsFullscreen] = useState(false); // Fullscreen state
     const iframeRef = useRef<HTMLIFrameElement | null>(null);  // Ref for the iframe
+    const playerContainerRef = useRef<HTMLDivElement>(null); // Ref for the player container
+
+    // Verification state
+  const [showVerification, setShowVerification] = useState(false)
+  const [verificationCountdown, setVerificationCountdown] = useState(59)
+  const [verificationNumbers, setVerificationNumbers] = useState<number[]>([])
+  const [verificationInterval] = useState(10) // Fixed 1 minute interval
+  const [lastVerificationTime, setLastVerificationTime] = useState(0)
+  const [responseTimesArray, setResponseTimesArray] = useState<number[]>([])
+  const [answeredTimeArray, setAnsweredTimeArray] = useState<number[]>([]) // Array to store time taken to answer
+  const verificationTimerRef = useRef<NodeJS.Timeout | null>(null)
 
     // Helper function to safely get a number from potentially a Promise<number>
     const safeGetNumber = async (value: any): Promise<number> => {
@@ -64,6 +77,155 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
         }
         return 0;
     };
+
+      // Load saved verification time from Capacitor preferences
+    useEffect(() => {
+        const loadSavedData = async () => {
+        try {
+            // Load answered_time array
+            const { value: answeredTimeValue } = await Preferences.get({ key: "answered_time" })
+            if (answeredTimeValue) {
+            const savedAnsweredTime = JSON.parse(answeredTimeValue)
+            setAnsweredTimeArray(savedAnsweredTime)
+            }
+
+            // Load last verification time
+            const { value } = await Preferences.get({ key: "verification_time" })
+            if (value) {
+            const savedTime = Number.parseInt(value, 10)
+            setLastVerificationTime(savedTime)
+            console.log("lastVerificationTime", lastVerificationTime)
+            }
+        } catch (error) {
+            console.error("Error loading saved verification data:", error)
+        }
+        }
+
+        loadSavedData()
+    }, [])
+
+    // Save verification time to Capacitor preferences
+    const saveVerificationTime = async (time: number) => {
+        try {
+        await Preferences.set({
+            key: "verification_time",
+            value: time.toString(),
+        })
+        } catch (error) {
+        console.error("Error saving verification time:", error)
+        }
+    }
+
+    // Save answered time array to Capacitor preferences
+    const saveAnsweredTimeArray = async (times: number[]) => {
+        try {
+        await Preferences.set({
+            key: "answered_time",
+            value: JSON.stringify(times),
+        })
+        } catch (error) {
+        console.error("Error saving answered time array:", error)
+        }
+    }
+
+    // Generate verification numbers
+    const generateVerificationNumbers = useCallback(() => {
+        const correctNum = Math.floor(Math.random() * 100)
+        let num1 = correctNum
+        let num2 = correctNum
+
+        // Ensure numbers are different from the correct one
+        while (num1 === correctNum) {
+        num1 = Math.floor(Math.random() * 100)
+        }
+
+        while (num2 === correctNum || num2 === num1) {
+        num2 = Math.floor(Math.random() * 100)
+        }
+
+        // Set in a fixed order - correct number is always in the middle
+        setVerificationNumbers([num1, correctNum, num2])
+    }, [])
+
+    // Start the verification countdown timer
+    const startVerificationTimer = useCallback(() => {
+        if (verificationTimerRef.current) {
+        clearInterval(verificationTimerRef.current)
+        }
+
+        setVerificationCountdown(59)
+
+        verificationTimerRef.current = setInterval(() => {
+        setVerificationCountdown((prev) => {
+            if (prev <= 1) {
+            // Time's up, pause the video
+            if (player) {
+                player.pauseVideo()
+                setIsPlayed(false)
+            }
+
+            // Clear the timer
+            if (verificationTimerRef.current) {
+                clearInterval(verificationTimerRef.current)
+                verificationTimerRef.current = null
+            }
+
+            return 0
+            }
+            return prev - 1
+        })
+        }, 1000)
+    }, [player])
+
+    // Handle verification number click
+    const handleVerificationClick = (index: number) => {
+        // Clear the verification timer
+        if (verificationTimerRef.current) {
+        clearInterval(verificationTimerRef.current)
+        verificationTimerRef.current = null
+        }
+
+        // Record response time (59 - remaining seconds = time taken to respond)
+        const responseTime = 59 - verificationCountdown
+
+        // Check if correct number was clicked (middle position, index 1)
+        if (index === 1) {
+        // Record verification time
+        const currentTimeInSeconds = Math.floor(Date.now() / 1000)
+        setLastVerificationTime(currentTimeInSeconds)
+        saveVerificationTime(currentTimeInSeconds)
+
+        // Add response time to arrays
+        const newResponseTimes = [...responseTimesArray, responseTime]
+        setResponseTimesArray(newResponseTimes)
+
+        const newAnsweredTimes = [...answeredTimeArray, responseTime]
+        setAnsweredTimeArray(newAnsweredTimes)
+        saveAnsweredTimeArray(newAnsweredTimes)
+
+        // Hide verification
+        setShowVerification(false)
+        } else {
+        // Wrong number clicked, pause the video
+        if (player) {
+            player.pauseVideo()
+            setIsPlayed(false)
+        }
+
+        // Close the verification dialog
+        setShowVerification(false)
+        }
+    }
+
+    // Check if verification is needed based on elapsed time
+    useEffect(() => {
+        if (isPlayed && elapsedTime > 0 && elapsedTime % verificationInterval === 0) {
+        // Show verification without pausing the video
+        setShowVerification(true)
+        generateVerificationNumbers()
+        startVerificationTimer()
+        }
+    }, [elapsedTime, verificationInterval, isPlayed, generateVerificationNumbers, startVerificationTimer])
 
     const calculatePercentageWatched = (totalDuration: number) => {
         const netDuration = calculateNetDuration(currentTimestamps.current);
@@ -125,6 +287,22 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
         getDuration();
     }, [player]);
 
+      // Update current time periodically
+    useEffect(() => {
+        if (!player || !isPlayed) return
+
+        const updateTimeInterval = setInterval(async () => {
+        try {
+            const time = await safeGetNumber(player.getCurrentTime())
+            setCurrentTime(time)
+        } catch (error) {
+            console.error("Error getting current time:", error)
+        }
+        }, 1000)
+
+        return () => clearInterval(updateTimeInterval)
+    }, [player, isPlayed, safeGetNumber])
+
     // Activity tracking effect
     useEffect(() => {
         const endTime = videoEndTime.current || getEpochTimeInMillis();
@@ -141,30 +319,166 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
             sync_status: 'STALE' as const,
             current_start_time: currentStartTimeRef.current,
             current_start_time_in_epoch: currentStartTimeInEpochRef.current,
+            answered_time: answeredTimeArray,
             new_activity: true
         };
         addActivity(newActivity, true);
-    }, [elapsedTime, duration, videoId, addActivity]);
+    }, [elapsedTime, duration, videoId, addActivity, ]);
+
+      // Prevent right-click on the video
+    useEffect(() => {
+        const handleContextMenu = (e: MouseEvent) => {
+        e.preventDefault()
+        return false
+        }
+
+        const playerContainer = playerContainerRef.current
+        if (playerContainer) {
+        playerContainer.addEventListener("contextmenu", handleContextMenu)
+        }
+
+        return () => {
+        if (playerContainer) {
+            playerContainer.removeEventListener("contextmenu", handleContextMenu)
+        }
+        }
+    }, [])
+
+    // Add CSS to hide YouTube elements when the video ends
+    useEffect(() => {
+        const handleVideoEnd = () => {
+        // Add a style element to hide YouTube end screen elements
+        const styleEl = document.createElement("style")
+        styleEl.innerHTML = `
+            .ytp-endscreen-content,
+            .ytp-ce-element,
+            .ytp-ce-covering-overlay,
+            .ytp-ce-element-shadow,
+            .ytp-ce-covering-image,
+            .ytp-ce-expanding-image,
+            .ytp-ce-element.ytp-ce-channel.ytp-ce-channel-this,
+            .ytp-ce-element.ytp-ce-video.ytp-ce-element-show,
+            .ytp-pause-overlay,
+            .ytp-related-on-pause-container,
+            .ytp-more-videos-overlay {
+            display: none !important;
+            }
+        `
+        document.head.appendChild(styleEl)
+
+        return () => {
+            document.head.removeChild(styleEl)
+        }
+        }
+
+        if (player) {
+        handleVideoEnd()
+        }
+
+        return () => {
+        const styleElements = document.querySelectorAll("style")
+        styleElements.forEach((el) => {
+            if (el.innerHTML.includes("ytp-endscreen-content")) {
+            document.head.removeChild(el)
+            }
+        })
+        }
+    }, [player])
+
+    // Add an additional effect to handle iframe load and inject CSS
+    useEffect(() => {
+        if (!iframeRef.current) return
+
+        const injectCSS = () => {
+        try {
+            const iframe = iframeRef.current
+            if (!iframe) return
+
+            // Try to access iframe content
+            const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document
+            if (!iframeDocument) return
+
+            // Create a style element
+            const style = iframeDocument.createElement("style")
+            style.textContent = `
+            .ytp-chrome-top,
+            .ytp-chrome-bottom,
+            .ytp-watermark,
+            .ytp-show-cards-title,
+            .ytp-youtube-button,
+            .ytp-embed-title,
+            .ytp-embed-owner,
+            .ytp-share-button,
+            .ytp-watch-later-button,
+            .ytp-more-videos-overlay,
+            .ytp-pause-overlay,
+            .ytp-related-on-pause-container,
+            .ytp-endscreen-content,
+            .ytp-ce-element {
+                display: none !important;
+            }
+            `
+
+            // Append style to iframe head
+            iframeDocument.head.appendChild(style)
+        } catch (error) {
+            console.error("Error injecting CSS into iframe:", error)
+        }
+        }
+
+        // Try to inject CSS after iframe is loaded
+        const iframe = iframeRef.current
+        iframe.addEventListener("load", injectCSS)
+
+        // Also try immediately in case iframe is already loaded
+        injectCSS()
+
+        return () => {
+        iframe.removeEventListener("load", injectCSS)
+        }
+    }, [iframeRef.current])
 
     const opts: YouTubeProps['opts'] = {
         height: '100%',
         width: '100%',
+        // playerVars: {
+        //     // autoplay: 0,
+        //     controls: 1,
+        //     // showinfo: 0,
+        //     rel: 0,
+        // },
         playerVars: {
-            // autoplay: 0,
-            controls: 1,
-            // showinfo: 0,
-            rel: 0,
-        },
+            controls: 0, // Disable YouTube controls
+            disablekb: 1, // Disable keyboard controls
+            fs: 0, // Disable fullscreen button
+            iv_load_policy: 3, // Disable annotations
+            modestbranding: 1, // Hide YouTube logo
+            rel: 0, // Don't show related videos
+            // showinfo: 0, // Hide video title and uploader
+            autoplay: 0, // Don't autoplay
+            // cc_load_policy: 0, // Hide closed captions
+            origin: window.location.origin, // Set origin for security
+            enablejsapi: 1, // Enable JavaScript API
+            playsinline: 1, // Play inline on iOS
+            loop: 0, // Don't loop the video
+            color: "white", // Use white progress bar
+            hl: "en", // Set language to English
+            start: 0, // Start from the beginning
+            end: 0, // End at the natural end of the video
+            // autohide: 1, // Hide controls after play begins
+          },
     };
 
     const togglePause = () => {
         setIsPlayed(false);
         console.log("video is paused");
+        if (player) player.pauseVideo()
     };
 
     const togglePlay = () => {
         setIsPlayed(true);
         console.log("Video is played");
+        if (player) player.playVideo()
     };
 
     const onPlayerReady: YouTubeProps['onReady'] = async (event: YouTubeEvent) => {
@@ -174,12 +488,56 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
 
         // Get the iframe element
         try {
-            const iframe = await event.target.getIframe();
-            iframeRef.current = iframe;
-        } catch (error) {
-            console.error("Error getting iframe:", error);
-        }
+            const iframe = await event.target.getIframe()
+            iframeRef.current = iframe
+      
+            // Try to hide YouTube elements by injecting CSS
+            if (iframe) {
+              try {
+                const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document
+                if (iframeDocument) {
+                  const style = iframeDocument.createElement("style")
+                  style.textContent = `
+                    .ytp-chrome-top,
+                    .ytp-chrome-bottom,
+                    .ytp-watermark,
+                    .ytp-show-cards-title,
+                    .ytp-youtube-button,
+                    .ytp-embed-title,
+                    .ytp-embed-owner,
+                    .ytp-share-button,
+                    .ytp-watch-later-button,
+                    .ytp-more-videos-overlay,
+                    .ytp-pause-overlay,
+                    .ytp-related-on-pause-container,
+                    .ytp-endscreen-content,
+                    .ytp-ce-element {
+                      display: none !important;
+                    }
+                  `
+                  iframeDocument.head.appendChild(style)
+                }
+              } catch (error) {
+                console.error("Error accessing iframe content:", error)
+              }
+            }
+          } catch (error) {
+            console.error("Error getting iframe:", error)
+          }
     };
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+        setIsFullscreen(!!document.fullscreenElement)
+        console.log("fullscreen change", isFullscreen);
+        }
+
+        document.addEventListener("fullscreenchange", handleFullscreenChange)
+
+        return () => {
+        document.removeEventListener("fullscreenchange", handleFullscreenChange)
+        }
+    }, [])
 
     // Control video playback based on isPlayed state
     useEffect(() => {
@@ -205,6 +563,9 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
             if (timerRef.current) {
                 clearInterval(timerRef.current);
             }
+            if (verificationTimerRef.current) {
+                clearInterval(verificationTimerRef.current)
+              }
         };
     }, [clearUpdateInterval]);
 
@@ -346,11 +707,49 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
         };
     }, []);
 
+    // Format time for display (MM:SS)
+    const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+  }
+
 
     return (
         <div className="w-full flex flex-col items-center gap-4">
-            <div className="aspect-video w-full relative h-full items-center flex justify-center">
-                <div className={`size-full absolute z-[9999] ${isFullscreen ? "h-[100vh] w-[100vw]": "w-full h-full"}`}></div>
+            {/* Video player container with verification overlay */}
+      <div
+        ref={playerContainerRef}
+        className="aspect-video w-full relative h-full items-center flex justify-center overflow-hidden"
+      >
+        {/* Verification overlay - positioned to work in fullscreen */}
+        {showVerification && (
+          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-full max-w-xs z-[10000] animate-in fade-in slide-in-from-top duration-300">
+            <div className="bg-yellow-50 border bg-primary-500 rounded-lg shadow-lg overflow-hidden">
+              <div className="p-2">
+            <div className="mt-1">
+              <p className="text-xs text-neutral-600">
+                Just ensuring that you are actively learning, please click the number <span className="text-primary-500">{verificationNumbers[1]}</span> within <span className="text-primary-500">{verificationCountdown}{" "}</span>
+                seconds.
+              </p>
+            </div>
+            <div className="mt-2 flex justify-center space-x-2">
+              {verificationNumbers.map((number, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleVerificationClick(index)}
+                  className="px-2 py-1 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 bg-white text-neutral-600 border-xl"
+                >
+                  {number}
+                </button>
+              ))}
+            </div>
+              </div>
+            </div>
+          </div>
+        )}
+            {/* YouTube player */}
+            <div className="w-full h-full pointer-events-none">
                 <YouTube
                     videoId={videoId}
                     opts={opts}
@@ -359,6 +758,9 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
                     onStateChange={onStateChange}
                 />
             </div>
+        </div>
+
+            {/* Video controls */}
             <div className="flex gap-2 justify-between items-center w-full">
                 <div className="w-full flex gap-2 items-center justify-start">
                     {isPlayed ?
@@ -418,6 +820,11 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
                     >
                         <ArrowsOut />
                     </MyButton>
+
+                    <div className="ml-4 text-sm">
+                        {formatTime(currentTime)} / {formatTime(duration)}
+                    </div>
+                    
                 </div>
                 <div className="flex items-center gap-1">
                     <MyInput
