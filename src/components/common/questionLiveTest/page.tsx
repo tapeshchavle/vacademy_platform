@@ -32,11 +32,15 @@ export function convertToLocalDateTime(utcDate: string): string {
 }
 
 // Function to format data from assessment-store
-const { value } = await Preferences.get({ key: 'server_start_end_time' });
-const parsedValue = value ? JSON.parse(value) : {};
-const start_time = parsedValue.start_time ? new Date(parsedValue.start_time).getTime() : 0;
+const getServerStartEndTime = async () => {
+  const { value } = await Preferences.get({ key: "server_start_end_time" });
+  return value ? JSON.parse(value) : {};
+};
 
 export const formatDataFromStore = async (assessment_id: string, status: string) => {
+  const parsedValue = await getServerStartEndTime(); 
+  const start_time = parsedValue.start_time ? new Date(parsedValue.start_time).getTime() : 0; 
+
   const state = useAssessmentStore.getState();
   const attemptId = state.assessment?.attempt_id;
   const timeElapsedInSeconds = state.assessment?.duration
