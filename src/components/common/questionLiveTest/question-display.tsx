@@ -151,7 +151,7 @@ export function QuestionDisplay() {
           <div className="flex items-baseline justify-between gap-5 mb-2">
             <div className="flex items-baseline gap-8">
               <span className="text-lg text-gray-700">
-                Question {currentQuestion.question_order}
+                Question {currentQuestion.serial_number}
               </span>
               {!isPracticeMode &&
                 assessment?.distribution_duration ===

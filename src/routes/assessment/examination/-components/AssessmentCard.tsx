@@ -67,6 +67,7 @@ export const AssessmentCard = ({
 
     if (
       (assessmentInfo?.user_attempts ?? 1) <= assessmentInfo.assessment_attempts
+      // || assessmentInfo.assessment_attempts === 0
     ) {
       // If status is PREVIEW or LIVE, show restart dialog
       if (

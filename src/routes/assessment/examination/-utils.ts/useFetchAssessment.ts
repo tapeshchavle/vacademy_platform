@@ -10,6 +10,7 @@ import { Preferences } from "@capacitor/preferences";
 import {
   assessmentTypes,
   distribution_duration_types,
+  SectionDto,
 } from "@/types/assessment";
 import { Storage } from "@capacitor/storage";
 
@@ -175,19 +176,50 @@ export const fetchPreviewData = async (assessment_id: string) => {
 
     const durationData = await getDuration();
     if (response.status === 200) {
+      // Clone response data to avoid direct mutation
+      const responseData = { ...response.data, ...durationData };
+  
+      // Iterate over sections to check for randomization
+      responseData.section_dtos = responseData.section_dtos.map((section : SectionDto) => {
+        if (section.problem_randomization === "RANDOM" && Array.isArray(section.question_preview_dto_list)) {
+          section.question_preview_dto_list = shuffleArray(section.question_preview_dto_list);
+        }
+        // Assign serial question numbers
+        section.question_preview_dto_list = section.question_preview_dto_list.map((question, index) => ({
+          ...question,
+          serial_number: index + 1,
+        }));
+        return section;
+      });
+  
       // Save to local storage
       await Storage.set({
         key: "Assessment_questions",
-        value: JSON.stringify({ ...response.data, ...durationData }),
+        value: JSON.stringify(responseData),
       });
-
+  
+      // Update the state
       useAssessmentStore.setState((state) => ({
         ...state,
-        assessment: { ...response.data, ...durationData },
+        assessment: responseData,
       }));
     }
-
+  
     return response.data;
+    // if (response.status === 200) {
+    //   // Save to local storage
+    //   await Storage.set({
+    //     key: "Assessment_questions",
+    //     value: JSON.stringify({ ...response.data, ...durationData }),
+    //   });
+
+    //   useAssessmentStore.setState((state) => ({
+    //     ...state,
+    //     assessment: { ...response.data, ...durationData },
+    //   }));
+    // }
+
+    // return response.data;
   } catch (error) {
     console.error("Error fetching assessments:", error);
   }
@@ -222,6 +254,16 @@ export const startAssessment = async () => {
     // setLoading(false);
   }
 };
+
+// Utility function to shuffle an array (Fisher-Yates algorithm)
+function shuffleArray(array : any[]) {
+  const shuffledArray = [...array];
+  for (let i = shuffledArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
+  }
+  return shuffledArray;
+}
 
 // export const updateAssessmentAccordingToApiResponse = async (
 //   UpdateApiResponse: UpdateApiResponse
