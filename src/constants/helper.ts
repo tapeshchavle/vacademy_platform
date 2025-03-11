@@ -1,3 +1,10 @@
+import {
+  getTokenDecodedData,
+  getTokenFromStorage,
+} from "@/lib/auth/sessionUtility";
+import { TokenKey } from "./auth/tokens";
+// import { PrivacyScreen } from "@capacitor-community/privacy-screen";
+
 export function convertToLocalDateTime(utcDate: string): string {
   const date = new Date(utcDate);
 
@@ -15,3 +22,37 @@ export function convertToLocalDateTime(utcDate: string): string {
     .replace(",", "")
     .replace(/\s(am|pm)/i, (match) => match.toUpperCase());
 }
+export function extractDateTime(utcDate: string) {
+  const [date, time] = [
+    utcDate.split(" ").slice(0, 3).join(" "),
+    utcDate.split(" ").slice(3).join(" "),
+  ];
+
+  return { date, time };
+}
+
+export async function getInstituteId() {
+  const accessToken = await getTokenFromStorage(TokenKey.accessToken);
+  const data = accessToken ? await getTokenDecodedData(accessToken) : null;
+  const INSTITUTE_ID = data && Object.keys(data.authorities)[0];
+  return INSTITUTE_ID;
+}
+
+// protection
+// export const disableProtection = async () => {
+//   await PrivacyScreen.disable();
+// };
+
+// export const enableProtection = async () => {
+//   await PrivacyScreen.enable();
+// };
+
+interface Subject {
+  id: string;
+  subject_name: string;
+}
+
+export const getSubjectNameById = (subjects: Subject[], id: string | null): string => {
+  const subject = subjects.find((item: Subject) => item.id === id);
+  return subject?.subject_name || "N/A";
+};

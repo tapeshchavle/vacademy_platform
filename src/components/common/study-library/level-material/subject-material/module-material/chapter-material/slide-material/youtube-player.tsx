@@ -94,28 +94,22 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
         }
     }, []);
 
-    // Start progress tracking interval when player is playing
-    const startProgressTracking = useCallback(() => {
-        if (progressIntervalRef.current) return;
-        progressIntervalRef.current = setInterval(async () => {
-            if (player) {
-                try {
-                    const time = await safeGetNumber(player.getCurrentTime());
-                    setCurrentTime(time);
-                } catch (error) {
-                    console.error("Error getting current time for progress bar:", error);
-                }
+    // Pause video when tab is switched
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.hidden && player) {
+                player.pauseVideo();
+                setIsPlayed(false);
+                console.log("Tab switched, video paused");
             }
-        }, 250); // Update 4 times per second for smoother progress
-    }, [player]);
-
-    // Stop progress tracking interval
-    const stopProgressTracking = useCallback(() => {
-        if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-            progressIntervalRef.current = null;
-        }
-    }, []);
+        };
+    
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+    
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [player]);    
 
     // Get duration when player is ready
     useEffect(() => {
