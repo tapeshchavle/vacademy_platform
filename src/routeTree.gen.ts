@@ -16,6 +16,7 @@ import { Route as RegisterIndexImport } from './routes/register/index'
 import { Route as LogoutIndexImport } from './routes/logout/index'
 import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as InstituteSelectionIndexImport } from './routes/institute-selection/index'
+import { Route as DeleteUserIndexImport } from './routes/delete-user/index'
 import { Route as DashboardIndexImport } from './routes/dashboard/index'
 import { Route as StudyLibraryCoursesIndexImport } from './routes/study-library/courses/index'
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
@@ -62,6 +63,12 @@ const LoginIndexRoute = LoginIndexImport.update({
 const InstituteSelectionIndexRoute = InstituteSelectionIndexImport.update({
   id: '/institute-selection/',
   path: '/institute-selection/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const DeleteUserIndexRoute = DeleteUserIndexImport.update({
+  id: '/delete-user/',
+  path: '/delete-user/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -183,6 +190,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/delete-user/': {
+      id: '/delete-user/'
+      path: '/delete-user'
+      fullPath: '/delete-user'
+      preLoaderRoute: typeof DeleteUserIndexImport
       parentRoute: typeof rootRoute
     }
     '/institute-selection/': {
@@ -332,6 +346,7 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardIndexRoute
+  '/delete-user': typeof DeleteUserIndexRoute
   '/institute-selection': typeof InstituteSelectionIndexRoute
   '/login': typeof LoginIndexRoute
   '/logout': typeof LogoutIndexRoute
@@ -356,6 +371,7 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
+  '/delete-user': typeof DeleteUserIndexRoute
   '/institute-selection': typeof InstituteSelectionIndexRoute
   '/login': typeof LoginIndexRoute
   '/logout': typeof LogoutIndexRoute
@@ -381,6 +397,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/delete-user/': typeof DeleteUserIndexRoute
   '/institute-selection/': typeof InstituteSelectionIndexRoute
   '/login/': typeof LoginIndexRoute
   '/logout/': typeof LogoutIndexRoute
@@ -407,6 +424,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/dashboard'
+    | '/delete-user'
     | '/institute-selection'
     | '/login'
     | '/logout'
@@ -430,6 +448,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/dashboard'
+    | '/delete-user'
     | '/institute-selection'
     | '/login'
     | '/logout'
@@ -453,6 +472,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/dashboard/'
+    | '/delete-user/'
     | '/institute-selection/'
     | '/login/'
     | '/logout/'
@@ -478,6 +498,7 @@ export interface FileRouteTypes {
 
 export interface RootRouteChildren {
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DeleteUserIndexRoute: typeof DeleteUserIndexRoute
   InstituteSelectionIndexRoute: typeof InstituteSelectionIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
   LogoutIndexRoute: typeof LogoutIndexRoute
@@ -502,6 +523,7 @@ export interface RootRouteChildren {
 
 const rootRouteChildren: RootRouteChildren = {
   DashboardIndexRoute: DashboardIndexRoute,
+  DeleteUserIndexRoute: DeleteUserIndexRoute,
   InstituteSelectionIndexRoute: InstituteSelectionIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
   LogoutIndexRoute: LogoutIndexRoute,
@@ -543,6 +565,7 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/dashboard/",
+        "/delete-user/",
         "/institute-selection/",
         "/login/",
         "/logout/",
@@ -567,6 +590,9 @@ export const routeTree = rootRoute
     },
     "/dashboard/": {
       "filePath": "dashboard/index.tsx"
+    },
+    "/delete-user/": {
+      "filePath": "delete-user/index.tsx"
     },
     "/institute-selection/": {
       "filePath": "institute-selection/index.tsx"
