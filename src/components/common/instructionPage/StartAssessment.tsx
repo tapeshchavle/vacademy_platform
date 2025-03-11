@@ -6,7 +6,7 @@ import { useLocation } from "@tanstack/react-router";
 import { fetchPreviewData } from "@/routes/assessment/examination/-utils.ts/useFetchAssessment";
 import { useProctoring } from "@/hooks/proctoring/useProctoring";
 import { AssessmentPreview } from "../questionLiveTest/assessment-preview";
-import { PrivacyScreen } from "@capacitor-community/privacy-screen";
+// import { enableProtection } from "@/constants/helper";
 
 const AssessmentStartModal = () => {
   const location = useLocation();
@@ -14,16 +14,9 @@ const AssessmentStartModal = () => {
   const assessmentId = pathSegments[3];
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  // const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [examHasStarted, setExamHasStarted] = useState(false);
   const navigate = useNavigate();
-  const enableProtection = async () => {
-    await PrivacyScreen.enable();
-  };
 
-  // const disableProtection = async () => {
-  //   await PrivacyScreen.disable();
-  // };
   const { fullScreen } = useProctoring({
     forceFullScreen: true,
     // preventTabSwitch: true,
@@ -32,23 +25,9 @@ const AssessmentStartModal = () => {
     // preventCopy: true,
   });
 
-  // useEffect(() => {
-  //   let timeoutId: NodeJS.Timeout;
-  //   if (showErrorAlert) {
-  //     timeoutId = setTimeout(() => {
-  //       setShowErrorAlert(false);
-  //     }, 3000);
-  //   }
-  //   return () => clearTimeout(timeoutId);
-  // }, [showErrorAlert]);
-
   const handleClose = () => {
     setIsOpen(false);
   };
-
-  // const handleAlertClose = () => {
-  //   setShowErrorAlert(false);
-  // };
 
   const handleAssessmentAction = async () => {
     if (isLoading) return;
@@ -63,7 +42,7 @@ const AssessmentStartModal = () => {
         setTimeout(() => {
           setIsOpen(false);
           setExamHasStarted(true);
-          enableProtection();
+          // enableProtection();
           navigate({
             to: `/assessment/examination/${assessmentId}/assessmentPreview`,
             replace: true,
@@ -140,25 +119,6 @@ const AssessmentStartModal = () => {
           </div>
         </div>
       )}
-
-      {/* {showErrorAlert && (
-        <div className="sm:max-w-[90%] md:max-w-[400px] lg:max-w-[500px]">
-          <AlertDialog open={showErrorAlert} onOpenChange={handleAlertClose}>
-            <AlertDialogOverlay
-              className="bg-white/50"
-              onClick={handleAlertClose}
-            />
-            <AlertDialogContent className="max-w-sm bg-white rounded-lg p-4 sm:mx-4 sm:p-6">
-              <div className="text-gray-700">
-                The assessment is already in{" "}
-                <span className="text-primary-500">preview mode</span>. You
-                cannot start this test at this time. Contact the admin for more
-                information.
-              </div>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      )} */}
     </div>
   );
 };

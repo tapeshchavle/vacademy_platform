@@ -183,7 +183,7 @@ export function AssessmentPreview() {
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-max">
-                      <span>Section {index + 1}</span>
+                      <span>{section.name}</span>
                     </div>
                   </button>
                 ))}

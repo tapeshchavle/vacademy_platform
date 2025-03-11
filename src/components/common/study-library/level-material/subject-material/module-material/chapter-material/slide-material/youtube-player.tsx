@@ -116,6 +116,22 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({ videoId }) => 
             progressIntervalRef.current = null;
         }
     }, []);
+    // Pause video when tab is switched
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.hidden && player) {
+                player.pauseVideo();
+                setIsPlayed(false);
+                console.log("Tab switched, video paused");
+            }
+        };
+    
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+    
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [player]);    
 
     // Get duration when player is ready
     useEffect(() => {

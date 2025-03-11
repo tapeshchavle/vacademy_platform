@@ -3,7 +3,7 @@ import { Preferences } from "@capacitor/preferences";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { DashboardLoader } from "@/components/core/dashboard-loader";
 
 interface Session {
   id: string;
@@ -26,7 +26,7 @@ const SessionSelectionPage = () => {
 
   useEffect(() => {
     if (sessionList.length === 1) {
-      handleSessionSelect(sessionList[0]); 
+      handleSessionSelect(sessionList[0]);
     }
   }, [sessionList]);
 
@@ -53,7 +53,6 @@ const SessionSelectionPage = () => {
   };
 
   const handleSessionSelect = async (selectedSession: Session) => {
-   
     try {
       // Fetch stored student details
       const studentData = await Preferences.get({ key: "students" });
@@ -85,7 +84,6 @@ const SessionSelectionPage = () => {
       await Preferences.remove({ key: "studentData" });
       await Preferences.remove({ key: "sessionList" });
       await Preferences.remove({ key: "students" });
-      
 
       // Navigate to Dashboard after selection
       navigate({ to: "/dashboard" });
@@ -99,7 +97,7 @@ const SessionSelectionPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+        <DashboardLoader />
       </div>
     );
   }
@@ -112,7 +110,9 @@ const SessionSelectionPage = () => {
 
       {sessionList.length === 0 ? (
         <Card className="p-6 text-center">
-            <p className="text-gray-500">You are not currently enrolled in any courses.</p>
+          <p className="text-gray-500">
+            You are not currently enrolled in any courses.
+          </p>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">

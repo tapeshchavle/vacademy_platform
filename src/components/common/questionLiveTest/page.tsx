@@ -13,53 +13,77 @@ import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { ASSESSMENT_SAVE } from "@/constants/urls";
 import { toast } from "sonner";
 
+export function convertToLocalDateTime(utcDate: string): string {
+  const date = new Date(utcDate);
+
+  const options: Intl.DateTimeFormatOptions = {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  };
+
+  const formattedDate = date.toLocaleString("en-GB", options);
+  return formattedDate
+    .replace(",", "")
+    .replace(/\s(am|pm)/i, (match) => match.toUpperCase());
+}
+
+// Function to format data from assessment-store
+const getServerStartEndTime = async () => {
+  const { value } = await Preferences.get({ key: "server_start_end_time" });
+  return value ? JSON.parse(value) : {};
+};
+
+export const formatDataFromStore = async (assessment_id: string, status: string) => {
+  const parsedValue = await getServerStartEndTime(); 
+  const start_time = parsedValue.start_time ? new Date(parsedValue.start_time).getTime() : 0; 
+
+  const state = useAssessmentStore.getState();
+  const attemptId = state.assessment?.attempt_id;
+  const timeElapsedInSeconds = state.assessment?.duration
+    ? state.assessment.duration * 60 - state.entireTestTimer
+    : 0;
+  const clientLastSync = new Date(start_time + timeElapsedInSeconds * 1000).toISOString();
+  return {
+    attemptId: attemptId,
+    clientLastSync,
+    assessment: {
+      assessmentId: assessment_id,
+      entireTestDurationLeftInSeconds: state.entireTestTimer,
+      timeElapsedInSeconds,
+      status: status,
+      tabSwitchCount: state.tabSwitchCount || 0,
+    },
+    sections: state.assessment?.section_dtos?.map((section, idx) => ({
+      sectionId: section.id,
+      sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+      timeElapsedInSeconds: section.duration
+        ? (state.sectionTimers?.[idx]?.timeLeft || 0) - section.duration * 60
+        : 0,
+      questions: section.question_preview_dto_list?.map((question) => ({
+        questionId: question.question_id,
+        questionDurationLeftInSeconds:
+          state.questionTimers?.[question.question_id] || 0,
+        timeTakenInSeconds: state.questionTimeSpent[question.question_id] || 0,
+        isMarkedForReview:
+          state.questionStates[question.question_id]?.isMarkedForReview || false,
+        isVisited: state.questionStates[question.question_id]?.isVisited || false,
+        responseData: {
+          type: question.question_type,
+          optionIds: state.answers?.[question.question_id] || [],
+        },
+      })),
+    })),
+  };
+};
+
 export default function Page() {
   const { loadState, saveState } = useAssessmentStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Function to format data from assessment-store
-  const formatDataFromStore = (assessment_id: string) => {
-    const state = useAssessmentStore.getState();
-    console.log(state.questionStates[1]);
-    return {
-      attemptId: state.assessment?.attempt_id,
-      clientLastSync: new Date().toISOString(),
-      assessment: {
-        assessmentId: assessment_id,
-        entireTestDurationLeftInSeconds: state.entireTestTimer,
-        timeElapsedInSeconds: state.assessment?.duration
-          ? state.assessment.duration * 60 - state.entireTestTimer
-          : 0,
-        status: "LIVE",
-        tabSwitchCount: state.tabSwitchCount || 0,
-      },
-      sections: state.assessment?.section_dtos?.map((section, idx) => ({
-        sectionId: section.id,
-        sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
-        timeElapsedInSeconds: section.duration
-          ? section.duration * 60 - (state.sectionTimers?.[idx]?.timeLeft || 0)
-          : 0,
-        questions: section.question_preview_dto_list?.map((question) => ({
-          questionId: question.question_id,
-          questionDurationLeftInSeconds:
-            state.questionTimers?.[question.question_id] || 0,
-          timeTakenInSeconds:
-          state.questionTimeSpent[question.question_id] || 0,
-          isMarkedForReview:
-            state.questionStates[question.question_id].isMarkedForReview ||
-            false,
-          isVisited:
-            state.questionStates[question.question_id].isVisited || false,
-          responseData: {
-            type: question.question_type,
-            optionIds: state.answers?.[question.question_id] || [],
-          },
-        })),
-      })),
-    };
-  };
-
-  // update API function to send data
   const sendFormattedData = async () => {
     try {
       const state = useAssessmentStore.getState();
@@ -70,8 +94,8 @@ export default function Page() {
       const assessment_id_json = InstructionID_and_AboutID.value
         ? JSON.parse(InstructionID_and_AboutID.value)
         : null;
-      const formattedData = formatDataFromStore(
-        assessment_id_json?.assessment_id
+      const formattedData = await formatDataFromStore(
+        assessment_id_json?.assessment_id, 'LIVE'
       );
       const response = await authenticatedAxiosInstance.post(
         `${ASSESSMENT_SAVE}`,
