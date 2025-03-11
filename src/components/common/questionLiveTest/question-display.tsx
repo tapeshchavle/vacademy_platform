@@ -47,7 +47,7 @@ export function QuestionDisplay() {
   }, []);
 
   const isTimeUp = sectionTimers[currentSection]?.timeLeft === 0;
-  const isPracticeMode = playMode === "PRACTICE";
+  const isPracticeMode = playMode === "PRACTICE" || playMode === "SURVEY";
 
   useEffect(() => {
     if (isPracticeMode || !currentQuestion?.question_id) return;
@@ -117,12 +117,12 @@ export function QuestionDisplay() {
   const currentAnswer = answers[currentQuestion.question_id] || [];
   const isMarkedForReview =
     questionStates[currentQuestion.question_id]?.isMarkedForReview;
-  const isDisabled =
-    questionStates[currentQuestion.question_id]?.isDisabled ||
-    questionTimers[currentQuestion.question_id] === 0;
+  // const isDisabled =
+  //   questionStates[currentQuestion.question_id]?.isDisabled ||
+  //   questionTimers[currentQuestion.question_id] === 0;
 
   const handleAnswerChange = (optionId: string) => {
-    if (isDisabled) return;
+    // if (isDisabled) return;
 
     const newAnswer =
       currentQuestion.question_type === QUESTION_TYPES.MCQM
@@ -151,7 +151,7 @@ export function QuestionDisplay() {
           <div className="flex items-baseline justify-between gap-5 mb-2">
             <div className="flex items-baseline gap-8">
               <span className="text-lg text-gray-700">
-                Question {currentQuestion.question_order}
+                Question {currentQuestion.serial_number}
               </span>
               {!isPracticeMode &&
                 assessment?.distribution_duration ===
@@ -209,7 +209,9 @@ export function QuestionDisplay() {
             variant="outline"
             size="sm"
             onClick={() => clearResponse(currentQuestion.question_id)}
-            disabled={currentAnswer.length === 0 || isDisabled}
+            // disabled={currentAnswer.length === 0 || isDisabled}
+            disabled={currentAnswer.length === 0 }
+
           >
             Clear Response
           </Button>

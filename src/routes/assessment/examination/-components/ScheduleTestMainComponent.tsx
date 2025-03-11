@@ -144,7 +144,7 @@ export const ScheduleTestMainComponent = () => {
           totalAssessments={totalCounts}
         />
 
-        <TabsContent  
+        <TabsContent
           key={selectedTab}
           value={selectedTab}
           className="rounded-xl bg-neutral-50 flex flex-col gap-3"
@@ -180,7 +180,12 @@ export const ScheduleTestMainComponent = () => {
           )}
           {loading && <div className="text-center text-primary-500 py-4">Loading...</div>}
           {loadingMore && (
-            <div className="text-center text-primary-500 py-4">Loading more...</div>
+            <div className="">
+              <div className="text-center text-primary-500 py-4">
+                Loading more...
+              </div>
+              <DashboardLoader />
+            </div>
           )}
         </TabsContent>
 

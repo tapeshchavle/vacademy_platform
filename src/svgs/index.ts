@@ -2,6 +2,7 @@ export { default as EmptyQuestionPapers } from "./empty-question-papers.svg";
 export { default as UploadFileBg } from "./upload-file-bg.svg";
 export { default as SSDCLogo } from "./ssdc-logo.svg";
 export { default as EmptyScheduleTest } from "./empty-schedule-test.svg";
+export { default as Crown } from "./crown.svg";
 export { default as CloseRegistrationWeb } from "./close-registration-web.svg";
 export { default as CloseRegistrationMobile } from "./close-registration-mobile.svg";
 export { default as SSDCLogoWeb } from "./ssdc-logo-web.svg";

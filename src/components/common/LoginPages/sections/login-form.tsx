@@ -11,9 +11,7 @@ import { useNavigate } from "@tanstack/react-router";
 // import HeaderLogo from "../ui/header_logo";
 
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
-import {
-  getTokenFromStorage,
-} from "@/lib/auth/sessionUtility";
+import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
 import { EmailLogin } from "./EmailOtpForm";
 import { UsernameLogin } from "./UsernamePasswordForm";
 import { Preferences } from "@capacitor/preferences";
@@ -30,7 +28,6 @@ export function LoginForm() {
   const navigate = useNavigate();
   const [isEmailLogin, setIsEmailLogin] = useState(false);
 
-  
   // Handle splash screen timing
   // useEffect(() => {
   //   if (!hasSeenAnimation) {
@@ -42,8 +39,6 @@ export function LoginForm() {
   //   }
   // }, [hasSeenAnimation, setHasSeenAnimation]);
 
-
-  
   // useEffect(() => {
   //   const redirect = async () => {
   //     const token = await getTokenFromStorage(TokenKey.accessToken);
@@ -71,11 +66,11 @@ export function LoginForm() {
 
     redirect();
   }, []);
-    
-    // Conditionally render the splash screen
-    // if (showSplash) {
-    //   return <SplashScreen isAnimationEnabled />;
-    // }
+
+  // Conditionally render the splash screen
+  // if (showSplash) {
+  //   return <SplashScreen isAnimationEnabled />;
+  // }
   // Login form content
   return (
     <div className="w-screen bg-white gap-4 md:gap-8 lg:gap-10 pt-14 lg:pt-20">

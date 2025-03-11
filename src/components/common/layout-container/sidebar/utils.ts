@@ -32,10 +32,10 @@ export const SidebarItemsData: SidebarItemsType[] = [
             //     subItem: "Survey",
             //     subItemLink: "/assessment/survey",
             // },
-            // {
-            //     subItem: "Reports",
-            //     subItemLink: "/assessment/reports",
-            // },
+            {
+                subItem: "Reports",
+                subItemLink: "/assessment/reports",
+            },
             
         ],
     },
