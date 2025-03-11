@@ -14,12 +14,14 @@ export const SlideMaterial = () => {
     const [heading, setHeading] = useState(activeItem?.document_title || activeItem?.video_title || "");
     const [content, setContent] = useState<JSX.Element | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const { uploadFile, getPublicUrl } = useFileUpload();
 
     const handleConvertAndUpload = async (htmlString: string | null): Promise<string | null> => {
         if (htmlString == null) return null;
         try {
             setIsUploading(true);
+            setError(null);
 
             // Step 1: Convert HTML to PDF
             const pdfBlob = await convertHtmlToPdf(htmlString);
@@ -33,7 +35,7 @@ export const SlideMaterial = () => {
                 setIsUploading,
                 userId: 'your-user-id',
                 source: 'PDF',
-                sourceId: crypto.randomUUID(), // Optional
+                sourceId: "", // Optional
                 publicUrl: true, // Set to true to get a public URL
             });
 
@@ -43,6 +45,7 @@ export const SlideMaterial = () => {
             }
         } catch (error) {
             console.error('Upload Failed:', error);
+            setError('Failed to convert or upload document. Please try again.');
         } finally {
             setIsUploading(false);
         }
@@ -50,6 +53,8 @@ export const SlideMaterial = () => {
     };
 
     const loadContent = async () => {
+        setError(null);
+        
         if (!activeItem) {
             setContent(
                 <div className="flex h-[500px] flex-col items-center justify-center rounded-lg py-10">
@@ -60,40 +65,50 @@ export const SlideMaterial = () => {
             return;
         }
 
-        if (activeItem.published_url != null) {
+        // Show loading state immediately
+        setContent(<DashboardLoader />);
+
+        try {
+            if (activeItem.published_url != null) {
+                setContent(
+                    <div key={`video-${activeItem.slide_id}`} className="h-full w-full">
+                        <YouTubePlayerComp videoId={extractVideoId(activeItem.published_url) || ""} />
+                    </div>,
+                );
+                return;
+            }
+
+            if (activeItem?.document_type == "PDF") {
+                const url = await getPublicUrl(activeItem?.published_data || "");
+                if (!url) {
+                    throw new Error("Failed to retrieve PDF URL");
+                }
+                setContent(<PDFViewer pdfUrl={url} />);
+                return;
+            }
+
+            if (activeItem?.document_type == "DOC") {
+                const url = await handleConvertAndUpload(activeItem.published_data);
+                if (url == null) {
+                    throw new Error("Error generating PDF URL");
+                }
+                setContent(<PDFViewer pdfUrl={url} />);
+                return;
+            }
+        } catch (err) {
+            console.error("Error loading content:", err);
+            setError(err instanceof Error ? err.message : "Failed to load content");
             setContent(
-                <div key={`video-${activeItem.slide_id}`} className="h-full w-full">
-                    <YouTubePlayerComp videoId={extractVideoId(activeItem.published_url) || ""} />
-                </div>,
+                <div className="flex h-[300px] flex-col items-center justify-center">
+                    <p className="text-red-500">{error || "An error occurred while loading content"}</p>
+                </div>
             );
-            return;
-        }
-
-        if (activeItem?.document_type == "PDF") {
-            const url = await getPublicUrl(activeItem?.published_data || "");
-            setContent(<PDFViewer pdfUrl={url} />);
-            return;
-        }
-
-        if (activeItem?.document_type == "DOC") {
-            const url = await handleConvertAndUpload(activeItem.published_data);
-            if (url == null) {
-                setContent(<p>Error generating PDF URL</p>);
-                return;
-            }
-            if (isUploading) {
-                setContent(<DashboardLoader />);
-                return;
-            }
-            setContent(<PDFViewer pdfUrl={url} />);
-            return;
         }
     };
 
     useEffect(() => {
         if (activeItem) {
             setHeading(activeItem.document_title || activeItem.video_title || "");
-            setContent(null);
             loadContent();
         }
     }, [activeItem]);
@@ -113,10 +128,11 @@ export const SlideMaterial = () => {
             </div>
             <div
                 className={`mx-auto mt-8 ${
-                    activeItem?.document_type == "PDF" ? "h-[calc(100vh-200px)]" : "h-full"
+                    activeItem?.published_url == "PDF" ? "h-[calc(100vh-200px)] w-[500px]" : "h-full"
                 } w-full overflow-hidden`}
             >
                 {content}
+                {isUploading && <DashboardLoader />}
             </div>
         </div>
     );
