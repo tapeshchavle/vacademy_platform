@@ -16,16 +16,14 @@ interface TimeLeft {
 const AssessmentRegistrationCompleted = ({
   assessmentName,
   timeLeft,
-  assessmentId,
 }: {
   assessmentName: string;
   timeLeft: TimeLeft;
-  assessmentId: string;
 }) => {
   const navigate = useNavigate();
   const handleNavigateAssessment = () => {
     navigate({
-      to: `/assessment/examination/${assessmentId}/assessmentPreview`,
+      to: `/assessment/examination`,
     });
   };
   return (

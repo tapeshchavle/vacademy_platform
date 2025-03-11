@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 // import { SplashScreen } from "@/components/common/LoginPages/layout/splash-container";
 // import { useAnimationStore } from "@/stores/login/animationStore";
 import { Heading } from "@/components/common/LoginPages/ui/heading";
-import { MyButton } from "@/components/design-system/button";
+// import { MyButton } from "@/components/design-system/button";
 // import { loginSchema } from "@/schemas/login/login";
 // import { z } from "zod";
 import { TokenKey } from "@/constants/auth/tokens";
@@ -92,7 +92,8 @@ export function LoginForm() {
           )}
         </div>
 
-        <div className="flex font-regular pb-5 items-center">
+          
+        {/* <div className="flex font-regular pb-5 items-center">
           <div className="text-neutral-500 text-sm md:text-base lg:text-base">
             Don’t have an account?
           </div>
@@ -106,7 +107,7 @@ export function LoginForm() {
           >
             Create Account
           </MyButton>
-        </div>
+        </div> */}
       </div>
     </div>
   );

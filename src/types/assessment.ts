@@ -82,6 +82,7 @@ export interface QuestionDto {
   section_id: string;
   question_duration: number;
   question_order: number;
+  serial_number: number;
   marking_json: string;
   evaluation_json: string;
   question_type: QUESTION_TYPES;

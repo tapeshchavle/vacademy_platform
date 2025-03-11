@@ -60,11 +60,10 @@ export const SlideMaterial = () => {
             return;
         }
 
-        if (activeItem.source_type == "VIDEO") {
-            console.log("video url: ", activeItem.video_url);
+        if (activeItem.published_url != null) {
             setContent(
                 <div key={`video-${activeItem.slide_id}`} className="h-full w-full">
-                    <YouTubePlayerComp videoId={extractVideoId(activeItem.video_url || "") || ""} />
+                    <YouTubePlayerComp videoId={extractVideoId(activeItem.published_url) || ""} />
                 </div>,
             );
             return;

@@ -63,7 +63,7 @@ const CheckEmailStatusAlertDialog = ({
   userHasAttemptCount,
   setUserHasAttemptCount,
   case3Status,
-  serverTime
+  serverTime,
 }: {
   timeLeft: TimeLeft;
   registrationData: OpenTestAssessmentRegistrationDetails;
@@ -76,7 +76,7 @@ const CheckEmailStatusAlertDialog = ({
   userHasAttemptCount: boolean;
   setUserHasAttemptCount: React.Dispatch<React.SetStateAction<boolean>>;
   case3Status: boolean;
-  serverTime: number
+  serverTime: number;
 }) => {
   const [isOtpSent, setIsOTPSent] = useState(false);
   const [open, setOpen] = useState(false);
@@ -308,7 +308,6 @@ const CheckEmailStatusAlertDialog = ({
       <AssessmentRegistrationCompleted
         assessmentName={registrationData.assessment_public_dto.assessment_name}
         timeLeft={timeLeft}
-        assessmentId={registrationData.assessment_public_dto.assessment_id}
       />
     );
 
