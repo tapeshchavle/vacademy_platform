@@ -12,11 +12,11 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0(@capacitor/core@7.0.1)
       '@capacitor/android':
-        specifier: ^6.2.0
-        version: 6.2.0(@capacitor/core@7.0.1)
+        specifier: ^7.0.1
+        version: 7.0.1(@capacitor/core@7.0.1)
       '@capacitor/app':
-        specifier: ^6.0.2
-        version: 6.0.2(@capacitor/core@7.0.1)
+        specifier: ^7.0.0
+        version: 7.0.0(@capacitor/core@7.0.1)
       '@capacitor/cli':
         specifier: ^7.0.1
         version: 7.0.1
@@ -24,11 +24,11 @@ importers:
         specifier: ^7.0.1
         version: 7.0.1
       '@capacitor/ios':
-        specifier: ^6.2.0
-        version: 6.2.0(@capacitor/core@7.0.1)
+        specifier: ^7.0.1
+        version: 7.0.1(@capacitor/core@7.0.1)
       '@capacitor/network':
-        specifier: ^6.0.3
-        version: 6.0.3(@capacitor/core@7.0.1)
+        specifier: ^7.0.0
+        version: 7.0.0(@capacitor/core@7.0.1)
       '@capacitor/preferences':
         specifier: ^7.0.0
         version: 7.0.0(@capacitor/core@7.0.1)
@@ -513,15 +513,15 @@ packages:
     peerDependencies:
       '@capacitor/core': '>=7.0.0'
 
-  '@capacitor/android@6.2.0':
-    resolution: {integrity: sha512-3YIDPylV0Q2adEQ/H568p496QdYG0jK/XGMdx7OGSqdBZen92ciAsYdyhLtyl91UVsN1lBhDi5H6j3T2KS6aJg==}
+  '@capacitor/android@7.0.1':
+    resolution: {integrity: sha512-jukJJHfkcyEBOkFBJRD3EwXMIIQo7lSv0ExPWgsIliPdGXLAj6ElvK2JaYEzec3vKyLc4RTNFVv0PMEU0vnImg==}
     peerDependencies:
-      '@capacitor/core': ^6.2.0
+      '@capacitor/core': ^7.0.0
 
-  '@capacitor/app@6.0.2':
-    resolution: {integrity: sha512-SiGTGgslK4TbWJVImCUL1odul7/YFkVfkYtAYS9AAEzQpxBECBeRnuN3FFBcfZ9eiN1XxFBFchhiwpxtx/c7yQ==}
+  '@capacitor/app@7.0.0':
+    resolution: {integrity: sha512-/UFwfPFsw/Jen6vjrV0lfTBOQWSaDDdmrYXKpYg4Xn8hwj0xrrRPXxC43j7VmPoj9AFMVPA+hx94ygqjChPASQ==}
     peerDependencies:
-      '@capacitor/core': ^6.0.0
+      '@capacitor/core': '>=7.0.0'
 
   '@capacitor/assets@3.0.5':
     resolution: {integrity: sha512-ohz/OUq61Y1Fc6aVSt0uDrUdeOA7oTH4pkWDbv/8I3UrPjH7oPkzYhShuDRUjekNp9RBi198VSFdt0CetpEOzw==}
@@ -541,15 +541,15 @@ packages:
   '@capacitor/core@7.0.1':
     resolution: {integrity: sha512-1Ob9bvA/p8g8aNwK6VesxEekGXowLVf6APjkW4LRnr05H+7z/bke+Q5pn9zqh/GgTbIxAQ/rwZrAZvvxkdm1UA==}
 
-  '@capacitor/ios@6.2.0':
-    resolution: {integrity: sha512-gisvZBIrKT1siiumgpLPY63HmJe69Ed/dOmfQQ+U1MIJmOR5gWGWvfO7QSj/FMatVZS4Xt/8jCoUgzDD1U6kSw==}
+  '@capacitor/ios@7.0.1':
+    resolution: {integrity: sha512-RN6S1C1k7ue57DFmJM4EizzsYBrahTTiMhcnlHspFLaojgHbFWZbYq1VriuRKysPU1ka/P+klsdtRFsB5K9jyw==}
     peerDependencies:
-      '@capacitor/core': ^6.2.0
+      '@capacitor/core': ^7.0.0
 
-  '@capacitor/network@6.0.3':
-    resolution: {integrity: sha512-ODRgVY8AMIDXPoND6OvaaeMwRhtnq+K/IK7IEKV1pSg8CqJgqoD6je0omZnDqM+S1BKI2JOm8pe3gVvtcoehdw==}
+  '@capacitor/network@7.0.0':
+    resolution: {integrity: sha512-cIr0tElqiAKxbRJ7/OGOPssSyaVpyU8ushjcOItdYaGu/L9RAI+4tKdRCoL9cngCycgcUGWn+SkuN9oJCf8iHw==}
     peerDependencies:
-      '@capacitor/core': ^6.0.0
+      '@capacitor/core': '>=7.0.0'
 
   '@capacitor/preferences@7.0.0':
     resolution: {integrity: sha512-crlTtTIWcdlLfQULJ9ZiCPpvpm51WoZ8CIVG3+XSJGyavjD4bscHP15U24ya5SjpYmI44bGY9lvhvcSCfB5+AA==}
@@ -5516,11 +5516,11 @@ snapshots:
     dependencies:
       '@capacitor/core': 7.0.1
 
-  '@capacitor/android@6.2.0(@capacitor/core@7.0.1)':
+  '@capacitor/android@7.0.1(@capacitor/core@7.0.1)':
     dependencies:
       '@capacitor/core': 7.0.1
 
-  '@capacitor/app@6.0.2(@capacitor/core@7.0.1)':
+  '@capacitor/app@7.0.0(@capacitor/core@7.0.1)':
     dependencies:
       '@capacitor/core': 7.0.1
 
@@ -5595,11 +5595,11 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@capacitor/ios@6.2.0(@capacitor/core@7.0.1)':
+  '@capacitor/ios@7.0.1(@capacitor/core@7.0.1)':
     dependencies:
       '@capacitor/core': 7.0.1
 
-  '@capacitor/network@6.0.3(@capacitor/core@7.0.1)':
+  '@capacitor/network@7.0.0(@capacitor/core@7.0.1)':
     dependencies:
       '@capacitor/core': 7.0.1
 
