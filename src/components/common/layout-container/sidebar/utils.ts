@@ -47,4 +47,9 @@ export const HamBurgerSidebarItemsData: SidebarItemsType[] = [
     title: "Log Out",
     to:"/logout"
   },
+  {
+    icon: SignOut ,
+    title: "Delete Account",
+    to:"/delete-user"
+  },
 ];

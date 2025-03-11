@@ -20,6 +20,7 @@ export const RESTART_ASSESSMENT = `${BASE_URL}/assessment-service/assessment/lea
 export const STUDENT_REPORT_URL = `${BASE_URL}/assessment-service/assessment/admin/get-student-report`;
 export const STUDENT_REPORT_DETAIL_URL = `${BASE_URL}/assessment-service/admin/participants/get-report-detail`;
 export const GET_ASSESSMENT_DETAILS = `${BASE_URL}/assessment-service/assessment/create/v1/status`;
+export const UPDATE_ROLE = `${BASE_URL}/auth-service/v1/user-roles/update-role-status`;
 
 
 export const ADD_UPDATE_VIDEO_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-or-update-video-activity`
