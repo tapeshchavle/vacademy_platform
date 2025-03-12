@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { MyInput } from "@/components/design-system/input";
 import { MyButton } from "@/components/design-system/button";
 import { loginSchema } from "@/schemas/login/login";
@@ -25,6 +26,7 @@ interface UsernameLoginProps {
 
 export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(loginSchema),
@@ -38,6 +40,9 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
       loginUser(values.username, values.password),
+    onMutate: () => {
+      setIsLoading(true);
+    },
     onSuccess: async (response) => {
       if (response) {
         try {
@@ -75,14 +80,8 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
             if (instituteId && userId) {
               try {
                 await fetchAndStoreStudentDetails(instituteId, userId);
-              } catch  {
-                // console.error("Error fetching details:");
+              } catch {
                 toast.error("Failed to fetch details");
-              //   toast.error("Login Error", {
-              //     description: "Failed to fetch details",
-              //     className: "error-toast",
-              //     duration: 3000,
-              // });
               }
             } else {
               console.error("Institute ID or User ID is undefined");
@@ -94,14 +93,12 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
           console.error("Error processing decoded data:", error);
         }
       } else {
-        // toast.error("Login Error", {
-        //   description: "Invalid credentials",
-        //   className: "error-toast",
-        //   duration: 3000,
-        // });
-
         form.reset();
       }
+    },
+    onError: () => {
+      setIsLoading(false);
+      toast.error("Login failed. Please try again.");
     },
   });
 
@@ -192,8 +189,9 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
               scale="large"
               buttonType="primary"
               layoutVariant="default"
+              disabled={isLoading}
             >
-              Login
+              {isLoading ? "Loading..." : "Login"}
             </MyButton>
           </div>
         </form>

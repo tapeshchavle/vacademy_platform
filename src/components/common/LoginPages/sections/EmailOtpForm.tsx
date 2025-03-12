@@ -44,6 +44,8 @@ export function EmailLogin({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  
 
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
@@ -80,12 +82,17 @@ export function EmailLogin({
 
   const sendOtpMutation = useMutation({
     mutationFn: (email: string) => axios.post(REQUEST_OTP, { email }),
+    onMutate: () => {
+      setIsLoading(true);
+    },
     onSuccess: () => {
+      setIsLoading(false);
       setIsOtpSent(true);
       startTimer(); // Add this line
       toast.success("OTP sent successfully");
     },
     onError: () => {
+      setIsLoading(false);
       toast.error("this email is not registered", {
         description: "Please try again with a registered email",
         duration: 3000,
@@ -174,6 +181,7 @@ export function EmailLogin({
         otp: otpArray.join(""),
       });
     } else {
+      setIsLoading(false);
       toast.error("Please fill all OTP fields");
     }
   };
@@ -256,7 +264,7 @@ export function EmailLogin({
                 buttonType="primary"
                 layoutVariant="default"
               >
-                Send OTP
+                {isLoading ? "Loading..." : "Send OTP"}
               </MyButton>
             </div>
           </form>
@@ -306,7 +314,7 @@ export function EmailLogin({
                   !otpForm.getValues().otp.every((value) => value !== "")
                 }
               >
-                Login
+                {isLoading ? "Loading..." : "Login"}
               </MyButton>
               <div className="flex">
                 <MyButton
