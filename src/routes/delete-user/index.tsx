@@ -66,7 +66,7 @@ function RouteComponent() {
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialog open={true}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <h2 className="text-lg font-semibold">Delete Account</h2>
