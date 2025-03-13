@@ -10,7 +10,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { loginUser } from "@/hooks/login/login-button";
 import { TokenKey } from "@/constants/auth/tokens";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import {
   getTokenDecodedData,
@@ -27,6 +27,7 @@ interface UsernameLoginProps {
 export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const { redirect } = useSearch({ from: "/login/" });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(loginSchema),
@@ -60,7 +61,10 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
 
           if (authorityKeys.length > 1) {
             // Redirect to InstituteSelection if multiple authorities are found
-            navigate({ to: "/institute-selection" });
+            navigate({
+              to: "/institute-selection",
+              search: { redirect: redirect || "/login/SessionSelectionPage/" },
+            });
           } else {
             // Get the single institute ID
             const instituteId = authorities
@@ -87,7 +91,11 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
               console.error("Institute ID or User ID is undefined");
             }
 
-            navigate({ to: "/login/SessionSelectionPage" });
+            // navigate({ to: "/login/SessionSelectionPage" });
+            navigate({
+              to: "/login/SessionSelectionPage",
+              search: { redirect: redirect || "/dashboard" },
+            });
           }
         } catch (error) {
           console.error("Error processing decoded data:", error);
@@ -98,7 +106,9 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
     },
     onError: () => {
       setIsLoading(false);
-      toast.error("Login failed. Please try again.");
+      toast.error(
+        "Login failed. Please check your username and password and try again."
+      );
     },
   });
 

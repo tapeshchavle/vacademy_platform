@@ -16,6 +16,7 @@ import { TokenKey } from "@/constants/auth/tokens";
 import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
 import { z } from "zod";
 import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
+import { useSearch } from "@tanstack/react-router";
 
 const instituteSelectionSchema = z.object({
   instituteId: z.string().nonempty("Please select an institute"),
@@ -23,7 +24,10 @@ const instituteSelectionSchema = z.object({
 
 type FormValues = z.infer<typeof instituteSelectionSchema>;
 export function InstituteSelection() {
+  // const { redirect } = useSearch<{ redirect?: string }>({ from: "/login/" });
   const navigate = useNavigate();
+  const { redirect } = useSearch({ from: "/login/" });
+
   const form = useForm<FormValues>({
     resolver: zodResolver(instituteSelectionSchema),
     defaultValues: {
@@ -48,9 +52,8 @@ export function InstituteSelection() {
 
         const decodedData = await getTokenDecodedData(token);
         const authorities = decodedData?.authorities;
-        console.log("Decoded Token Data:", decodedData);
         if (!authorities) {
-          console.error("No authorities found in token.");
+          toast.error("No authorities found in token.");
           return;
         }
 
@@ -59,7 +62,6 @@ export function InstituteSelection() {
           value: key,
         }));
 
-        console.log("Institute List:", instituteList);
         setDropdownList(instituteList);
       } catch (error) {
         console.error("Error fetching institute list:", error);
@@ -79,7 +81,7 @@ export function InstituteSelection() {
 
     try {
       console.log("Storing selected institute in storage...");
-      await setTokenInStorage("selectedInstitute", data.instituteId);
+      // await setTokenInStorage("selectedInstitute", data.instituteId);
 
       const userId = await getTokenFromStorage(TokenKey.accessToken)
         .then(getTokenDecodedData)
@@ -141,10 +143,6 @@ export function InstituteSelection() {
                         const selectedInstitute = dropdownList.find(
                           (item) => item.label === selectedLabel
                         );
-                        console.log(
-                          "Selected Institute ID:",
-                          selectedInstitute?.value
-                        );
                         form.setValue(
                           "instituteId",
                           selectedInstitute?.value || ""
@@ -179,7 +177,12 @@ export function InstituteSelection() {
                     buttonType="text"
                     layoutVariant="default"
                     className="text-primary-500"
-                    onClick={() => navigate({ to: "/login" })}
+                    onClick={() =>
+                      navigate({
+                        to: "/login/SessionSelectionPage",
+                        search: { redirect: redirect || "/dashboard" },
+                      })
+                    }
                   >
                     Back to Login
                   </MyButton>
