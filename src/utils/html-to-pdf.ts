@@ -22,15 +22,15 @@ export const convertHtmlToPdf = async (htmlString: string): Promise<Blob> => {
     img.loading = 'eager';
   }
   
-  // Setup appropriate element styling - just like in your ExportHandler
-  tempDiv.style.position = "fixed";
-  tempDiv.style.top = "0";
-  tempDiv.style.left = "0";
-  tempDiv.style.visibility = "visible";
+  // Create an offscreen container that's outside the viewport
+  // but still rendered by the browser
+  tempDiv.style.position = "absolute";
+  tempDiv.style.top = "-9999px";  // Position far off-screen
+  tempDiv.style.left = "-9999px"; // Position far off-screen
   tempDiv.style.width = "210mm";  // A4 width
   tempDiv.style.height = "297mm"; // A4 height
   tempDiv.style.backgroundColor = "white";
-  tempDiv.style.padding= "10mm"
+  tempDiv.style.padding = "10mm";
   
   // Append to body temporarily
   document.body.appendChild(tempDiv);
