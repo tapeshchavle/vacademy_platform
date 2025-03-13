@@ -73,7 +73,8 @@ export function Navbar() {
         ? JSON.parse(InstructionID_and_AboutID.value)
         : null;
       const formattedData = await formatDataFromStore(
-        assessment_id_json?.assessment_id, 'END'
+        assessment_id_json?.assessment_id,
+        "END"
       );
       const response = await authenticatedAxiosInstance.post(
         `${ASSESSMENT_SUBMIT}`,
@@ -296,29 +297,31 @@ export function Navbar() {
           {entireTestTimer && (
             <div className="flex items-center gap-2 text-lg  justify-center">
               <div className="flex items-center space-x-4">
-                {playMode !== "PRACTICE" && playMode !== "SURVEY" && entireTestTimer && (
-                  <div className="flex items-center gap-2 text-lg justify-center">
-                    <div className="flex items-center space-x-4">
-                      {formatTime(entireTestTimer)
-                        .split(":")
-                        .map((time, index, array) => (
-                          <div
-                            key={index}
-                            className="relative flex items-center"
-                          >
-                            <span className="border border-gray-400 px-2 py-1 rounded">
-                              {time}
-                            </span>
-                            {index < array.length - 1 && (
-                              <span className="absolute right-[-10px] text-lg">
-                                :
+                {playMode !== "PRACTICE" &&
+                  playMode !== "SURVEY" &&
+                  entireTestTimer && (
+                    <div className="flex items-center gap-2 text-lg justify-center">
+                      <div className="flex items-center space-x-4">
+                        {formatTime(entireTestTimer)
+                          .split(":")
+                          .map((time, index, array) => (
+                            <div
+                              key={index}
+                              className="relative flex items-center"
+                            >
+                              <span className="border border-gray-400 px-2 py-1 rounded">
+                                {time}
                               </span>
-                            )}
-                          </div>
-                        ))}
+                              {index < array.length - 1 && (
+                                <span className="absolute right-[-10px] text-lg">
+                                  :
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
             </div>
           )}
@@ -368,6 +371,25 @@ export function Navbar() {
           </AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
+      {/* <AlertDialog open={true} modal={true}>
+        <AlertDialogContent>
+          <AlertDialogDescription>
+            Warning: You are attempting to leave the test environment. This is
+            warning {tabSwitchCount} of 3. If you attempt to leave again, your
+            test will be automatically submitted.
+          </AlertDialogDescription>
+          <AlertDialogAction
+            onClick={() => {
+              fullScreen.trigger();
+              setTimeout(() => {
+                handleWarningClose();
+              }, 100);
+            }}
+          >
+            Return to Test
+          </AlertDialogAction>
+        </AlertDialogContent>
+      </AlertDialog> */}
 
       <HelpModal
         open={helpType !== null}

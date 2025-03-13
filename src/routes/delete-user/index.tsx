@@ -2,7 +2,6 @@ import { UPDATE_ROLE } from "@/constants/urls";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { removeTokensAndLogout } from "@/lib/auth/sessionUtility";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
 import { Preferences } from "@capacitor/preferences";
 import { toast } from "sonner";
 import {
@@ -20,7 +19,6 @@ export const Route = createFileRoute("/delete-user/")({
 
 function RouteComponent() {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(true); // Open dialog when component mounts
 
   const handleDeleteAccount = async () => {
     try {

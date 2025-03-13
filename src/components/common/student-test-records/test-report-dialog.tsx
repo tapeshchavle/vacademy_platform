@@ -319,7 +319,7 @@ export const TestReportDialog = ({
         </Tabs>
 
         {/* Answer Review Section */}
-        <div className="flex w-full flex-col gap-10 p-6">
+        <div className="flex w-full flex-col gap-10 p-2">
           <div className="text-h3 font-semibold text-primary-500">
             Answer Review
           </div>
@@ -330,7 +330,7 @@ export const TestReportDialog = ({
                 <div className="flex w-full flex-col gap-10" key={index}>
                   <div className="flex w-full flex-col gap-4">
                     <div className="flex w-full items-start justify-between gap-6 text-subtitle">
-                      <div className=" md:flex-row items-start gap-6 text-title">
+                      <div className=" md:flex-row w-full items-start gap-6 text-title">
                         <div className="flex justify-between w-full">
                           <div className="">
                             Question ({index + 1}.)
@@ -346,10 +346,10 @@ export const TestReportDialog = ({
                       </div>
                     </div>
                     <div className="flex w-full items-center gap-6 text-subtitle">
-                      <div>Student answer:</div>
+                      <div>Your response:</div>
                       <div className="flex w-full items-center justify-between">
                         <div
-                          className={`flex w-[644px] items-center rounded-lg p-4 ${
+                          className={`flex w-full items-center rounded-lg p-4 ${
                             review.answer_status == "CORRECT"
                               ? "bg-success-50"
                               : review.answer_status == "INCORRECT"
@@ -404,7 +404,7 @@ export const TestReportDialog = ({
                         <div>Correct answer:</div>
                         <div className="flex w-full items-center justify-between">
                           <div
-                            className={`flex w-[644px] rounded-lg bg-success-50 p-4`}
+                            className={`flex w-full rounded-lg bg-success-50 p-4`}
                           >
                             <div>
                               {review.correct_options ? (
