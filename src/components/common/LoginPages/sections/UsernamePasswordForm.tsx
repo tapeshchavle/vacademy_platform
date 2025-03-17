@@ -63,7 +63,7 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
             // Redirect to InstituteSelection if multiple authorities are found
             navigate({
               to: "/institute-selection",
-              search: { redirect: redirect || "/SessionSelectionPage/" },
+              search: { redirect: redirect || "/dashboard/" },
             });
           } else {
             // Get the single institute ID
@@ -91,7 +91,7 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
               console.error("Institute ID or User ID is undefined");
             }
 
-            // navigate({ to: "/login/SessionSelectionPage" });
+            // Redirect to SessionSelectionPage
             navigate({
               to: "/SessionSelectionPage",
               search: { redirect: redirect || "/dashboard" },
