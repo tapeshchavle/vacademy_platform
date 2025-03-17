@@ -9,7 +9,6 @@ import { MyButton } from "@/components/design-system/button";
 import { Heading } from "@/components/common/LoginPages/ui/heading";
 import {
   getTokenDecodedData,
-  setTokenInStorage,
   getTokenFromStorage,
 } from "@/lib/auth/sessionUtility";
 import { TokenKey } from "@/constants/auth/tokens";
@@ -24,9 +23,8 @@ const instituteSelectionSchema = z.object({
 
 type FormValues = z.infer<typeof instituteSelectionSchema>;
 export function InstituteSelection() {
-  // const { redirect } = useSearch<{ redirect?: string }>({ from: "/login/" });
   const navigate = useNavigate();
-  const { redirect } = useSearch({ from: "/login/" });
+  const { redirect } = useSearch({ from: "/institute-selection/" });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(instituteSelectionSchema),
@@ -110,7 +108,7 @@ export function InstituteSelection() {
       } else {
         console.error("Institute ID or User ID is undefined");
       }
-      navigate({ to: "/login/SessionSelectionPage" });
+      navigate({ to: redirect });
     } catch (error) {
       console.error("Error processing institute selection:", error);
       toast.error("Failed to process institute selection");
@@ -179,8 +177,8 @@ export function InstituteSelection() {
                     className="text-primary-500"
                     onClick={() =>
                       navigate({
-                        to: "/login/SessionSelectionPage",
-                        search: { redirect: redirect || "/dashboard" },
+                        to: "/SessionSelectionPage",
+                        search: { redirect: redirect },
                       })
                     }
                   >

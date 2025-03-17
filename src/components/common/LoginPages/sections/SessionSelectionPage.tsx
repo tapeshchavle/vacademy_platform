@@ -19,9 +19,8 @@ const SessionSelectionPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { redirect } = useSearch<string[]>({ from: "/SessionSelectionPage/" });
 
-  const { redirect } = useSearch({ from: "/login/SessionSelectionPage/" });
-  
   useEffect(() => {
     fetchSessionList();
   }, []);
@@ -46,7 +45,7 @@ const SessionSelectionPage = () => {
       const sessions = JSON.parse(value) as Session[];
       setSessionList(sessions);
     } catch (error) {
-      toast.error("Failed to load sessions. Please try again later.");
+      toast.error("Failed to load sessions.");
       console.error("Error fetching sessions:", error);
       setSessionList([]);
     } finally {
@@ -88,9 +87,7 @@ const SessionSelectionPage = () => {
       await Preferences.remove({ key: "students" });
 
       // Navigate to Dashboard after selection
-      // navigate({ to: "/dashboard" });
       navigate({ to: redirect });
-
     } catch (error) {
       toast.error("Failed to select session. Please try again.");
       console.error("Error selecting session:", error);

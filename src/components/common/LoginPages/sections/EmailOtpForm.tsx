@@ -153,7 +153,7 @@ export function EmailLogin({
             console.error("Institute ID or User ID is undefined");
           }
 
-          navigate({ to: "/login/SessionSelectionPage" });
+          navigate({ to: "/SessionSelectionPage" });
         }
       } catch (error) {
         console.error("Error processing decoded data:", error);

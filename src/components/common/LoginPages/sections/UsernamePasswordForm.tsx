@@ -63,7 +63,7 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
             // Redirect to InstituteSelection if multiple authorities are found
             navigate({
               to: "/institute-selection",
-              search: { redirect: redirect || "/login/SessionSelectionPage/" },
+              search: { redirect: redirect || "/SessionSelectionPage/" },
             });
           } else {
             // Get the single institute ID
@@ -93,7 +93,7 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
 
             // navigate({ to: "/login/SessionSelectionPage" });
             navigate({
-              to: "/login/SessionSelectionPage",
+              to: "/SessionSelectionPage",
               search: { redirect: redirect || "/dashboard" },
             });
           }
