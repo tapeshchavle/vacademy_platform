@@ -24,7 +24,7 @@ const instituteSelectionSchema = z.object({
 type FormValues = z.infer<typeof instituteSelectionSchema>;
 export function InstituteSelection() {
   const navigate = useNavigate();
-  const { redirect } = useSearch({ from: "/institute-selection/" });
+  const { redirect } = useSearch<any>({ from: "/institute-selection/" });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(instituteSelectionSchema),

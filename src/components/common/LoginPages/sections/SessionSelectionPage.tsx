@@ -19,7 +19,7 @@ const SessionSelectionPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { redirect } = useSearch<string[]>({ from: "/SessionSelectionPage/" });
+  const { redirect } = useSearch<any>({ from: "/SessionSelectionPage/" });
 
   useEffect(() => {
     fetchSessionList();

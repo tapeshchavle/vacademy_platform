@@ -23,12 +23,11 @@ type FormValues = z.infer<typeof loginSchema>;
 interface UsernameLoginProps {
   onSwitchToEmail: () => void;
 }
-
 export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const { redirect } = useSearch({ from: "/login/" });
-
+  const { redirect } = useSearch<any>({ from: "/login/" });
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {

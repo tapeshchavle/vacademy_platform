@@ -45,7 +45,7 @@ export function EmailLogin({
   const navigate = useNavigate();
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const { redirect } = useSearch({ from: "/login/" });
+  const { redirect } = useSearch<any>({ from: "/login/" });
 
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
