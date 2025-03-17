@@ -158,7 +158,7 @@ export default function Page() {
 
     const interval = setInterval(() => {
       sent();
-    }, 1000);
+    }, 60000);
 
     // Cleanup function to clear the interval
     return () => clearInterval(interval);
