@@ -4,6 +4,7 @@ import { Separator } from "@radix-ui/react-separator";
 import {
   convertToLocalDateTime,
   extractDateTime,
+  formatDuration,
   getSubjectNameById,
 } from "@/constants/helper";
 import { ResponseBreakdownComponent } from "./response-breakdown-component";
@@ -130,7 +131,9 @@ export const TestReportDialog = ({
               }
             </div>
             <div>Marks: {studentReport.total_marks}</div>
-            <div>Duration: {studentReport.duration_in_seconds * 60} min</div>
+            <div>
+              Duration: {formatDuration(studentReport.duration_in_seconds)}
+            </div>
             <div>
               Start Time:{" "}
               {
@@ -288,9 +291,9 @@ export const TestReportDialog = ({
         <Tabs
           value={selectedSection}
           onValueChange={setSelectedSection}
-          className="px-8"
+          className=""
         >
-          <div className="sticky top-0 flex items-center justify-between">
+          <div className="sticky top-0 flex items-center justify-between overflow-auto">
             <TabsList className="mb-2 mt-6 inline-flex h-auto justify-start gap-4 rounded-none border-b !bg-transparent p-0">
               {sectionsInfo?.map((section) => (
                 <TabsTrigger
@@ -316,7 +319,7 @@ export const TestReportDialog = ({
         </Tabs>
 
         {/* Answer Review Section */}
-        <div className="flex w-full flex-col gap-10 p-6">
+        <div className="flex w-full flex-col gap-10 p-2">
           <div className="text-h3 font-semibold text-primary-500">
             Answer Review
           </div>
@@ -327,24 +330,26 @@ export const TestReportDialog = ({
                 <div className="flex w-full flex-col gap-10" key={index}>
                   <div className="flex w-full flex-col gap-4">
                     <div className="flex w-full items-start justify-between gap-6 text-subtitle">
-                      <div className="flex items-start gap-6 text-title">
-                        <div className="whitespace-nowrap">
-                          Question ({index + 1}.)
+                      <div className=" md:flex-row w-full items-start gap-6 text-title">
+                        <div className="flex justify-between w-full">
+                          <div className="">
+                            Question ({index + 1}.)
+                          </div>
+                          <div className="flex  items-center gap-2 ">
+                            <Clock size={20} />
+                            <p className="text-primary-500">
+                              {review.time_taken_in_seconds} sec
+                            </p>
+                          </div>
                         </div>
                         <div>{parseHtmlToString(review.question_name)}</div>
                       </div>
-                      <div className="flex flex-nowrap items-center gap-2 whitespace-nowrap">
-                        <Clock size={20} />
-                        <p className="text-primary-500">
-                          {review.time_taken_in_seconds} sec
-                        </p>
-                      </div>
                     </div>
                     <div className="flex w-full items-center gap-6 text-subtitle">
-                      <div>Student answer:</div>
+                      <div>Your response:</div>
                       <div className="flex w-full items-center justify-between">
                         <div
-                          className={`flex w-[644px] items-center rounded-lg p-4 ${
+                          className={`flex w-full items-center rounded-lg p-4 ${
                             review.answer_status == "CORRECT"
                               ? "bg-success-50"
                               : review.answer_status == "INCORRECT"
@@ -399,7 +404,7 @@ export const TestReportDialog = ({
                         <div>Correct answer:</div>
                         <div className="flex w-full items-center justify-between">
                           <div
-                            className={`flex w-[644px] rounded-lg bg-success-50 p-4`}
+                            className={`flex w-full rounded-lg bg-success-50 p-4`}
                           >
                             <div>
                               {review.correct_options ? (

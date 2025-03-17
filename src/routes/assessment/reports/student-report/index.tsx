@@ -122,10 +122,8 @@ function RouteComponent() {
   // Show loading state if any of the data is still loading
   if (loading || isAssessmentLoading || !instituteId) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="flex justify-center">
-          <DashboardLoader />
-        </div>
+      <div className="flex justify-center items-center h-screen w-screen">
+        <DashboardLoader />
       </div>
     );
   }

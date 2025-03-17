@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import axios from "axios";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,7 @@ export function EmailLogin({
   const navigate = useNavigate();
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
+  const { redirect } = useSearch<any>({ from: "/login/" });
 
   const emailForm = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
@@ -137,7 +137,10 @@ export function EmailLogin({
         const authorityKeys = authorities ? Object.keys(authorities) : [];
 
         if (authorityKeys.length > 1) {
-          navigate({ to: "/institute-selection" });
+          navigate({
+            to: "/institute-selection",
+            search: { redirect: redirect || "/dashboard/" },
+          });
         } else {
           const instituteId = authorityKeys[0];
 
@@ -153,7 +156,11 @@ export function EmailLogin({
             console.error("Institute ID or User ID is undefined");
           }
 
-          navigate({ to: "/login/SessionSelectionPage" });
+          // navigate({ to: "/SessionSelectionPage" });
+          navigate({
+            to: "/SessionSelectionPage",
+            search: { redirect: redirect || "/dashboard" },
+          });
         }
       } catch (error) {
         console.error("Error processing decoded data:", error);

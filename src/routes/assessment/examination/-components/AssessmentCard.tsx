@@ -20,6 +20,7 @@ import {
   // fetchPreviewData,
   storeAssessmentInfo,
 } from "../-utils.ts/useFetchAssessment";
+import { formatDuration } from "@/constants/helper";
 
 interface AssessmentProps {
   assessmentInfo: Assessment;
@@ -164,7 +165,7 @@ export const AssessmentCard = ({
                 )}
               </div>
                 <div>
-                Duration: {Math.floor(assessmentInfo.duration / 60)} hours {assessmentInfo.duration % 60} minutes
+                Duration: {formatDuration(assessmentInfo.duration*60)}
                 </div>
             </div>
           </div>

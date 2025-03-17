@@ -56,3 +56,9 @@ export const getSubjectNameById = (subjects: Subject[], id: string | null): stri
   const subject = subjects.find((item: Subject) => item.id === id);
   return subject?.subject_name || "N/A";
 };
+
+export const formatDuration = (durationInSeconds: number): string => {
+  const hours = Math.floor(durationInSeconds / 3600);
+  const minutes = Math.floor((durationInSeconds % 3600) / 60);
+  return `${hours > 0 ? `${hours} hr ` : ""}${minutes > 0 ? `${minutes} min` : ""}`;
+};

@@ -17,7 +17,7 @@ import { UsernameLogin } from "./UsernamePasswordForm";
 import { Preferences } from "@capacitor/preferences";
 // type FormValues = z.infer<typeof loginSchema>;
 
-const getFromStorage = async (key: string) => {
+export const getFromStorage = async (key: string) => {
   const result = await Preferences.get({ key });
   return result.value;
 };

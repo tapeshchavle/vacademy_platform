@@ -210,8 +210,7 @@ export function QuestionDisplay() {
             size="sm"
             onClick={() => clearResponse(currentQuestion.question_id)}
             // disabled={currentAnswer.length === 0 || isDisabled}
-            disabled={currentAnswer.length === 0 }
-
+            disabled={currentAnswer.length === 0}
           >
             Clear Response
           </Button>
@@ -222,11 +221,12 @@ export function QuestionDisplay() {
         {currentQuestion?.options?.map((option, index) => (
           <div
             key={option.id}
-            className={`flex flex-row-reverse items-center justify-between rounded-lg border p-4 w-full ${
+            className={`flex flex-row-reverse items-center justify-between rounded-lg border p-4 w-full cursor-pointer ${
               currentAnswer.includes(option.id)
                 ? "border-primary-500 bg-primary-50"
                 : "border-gray-200"
             }`}
+            onClick={() => handleAnswerChange(option.id)}
           >
             <div className="relative flex items-center">
               <div
@@ -235,7 +235,6 @@ export function QuestionDisplay() {
                     ? "bg-green-500 border-green-500"
                     : "border-gray-300"
                 }`}
-                onClick={() => handleAnswerChange(option.id)}
               >
                 {currentAnswer.includes(option.id) && (
                   <span className="text-white font-bold">✔</span>
@@ -249,7 +248,6 @@ export function QuestionDisplay() {
                   ? "font-semibold"
                   : "text-gray-700"
               }`}
-              onClick={() => handleAnswerChange(option.id)}
             >
               {`(${String.fromCharCode(97 + index)}) `}
               {processHtmlString(option.text.content).map((item, index) =>
