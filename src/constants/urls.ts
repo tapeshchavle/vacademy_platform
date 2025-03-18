@@ -1,3 +1,4 @@
+import { GET_ENROLL_DETAILS } from './urls';
 export const BASE_URL = "https://backend-stage.vacademy.io";
 //urls 
 export const INSTITUTE_ID = "c70f40a5-e4d3-4b6c-a498-e612d0d4b133";
@@ -21,6 +22,8 @@ export const STUDENT_REPORT_URL = `${BASE_URL}/assessment-service/assessment/adm
 export const STUDENT_REPORT_DETAIL_URL = `${BASE_URL}/assessment-service/admin/participants/get-report-detail`;
 export const GET_ASSESSMENT_DETAILS = `${BASE_URL}/assessment-service/assessment/create/v1/status`;
 export const UPDATE_ROLE = `${BASE_URL}/auth-service/v1/user-roles/update-role-status`;
+export const GET_ENROLL_DETAILS = `${BASE_URL}/admin-core-service/learner-invitation-response/form`;
+export const ENROLL_DETAILS_RESPONSE = `${BASE_URL}/admin-core-service/learner-invitation-response/record`;
 
 
 export const ADD_UPDATE_VIDEO_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-or-update-video-activity`
