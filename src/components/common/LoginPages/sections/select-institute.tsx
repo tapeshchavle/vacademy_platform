@@ -108,7 +108,10 @@ export function InstituteSelection() {
       } else {
         console.error("Institute ID or User ID is undefined");
       }
-      navigate({ to: redirect });
+      navigate({
+        to: "/SessionSelectionPage",
+        search: { redirect: redirect },
+      });
     } catch (error) {
       console.error("Error processing institute selection:", error);
       toast.error("Failed to process institute selection");
@@ -177,7 +180,7 @@ export function InstituteSelection() {
                     className="text-primary-500"
                     onClick={() =>
                       navigate({
-                        to: "/SessionSelectionPage",
+                        to: "/login",
                         search: { redirect: redirect },
                       })
                     }
