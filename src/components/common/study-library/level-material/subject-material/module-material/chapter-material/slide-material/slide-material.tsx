@@ -123,7 +123,7 @@ export const SlideMaterial = () => {
         <div className="flex w-full flex-col" ref={selectionRef}>
             <div className="-mx-8 -my-3 flex items-center justify-between gap-6 border-b border-neutral-300 px-8 py-2">
                 <h3 className="text-subtitle font-semibold text-neutral-600">
-                    {heading || "No content selected"}
+                    {heading || "No content"}
                 </h3>
             </div>
             <div

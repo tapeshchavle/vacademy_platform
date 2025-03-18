@@ -28,7 +28,7 @@ interface ChapterSearchParams {
 export const Route = createFileRoute(
   '/study-library/courses/levels/subjects/modules/chapters/slides/',
 )({
-  component: Chapters,
+  component: Slides,
   validateSearch: (search: Record<string, unknown>): ChapterSearchParams => {
     return {
       subjectId: search.subjectId as string,
@@ -39,7 +39,7 @@ export const Route = createFileRoute(
   },
 })
 
-function Chapters() {
+function Slides() {
   const {subjectId, moduleId, chapterId, slideId} = Route.useSearch();
   const [inputSearch, setInputSearch] = useState("");
   const { open, state, toggleSidebar } = useSidebar();

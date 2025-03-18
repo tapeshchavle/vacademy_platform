@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { LayoutContainer } from "@/components/common/layout-container/layout-container";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { useEffect, useState } from "react";
@@ -21,6 +21,7 @@ export function DashboardComponent() {
   const [data, setData] = useState<CourseData>();
   const [assessmentCount, setAssessmentCount] = useState<number>();
   const { setNavHeading } = useNavHeadingStore();
+  const navigate = useNavigate()
   useEffect(() => {
     setNavHeading("Dashboard");
     fetchStaticData(setUsername, setData, setAssessmentCount);
@@ -43,7 +44,13 @@ export function DashboardComponent() {
         <DashboardImg />
       </div>
       <div className="flex flex-col gap-6">
-        <DashboardTabs title={"Courses"} count={data?.courses} button={false} />
+        <div onClick={()=>{
+          navigate({
+            to: `/study-library/courses`
+          })
+        }} className="cursor-pointer">
+          <DashboardTabs title={"Courses"} count={data?.courses} button={false} />
+        </div>
         {/* TODO: implemnet resume feature after api is changed */}
         {/* <DashboardTabs
             title="Begin your journey"
@@ -52,11 +59,17 @@ export function DashboardComponent() {
             buttonText="Resume"
             list={data?.slides}
           /> */}
-        <DashboardTabs
-          title="Test Assigned"
-          count={assessmentCount}
-          button={false}
-        />
+        <div onClick={()=>{
+          navigate({
+            to: `/assessment/examination`
+          })
+        }} className="cursor-pointer">
+          <DashboardTabs
+            title="Test Assigned"
+            count={assessmentCount}
+            button={false}
+          />
+        </div>
       </div>
     </div>
   );

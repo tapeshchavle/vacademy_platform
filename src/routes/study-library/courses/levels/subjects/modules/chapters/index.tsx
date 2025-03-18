@@ -8,6 +8,7 @@ import { CaretLeft } from 'phosphor-react'
 import { ChapterSidebarComponent } from '@/components/common/study-library/level-material/subject-material/module-material/chapter-material/chapter-sidebar-component'
 import { InitStudyLibraryProvider } from '@/providers/study-library/init-study-library-provider'
 import { ModulesWithChaptersProvider } from '@/providers/study-library/modules-with-chapters-provider'
+import { useContentStore } from '@/stores/study-library/chapter-sidebar-store'
 
 interface ModulesSearchParams {
   subjectId: string
@@ -34,6 +35,12 @@ function ModuleMaterialPage() {
     const [currentModuleId, setCurrentModuleId] = useState(moduleId);
 
     const { setNavHeading } = useNavHeadingStore();
+
+    const {setActiveItem} = useContentStore();
+
+    useEffect(()=>{
+        setActiveItem(null);
+    }, [])
 
     useEffect(() => {
         navigate({
