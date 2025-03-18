@@ -16,6 +16,7 @@ import { Route as RegisterIndexImport } from './routes/register/index'
 import { Route as LogoutIndexImport } from './routes/logout/index'
 import { Route as LoginIndexImport } from './routes/login/index'
 import { Route as InstituteSelectionIndexImport } from './routes/institute-selection/index'
+import { Route as EnrollIndexImport } from './routes/enroll/index'
 import { Route as DeleteUserIndexImport } from './routes/delete-user/index'
 import { Route as DashboardIndexImport } from './routes/dashboard/index'
 import { Route as SessionSelectionPageIndexImport } from './routes/SessionSelectionPage/index'
@@ -63,6 +64,12 @@ const LoginIndexRoute = LoginIndexImport.update({
 const InstituteSelectionIndexRoute = InstituteSelectionIndexImport.update({
   id: '/institute-selection/',
   path: '/institute-selection/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const EnrollIndexRoute = EnrollIndexImport.update({
+  id: '/enroll/',
+  path: '/enroll/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -203,6 +210,13 @@ declare module '@tanstack/react-router' {
       path: '/delete-user'
       fullPath: '/delete-user'
       preLoaderRoute: typeof DeleteUserIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/enroll/': {
+      id: '/enroll/'
+      path: '/enroll'
+      fullPath: '/enroll'
+      preLoaderRoute: typeof EnrollIndexImport
       parentRoute: typeof rootRoute
     }
     '/institute-selection/': {
@@ -347,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/SessionSelectionPage': typeof SessionSelectionPageIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/delete-user': typeof DeleteUserIndexRoute
+  '/enroll': typeof EnrollIndexRoute
   '/institute-selection': typeof InstituteSelectionIndexRoute
   '/login': typeof LoginIndexRoute
   '/logout': typeof LogoutIndexRoute
@@ -372,6 +387,7 @@ export interface FileRoutesByTo {
   '/SessionSelectionPage': typeof SessionSelectionPageIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/delete-user': typeof DeleteUserIndexRoute
+  '/enroll': typeof EnrollIndexRoute
   '/institute-selection': typeof InstituteSelectionIndexRoute
   '/login': typeof LoginIndexRoute
   '/logout': typeof LogoutIndexRoute
@@ -398,6 +414,7 @@ export interface FileRoutesById {
   '/SessionSelectionPage/': typeof SessionSelectionPageIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/delete-user/': typeof DeleteUserIndexRoute
+  '/enroll/': typeof EnrollIndexRoute
   '/institute-selection/': typeof InstituteSelectionIndexRoute
   '/login/': typeof LoginIndexRoute
   '/logout/': typeof LogoutIndexRoute
@@ -425,6 +442,7 @@ export interface FileRouteTypes {
     | '/SessionSelectionPage'
     | '/dashboard'
     | '/delete-user'
+    | '/enroll'
     | '/institute-selection'
     | '/login'
     | '/logout'
@@ -449,6 +467,7 @@ export interface FileRouteTypes {
     | '/SessionSelectionPage'
     | '/dashboard'
     | '/delete-user'
+    | '/enroll'
     | '/institute-selection'
     | '/login'
     | '/logout'
@@ -473,6 +492,7 @@ export interface FileRouteTypes {
     | '/SessionSelectionPage/'
     | '/dashboard/'
     | '/delete-user/'
+    | '/enroll/'
     | '/institute-selection/'
     | '/login/'
     | '/logout/'
@@ -499,6 +519,7 @@ export interface RootRouteChildren {
   SessionSelectionPageIndexRoute: typeof SessionSelectionPageIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   DeleteUserIndexRoute: typeof DeleteUserIndexRoute
+  EnrollIndexRoute: typeof EnrollIndexRoute
   InstituteSelectionIndexRoute: typeof InstituteSelectionIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
   LogoutIndexRoute: typeof LogoutIndexRoute
@@ -524,6 +545,7 @@ const rootRouteChildren: RootRouteChildren = {
   SessionSelectionPageIndexRoute: SessionSelectionPageIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   DeleteUserIndexRoute: DeleteUserIndexRoute,
+  EnrollIndexRoute: EnrollIndexRoute,
   InstituteSelectionIndexRoute: InstituteSelectionIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
   LogoutIndexRoute: LogoutIndexRoute,
@@ -566,6 +588,7 @@ export const routeTree = rootRoute
         "/SessionSelectionPage/",
         "/dashboard/",
         "/delete-user/",
+        "/enroll/",
         "/institute-selection/",
         "/login/",
         "/logout/",
@@ -595,6 +618,9 @@ export const routeTree = rootRoute
     },
     "/delete-user/": {
       "filePath": "delete-user/index.tsx"
+    },
+    "/enroll/": {
+      "filePath": "enroll/index.tsx"
     },
     "/institute-selection/": {
       "filePath": "institute-selection/index.tsx"
