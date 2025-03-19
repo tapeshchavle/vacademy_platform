@@ -89,6 +89,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
         if (value) {
           const savedTime = Number.parseInt(value, 10);
           setLastVerificationTime(savedTime);
+          console.log(lastVerificationTime);
         }
       } catch (error) {
         console.error("Error loading saved verification data:", error);
@@ -193,7 +194,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
     verificationTimeoutRef.current = setTimeout(() => {
       if (!showVerification && !isPaused) {
         setShowVerification(true);
-        const correctIndex = generateVerificationNumbers();
+        generateVerificationNumbers();
         startVerificationTimer();
       }
     }, inactivityThreshold);
@@ -419,6 +420,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
 
   const handleDocumentLoad = (e: DocumentLoadEvent) => {
     setTotalPages(e.doc.numPages);
+    console.log(totalPages);
     const now = getEpochTimeInMillis();
     pageStartTime.current = new Date();
     startTimeInMillis.current = now;
