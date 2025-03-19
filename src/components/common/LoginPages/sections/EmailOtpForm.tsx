@@ -317,7 +317,7 @@ export function EmailLogin({
                             className="h-12 w-12 text-center text-xl"
                             onChange={(e) => handleOtpChange(e.target, index)}
                             onKeyDown={(e) => handleOtpKeyDown(e, index)}
-                            onPaste={(e) => handleOtpPaste(e, index)}
+                            onPaste={(e) => handleOtpPaste(e)}
                           />
                         </FormControl>
                       </FormItem>
