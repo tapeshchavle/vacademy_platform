@@ -179,7 +179,7 @@ export function EmailLogin({
     }
   };
 
-  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>, index: number) => {
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     
     const pastedData = e.clipboardData.getData('text');
