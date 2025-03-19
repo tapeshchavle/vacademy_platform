@@ -23,7 +23,12 @@ import {
   Section,
   TestReportDialogProps,
 } from "@/types/assessments/assessment-data-type";
-
+import { GET_ASSESSMENT_MARKS } from "@/constants/urls";
+import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
+type TestMarks = {
+  total_achievable_marks: number;
+  section_wise_achievable_marks: Record<string, number>;
+};
 export const TestReportDialog = ({
   testReport,
   examType,
@@ -50,6 +55,30 @@ export const TestReportDialog = ({
   };
 
   const studentReport: Report = locationState?.report || defaultReport;
+  const [testMarks, setTestMarks] = useState<TestMarks | null>(null);
+
+  useEffect(() => {
+    const fetchTestMarks = async () => {
+      const assessmentId = studentReport.assessment_id;
+      try {
+        const response = await authenticatedAxiosInstance({
+          method: "GET",
+          url: GET_ASSESSMENT_MARKS,
+          params: {
+            assessmentId,
+          },
+        });
+        console.log("testMarks", response);
+        const data = response?.data;
+        setTestMarks(data);
+      } catch (error) {
+        console.error("Error fetching test marks:", error);
+      }
+    };
+
+    fetchTestMarks();
+  }, []);
+
   useEffect(() => {
     const fetchInstituteDetails = async () => {
       const response = await Preferences.get({ key: "InstituteDetails" });
@@ -180,7 +209,11 @@ export const TestReportDialog = ({
             </div>
             <div>
               <h1>Marks</h1>
-              <p className="text-neutral-500">{studentReport.total_marks}/20</p>
+              {/* <p className="text-neutral-500">{studentReport.total_marks}/{testMarks.total_achievable_marks}</p> */}
+              <p className="text-neutral-500">
+                {studentReport.total_marks}/
+                {testMarks?.total_achievable_marks ?? "-"}
+              </p>
             </div>
           </div>
           <div className="flex w-full flex-col items-center gap-6">
@@ -304,6 +337,7 @@ export const TestReportDialog = ({
                       ? "rounded-t-sm border !border-b-0 border-primary-200 !bg-primary-50"
                       : "border-none bg-transparent"
                   }`}
+                  onClick={() => setSelectedSection(section.id)}
                 >
                   <span
                     className={`${
@@ -320,8 +354,19 @@ export const TestReportDialog = ({
 
         {/* Answer Review Section */}
         <div className="flex w-full flex-col gap-10 p-2">
-          <div className="text-h3 font-semibold text-primary-500">
-            Answer Review
+          <div className="flex justify-between">
+            <div className="text-h3 font-semibold text-primary-500">
+              Answer Review
+            </div>
+            {/* Section Marks Display */}
+            <div className="text-primary-500">
+              Section Total Marks:{" "}
+              {
+                testMarks?.section_wise_achievable_marks?.[
+                  selectedSection ?? "0"
+                ]
+              }
+            </div>
           </div>
           <div className="flex w-full flex-col gap-10 pb-10 md:pb-0">
             {currentSectionAllQuestions &&
@@ -332,9 +377,7 @@ export const TestReportDialog = ({
                     <div className="flex w-full items-start justify-between gap-6 text-subtitle">
                       <div className=" md:flex-row w-full items-start gap-6 text-title">
                         <div className="flex justify-between w-full">
-                          <div className="">
-                            Question ({index + 1}.)
-                          </div>
+                          <div className="">Question ({index + 1}.)</div>
                           <div className="flex  items-center gap-2 ">
                             <Clock size={20} />
                             <p className="text-primary-500">

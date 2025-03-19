@@ -99,19 +99,6 @@ export function EmailLogin({
       });
     },
   });
-  // const sendOtpMutation = useMutation({
-  //   mutationFn: (email: string) => axios.post(REQUEST_OTP, { email }),
-  //   onSuccess: () => {
-  //     setIsOtpSent(true);
-  //     toast.success("OTP sent successfully");
-  //   },
-  //   onError: () => {
-  //     toast.error("this email is not registered", {
-  //       description: "Please try again with a registered email",
-  //       duration: 3000,
-  //     });
-  //   },
-  // });
 
   const verifyOtpMutation = useMutation({
     mutationFn: (data: { email: string; otp: string }) =>
@@ -156,7 +143,6 @@ export function EmailLogin({
             console.error("Institute ID or User ID is undefined");
           }
 
-          // navigate({ to: "/SessionSelectionPage" });
           navigate({
             to: "/SessionSelectionPage",
             search: { redirect: redirect || "/dashboard" },
@@ -190,6 +176,39 @@ export function EmailLogin({
     } else {
       setIsLoading(false);
       toast.error("Please fill all OTP fields");
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    
+    const pastedData = e.clipboardData.getData('text');
+    const digits = pastedData.replace(/[^0-9]/g, '').split('');
+    const validDigits = digits.slice(0, 6);
+    
+    if (validDigits.length > 0) {
+      const newOtp = Array(6).fill('');
+      
+      for (let i = 0; i < validDigits.length; i++) {
+        if (i < 6) {
+          newOtp[i] = validDigits[i];
+        }
+      }
+      
+      otpForm.setValue("otp", newOtp);
+      
+      const nextEmptyIndex = newOtp.findIndex(val => val === '');
+      if (nextEmptyIndex !== -1 && nextEmptyIndex < 6) {
+        otpInputRefs.current[nextEmptyIndex]?.focus();
+      } else {
+        otpInputRefs.current[5]?.focus();
+      }
+      
+      if (newOtp.every(val => val !== '')) {
+        setTimeout(() => {
+          onOtpSubmit();
+        }, 100);
+      }
     }
   };
 
@@ -298,6 +317,7 @@ export function EmailLogin({
                             className="h-12 w-12 text-center text-xl"
                             onChange={(e) => handleOtpChange(e.target, index)}
                             onKeyDown={(e) => handleOtpKeyDown(e, index)}
+                            onPaste={(e) => handleOtpPaste(e)}
                           />
                         </FormControl>
                       </FormItem>
