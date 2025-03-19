@@ -55,7 +55,7 @@ export const TestReportDialog = ({
   };
 
   const studentReport: Report = locationState?.report || defaultReport;
-  const [testMarks, setTestMarks] = useState<TestMarks | null>({});
+  const [testMarks, setTestMarks] = useState<TestMarks | null>(null);
 
   useEffect(() => {
     const fetchTestMarks = async () => {
