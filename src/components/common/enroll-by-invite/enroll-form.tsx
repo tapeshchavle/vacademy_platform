@@ -17,6 +17,10 @@ import { X, Loader2 } from "lucide-react";
 import { z } from "zod";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { ENROLL_DETAILS_RESPONSE, GET_ENROLL_DETAILS } from "@/constants/urls";
+import { toast } from "sonner";
+import { DashboardLoader } from "@/components/core/dashboard-loader";
+import { useRouter } from "@tanstack/react-router";
+import { MyButton } from "@/components/design-system/button";
 
 // Type definitions
 interface CustomField {
@@ -76,16 +80,22 @@ interface InviteData {
 const emailSchema = z.string().email("Please enter a valid email address");
 const phoneSchema = z
   .string()
-  .regex(
-    /^\+91\s\d{3}\s\d{3}\s\d{3}$/,
-    "Phone number must be in format: +91 XXX XXX XXX"
-  );
-console.log(phoneSchema);
+  .regex(/^\d{10}$/, "Phone number must be exactly 10 digits")
+  .transform((val) => val.trim());
 
 const EnrollByInvite = () => {
-  // For development, using hardcoded values
-  const instituteId = "0f1a4bb6-90ec-4e91-bbbf-2184a39c986e";
-  const inviteCode = "053OO";
+  //   const route = useRouter();
+  // const searchParams = new URLSearchParams(route.latestLocation.search);
+
+  // const instituteId = searchParams.get("instituteId");
+  // const inviteCode = searchParams.get("inviteCode");
+
+  // console.log({ instituteId, inviteCode });
+  const route = useRouter();
+
+  const pathParts = route.latestLocation.pathname.split("/");
+  const instituteId = pathParts[2];
+  const inviteCode = pathParts[3];
 
   // Form state
   const [step, setStep] = useState(1);
@@ -548,14 +558,15 @@ const EnrollByInvite = () => {
       }
     }
 
-    // try {
-    //   phoneSchema.parse(personalInfo.mobile);
-    // } catch (error) {
-    //   if (error instanceof z.ZodError) {
-    //     newErrors.mobile = error.errors[0].message;
-    //     hasError = true;
-    //   }
-    // }
+    // Validation logic
+    try {
+      phoneSchema.parse(personalInfo.mobile);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        newErrors.mobile = error.errors[0].message;
+        hasError = true;
+      }
+    }
 
     // Validate custom fields
     if (inviteData && inviteData.custom_fields) {
@@ -577,30 +588,40 @@ const EnrollByInvite = () => {
 
     // Prepare data for submission
     const submissionData = {
-      ...inviteData,
+      id: null,
+      institute_id: inviteData?.institute_id,
+      learner_invitation_id: inviteData?.id,
+      status: "ACTIVE",
       full_name: personalInfo.fullName,
       email: personalInfo.email,
       contact_number: personalInfo.mobile,
-      batch_selection_response_json: selectedPackages.map((packageId) => {
-        const packageSessions = selectedSessions[packageId] || [];
+      batch_options_json: inviteData?.batch_options_json,
+      batch_selection_response_json: JSON.stringify(
+        selectedPackages.map((packageId) => {
+          const packageSessions = selectedSessions[packageId] || [];
 
-        return {
-          package_id: packageId,
-          selected_sessions: packageSessions.map((sessionId) => {
-            const sessionLevels = selectedLevels[sessionId] || [];
+          return {
+            package_id: packageId,
+            selected_sessions: packageSessions.map((sessionId) => {
+              const sessionLevels = selectedLevels[sessionId] || [];
 
-            return {
-              session_id: sessionId,
-              selected_levels: sessionLevels,
-            };
-          }),
-        };
-      }),
-      custom_field_values: Object.keys(customFieldValues).map((fieldId) => ({
-        field_id: fieldId,
+              return {
+                session_id: sessionId,
+                selected_levels: sessionLevels,
+              };
+            }),
+          };
+        })
+      ),
+      recorded_on: new Date().toISOString(),
+      custom_fields_response: Object.keys(customFieldValues).map((fieldId) => ({
+        custom_field_id: fieldId,
+        id: null,
         value: customFieldValues[fieldId],
+        field_name: null,
       })),
     };
+    console.log("customFieldValues", customFieldValues);
 
     // Submit data
     setSubmitLoading(true);
@@ -614,15 +635,14 @@ const EnrollByInvite = () => {
         submissionData
       );
       console.log("Enrollment response:", response.data);
-
-      // Handle successful submission
-      alert("Enrollment successful!");
-      // Redirect or show success message
+      toast.success("Enrollment submitted successfully!");
     } catch (error) {
-      console.error("Error submitting enrollment:", error);
-      alert(
-        "An error occurred while submitting your enrollment. Please try again."
-      );
+      //   console.error("Error submitting enrollment:", error);
+      if (error.response && error.response.data && error.response.data.ex) {
+        toast.error(error.response.data.ex);
+      } else {
+        toast.error("An unexpected error occurred. Please try again later.");
+      }
     } finally {
       setSubmitLoading(false);
     }
@@ -679,18 +699,15 @@ const EnrollByInvite = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="flex flex-col items-center">
-          <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-          <p className="mt-2 text-gray-500">Loading enrollment options...</p>
-        </div>
+      <div className="flex items-center justify-center h-screen w-screen">
+      <DashboardLoader />
       </div>
     );
   }
 
   if (!inviteData || !batchOptions) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center w-full justify-center bg-gray-50">
         <div className="text-center">
           <p className="text-red-500 font-medium">
             Invalid or expired invite code.
@@ -704,7 +721,7 @@ const EnrollByInvite = () => {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+    <div className="flex items-center justify-center w-full bg-gray-50 p-4">
       <Card className="w-full max-w-md md:max-w-md lg:max-w-lg">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -725,24 +742,7 @@ const EnrollByInvite = () => {
           {step === 1 ? (
             // Step 1: Package, Session, and Level Selection
             <div className="space-y-6">
-              {/* Display pre-selected packages */}
-              {batchOptions.pre_selected_packages &&
-                batchOptions.pre_selected_packages.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Pre-selected Packages</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {batchOptions.pre_selected_packages.map((pkg) => (
-                        <Badge
-                          key={pkg.id}
-                          variant="secondary"
-                          className="bg-orange-100"
-                        >
-                          {pkg.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
 
               {/* Learner choice packages */}
               {batchOptions.learner_choice_packages &&
@@ -833,7 +833,7 @@ const EnrollByInvite = () => {
                         <Label className="font-medium">{pkg.name}</Label>
 
                         {/* Display pre-selected sessions */}
-                        {pkg.pre_selected_session_dtos &&
+                        {/* {pkg.pre_selected_session_dtos &&
                           pkg.pre_selected_session_dtos.length > 0 && (
                             <div className="space-y-2">
                               <Label className="text-sm">
@@ -853,7 +853,7 @@ const EnrollByInvite = () => {
                                 )}
                               </div>
                             </div>
-                          )}
+                          )} */}
 
                         {/* Learner choice sessions */}
                         {pkg.learner_choice_sessions &&
@@ -978,7 +978,7 @@ const EnrollByInvite = () => {
                             </Label>
 
                             {/* Display pre-selected levels */}
-                            {session.pre_selected_levels &&
+                            {/* {session.pre_selected_levels &&
                               session.pre_selected_levels.length > 0 && (
                                 <div className="space-y-2">
                                   <Label className="text-sm">
@@ -998,7 +998,7 @@ const EnrollByInvite = () => {
                                     )}
                                   </div>
                                 </div>
-                              )}
+                              )} */}
 
                             {/* Learner choice levels */}
                             {session.learner_choice_levels &&
@@ -1169,6 +1169,24 @@ const EnrollByInvite = () => {
                   <p className="text-red-500 text-sm">{errors.mobile}</p>
                 )}
               </div> */}
+              <div className="space-y-2">
+                <Label htmlFor="mobile">
+                  Mobile <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="mobile"
+                  placeholder="10 digit mobile number"
+                  value={personalInfo.mobile}
+                  onChange={(e) => updatePersonalInfo("mobile", e.target.value)}
+                  className={errors.mobile ? "border-red-500" : ""}
+                />
+                <p className="text-xs text-gray-500">
+                  Enter 10 digits only (no spaces or special characters)
+                </p>
+                {errors.mobile && (
+                  <p className="text-red-500 text-sm">{errors.mobile}</p>
+                )}
+              </div>
 
               {/* Custom Fields */}
               {inviteData &&
@@ -1201,19 +1219,33 @@ const EnrollByInvite = () => {
                 )}
 
               <div className="pt-4 flex justify-between">
-                <Button variant="outline" onClick={handleBack}>
+                <MyButton
+                  type="submit"
+                  scale="medium"
+                  buttonType="secondary"
+                  layoutVariant="default"
+                  onClick={handleBack}
+                >
                   Back
-                </Button>
-                <Button onClick={handleConfirm} disabled={submitLoading}>
+                </MyButton>
+                <MyButton
+                  type="submit"
+                  scale="medium"
+                  buttonType="primary"
+                  layoutVariant="default"
+                  onClick={handleConfirm}
+                  className="test-sm"
+                  disabled={submitLoading}
+                >
                   {submitLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       Processing...
                     </>
                   ) : (
                     "Confirm Enrollment"
-                  )}
-                </Button>
+                  )}{" "}
+                </MyButton>
               </div>
             </div>
           )}
