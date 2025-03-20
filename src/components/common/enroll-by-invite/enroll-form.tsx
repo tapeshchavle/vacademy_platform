@@ -637,12 +637,12 @@ const EnrollByInvite = () => {
       console.log("Enrollment response:", response.data);
       toast.success("Enrollment submitted successfully!");
     } catch (error) {
-      //   console.error("Error submitting enrollment:", error);
-      if (error.response && error.response.data && error.response.data.ex) {
-        toast.error(error.response.data.ex);
-      } else {
-        toast.error("An unexpected error occurred. Please try again later.");
-      }
+        console.error("Error submitting enrollment:", error);
+      // if (error.response && error.response.data && error.response.data.ex) {
+      //   toast.error(error.response.data.ex);
+      // } else {
+      //   toast.error("An unexpected error occurred. Please try again later.");
+      // }
     } finally {
       setSubmitLoading(false);
     }
