@@ -77,6 +77,10 @@ export const convertHtmlToPdf = async (htmlString: string): Promise<Blob> => {
         pdf.addPage();
       }
       
+      // Set white background for the page
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+      
       // Create a temporary canvas for this page slice
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
@@ -84,6 +88,10 @@ export const convertHtmlToPdf = async (htmlString: string): Promise<Blob> => {
       tempCanvas.height = pageHeightInPx;
       
       if (tempCtx) {
+        // Fill with white background
+        tempCtx.fillStyle = "#ffffff";
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        
         // Position for this slice
         const sourceY = i * pageHeightInPx;
         const sourceHeight = Math.min(pageHeightInPx, canvas.height - sourceY);
@@ -98,14 +106,14 @@ export const convertHtmlToPdf = async (htmlString: string): Promise<Blob> => {
         // Get optimized image data for this page
         const pageImgData = optimizeImage(tempCanvas);
         
-        // Add to PDF
+        // Add to PDF - keep original dimensions
         pdf.addImage({
           imageData: pageImgData,
           format: "JPEG",
           x: 0,
           y: 0,
           width: pdfWidth,
-          height: pdfHeight,
+          height: pdfHeight, // Use full page height
           compression: "FAST",
           rotation: 0,
         });
@@ -124,7 +132,7 @@ export const convertHtmlToPdf = async (htmlString: string): Promise<Blob> => {
   }
 };
 
-// Keep original optimizeImage function
+// Modified optimizeImage function with white background
 const optimizeImage = (canvas: HTMLCanvasElement): string => {
   // Create a new canvas with optimal dimensions
   const optimizedCanvas = document.createElement("canvas");
@@ -135,6 +143,10 @@ const optimizeImage = (canvas: HTMLCanvasElement): string => {
   optimizedCanvas.height = 2339;
 
   if (ctx) {
+    // Fill with white background first
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, optimizedCanvas.width, optimizedCanvas.height);
+    
     // Enable image smoothing for better quality
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
