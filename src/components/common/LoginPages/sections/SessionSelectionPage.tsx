@@ -4,20 +4,14 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
-
-interface Session {
-  id: string;
-  level: { level_name: string };
-  session: { session_name: string };
-  package_dto: { package_name: string };
-  status: string;
-  start_time: string;
-}
+import { getPublicUrl } from "@/services/upload_file";
+import { Session } from "@/types/user/user-detail";
 
 const SessionSelectionPage = () => {
   const [sessionList, setSessionList] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const { redirect } = useSearch<any>({ from: "/SessionSelectionPage/" });
 
@@ -28,8 +22,34 @@ const SessionSelectionPage = () => {
   useEffect(() => {
     if (sessionList.length === 1) {
       handleSessionSelect(sessionList[0]);
+    } else if (sessionList.length > 0) {
+      // Fetch images for all sessions
+      fetchImageUrls();
     }
   }, [sessionList]);
+
+  const fetchImageUrls = async () => {
+    const urls: Record<string, string> = {};
+
+    for (const session of sessionList) {
+      // Prefer package thumbnail if available
+      const thumbnailId = session.package_dto.thumbnail_file_id;
+
+      if (thumbnailId) {
+        try {
+          const url = await getPublicUrl(thumbnailId);
+          urls[session.id] = url;
+        } catch (error) {
+          console.error(
+            `Failed to fetch image URL for session ${session.id}:`,
+            error
+          );
+        }
+      }
+    }
+
+    setImageUrls(urls);
+  };
 
   const fetchSessionList = async () => {
     try {
@@ -55,6 +75,8 @@ const SessionSelectionPage = () => {
 
   const handleSessionSelect = async (selectedSession: Session) => {
     try {
+      setSelectedId(selectedSession.id);
+
       // Fetch stored student details
       const studentData = await Preferences.get({ key: "students" });
 
@@ -89,7 +111,7 @@ const SessionSelectionPage = () => {
       // Navigate to Dashboard after selection
       navigate({ to: redirect });
     } catch (error) {
-      toast.error("Failed to select session. Please try again.");
+      // toast.error("Failed to select session. Please try again.");
       console.error("Error selecting session:", error);
       setSelectedId(null);
     }
@@ -127,6 +149,19 @@ const SessionSelectionPage = () => {
               }`}
               onClick={() => handleSessionSelect(session)}
             >
+              <div className="h-40 overflow-hidden">
+                {imageUrls[session.id] ? (
+                  <img
+                    src={imageUrls[session.id]}
+                    alt={session.package_dto.package_name}
+                    className="w-full rounded-t-lg object-cover h-full"
+                  />
+                ) : (
+                  <div className="flex w-full items-center justify-center rounded-t-lg bg-neutral-100 h-full">
+                    <span className="text-neutral-400">No Image</span>
+                  </div>
+                )}
+              </div>
               <CardHeader>
                 <h3 className="text-xl font-semibold">
                   {session.package_dto.package_name}
@@ -142,6 +177,10 @@ const SessionSelectionPage = () => {
                     <span className="font-medium"></span>{" "}
                     {session.level.level_name}{" "}
                     <span className="font-medium">Year/Class</span>
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Start Date:</span>{" "}
+                    {new Date(session.start_time).toLocaleDateString()}
                   </p>
                 </div>
               </CardContent>
