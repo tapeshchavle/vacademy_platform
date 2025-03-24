@@ -67,7 +67,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
 
   // Track user activity
   const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const inactivityThreshold = 10000; // 10 seconds of inactivity before showing verification
+  const inactivityThreshold = 60000; 
 
   // Load saved verification time from Capacitor preferences
   useEffect(() => {

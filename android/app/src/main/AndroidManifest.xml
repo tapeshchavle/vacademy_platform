@@ -7,7 +7,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
             android:name=".MainActivity"
@@ -15,7 +14,6 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
-
             <!-- Main App Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -27,8 +25,16 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="learner.vacademy.io" android:pathPrefix="/assessment/examination" />
-                <data android:scheme="https" android:host="learner.vacademy.io" android:pathPrefix="/assessment/reports" />                
+                <data
+                    android:scheme="https"
+                    android:host="learner.vacademy.io"
+                    android:pathPrefix="/assessment/examination"
+                />
+                <data
+                    android:scheme="https"
+                    android:host="learner.vacademy.io"
+                    android:pathPrefix="/assessment/reports"
+                />
             </intent-filter>
         </activity>
 

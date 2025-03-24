@@ -91,11 +91,13 @@ export interface QuestionDto {
 }
 export enum QUESTION_TYPES {
   MCQS = "MCQS",
+  ONE_WORD = "ONE_WORD",
+  LONG_ANSWER = "LONG_ANSWER",
+  TF = "TF",
+  MATCH = "MATCH",
   MCQM = "MCQM",
-  Integer = "Integer",
-  TRUE_OR_FALSE ="True or False",
-  MATCH = "Match the following",
-  SHORT = "Short answer",
+  FILL_IN_THE_BLANK = "FILL_IN_THE_BLANK",
+  NUMERIC = "NUMERIC",
 };
 
 export interface RichText {

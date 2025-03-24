@@ -134,7 +134,20 @@ export function EmailLogin({
           if (instituteId && userId) {
             try {
               await fetchAndStoreInstituteDetails(instituteId, userId);
-              await fetchAndStoreStudentDetails(instituteId, userId);
+              const status = await fetchAndStoreStudentDetails(
+                instituteId,
+                userId
+              );
+              if (status == 200) {
+                navigate({
+                  to: "/SessionSelectionPage",
+                  search: { redirect: redirect || "/dashboard" },
+                });
+              } else {
+                navigate({
+                  to: redirect,
+                });
+              }
             } catch (error) {
               console.error("Error fetching details:", error);
               toast.error("Failed to fetch details");
@@ -142,11 +155,6 @@ export function EmailLogin({
           } else {
             console.error("Institute ID or User ID is undefined");
           }
-
-          navigate({
-            to: "/SessionSelectionPage",
-            search: { redirect: redirect || "/dashboard" },
-          });
         }
       } catch (error) {
         console.error("Error processing decoded data:", error);
@@ -181,30 +189,30 @@ export function EmailLogin({
 
   const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    
-    const pastedData = e.clipboardData.getData('text');
-    const digits = pastedData.replace(/[^0-9]/g, '').split('');
+
+    const pastedData = e.clipboardData.getData("text");
+    const digits = pastedData.replace(/[^0-9]/g, "").split("");
     const validDigits = digits.slice(0, 6);
-    
+
     if (validDigits.length > 0) {
-      const newOtp = Array(6).fill('');
-      
+      const newOtp = Array(6).fill("");
+
       for (let i = 0; i < validDigits.length; i++) {
         if (i < 6) {
           newOtp[i] = validDigits[i];
         }
       }
-      
+
       otpForm.setValue("otp", newOtp);
-      
-      const nextEmptyIndex = newOtp.findIndex(val => val === '');
+
+      const nextEmptyIndex = newOtp.findIndex((val) => val === "");
       if (nextEmptyIndex !== -1 && nextEmptyIndex < 6) {
         otpInputRefs.current[nextEmptyIndex]?.focus();
       } else {
         otpInputRefs.current[5]?.focus();
       }
-      
-      if (newOtp.every(val => val !== '')) {
+
+      if (newOtp.every((val) => val !== "")) {
         setTimeout(() => {
           onOtpSubmit();
         }, 100);
@@ -352,15 +360,7 @@ export function EmailLogin({
                 >
                   Back
                 </MyButton>
-                {/* <MyButton
-                  type="button"
-                  scale="medium"
-                  buttonType="text"
-                  className="text-primary-500"
-                  onClick={() => sendOtpMutation.mutate(email)}
-                >
-                  Resend OTP
-                </MyButton> */}
+                
                 <MyButton
                   type="button"
                   scale="medium"
