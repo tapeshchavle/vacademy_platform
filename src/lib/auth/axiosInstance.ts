@@ -13,19 +13,22 @@ const getTokenFromStorage = async (key: string): Promise<string | null> => {
 const removeTokensAndInstituteId = async () => {
   await Storage.remove({ key: TokenKey.accessToken });
   await Storage.remove({ key: TokenKey.refreshToken });
-  await Storage.remove({ key: 'instituteId' });
+  await Storage.remove({ key: "instituteId" });
 };
 
 const refreshTokens = async (refreshToken: string): Promise<void> => {
   try {
-    const response = await axios.post(REFRESH_TOKEN_URL, { refreshToken }); 
-    const { accessToken, refreshToken: newRefreshToken, instituteId } = response.data;
+    const response = await axios.post(REFRESH_TOKEN_URL, { refreshToken });
+    const {
+      accessToken,
+      refreshToken: newRefreshToken,
+      instituteId,
+    } = response.data;
 
     // Store the new tokens and institute ID
     await Storage.set({ key: TokenKey.accessToken, value: accessToken });
     await Storage.set({ key: TokenKey.refreshToken, value: newRefreshToken });
-    await Storage.set({ key: 'instituteId', value: instituteId });
-    
+    await Storage.set({ key: "instituteId", value: instituteId });
   } catch (error) {
     console.error("Error refreshing token", error);
     throw error;
@@ -36,22 +39,30 @@ const refreshTokens = async (refreshToken: string): Promise<void> => {
 const authenticatedAxiosInstance = axios.create({
   // Optional base configuration can be added here
   // For example: baseURL, timeout, etc.
+  headers: {
+    clientId: "",
+  },
 });
 
 // Request interceptor: gets called before every request
 authenticatedAxiosInstance.interceptors.request.use(
   async (request) => {
     const accessToken = await getTokenFromStorage(TokenKey.accessToken);
-    const instituteId = await getTokenFromStorage('instituteId');
+    const instituteId = await getTokenFromStorage("InstituteId");
+    console.log("Request interceptor called", instituteId);
 
     // Add instituteId to headers if available
     if (instituteId) {
-      request.headers['X-Institute-Id'] = instituteId;
+      console.log("Institute ID:", instituteId);
+      request.headers["clientId"] = instituteId;
+      request.headers["X-Institute-Id"] = instituteId;
     }
 
     // Check if the access token is expired
     if (!isTokenExpired(accessToken)) {
-      request.headers['Authorization'] = `Bearer ${accessToken}`;
+      // request.headers["Authorization"] = `Bearer ${accessToken}`;
+      request.headers.Authorization = `Bearer ${accessToken}`;
+
       return request;
     } else {
       // If the access token is expired, refresh it
@@ -64,7 +75,7 @@ authenticatedAxiosInstance.interceptors.request.use(
 
         // Get the new access token after refresh
         const newAccessToken = await getTokenFromStorage(TokenKey.accessToken);
-        request.headers['Authorization'] = `Bearer ${newAccessToken}`;
+        request.headers["Authorization"] = `Bearer ${newAccessToken}`;
 
         return request;
       } catch (error) {
@@ -90,7 +101,7 @@ authenticatedAxiosInstance.interceptors.response.use(
     // Handle unauthorized errors (401)
     if (error.response && error.response.status === 401) {
       console.error("Unauthorized access. Logging out...");
-      
+
       // Remove tokens and institute ID
       await removeTokensAndInstituteId();
 
