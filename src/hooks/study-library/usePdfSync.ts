@@ -58,13 +58,20 @@ export const usePDFSync = () => {
                         end_time_in_millis: view.end_time_in_millis,
                         page_number: view.page
                     })),
-                    new_activity: activity.new_activity
+                    new_activity: activity.new_activity,
+                    concentration_score: {
+                        id: "",
+                        concentration_score: 0,
+                        tab_switch_count: 0,
+                        pause_count: 0,
+                        answer_times_in_seconds: []
+                      }
                 };
 
                 try {
                     if (activity.page_views.length >= 1 && activity.new_activity) {
                         await addUpdateDocumentActivity.mutateAsync({
-                            slideId: activeItem?.slide_id || "",
+                            slideId: activity.slide_id || "",
                             chapterId: chapterId || "",
                             requestPayload: apiPayload
                         });

@@ -9,6 +9,7 @@ import { getISTTime } from "./utils";
 import { usePDFSync } from "@/hooks/study-library/usePdfSync";
 import { getEpochTimeInMillis } from "./utils";
 import { PdfViewerComponent } from "./pdf-viewer-component";
+import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 
 interface PDFViewerProps {
    documentId?: string;
@@ -16,6 +17,7 @@ interface PDFViewerProps {
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
+    const {activeItem} = useContentStore();
     const { addActivity } = useTrackingStore();
     const [currentPage, setCurrentPage] = useState<number>(0);
     const [totalPages, setTotalPages] = useState(0);
@@ -69,6 +71,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
         totalPagesReadRef.current = new Set(pageViews.current.map(v => v.page)).size;
     
         addActivity({
+            slide_id: activeItem?.slide_id || "",
             activity_id: activityId.current,
             source: 'PDF',
             source_id: documentId || '',
@@ -143,6 +146,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
         totalPagesReadRef.current = new Set(pageViews.current.map(v => v.page)).size;
 
         addActivity({
+            slide_id: activeItem?.slide_id || "",
             activity_id: activityId.current,
             source: 'DOCUMENT',
             source_id: documentId || '',
