@@ -22,6 +22,7 @@ import {
   Rewind,
 } from "@phosphor-icons/react";
 import { Preferences } from "@capacitor/preferences";
+import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 
 // Add the YouTube PlayerState enum to avoid window.YT references
 enum PlayerState {
@@ -41,6 +42,7 @@ interface YouTubePlayerProps {
 export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   videoId,
 }) => {
+  const {activeItem} = useContentStore();
   const { addActivity } = useTrackingStore();
   const activityId = useRef(uuidv4());
   const currentTimestamps = useRef<
@@ -364,6 +366,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     const endTime = videoEndTime.current || getEpochTimeInMillis();
 
     const newActivity = {
+      slide_id: activeItem?.slide_id || "",
       activity_id: activityId.current,
       source: "YOUTUBE",
       source_id: videoId,
