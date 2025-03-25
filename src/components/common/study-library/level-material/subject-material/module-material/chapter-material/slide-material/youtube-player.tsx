@@ -368,7 +368,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     const newActivity = {
       slide_id: activeItem?.slide_id || "",
       activity_id: activityId.current,
-      source: "YOUTUBE",
+      source: "VIDEO" as "VIDEO",
       source_id: videoId,
       start_time: videoStartTime.current,
       end_time: endTime,

@@ -391,7 +391,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
       {
         slide_id: activeItem?.slide_id || "",
         activity_id: activityId.current,
-        source: "PDF",
+        source: "DOCUMENT" as "DOCUMENT",
         source_id: documentId || "",
         start_time: startTime.current,
         end_time: getISTTime(),
