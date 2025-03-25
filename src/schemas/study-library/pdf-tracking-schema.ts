@@ -31,7 +31,12 @@ export const ActivitySchema = z.object({
     sync_status: z.enum(['SYNCED', 'STALE']),
     current_page: z.number().optional(),
     current_page_start_time_in_millis: z.number().optional(),
-    new_activity: z.boolean()
+    new_activity: z.boolean(),
+    answered_time: z.array(z.number()),
+    is_paused: z.boolean(),
+    tab_switch_count: z.number(),
+    missed_answer_count: z.number(),
+    wrong_answer_count: z.number(),
 });
 
 export const TrackingDataSchema = z.object({

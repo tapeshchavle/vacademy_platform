@@ -1,10 +1,12 @@
 export const QUESTION_TYPES = [
     "MCQS",
+    "ONE_WORD",
+    "LONG_ANSWER",
+    "TF",
+    "MATCH",
     "MCQM",
-    "Integer",
-    "True or False",
-    "Match the following",
-    "Short answer",
+    "FILL_IN_THE_BLANK",
+    "NUMERIC",
 ];
 
 export const QUESTION_LABELS = ["(1.)", "1.)", "(1)", "1)"];

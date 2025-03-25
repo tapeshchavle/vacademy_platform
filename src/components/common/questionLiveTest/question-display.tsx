@@ -10,6 +10,7 @@ import {
 } from "@/types/assessment";
 import { processHtmlString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
+// import { ExpandableParagraph } from "./paragraph";
 
 export function QuestionDisplay() {
   const {
@@ -175,6 +176,7 @@ export function QuestionDisplay() {
               <span>{currentQuestion.question_type}</span>
             </div>
           </div>
+          {/* {<ExpandableParagraph />} */}
 
           <p className="text-lg text-gray-800">
             {processHtmlString(currentQuestion.question.content).map(
