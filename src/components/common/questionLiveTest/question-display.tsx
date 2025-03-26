@@ -10,7 +10,7 @@ import {
 } from "@/types/assessment";
 import { processHtmlString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
-import { NumericInputWithKeypad } from "./numeric";
+// import { NumericInputWithKeypad } from "./numeric";
 import { ExpandableParagraph } from "./paragraph";
 
 export function QuestionDisplay() {
@@ -220,9 +220,9 @@ export function QuestionDisplay() {
         </div>
       </div>
 
-      {currentQuestion.question_type === QUESTION_TYPES.MCQM ? (
+      {/* {currentQuestion.question_type === QUESTION_TYPES.NUMERICAL ? (
         <NumericInputWithKeypad />
-      ) : (
+      ) : ( */}
         <div className="space-y-4">
           {currentQuestion?.options?.map((option, index) => (
             <div
@@ -271,7 +271,7 @@ export function QuestionDisplay() {
             </div>
           ))}
         </div>
-      )}
+      {/* )} */}
     </div>
   );
 }

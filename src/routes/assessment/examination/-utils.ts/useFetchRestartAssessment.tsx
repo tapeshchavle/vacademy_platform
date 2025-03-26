@@ -133,10 +133,10 @@ export async function restartAssessment(assessmentId: string, attemptId: string)
     if (!data) throw new Error("Empty API response");
 
     const { preview_response, learner_assessment_attempt_data_dto, update_status_response, start_assessment_response } = data;
-    if (!preview_response || !learner_assessment_attempt_data_dto || !update_status_response) {
-      console.error("Missing API data:", { preview_response, learner_assessment_attempt_data_dto, update_status_response });
-      return false;
-    }
+    // if (!preview_response || !learner_assessment_attempt_data_dto || !update_status_response) {
+    //   console.error("Missing API data:", { preview_response, learner_assessment_attempt_data_dto, update_status_response });
+    //   return false;
+    // }
 
     // Store data properly
     await Storage.set({ key: 'Assessment_questions', value: JSON.stringify(preview_response) });
