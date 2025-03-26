@@ -18,6 +18,7 @@ import { LOGIN_OTP, REQUEST_OTP } from "@/constants/urls";
 import { toast } from "sonner";
 import {
   getTokenDecodedData,
+  removeTokensAndLogout,
   setTokenInStorage,
 } from "@/lib/auth/sessionUtility";
 import {
@@ -151,7 +152,8 @@ const CheckEmailStatusAlertDialog = ({
       toast.success("OTP sent successfully");
       setUserAlreadyRegistered(false);
     },
-    onError: () => {
+    onError: async () => {
+      await removeTokensAndLogout();
       toast.error("This email is not registered", {
         description: "Please register yourself to attempt this assessment",
         duration: 3000,
@@ -165,6 +167,7 @@ const CheckEmailStatusAlertDialog = ({
     mutationFn: (data: { email: string; otp: string }) =>
       axios.post(LOGIN_OTP, data),
     onSuccess: async (response) => {
+      await removeTokensAndLogout();
       // Store tokens in Capacitor Storage
       await setTokenInStorage(TokenKey.accessToken, response.data.accessToken);
       await setTokenInStorage(
