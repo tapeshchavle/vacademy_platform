@@ -15,6 +15,7 @@ interface SectionTimer {
 
 interface AssessmentStore {
   assessment: AssessmentPreviewData | null;
+  resetAssessment: () => void;
   currentSection: number;
   currentQuestion: QuestionDto | null;
   currentQuestionIndex: number | null;
@@ -66,6 +67,19 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   questionStartTime: {},
   questionTimeSpent: {},
 
+  resetAssessment: () =>
+    set({
+      assessment: null,
+      currentSection: 0,
+      currentQuestion: null,
+      currentQuestionIndex: 0,
+      questionStates: {},
+      answers: {},
+      sectionTimers: {},
+      questionTimers: {},
+      questionStartTime: {},
+      questionTimeSpent: {},
+    }),
 
   setAssessment: (assessment) =>
     set((state) => {
@@ -456,7 +470,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       key: storageKey,
       value: JSON.stringify(dataToSave),
     });
-
   },
 
   loadState: async () => {
@@ -513,12 +526,11 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     return Date.now() - startTime;
   },
 
-
   initializeQuestionTime: (questionId) =>
     set((state) => ({
       questionTimeSpent: {
         ...state.questionTimeSpent,
-        [questionId]: state.questionTimeSpent[questionId] || 0, 
+        [questionId]: state.questionTimeSpent[questionId] || 0,
       },
     })),
 
@@ -526,7 +538,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     set((state) => ({
       questionTimeSpent: {
         ...state.questionTimeSpent,
-        [questionId]: (state.questionTimeSpent[questionId] || 0) + 1, 
+        [questionId]: (state.questionTimeSpent[questionId] || 0) + 1,
       },
     })),
 }));

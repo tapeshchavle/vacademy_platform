@@ -41,6 +41,7 @@ export function Navbar() {
     incrementTabSwitchCount,
     entireTestTimer,
     setEntireTestTimer,
+    resetAssessment,
   } = useAssessmentStore();
 
   const navigate = useNavigate();
@@ -225,6 +226,7 @@ export function Navbar() {
         toast.success("Assessment submitted successfully!");
 
         // disableProtection();
+        resetAssessment();
 
         navigate({
           to: "/assessment/examination",

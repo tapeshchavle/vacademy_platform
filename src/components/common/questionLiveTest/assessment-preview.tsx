@@ -25,7 +25,7 @@ export function AssessmentPreview() {
 
   const newPath = currentPath.replace(/\/[^/]+$/, "/LearnerLiveTest");
   const { assessment } = useAssessmentStore();
-  const { setAssessment, incrementTabSwitchCount, tabSwitchCount } =
+  const { setAssessment, incrementTabSwitchCount, tabSwitchCount, resetAssessment } =
     useAssessmentStore();
   const [activeSection, setActiveSection] = useState(0);
   const [timeLeft, setTimeLeft] = useState(() => {
@@ -81,6 +81,7 @@ export function AssessmentPreview() {
     return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
   const handleStartAssessment = async () => {
+    resetAssessment();
     await startAssessment();
     router.navigate({ to: newPath, replace: true });
   };
