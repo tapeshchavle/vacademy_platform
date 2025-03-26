@@ -103,31 +103,38 @@ export const AssessmentCard = ({
   const handleRestartAssessment = async () => {
     setIsRestarting(true);
     try {
-      // Ensure data is stored before proceeding
       await storeAssessmentInfo(assessmentInfo);
 
       const isRestarted = await restartAssessment(
         assessmentInfo.assessment_id,
         assessmentInfo.last_attempt_id ?? ""
       );
-      console.log("isRestarted", isRestarted);
+      console.log("assessmentInfo", assessmentInfo);
+
+      console.log("Restart API Response:", isRestarted);
 
       if (isRestarted) {
+        console.log(
+          "Navigating to:",
+          `/assessment/examination/${assessmentInfo.assessment_id}/LearnerLiveTest`
+        );
         navigate({
           to: `/assessment/examination/${assessmentInfo.assessment_id}/LearnerLiveTest`,
           replace: true,
         });
+        return; // Ensure no further execution
       } else {
         toast.error(
           "Failed to resume the assessment. Assessment already Ended."
         );
       }
-    } catch {
+    } catch (error) {
+      console.error("Error in handleRestartAssessment:", error);
       toast.error("An error occurred while resuming the assessment.");
-    } finally {
-      setIsRestarting(false);
-      setShowRestartDialog(false);
     }
+
+    setIsRestarting(false);
+    setShowRestartDialog(false);
   };
 
   const getButtonLabel = () => {
