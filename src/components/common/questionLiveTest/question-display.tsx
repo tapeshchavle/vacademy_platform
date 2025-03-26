@@ -10,7 +10,8 @@ import {
 } from "@/types/assessment";
 import { processHtmlString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
-// import { ExpandableParagraph } from "./paragraph";
+import { NumericInputWithKeypad } from "./numeric";
+import { ExpandableParagraph } from "./paragraph";
 
 export function QuestionDisplay() {
   const {
@@ -176,7 +177,7 @@ export function QuestionDisplay() {
               <span>{currentQuestion.question_type}</span>
             </div>
           </div>
-          {/* {<ExpandableParagraph />} */}
+          {<ExpandableParagraph />}
 
           <p className="text-lg text-gray-800">
             {processHtmlString(currentQuestion.question.content).map(
@@ -219,50 +220,58 @@ export function QuestionDisplay() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        {currentQuestion?.options?.map((option, index) => (
-          <div
-            key={option.id}
-            className={`flex flex-row-reverse items-center justify-between rounded-lg border p-4 w-full cursor-pointer ${
-              currentAnswer.includes(option.id)
-                ? "border-primary-500 bg-primary-50"
-                : "border-gray-200"
-            }`}
-            onClick={() => handleAnswerChange(option.id)}
-          >
-            <div className="relative flex items-center">
-              <div
-                className={`w-6 h-6 border rounded-md flex items-center justify-center ${
+      {currentQuestion.question_type === QUESTION_TYPES.MCQM ? (
+        <NumericInputWithKeypad />
+      ) : (
+        <div className="space-y-4">
+          {currentQuestion?.options?.map((option, index) => (
+            <div
+              key={option.id}
+              className={`flex flex-row-reverse items-center justify-between rounded-lg border p-4 w-full cursor-pointer ${
+                currentAnswer.includes(option.id)
+                  ? "border-primary-500 bg-primary-50"
+                  : "border-gray-200"
+              }`}
+              onClick={() => handleAnswerChange(option.id)}
+            >
+              <div className="relative flex items-center">
+                <div
+                  className={`w-6 h-6 border rounded-md flex items-center justify-center ${
+                    currentAnswer.includes(option.id)
+                      ? "bg-green-500 border-green-500"
+                      : "border-gray-300"
+                  }`}
+                >
+                  {currentAnswer.includes(option.id) && (
+                    <span className="text-white font-bold">✔</span>
+                  )}
+                </div>
+              </div>
+
+              <label
+                className={`flex-grow cursor-pointer text-sm ${
                   currentAnswer.includes(option.id)
-                    ? "bg-green-500 border-green-500"
-                    : "border-gray-300"
+                    ? "font-semibold"
+                    : "text-gray-700"
                 }`}
               >
-                {currentAnswer.includes(option.id) && (
-                  <span className="text-white font-bold">✔</span>
+                {`(${String.fromCharCode(97 + index)}) `}
+                {processHtmlString(option.text.content).map((item, index) =>
+                  item.type === "text" ? (
+                    <span key={index}>{item.content}</span>
+                  ) : (
+                    <img
+                      key={index}
+                      src={item.content}
+                      alt={`Option ${index}`}
+                    />
+                  )
                 )}
-              </div>
+              </label>
             </div>
-
-            <label
-              className={`flex-grow cursor-pointer text-sm ${
-                currentAnswer.includes(option.id)
-                  ? "font-semibold"
-                  : "text-gray-700"
-              }`}
-            >
-              {`(${String.fromCharCode(97 + index)}) `}
-              {processHtmlString(option.text.content).map((item, index) =>
-                item.type === "text" ? (
-                  <span key={index}>{item.content}</span>
-                ) : (
-                  <img key={index} src={item.content} alt={`Option ${index}`} />
-                )
-              )}
-            </label>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
