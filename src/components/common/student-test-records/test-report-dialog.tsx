@@ -12,7 +12,6 @@ import { MarksBreakdownComponent } from "./marks-breakdown-component";
 import { Crown } from "@/svgs";
 import { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import { StatusChips } from "@/components/design-system/chips";
 import { Clock } from "phosphor-react";
 import { parseHtmlToString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
@@ -125,7 +124,7 @@ export const TestReportDialog = ({
       <div className="">
         {/* Test Info Section */}
 
-        <div className="flex flex-col gap-10 p-6">
+        <div className="flex flex-col gap-10 p-2">
           <div className="flex justify-between">
             <div className="flex flex-col gap-4">
               <div className="text-h2 font-semibold">
@@ -159,7 +158,7 @@ export const TestReportDialog = ({
                 ).date
               }
             </div>
-            <div>Marks: {studentReport.total_marks}</div>
+            {/* <div>Marks: {studentReport.total_marks}</div> */}
             <div>
               Duration: {formatDuration(studentReport.duration_in_seconds)}
             </div>
@@ -187,8 +186,8 @@ export const TestReportDialog = ({
         <div className="p-6 text-h3 font-semibold text-primary-500">
           Score Report
         </div>
-        <div className="flex flex-col md:flex-col lg:flex-row items-center gap-20 p-6">
-          <div className="ml-6 flex sm:flex-row lg:flex-col items-center gap-20 p-6">
+        <div className="flex flex-col md:flex-col lg:flex-row items-center gap-10 lg:gap-20 p-6">
+          <div className=" flex sm:flex-row lg:flex-col items-center gap-20 p-6">
             <div className="flex flex-col">
               <h1>Rank</h1>
               <div className="flex items-center gap-1">
@@ -216,10 +215,10 @@ export const TestReportDialog = ({
               </p>
             </div>
           </div>
-          <div className="flex w-full flex-col items-center gap-6">
+          <div className="flex w-full flex-col items-center">
             <div className="text-h3 font-semibold">Response Breakdown</div>
             <ResponseBreakdownComponent responseData={responseData} />
-            <div className="flex flex-col">
+            <div className="flex flex-col pt-8 ">
               <div className="-mt-14 flex items-center">
                 <DotOutline
                   weight="fill"
@@ -240,10 +239,10 @@ export const TestReportDialog = ({
               </div>
             </div>
           </div>
-          <div className="flex w-full flex-col items-center gap-6">
+          <div className="flex w-full flex-col items-center">
             <div className="text-h3 font-semibold">Marks Breakdown</div>
             <MarksBreakdownComponent marksData={marksData} />
-            <div className="flex flex-col">
+            {/* <div className="flex flex-col gap-3 ">
               <div className="-mb-8 flex items-center justify-between">
                 <div className="flex items-center">
                   <DotOutline
@@ -263,7 +262,7 @@ export const TestReportDialog = ({
                   </p>
                 </div>
               </div>
-              <div className=" flex items-center justify-between gap-4">
+              <div className="-mb-8 flex items-center justify-between gap-4">
                 <div className="flex items-center">
                   <DotOutline
                     size={70}
@@ -313,6 +312,88 @@ export const TestReportDialog = ({
                 <div className="flex items-center gap-2">
                   <p>{marksData.skipped}</p>
                   <p>(0)</p>
+                </div>
+              </div>
+            </div> */}
+            <div className="flex flex-col w-full">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <DotOutline
+                    size={35}
+                    weight="fill"
+                    className="text-success-400 flex-shrink-0"
+                  />
+                  <p className="text-sm md:text-base">Correct Respondents:</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm md:text-base">{marksData.correct}</p>
+                  <p className="text-sm md:text-base">
+                    {testReport.question_overall_detail_dto.totalCorrectMarks >
+                    0
+                      ? `(+${testReport.question_overall_detail_dto.totalCorrectMarks})`
+                      : `(${testReport.question_overall_detail_dto.totalCorrectMarks})`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <DotOutline
+                    size={35}
+                    weight="fill"
+                    className="text-warning-400 flex-shrink-0"
+                  />
+                  <p className="text-sm md:text-base">
+                    Partially Correct Respondents:
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm md:text-base">
+                    {marksData.partiallyCorrect}
+                  </p>
+                  <p className="text-sm md:text-base">
+                    {testReport.question_overall_detail_dto.totalPartialMarks >
+                    0
+                      ? `(+${testReport.question_overall_detail_dto.totalPartialMarks})`
+                      : `(${testReport.question_overall_detail_dto.totalPartialMarks})`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <DotOutline
+                    size={35}
+                    weight="fill"
+                    className="text-danger-400 flex-shrink-0"
+                  />
+                  <p className="text-sm md:text-base">Wrong Respondents:</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm md:text-base">
+                    {marksData.wrongResponse}
+                  </p>
+                  <p className="text-sm md:text-base">
+                    {testReport.question_overall_detail_dto
+                      .totalIncorrectMarks > 0
+                      ? `(+${testReport.question_overall_detail_dto.totalIncorrectMarks})`
+                      : `(${testReport.question_overall_detail_dto.totalIncorrectMarks})`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <DotOutline
+                    size={35}
+                    weight="fill"
+                    className="text-neutral-200 flex-shrink-0"
+                  />
+                  <p className="text-sm md:text-base">Skipped:</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm md:text-base">{marksData.skipped}</p>
+                  <p className="text-sm md:text-base">(0)</p>
                 </div>
               </div>
             </div>
@@ -416,7 +497,12 @@ export const TestReportDialog = ({
                             )}
                           </div>
                         </div>
-                        {/* <StatusChips
+                      </div>
+                    </div>
+                    <div className="">
+                      {/* <MarkBadge marks={review.mark} /> */}
+
+                      {/* <StatusChips
                           status={
                             review.answer_status == "CORRECT"
                               ? "active"
@@ -440,7 +526,6 @@ export const TestReportDialog = ({
                         >
                           <></>
                         </StatusChips> */}
-                      </div>
                     </div>
                     {review.answer_status !== "CORRECT" && (
                       <div className="flex w-full items-center gap-6 text-subtitle">

@@ -180,65 +180,70 @@ const AssessmentReportList = () => {
   return (
     <div className="w-full space-y-4 p-4">
       {reports.map((report: Report, index: number) => (
-      <div
-        key={report.attempt_id}
-        ref={index === reports.length - 1 ? lastReportElementRef : null}
-      >
-        <Card className="w-full p-6 space-y-6">
-        <h2 className="text-sm lg:text-base font-semibold text-gray-900">
-          {report.assessment_name}
-        </h2>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-          <div className="flex gap-3 pb-3 items-center">
-            {/* <StatusChip
+        <div
+          key={report.attempt_id}
+          ref={index === reports.length - 1 ? lastReportElementRef : null}
+        >
+          <Card className="w-full p-6 space-y-6">
+            <h2 className="text-sm lg:text-base font-semibold text-gray-900">
+              {report.assessment_name}
+            </h2>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <div className="flex gap-3 pb-3 items-center">
+                  {/* <StatusChip
             status={report.assessment_status}
             className={getStatusColor(report.assessment_status)}
             /> */}
-          </div>
-          <div className="space-y-2 text-xs lg:text-sm text-gray-600">
-            <div>Attempt Date: {formatDateTime(report.attempt_date)}</div>
-            <div>
-            Subject:{" "}
-            {getSubjectNameById(
-              instituteDetails?.subjects || [],
-              report?.subject_id
-            ) || ""}
+                </div>
+                <div className="space-y-2 text-xs lg:text-sm text-gray-600">
+                  <div>Attempt Date: {formatDateTime(report.attempt_date)}</div>
+                  <div>
+                    Subject:{" "}
+                    {getSubjectNameById(
+                      instituteDetails?.subjects || [],
+                      report?.subject_id
+                    ) || ""}
+                  </div>
+                  <div>
+                    Duration:{" "}
+                    {report.duration_in_seconds
+                      ? formatDuration(report.duration_in_seconds)
+                      : "N/A"}
+                  </div>
+                  <div>Marks: {report.total_marks}</div>
+                </div>
+              </div>
+              <div className="w-full md:w-auto">
+                <MyButton
+                  buttonType="secondary"
+                  className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
+                  onClick={() => handleViewReport(report)}
+                >
+                  View Report
+                </MyButton>
+              </div>
             </div>
-            <div>Duration: {formatDuration(report.duration_in_seconds)}</div>
-            <div>Marks: {report.total_marks}</div>
-          </div>
-          </div>
-          <div className="w-full md:w-auto">
-          <MyButton
-            buttonType="secondary"
-            className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
-            onClick={() => handleViewReport(report)}
-          >
-            View Report
-          </MyButton>
-          </div>
+          </Card>
         </div>
-        </Card>
-      </div>
       ))}
 
       {loading && (
-      <div className="flex justify-center p-4" ref={loadingRef}>
-        <div className="animate-spin h-6 w-6 border-2 border-primary-500 border-t-transparent rounded-full"></div>
-      </div>
+        <div className="flex justify-center p-4" ref={loadingRef}>
+          <div className="animate-spin h-6 w-6 border-2 border-primary-500 border-t-transparent rounded-full"></div>
+        </div>
       )}
 
       {!hasMore && reports.length > 0 && (
-      <p className="text-center text-sm text-gray-500 py-4">
-        No more reports to load
-      </p>
+        <p className="text-center text-sm text-gray-500 py-4">
+          No more reports to load
+        </p>
       )}
 
       {reports.length === 0 && !loading && (
-      <div className="text-center py-8">
-        <p className="text-gray-500 text-sm">No reports found</p>
-      </div>
+        <div className="text-center py-8">
+          <p className="text-gray-500 text-sm">No reports found</p>
+        </div>
       )}
     </div>
   );
