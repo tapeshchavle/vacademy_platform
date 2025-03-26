@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { useSearch } from "@tanstack/react-router";
 import { MyButton } from "@/components/design-system/button";
+import { getPublicUrl } from "@/services/upload_file";
 
 // Type definitions
 interface CustomField {
@@ -74,11 +75,11 @@ interface LearnerInvitation {
   custom_fields: CustomField[];
 }
 
-// interface ApiResponse {
-//   learner_invitation: LearnerInvitation;
-//   institute_name: string;
-//   institute_logo_file_id: string | null;
-// }
+interface ApiResponse {
+  learner_invitation: LearnerInvitation;
+  institute_name: string;
+  institute_logo_file_id: string | null;
+}
 
 // Validation schemas
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -88,20 +89,21 @@ const phoneSchema = z
   .transform((val) => val.trim());
 
 const EnrollByInvite = () => {
-  const { instituteId, inviteCode } = useSearch<{
-    instituteId: string;
-    inviteCode: string;
-  }>({ instituteId: "", inviteCode: "" });
+  const { instituteId, inviteCode } = useSearch({
+    instituteId: "",
+    inviteCode: "",
+  });
 
   // Form state
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
-  // const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
+  const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
   const [inviteData, setInviteData] = useState<LearnerInvitation | null>(null);
   // const [instituteName, setInstituteName] = useState<string>("");
   // const [instituteLogo, setInstituteLogo] = useState<string | null>(null);
   const [batchOptions, setBatchOptions] = useState<BatchOptions | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
   // Selection states
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
@@ -158,11 +160,21 @@ const EnrollByInvite = () => {
       console.log("Invite data:", response.data);
 
       // Store the full API response
-      // setApiResponse(response.data);
+      setApiResponse(response.data);
 
       // Extract the learner invitation data
       const learnerInvitation = response.data.learner_invitation;
       setInviteData(learnerInvitation);
+      if (response.data.institute_logo_file_id) {
+        try {
+          const institute_logo = await getPublicUrl(
+            response.data.institute_logo_file_id
+          );
+          setImageUrl(institute_logo);
+        } catch (error) {
+          console.error("Error fetching institute logo:", error);
+        }
+      }
 
       // Set institute name and logo
       // setInstituteName(response.data.institute_name);
@@ -737,13 +749,15 @@ const EnrollByInvite = () => {
     <div className="flex items-center justify-center w-full bg-gray-50 p-4">
       <Card className="w-full max-w-md md:max-w-md lg:max-w-lg">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-full bg-orange-500 flex items-center justify-center">
-              <span className="text-white text-xl font-bold">S</span>
-            </div>
-          </div>
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt="Institute Logo"
+              className="h-12 w-12 rounded-full object-cover"
+            />
+          )}
           <CardTitle className="text-orange-500">
-            Shri Saidas Classess
+            {apiResponse?.institute_name}
           </CardTitle>
         </CardHeader>
         <CardContent>

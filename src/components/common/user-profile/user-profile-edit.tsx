@@ -238,7 +238,13 @@ export default function EditProfile() {
 
   return (
     <div className="bg-white rounded-lg w-full max-w-md mx-auto shadow-lg sm:max-w-md md:max-w-lg lg:max-w-xl">
-      <div className=" flex items-center justify-between border-b">
+      <div className="p-4 flex items-center justify-between border-b">
+        <h1 className="text-lg font-medium text-orange-500">Edit Profile</h1>
+        <button onClick={handleCancel} className="text-gray-500">
+          <X size={20} weight="bold" />
+        </button>
+      </div>
+      {/* <div className=" flex items-center justify-between border-b">
         <h2 className="text-lg font-medium">Edit Profile</h2>
         <button
           onClick={handleCancel}
@@ -246,21 +252,20 @@ export default function EditProfile() {
         >
           <X size={20} weight="bold" />
         </button>
-      </div>
+      </div> */}
 
       <form onSubmit={handleSubmit} className="p-4 space-y-6">
         {/* Profile Image */}
         <div className="flex justify-center mb-4">
           <div className="relative">
+            {/* TODO: Add profile image */}
+            {/* {imageUrl && (
             <img
-              src={
-                studentData?.face_file_id ||
-                "/placeholder.svg?height=80&width=80" ||
-                "/placeholder.svg"
-              }
-              alt="Profile"
-              className="w-20 h-20 rounded-full object-cover"
+              src={imageUrl}
+              alt="Profile Photo"
+              className="h-24 w-24 rounded-full object-cover"
             />
+          )} */}
           </div>
         </div>
 

@@ -3,25 +3,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Preferences } from "@capacitor/preferences";
-import {
-  X,
-  Trophy,
-  Coins,
-  GraduationCap,
-  Phone,
-  MapPin,
-  Users,
-  PencilSimple,
-} from "@phosphor-icons/react";
+import { X } from "@phosphor-icons/react";
 import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
 import { Student } from "@/types/user/user-detail";
 import { MyButton } from "@/components/design-system/button";
+import { getPublicUrl } from "@/services/upload_file";
+import { DashboardLoader } from "@/components/core/dashboard-loader";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [studentData, setStudentData] = useState<Student | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
   // Fetch student data from Preferences
   useEffect(() => {
@@ -59,20 +52,17 @@ export default function ProfilePage() {
             setIsLoading(false);
             return;
           }
-
-          // Add mock data for fields shown in the image but not in your data structure
-          const enhancedStudentData = {
-            ...studentDetails,
-            course:
-              studentDetails.linked_institute_name || "Premium Pro Group 1",
-            session: "2025-2026",
-            level: "10th Standard",
-            school: "St. Joseph's School",
-            session_expiry_days: studentDetails.session_expiry_days || "125",
-          };
-
-          console.log("Enhanced student details:", enhancedStudentData);
-          setStudentData(enhancedStudentData);
+          setStudentData(studentDetails);
+          if (studentDetails.face_file_id) {
+            try {
+              const institute_logo = await getPublicUrl(
+                studentDetails.face_file_id
+              );
+              setImageUrl(institute_logo);
+            } catch (error) {
+              console.error("Error fetching institute logo:", error);
+            }
+          }
         } catch (parseError) {
           console.error("Error parsing JSON from Preferences:", parseError);
         }
@@ -95,15 +85,12 @@ export default function ProfilePage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
+    <DashboardLoader />;
   }
 
   return (
-    <div className="bg-white min-h-screen max-w-4xl mx-auto shadow-sm">
+    <div className="bg-white rounded-lg w-full max-w-md mx-auto shadow-lg sm:max-w-md md:max-w-lg lg:max-w-xl">
+      {" "}
       {/* Header */}
       <div className="p-4 flex items-center justify-between border-b">
         <h1 className="text-lg font-medium text-orange-500">Profile Details</h1>
@@ -111,18 +98,15 @@ export default function ProfilePage() {
           <X size={20} weight="bold" />
         </button>
       </div>
-
       {/* Profile Info */}
       <div className="p-6 flex flex-col items-center md:flex-row md:items-start md:gap-6">
-        <div className="w-24 h-24 rounded-full overflow-hidden mb-3 md:mb-0">
+        {imageUrl && (
           <img
-            src={
-              studentData?.face_file_id || "/placeholder.svg?height=96&width=96"
-            }
-            alt="Profile"
-            className="w-full h-full object-cover"
+            src={imageUrl}
+            alt="Profile Photo"
+            className="h-24 w-24 rounded-full object-cover"
           />
-        </div>
+        )}
         <div className="text-center md:text-left">
           <h2 className="text-xl font-medium mb-2">
             {studentData?.full_name || "Student Name"}
@@ -131,9 +115,8 @@ export default function ProfilePage() {
         </div>
       </div>
       <Separator className="my-4" />
-
       {/* Badges */}
-      <div className="p-6">
+      {/* <div className="p-6">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium">Badges</span>
           <span className="text-sm font-medium">2</span>
@@ -153,10 +136,9 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-      <Separator className="my-4" />
-
+      <Separator className="my-4" /> */}
       {/* Coins */}
-      <div className="p-6">
+      {/* <div className="p-6">
         <div className="flex items-center mb-3">
           <span className="text-sm font-medium">Coins</span>
           <div className="ml-auto flex items-center">
@@ -167,27 +149,24 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-      <Separator className="my-4" />
-
+      <Separator className="my-4" /> */}
       {/* Session Expiry */}
       <div className="p-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium">Session Expiry (Days)</span>
           <span className="text-sm font-medium">
-            {studentData?.session_expiry_days || "125"}
+            {studentData?.session_expiry_days || "N/A"}
           </span>
         </div>
-        <Progress
+        {/* <Progress
           value={Number.parseInt(studentData?.session_expiry_days || "125") / 2}
           className="h-2 bg-gray-200 bg-green-500"
-        />
+        /> */}
       </div>
       <Separator className="my-4" />
-
       {/* General Details */}
       <div className="p-6">
         <div className="flex items-center gap-2 mb-3">
-          <GraduationCap size={18} weight="bold" className="text-gray-500" />
           <h3 className="text-sm font-medium">General Details</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -220,11 +199,9 @@ export default function ProfilePage() {
         </div>
       </div>
       <Separator className="my-4" />
-
       {/* Contact Information */}
       <div className="p-6">
         <div className="flex items-center gap-2 mb-3">
-          <Phone size={18} weight="bold" className="text-gray-500" />
           <h3 className="text-sm font-medium">Contact Information</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -239,13 +216,11 @@ export default function ProfilePage() {
             <span className="text-xs">{studentData?.email || "N/A"}</span>
           </div>
         </div>
-      </div>
-      <Separator className="my-4" />
+        <Separator className="my-4" />
 
-      {/* Location Details */}
-      <div className="p-6">
+        {/* Location Details */}
+        <div className="p-6"></div>
         <div className="flex items-center gap-2 mb-3">
-          <MapPin size={18} weight="bold" className="text-gray-500" />
           <h3 className="text-sm font-medium">Location Details</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -270,55 +245,54 @@ export default function ProfilePage() {
         </div>
       </div>
       <Separator className="my-4" />
-
       {/* Parent/Guardian's Details */}
-      <div className="p-6 gap-4 sm:gap-2">
+      <div className="p-6">
         <div className="flex items-center gap-2 mb-3">
-          <Users size={18} weight="bold" className="text-gray-500" />
           <h3 className="text-sm font-medium">Parent/Guardian's Details</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-        <div className="flex justify-between">
-          <span className="text-xs text-gray-500">
-            Father/Male Guardian's Name:
-          </span>
-          <span className="text-xs">{studentData?.father_name || "N/A"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-xs text-gray-500">
-            Mother/Female Guardian's Name:
-          </span>
-          <span className="text-xs">{studentData?.mother_name || "N/A"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-xs text-gray-500">
-            Parent/Guardian's Email:
-          </span>
-          <span className="text-xs">{studentData?.parents_email || "N/A"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-xs text-gray-500">
-            Parent/Guardian's Mobile Number:
-          </span>
-          <span className="text-xs">
-            {studentData?.parents_mobile_number || "N/A"}
-          </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex justify-between">
+            <span className="text-xs text-gray-500">
+              Father/Male Guardian's Name:
+            </span>
+            <span className="text-xs">{studentData?.father_name || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-xs text-gray-500">
+              Mother/Female Guardian's Name:
+            </span>
+            <span className="text-xs">{studentData?.mother_name || "N/A"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-xs text-gray-500">
+              Parent/Guardian's Email:
+            </span>
+            <span className="text-xs">
+              {studentData?.parents_email || "N/A"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-xs text-gray-500">
+              Parent/Guardian's Mobile Number:
+            </span>
+            <span className="text-xs">
+              {studentData?.parents_mobile_number || "N/A"}
+            </span>
+          </div>
         </div>
       </div>
-    {/* </div> */}
-
+      {/* </div> */}
       {/* Edit Profile Button */}
       <div className="p-4 border-t flex justify-center pt-6">
-      <MyButton
-        type="submit"
-        scale="large"
-        buttonType="secondary"
-        layoutVariant="default"
-        onClick={handleEditProfile}
-      >
-        <PencilSimple size={16} className="mr-2" weight="bold" />
-        Edit Profile
-      </MyButton>
+        <MyButton
+          type="submit"
+          scale="large"
+          buttonType="secondary"
+          layoutVariant="default"
+          onClick={handleEditProfile}
+        >
+          Edit Profile
+        </MyButton>
       </div>
     </div>
   );
