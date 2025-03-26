@@ -74,17 +74,26 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  const concentrationScoreId = useRef(uuidv4());
 
   // Verification state
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCountdown, setVerificationCountdown] = useState(59);
   const [verificationNumbers, setVerificationNumbers] = useState<number[]>([]);
-  const [verificationInterval] = useState(60); // Fixed 1 minute interval
+  const [verificationInterval] = useState(60);
   const [lastVerificationTime, setLastVerificationTime] = useState(0);
-  const [responseTimesArray, setResponseTimesArray] = useState<number[]>([]);
-  const [answeredTimeArray, setAnsweredTimeArray] = useState<number[]>([]);
   const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Concentration metrics
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [pauseCount, setPauseCount] = useState(0);
+  const [wrongAnswerCount, setWrongAnswerCount] = useState(0);
+  const [missedAnswerCount, setMissedAnswerCount] = useState(0);
+  const [answerTimesInSeconds, setAnswerTimesInSeconds] = useState<number[]>(
+    []
+  );
+  const [concentrationScore, setConcentrationScore] = useState(100); // Start with perfect score
 
   // Helper function to safely get a number from potentially a Promise<number>
   const safeGetNumber = async (value: any): Promise<number> => {
@@ -105,30 +114,56 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   useEffect(() => {
     const loadSavedData = async () => {
       try {
-        // Load answered_time array
-        const { value: answeredTimeValue } = await Preferences.get({
-          key: "answered_time",
+        const { value } = await Preferences.get({
+          key: "video_concentration_metrics",
         });
-        if (answeredTimeValue) {
-          const savedAnsweredTime = JSON.parse(answeredTimeValue);
-          setAnsweredTimeArray(savedAnsweredTime);
+        if (value) {
+          const savedMetrics = JSON.parse(value);
+          setTabSwitchCount(savedMetrics.tabSwitchCount || 0);
+          setWrongAnswerCount(savedMetrics.wrongAnswerCount || 0);
+          setMissedAnswerCount(savedMetrics.missedAnswerCount || 0);
+          setPauseCount(savedMetrics.pauseCount || 0);
+          setAnswerTimesInSeconds(savedMetrics.answerTimesInSeconds || []);
+          setConcentrationScore(savedMetrics.concentrationScore || 100);
         }
 
         // Load last verification time
-        const { value } = await Preferences.get({ key: "verification_time" });
-        if (value) {
-          const savedTime = Number.parseInt(value, 10);
+        const { value: verificationTimeValue } = await Preferences.get({
+          key: "verification_time",
+        });
+        if (verificationTimeValue) {
+          const savedTime = Number.parseInt(verificationTimeValue, 10);
           setLastVerificationTime(savedTime);
-          console.log("lastVerificationTime", lastVerificationTime);
+          console.log(lastVerificationTime);
         }
       } catch (error) {
-        console.error("Error loading saved verification data:", error);
+        console.error("Error loading saved concentration metrics:", error);
       }
     };
 
     loadSavedData();
   }, []);
 
+  // Save concentration metrics to Capacitor preferences
+  const saveConcentrationMetrics = async () => {
+    try {
+      const metrics = {
+        tabSwitchCount,
+        wrongAnswerCount,
+        missedAnswerCount,
+        pauseCount,
+        answerTimesInSeconds,
+        concentrationScore,
+      };
+
+      await Preferences.set({
+        key: "video_concentration_metrics",
+        value: JSON.stringify(metrics),
+      });
+    } catch (error) {
+      console.error("Error saving concentration metrics:", error);
+    }
+  };
   // Save verification time to Capacitor preferences
   const saveVerificationTime = async (time: number) => {
     try {
@@ -141,17 +176,27 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     }
   };
 
-  // Save answered time array to Capacitor preferences
-  const saveAnsweredTimeArray = async (times: number[]) => {
-    try {
-      await Preferences.set({
-        key: "answered_time",
-        value: JSON.stringify(times),
-      });
-    } catch (error) {
-      console.error("Error saving answered time array:", error);
-    }
-  };
+  // Update concentration score based on metrics
+  useEffect(() => {
+    // Simple algorithm to calculate concentration score
+    // This can be adjusted based on specific requirements
+    const baseScore = 100;
+    const tabSwitchPenalty = tabSwitchCount * 10;
+    const wrongAnswerPenalty = wrongAnswerCount * 5;
+    const pouseCountPenalty = pauseCount * 5;
+    const missedAnswerPenalty = missedAnswerCount * 20;
+
+    let newScore =
+      baseScore -
+      tabSwitchPenalty -
+      wrongAnswerPenalty -
+      missedAnswerPenalty -
+      pouseCountPenalty;
+    newScore = Math.max(0, newScore); // Ensure score doesn't go below 0
+
+    setConcentrationScore(newScore);
+    saveConcentrationMetrics();
+  }, [tabSwitchCount, wrongAnswerCount, missedAnswerCount, pauseCount]);
 
   // Generate verification numbers
   const generateVerificationNumbers = useCallback(() => {
@@ -188,13 +233,15 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
             player.pauseVideo();
             setIsPlayed(false);
           }
-
+          // Increment missed answer count
+          setMissedAnswerCount((prev) => prev + 1);
           // Clear the timer
           if (verificationTimerRef.current) {
             clearInterval(verificationTimerRef.current);
             verificationTimerRef.current = null;
           }
-
+          // Close the verification dialog
+          setShowVerification(false);
           return 0;
         }
         return prev - 1;
@@ -211,7 +258,9 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     }
 
     const responseTime = 59 - verificationCountdown;
-
+    // Add response time to array
+    const newAnswerTimes = [...answerTimesInSeconds, responseTime];
+    setAnswerTimesInSeconds(newAnswerTimes);
     // Check if correct number was clicked (middle position, index 1)
     if (index === 1) {
       // Record verification time
@@ -219,18 +268,13 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       setLastVerificationTime(currentTimeInSeconds);
       saveVerificationTime(currentTimeInSeconds);
 
-      // Add response time to arrays
-      const newResponseTimes = [...responseTimesArray, responseTime];
-      setResponseTimesArray(newResponseTimes);
-
-      const newAnsweredTimes = [...answeredTimeArray, responseTime];
-      setAnsweredTimeArray(newAnsweredTimes);
-      saveAnsweredTimeArray(newAnsweredTimes);
-
       // Hide verification
       setShowVerification(false);
     } else {
-      // Wrong number clicked, pause the video
+      // Wrong number clicked, increment wrong answer count
+      setWrongAnswerCount((prev) => prev + 1);
+
+      // Pause the video
       if (player) {
         player.pauseVideo();
         setIsPlayed(false);
@@ -313,10 +357,25 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   // Pause video when tab is switched
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && player) {
-        player.pauseVideo();
-        setIsPlayed(false);
-        console.log("Tab switched, video paused");
+      if (document.hidden) {
+        // Tab switched away
+        setTabSwitchCount((prev) => prev + 1);
+
+        if (player) {
+          player.pauseVideo();
+          setIsPlayed(false);
+        }
+
+        // Close the verification dialog if it's open
+        if (showVerification) {
+          setShowVerification(false);
+
+          // Clear the verification timer
+          if (verificationTimerRef.current) {
+            clearInterval(verificationTimerRef.current);
+            verificationTimerRef.current = null;
+          }
+        }
       }
     };
 
@@ -325,7 +384,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [player]);
+  }, [player, showVerification]);
 
   // Get duration when player is ready
   useEffect(() => {
@@ -375,11 +434,32 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       sync_status: "STALE" as const,
       current_start_time: currentStartTimeRef.current,
       current_start_time_in_epoch: currentStartTimeInEpochRef.current,
-      answered_time: answeredTimeArray,
+      // answered_time: answeredTimeArray,
+      concentration_score: {
+        id: concentrationScoreId.current,
+        concentration_score: concentrationScore,
+        tab_switch_count: tabSwitchCount,
+        pause_count: missedAnswerCount,
+        wrong_answer_count: wrongAnswerCount,
+        missed_answer_count: missedAnswerCount,
+        answer_times_in_seconds: answerTimesInSeconds,
+      },
       new_activity: true,
     };
     addActivity(newActivity, true);
-  }, [elapsedTime, duration, videoId, addActivity]);
+    // }, [elapsedTime, duration, videoId, addActivity]);
+  }, [
+    elapsedTime,
+    duration,
+    videoId,
+    tabSwitchCount,
+    wrongAnswerCount,
+    missedAnswerCount,
+    answerTimesInSeconds,
+    pauseCount,
+    concentrationScore,
+    addActivity,
+  ]);
 
   // Prevent right-click on the video
   useEffect(() => {
@@ -523,7 +603,9 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   const togglePause = () => {
     setIsPlayed(false);
     console.log("video is paused");
-    if (player) player.pauseVideo();
+    if (player) {
+      player.pauseVideo();
+    }
   };
 
   const togglePlay = () => {
@@ -603,6 +685,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         startProgressTracking();
       } else {
         player.pauseVideo();
+        setPauseCount((prev) => prev + 1);
         stopProgressTracking();
       }
     } catch (error) {
