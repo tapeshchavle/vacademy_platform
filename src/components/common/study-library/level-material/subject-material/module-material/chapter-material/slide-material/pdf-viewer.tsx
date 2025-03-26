@@ -16,6 +16,7 @@ import { usePDFSync } from "@/hooks/study-library/usePdfSync";
 import { getEpochTimeInMillis } from "./utils";
 import { PdfViewerComponent } from "./pdf-viewer-component";
 import { Preferences } from "@capacitor/preferences";
+import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 
 interface PDFViewerProps {
   documentId?: string;
@@ -47,6 +48,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
   const { syncPDFTrackingData } = usePDFSync();
   const [isFirstView, setIsFirstView] = useState(true);
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const {activeItem} = useContentStore();
 
   // Verification state
   const [showVerification, setShowVerification] = useState(false);
@@ -386,8 +389,9 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
 
     addActivity(
       {
+        slide_id: activeItem?.slide_id || "",
         activity_id: activityId.current,
-        source: "PDF",
+        source: "DOCUMENT" as "DOCUMENT",
         source_id: documentId || "",
         start_time: startTime.current,
         end_time: getISTTime(),

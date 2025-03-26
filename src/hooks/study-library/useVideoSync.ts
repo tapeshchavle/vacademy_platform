@@ -61,7 +61,14 @@ export const useVideoSync = () => {
                         end_time_in_millis: timestamp.end
                     })),
                     documents: null,
-                    new_activity: activity.new_activity
+                    new_activity: activity.new_activity,
+                    concentration_score: {
+                        id: "",
+                        concentration_score: 0,
+                        tab_switch_count: 0,
+                        pause_count: 0,
+                        answer_times_in_seconds: []
+                      }
                 };
 
                 try {
@@ -69,7 +76,7 @@ export const useVideoSync = () => {
                         console.log("Hitting add video activity api: ", activity.new_activity)
                         try{
                             await addUpdateVideoActivity.mutateAsync({
-                                slideId: activeItem?.slide_id || "",
+                                slideId: activity.slide_id || "",
                                 chapterId: chapterId || "",
                                 requestPayload: apiPayload
                             });
@@ -83,7 +90,7 @@ export const useVideoSync = () => {
                         if(apiPayload.videos && apiPayload.videos.length>0){
                             try{
                                 await addUpdateVideoActivity.mutateAsync({
-                                    slideId: activeItem?.slide_id || "",
+                                    slideId: activity.slide_id  || "",
                                     chapterId: chapterId || "",
                                     requestPayload: apiPayload
                                 });

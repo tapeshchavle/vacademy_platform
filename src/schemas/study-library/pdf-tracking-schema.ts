@@ -17,8 +17,9 @@ export const PageViewSchema = z.object({
 });
 
 export const ActivitySchema = z.object({
+    slide_id: z.string(),
     activity_id: z.string(),
-    source: z.string(),
+    source: z.enum(["DOCUMENT", "VIDEO"]),
     source_id: z.string(),
     start_time: z.string(),
     end_time: z.string(),
