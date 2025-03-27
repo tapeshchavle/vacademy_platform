@@ -22,7 +22,10 @@ import {
   Section,
   TestReportDialogProps,
 } from "@/types/assessments/assessment-data-type";
-import { GET_ASSESSMENT_MARKS } from "@/constants/urls";
+import {
+  EXPORT_ASSESSMENT_REPORT,
+  GET_ASSESSMENT_MARKS,
+} from "@/constants/urls";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 type TestMarks = {
   total_achievable_marks: number;
@@ -35,6 +38,7 @@ export const TestReportDialog = ({
 }: TestReportDialogProps) => {
   const report = useRouter();
   const [instituteDetails, setInstituteDetails] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
   // const { state } = report.__store.state.location.state as ParsedHistoryState;
   // const studentReport: Report = state?.report || {};
   const locationState = report.__store.state.location
@@ -55,7 +59,6 @@ export const TestReportDialog = ({
 
   const studentReport: Report = locationState?.report || defaultReport;
   const [testMarks, setTestMarks] = useState<TestMarks | null>(null);
-
   useEffect(() => {
     const fetchTestMarks = async () => {
       const assessmentId = studentReport.assessment_id;
@@ -93,6 +96,36 @@ export const TestReportDialog = ({
       id: section.id,
     })
   );
+
+  const handleExport = async () => {
+    const assessmentId = studentReport.assessment_id;
+    const attemptId = studentReport.attempt_id;
+    const instituteId = instituteDetails.id;
+
+    console.log("studentReport", studentReport, instituteId, instituteDetails);
+
+    // Show loader
+    setIsLoading(true);
+
+    try {
+      const response = await authenticatedAxiosInstance.get(
+        EXPORT_ASSESSMENT_REPORT,
+        {
+          params: {
+            assessmentId: assessmentId,
+            attemptId: attemptId,
+            instituteId: instituteId,
+          },
+        }
+      );
+      console.log("Export data:", response.data);
+      // Handle the response, maybe download as CSV or display the data
+    } catch (error) {
+      console.error("Error exporting data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const [selectedSection, setSelectedSection] = useState(
     sectionsInfo?.length ? sectionsInfo[0]?.id : undefined
@@ -132,13 +165,15 @@ export const TestReportDialog = ({
               </div>
             </div>
             <div className="hidden md:block lg:block">
-              <MyButton
-                buttonType="secondary"
-                scale="large"
-                layoutVariant="default"
-              >
-                <Export /> Export
-              </MyButton>
+            <MyButton
+              buttonType="secondary"
+              scale="large"
+              layoutVariant="default"
+              onClick={!isLoading ? handleExport : undefined}
+            >
+              <Export /> 
+              {isLoading ? <span className="ml-2">Exporting...</span> : <>Export</>}
+            </MyButton>
             </div>
           </div>
 
@@ -551,10 +586,15 @@ export const TestReportDialog = ({
                         </div>
                       </div>
                     )}
-                    {review.explanation && (
+                    {review.explanation ? (
                       <div className="flex items-center gap-6 text-subtitle">
                         <div>Explanation:</div>
                         <div>{parseHtmlToString(review.explanation)}</div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-6 text-subtitle">
+                        <div>Explanation:</div>
+                        <div>No explanation given</div>
                       </div>
                     )}
                   </div>
@@ -574,8 +614,10 @@ export const TestReportDialog = ({
               buttonType="secondary"
               scale="large"
               layoutVariant="default"
+              onClick={!isLoading ? handleExport : undefined}
             >
-              <Export /> Export
+              <Export /> 
+              {isLoading ? <span className="ml-2">Exporting...</span> : <>Export</>}
             </MyButton>
           </div>
         </div>
