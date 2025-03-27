@@ -1,9 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
+import ProfilePage from "@/components/common/user-profile/user-page";
+import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/user-profile/')({
+export const Route = createFileRoute("/user-profile/")({
   component: RouteComponent,
-})
+});
 
 function RouteComponent() {
-  return <div>Hello "/user-profile/"!</div>
+  return <ProfilePage />;
 }

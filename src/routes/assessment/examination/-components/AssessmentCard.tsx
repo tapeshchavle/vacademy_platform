@@ -16,11 +16,9 @@ import {
 import { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import { restartAssessment } from "../-utils.ts/useFetchRestartAssessment";
-import {
-  // fetchPreviewData,
-  storeAssessmentInfo,
-} from "../-utils.ts/useFetchAssessment";
+import { storeAssessmentInfo } from "../-utils.ts/useFetchAssessment";
 import { formatDuration } from "@/constants/helper";
+import { toast } from "sonner";
 
 interface AssessmentProps {
   assessmentInfo: Assessment;
@@ -63,59 +61,80 @@ export const AssessmentCard = ({
   };
 
   const handleAction = async () => {
-    // Check if user still has attempts remaining
-    console.log("Button Disabled:", assessmentInfo.recent_attempt_status === "ENDED");
-
+    // For LIVE or PREVIEW status
     if (
-      (assessmentInfo?.user_attempts ?? 1) <= assessmentInfo.assessment_attempts
-      // || assessmentInfo.assessment_attempts === 0
+      assessmentInfo.recent_attempt_status === "PREVIEW" ||
+      assessmentInfo.recent_attempt_status === "LIVE"
     ) {
-      // If status is PREVIEW or LIVE, show restart dialog
-      if (
-        assessmentInfo.recent_attempt_status === "PREVIEW" ||
-        assessmentInfo.recent_attempt_status === "LIVE"
-      ) {
-        setShowRestartDialog(true);
-      } else if (assessmentInfo.recent_attempt_status !== "ENDED") {
-        storeAssessmentInfo(assessmentInfo);
-        console.log("Navigating to:", `/assessment/examination/${assessmentInfo.assessment_id}`);
+      setShowRestartDialog(true);
+      return;
+    }
 
+    // For ENDED status or null status
+    if (
+      assessmentInfo.recent_attempt_status === "ENDED" ||
+      assessmentInfo.recent_attempt_status === null
+    ) {
+      const attemptsUsed =
+        assessmentInfo.user_attempts !== 0
+          ? assessmentInfo.user_attempts
+          : (assessmentInfo.assessment_attempts ?? 0);
+      const maxAttempts = assessmentInfo.created_attempts ?? 1;
+
+      // If there are attempts left
+      if ((attemptsUsed ?? 0) < maxAttempts) {
+        storeAssessmentInfo(assessmentInfo);
         navigate({
           to: `/assessment/examination/${assessmentInfo.assessment_id}`,
         });
+      } else {
+        // No more attempts remaining
+        return;
       }
     } else {
-      // No more attempts remaining
-      return;
+      // For any other status
+      storeAssessmentInfo(assessmentInfo);
+      navigate({
+        to: `/assessment/examination/${assessmentInfo.assessment_id}`,
+      });
     }
   };
 
   const handleRestartAssessment = async () => {
     setIsRestarting(true);
     try {
-      // Ensure data is stored before proceeding
       await storeAssessmentInfo(assessmentInfo);
 
       const isRestarted = await restartAssessment(
         assessmentInfo.assessment_id,
         assessmentInfo.last_attempt_id ?? ""
       );
-      console.log("isRestarted", isRestarted);
+      console.log("assessmentInfo", assessmentInfo);
+
+      console.log("Restart API Response:", isRestarted);
 
       if (isRestarted) {
+        console.log(
+          "Navigating to:",
+          `/assessment/examination/${assessmentInfo.assessment_id}/LearnerLiveTest`
+        );
         navigate({
           to: `/assessment/examination/${assessmentInfo.assessment_id}/LearnerLiveTest`,
-          replace: true,          
+          replace: true,
         });
+        return; // Ensure no further execution
       } else {
-        console.error("Restart failed, not navigating.");
+        toast.error(
+          "Failed to resume the assessment. Assessment already Ended."
+        );
       }
     } catch (error) {
-      console.error("Failed to restart assessment:", error);
-    } finally {
-      setIsRestarting(false);
-      setShowRestartDialog(false);
+      console.error("Error in handleRestartAssessment:", error);
+      toast.error("An error occurred while resuming the assessment.");
     }
+
+    setIsRestarting(false);
+    setShowRestartDialog(false);
   };
 
   const getButtonLabel = () => {
@@ -124,17 +143,26 @@ export const AssessmentCard = ({
     ) {
       return "Resume";
     }
+
     if (
-      (assessmentInfo.user_attempts ??
-        assessmentInfo.assessment_attempts ??
-        1) < (assessmentInfo.created_attempts ?? 1)
+      assessmentInfo.recent_attempt_status === "ENDED" ||
+      assessmentInfo.recent_attempt_status === null
     ) {
-      return "Join Assessment";
+      const attemptsUsed =
+        assessmentInfo.user_attempts !== 0
+          ? assessmentInfo.user_attempts
+          : (assessmentInfo.assessment_attempts ?? 0);
+      const maxAttempts = assessmentInfo.created_attempts ?? 1;
+
+      if ((attemptsUsed ?? 0) < maxAttempts) {
+        return "Join Assessment";
+      } else {
+        return "Ended";
+      }
     }
-    if (assessmentInfo.recent_attempt_status === "ENDED") {
-      return "Ended";
-    }
-    return "Join Assessment";
+
+    // Default
+    return " Assessment";
   };
 
   return (
@@ -164,9 +192,16 @@ export const AssessmentCard = ({
                   "DD MMM YYYY, hh:mm A"
                 )}
               </div>
-                <div>
-                Duration: {formatDuration(assessmentInfo.duration*60)}
-                </div>
+              <div>
+                Duration: {formatDuration(assessmentInfo.duration * 60)}
+              </div>
+              <div>
+                Attempts:{" "}
+                {assessmentInfo.user_attempts !== 0
+                  ? assessmentInfo.user_attempts
+                  : (assessmentInfo.assessment_attempts ?? 0)}
+                /{assessmentInfo.created_attempts ?? 1}
+              </div>
             </div>
           </div>
           {assessmentType !== assessmentTypes.UPCOMING &&
@@ -201,7 +236,7 @@ export const AssessmentCard = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Restart Confirmation Dialog */}
+      {/* Resume Confirmation Dialog */}
       <AlertDialog
         open={showRestartDialog}
         onOpenChange={handleCloseRestartDialog}
@@ -209,11 +244,11 @@ export const AssessmentCard = ({
         <AlertDialogOverlay className="bg-black/50" />
         <AlertDialogContent className="max-w-sm bg-white rounded-lg p-6">
           <AlertDialogHeader>
-            <AlertDialogTitle>Restart Assessment</AlertDialogTitle>
+            <AlertDialogTitle>Resume Assessment</AlertDialogTitle>
           </AlertDialogHeader>
           <AlertDialogDescription className="text-gray-700">
-            Do you want to restart the assessment? All previous progress will be
-            lost.
+            Would you like to continue the assessment from your last saved
+            progress?
           </AlertDialogDescription>
           <AlertDialogFooter className="flex justify-end gap-3 mt-4">
             <MyButton buttonType="secondary" onClick={handleCloseRestartDialog}>
@@ -224,7 +259,7 @@ export const AssessmentCard = ({
               onClick={handleRestartAssessment}
               disabled={isRestarting}
             >
-              {isRestarting ? "Restarting..." : "Restart"}
+              {isRestarting ? "Proceeding..." : "Resume"}
             </MyButton>
           </AlertDialogFooter>
         </AlertDialogContent>

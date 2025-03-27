@@ -49,7 +49,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
   const [isFirstView, setIsFirstView] = useState(true);
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const {activeItem} = useContentStore();
+  const { activeItem } = useContentStore();
 
   // Verification state
   const [showVerification, setShowVerification] = useState(false);
@@ -70,7 +70,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
 
   // Track user activity
   const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const inactivityThreshold = 60000; 
+  const inactivityThreshold = 60000;
 
   // Load saved verification time from Capacitor preferences
   useEffect(() => {
@@ -391,7 +391,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
       {
         slide_id: activeItem?.slide_id || "",
         activity_id: activityId.current,
-        source: "DOCUMENT" as "DOCUMENT",
+        source: "DOCUMENT" as const,
         source_id: documentId || "",
         start_time: startTime.current,
         end_time: getISTTime(),
@@ -404,13 +404,17 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
         current_page: currentPage,
         current_page_start_time_in_millis: pageStartTime.current.getTime(),
         new_activity: true,
-        answered_time: answeredTimeArray,
-        is_paused: isPaused,
-        tab_switch_count: tabSwitchCount,
-        missed_answer_count: missedAnswerCount,
-        wrong_answer_count: wrongAnswerCount,
+        // is_paused: isPaused,
+        concentration_score: {
+          id: activityId.current,
+          concentration_score: 0,
+          tab_switch_count: tabSwitchCount,
+          pause_count: missedAnswerCount,
+          wrong_answer_count: wrongAnswerCount,
+          answer_times_in_seconds: answeredTimeArray,
+        },
       },
-      true
+      // true
     );
   }, [
     elapsedTime,
@@ -420,6 +424,9 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
     tabSwitchCount,
     missedAnswerCount,
     wrongAnswerCount,
+    activeItem?.slide_id,
+    addActivity,
+    currentPage,
   ]);
 
   const handleDocumentLoad = (e: DocumentLoadEvent) => {
