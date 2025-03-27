@@ -21,6 +21,7 @@ import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { useSearch } from "@tanstack/react-router";
 import { MyButton } from "@/components/design-system/button";
 import { getPublicUrl } from "@/services/upload_file";
+import { Route } from "@/routes/enroll";
 
 // Type definitions
 interface CustomField {
@@ -89,10 +90,31 @@ const phoneSchema = z
   .transform((val) => val.trim());
 
 const EnrollByInvite = () => {
-  const { instituteId, inviteCode } = useSearch({
-    instituteId: "",
-    inviteCode: "",
-  });
+  // const { instituteId, inviteCode } = useSearch({
+  //   instituteId: "",
+  //   inviteCode: "",
+  // });
+
+  // const { instituteId, inviteCode } = useSearch<{
+  //   instituteId: string;
+  //   inviteCode: string;
+  // }>();
+
+  //   const searchParams = useSearch<{
+  //     instituteId?: string;
+  //     inviteCode?: string;
+  //   }>();
+  //   const instituteId = searchParams.instituteId ?? "";
+  // const inviteCode = searchParams.inviteCode ?? "";
+
+  // const { instituteId = "", inviteCode = "" } = useSearch<{
+  //   instituteId?: string;
+  //   inviteCode?: string;
+  // }>( { instituteId: "", inviteCode: "" });
+
+  // console.log("instituteId", instituteId, "inviteCode", inviteCode);
+  const instituteId = "0f1a4bb6-90ec-4e91-bbbf-2184a39c986e";
+  const inviteCode = "053OO";
 
   // Form state
   const [step, setStep] = useState(1);
