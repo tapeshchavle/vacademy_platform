@@ -18,10 +18,9 @@ import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { ENROLL_DETAILS_RESPONSE, GET_ENROLL_DETAILS } from "@/constants/urls";
 import { toast } from "sonner";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
-import { useSearch } from "@tanstack/react-router";
+// import { useSearch } from "@tanstack/react-router";
 import { MyButton } from "@/components/design-system/button";
 import { getPublicUrl } from "@/services/upload_file";
-import { Route } from "@/routes/enroll";
 
 // Type definitions
 interface CustomField {
