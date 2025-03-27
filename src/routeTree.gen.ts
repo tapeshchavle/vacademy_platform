@@ -16,18 +16,19 @@ import { Route as StudyLibraryIndexImport } from './routes/study-library/index'
 import { Route as RegisterIndexImport } from './routes/register/index'
 import { Route as LogoutIndexImport } from './routes/logout/index'
 import { Route as LoginIndexImport } from './routes/login/index'
+import { Route as LearnerInvitationResponseIndexImport } from './routes/learner-invitation-response/index'
 import { Route as InstituteSelectionIndexImport } from './routes/institute-selection/index'
 import { Route as EnrollIndexImport } from './routes/enroll/index'
 import { Route as DeleteUserIndexImport } from './routes/delete-user/index'
 import { Route as DashboardIndexImport } from './routes/dashboard/index'
 import { Route as SessionSelectionPageIndexImport } from './routes/SessionSelectionPage/index'
+import { Route as UserProfileEditIndexImport } from './routes/user-profile/edit/index'
 import { Route as StudyLibraryCoursesIndexImport } from './routes/study-library/courses/index'
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
 import { Route as DashboardNotificationsIndexImport } from './routes/dashboard/notifications/index'
 import { Route as AssessmentReportsIndexImport } from './routes/assessment/reports/index'
 import { Route as AssessmentExaminationIndexImport } from './routes/assessment/examination/index'
 import { Route as StudyLibraryCoursesLevelsIndexImport } from './routes/study-library/courses/levels/index'
-import { Route as LearnerInvitationResponseInstituteIdInviteCodeIndexImport } from './routes/learner-invitation-response/$instituteId/$inviteCode/index'
 import { Route as AssessmentReportsStudentReportIndexImport } from './routes/assessment/reports/student-report/index'
 import { Route as AssessmentExaminationAssessmentIdIndexImport } from './routes/assessment/examination/$assessmentId/index'
 import { Route as AssessmentExaminationAssessmentIdAssessmentPreviewImport } from './routes/assessment/examination/$assessmentId/assessmentPreview'
@@ -69,6 +70,13 @@ const LoginIndexRoute = LoginIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const LearnerInvitationResponseIndexRoute =
+  LearnerInvitationResponseIndexImport.update({
+    id: '/learner-invitation-response/',
+    path: '/learner-invitation-response/',
+    getParentRoute: () => rootRoute,
+  } as any)
+
 const InstituteSelectionIndexRoute = InstituteSelectionIndexImport.update({
   id: '/institute-selection/',
   path: '/institute-selection/',
@@ -96,6 +104,12 @@ const DashboardIndexRoute = DashboardIndexImport.update({
 const SessionSelectionPageIndexRoute = SessionSelectionPageIndexImport.update({
   id: '/SessionSelectionPage/',
   path: '/SessionSelectionPage/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const UserProfileEditIndexRoute = UserProfileEditIndexImport.update({
+  id: '/user-profile/edit/',
+  path: '/user-profile/edit/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -136,13 +150,6 @@ const StudyLibraryCoursesLevelsIndexRoute =
   StudyLibraryCoursesLevelsIndexImport.update({
     id: '/study-library/courses/levels/',
     path: '/study-library/courses/levels/',
-    getParentRoute: () => rootRoute,
-  } as any)
-
-const LearnerInvitationResponseInstituteIdInviteCodeIndexRoute =
-  LearnerInvitationResponseInstituteIdInviteCodeIndexImport.update({
-    id: '/learner-invitation-response/$instituteId/$inviteCode/',
-    path: '/learner-invitation-response/$instituteId/$inviteCode/',
     getParentRoute: () => rootRoute,
   } as any)
 
@@ -241,6 +248,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstituteSelectionIndexImport
       parentRoute: typeof rootRoute
     }
+    '/learner-invitation-response/': {
+      id: '/learner-invitation-response/'
+      path: '/learner-invitation-response'
+      fullPath: '/learner-invitation-response'
+      preLoaderRoute: typeof LearnerInvitationResponseIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/login/': {
       id: '/login/'
       path: '/login'
@@ -311,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudyLibraryCoursesIndexImport
       parentRoute: typeof rootRoute
     }
+    '/user-profile/edit/': {
+      id: '/user-profile/edit/'
+      path: '/user-profile/edit'
+      fullPath: '/user-profile/edit'
+      preLoaderRoute: typeof UserProfileEditIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/assessment/examination/$assessmentId/LearnerLiveTest': {
       id: '/assessment/examination/$assessmentId/LearnerLiveTest'
       path: '/assessment/examination/$assessmentId/LearnerLiveTest'
@@ -337,13 +358,6 @@ declare module '@tanstack/react-router' {
       path: '/assessment/reports/student-report'
       fullPath: '/assessment/reports/student-report'
       preLoaderRoute: typeof AssessmentReportsStudentReportIndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/learner-invitation-response/$instituteId/$inviteCode/': {
-      id: '/learner-invitation-response/$instituteId/$inviteCode/'
-      path: '/learner-invitation-response/$instituteId/$inviteCode'
-      fullPath: '/learner-invitation-response/$instituteId/$inviteCode'
-      preLoaderRoute: typeof LearnerInvitationResponseInstituteIdInviteCodeIndexImport
       parentRoute: typeof rootRoute
     }
     '/study-library/courses/levels/': {
@@ -392,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/delete-user': typeof DeleteUserIndexRoute
   '/enroll': typeof EnrollIndexRoute
   '/institute-selection': typeof InstituteSelectionIndexRoute
+  '/learner-invitation-response': typeof LearnerInvitationResponseIndexRoute
   '/login': typeof LoginIndexRoute
   '/logout': typeof LogoutIndexRoute
   '/register': typeof RegisterIndexRoute
@@ -402,11 +417,11 @@ export interface FileRoutesByFullPath {
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
   '/study-library/courses': typeof StudyLibraryCoursesIndexRoute
+  '/user-profile/edit': typeof UserProfileEditIndexRoute
   '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
   '/assessment/reports/student-report': typeof AssessmentReportsStudentReportIndexRoute
-  '/learner-invitation-response/$instituteId/$inviteCode': typeof LearnerInvitationResponseInstituteIdInviteCodeIndexRoute
   '/study-library/courses/levels': typeof StudyLibraryCoursesLevelsIndexRoute
   '/study-library/courses/levels/subjects': typeof StudyLibraryCoursesLevelsSubjectsIndexRoute
   '/study-library/courses/levels/subjects/modules': typeof StudyLibraryCoursesLevelsSubjectsModulesIndexRoute
@@ -420,6 +435,7 @@ export interface FileRoutesByTo {
   '/delete-user': typeof DeleteUserIndexRoute
   '/enroll': typeof EnrollIndexRoute
   '/institute-selection': typeof InstituteSelectionIndexRoute
+  '/learner-invitation-response': typeof LearnerInvitationResponseIndexRoute
   '/login': typeof LoginIndexRoute
   '/logout': typeof LogoutIndexRoute
   '/register': typeof RegisterIndexRoute
@@ -430,11 +446,11 @@ export interface FileRoutesByTo {
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
   '/study-library/courses': typeof StudyLibraryCoursesIndexRoute
+  '/user-profile/edit': typeof UserProfileEditIndexRoute
   '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId': typeof AssessmentExaminationAssessmentIdIndexRoute
   '/assessment/reports/student-report': typeof AssessmentReportsStudentReportIndexRoute
-  '/learner-invitation-response/$instituteId/$inviteCode': typeof LearnerInvitationResponseInstituteIdInviteCodeIndexRoute
   '/study-library/courses/levels': typeof StudyLibraryCoursesLevelsIndexRoute
   '/study-library/courses/levels/subjects': typeof StudyLibraryCoursesLevelsSubjectsIndexRoute
   '/study-library/courses/levels/subjects/modules': typeof StudyLibraryCoursesLevelsSubjectsModulesIndexRoute
@@ -449,6 +465,7 @@ export interface FileRoutesById {
   '/delete-user/': typeof DeleteUserIndexRoute
   '/enroll/': typeof EnrollIndexRoute
   '/institute-selection/': typeof InstituteSelectionIndexRoute
+  '/learner-invitation-response/': typeof LearnerInvitationResponseIndexRoute
   '/login/': typeof LoginIndexRoute
   '/logout/': typeof LogoutIndexRoute
   '/register/': typeof RegisterIndexRoute
@@ -459,11 +476,11 @@ export interface FileRoutesById {
   '/dashboard/notifications/': typeof DashboardNotificationsIndexRoute
   '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
   '/study-library/courses/': typeof StudyLibraryCoursesIndexRoute
+  '/user-profile/edit/': typeof UserProfileEditIndexRoute
   '/assessment/examination/$assessmentId/LearnerLiveTest': typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
   '/assessment/examination/$assessmentId/assessmentPreview': typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   '/assessment/examination/$assessmentId/': typeof AssessmentExaminationAssessmentIdIndexRoute
   '/assessment/reports/student-report/': typeof AssessmentReportsStudentReportIndexRoute
-  '/learner-invitation-response/$instituteId/$inviteCode/': typeof LearnerInvitationResponseInstituteIdInviteCodeIndexRoute
   '/study-library/courses/levels/': typeof StudyLibraryCoursesLevelsIndexRoute
   '/study-library/courses/levels/subjects/': typeof StudyLibraryCoursesLevelsSubjectsIndexRoute
   '/study-library/courses/levels/subjects/modules/': typeof StudyLibraryCoursesLevelsSubjectsModulesIndexRoute
@@ -479,6 +496,7 @@ export interface FileRouteTypes {
     | '/delete-user'
     | '/enroll'
     | '/institute-selection'
+    | '/learner-invitation-response'
     | '/login'
     | '/logout'
     | '/register'
@@ -489,11 +507,11 @@ export interface FileRouteTypes {
     | '/dashboard/notifications'
     | '/login/forgot-password'
     | '/study-library/courses'
+    | '/user-profile/edit'
     | '/assessment/examination/$assessmentId/LearnerLiveTest'
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId'
     | '/assessment/reports/student-report'
-    | '/learner-invitation-response/$instituteId/$inviteCode'
     | '/study-library/courses/levels'
     | '/study-library/courses/levels/subjects'
     | '/study-library/courses/levels/subjects/modules'
@@ -506,6 +524,7 @@ export interface FileRouteTypes {
     | '/delete-user'
     | '/enroll'
     | '/institute-selection'
+    | '/learner-invitation-response'
     | '/login'
     | '/logout'
     | '/register'
@@ -516,11 +535,11 @@ export interface FileRouteTypes {
     | '/dashboard/notifications'
     | '/login/forgot-password'
     | '/study-library/courses'
+    | '/user-profile/edit'
     | '/assessment/examination/$assessmentId/LearnerLiveTest'
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId'
     | '/assessment/reports/student-report'
-    | '/learner-invitation-response/$instituteId/$inviteCode'
     | '/study-library/courses/levels'
     | '/study-library/courses/levels/subjects'
     | '/study-library/courses/levels/subjects/modules'
@@ -533,6 +552,7 @@ export interface FileRouteTypes {
     | '/delete-user/'
     | '/enroll/'
     | '/institute-selection/'
+    | '/learner-invitation-response/'
     | '/login/'
     | '/logout/'
     | '/register/'
@@ -543,11 +563,11 @@ export interface FileRouteTypes {
     | '/dashboard/notifications/'
     | '/login/forgot-password/'
     | '/study-library/courses/'
+    | '/user-profile/edit/'
     | '/assessment/examination/$assessmentId/LearnerLiveTest'
     | '/assessment/examination/$assessmentId/assessmentPreview'
     | '/assessment/examination/$assessmentId/'
     | '/assessment/reports/student-report/'
-    | '/learner-invitation-response/$instituteId/$inviteCode/'
     | '/study-library/courses/levels/'
     | '/study-library/courses/levels/subjects/'
     | '/study-library/courses/levels/subjects/modules/'
@@ -562,6 +582,7 @@ export interface RootRouteChildren {
   DeleteUserIndexRoute: typeof DeleteUserIndexRoute
   EnrollIndexRoute: typeof EnrollIndexRoute
   InstituteSelectionIndexRoute: typeof InstituteSelectionIndexRoute
+  LearnerInvitationResponseIndexRoute: typeof LearnerInvitationResponseIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
   LogoutIndexRoute: typeof LogoutIndexRoute
   RegisterIndexRoute: typeof RegisterIndexRoute
@@ -572,11 +593,11 @@ export interface RootRouteChildren {
   DashboardNotificationsIndexRoute: typeof DashboardNotificationsIndexRoute
   LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
   StudyLibraryCoursesIndexRoute: typeof StudyLibraryCoursesIndexRoute
+  UserProfileEditIndexRoute: typeof UserProfileEditIndexRoute
   AssessmentExaminationAssessmentIdLearnerLiveTestRoute: typeof AssessmentExaminationAssessmentIdLearnerLiveTestRoute
   AssessmentExaminationAssessmentIdAssessmentPreviewRoute: typeof AssessmentExaminationAssessmentIdAssessmentPreviewRoute
   AssessmentExaminationAssessmentIdIndexRoute: typeof AssessmentExaminationAssessmentIdIndexRoute
   AssessmentReportsStudentReportIndexRoute: typeof AssessmentReportsStudentReportIndexRoute
-  LearnerInvitationResponseInstituteIdInviteCodeIndexRoute: typeof LearnerInvitationResponseInstituteIdInviteCodeIndexRoute
   StudyLibraryCoursesLevelsIndexRoute: typeof StudyLibraryCoursesLevelsIndexRoute
   StudyLibraryCoursesLevelsSubjectsIndexRoute: typeof StudyLibraryCoursesLevelsSubjectsIndexRoute
   StudyLibraryCoursesLevelsSubjectsModulesIndexRoute: typeof StudyLibraryCoursesLevelsSubjectsModulesIndexRoute
@@ -590,6 +611,7 @@ const rootRouteChildren: RootRouteChildren = {
   DeleteUserIndexRoute: DeleteUserIndexRoute,
   EnrollIndexRoute: EnrollIndexRoute,
   InstituteSelectionIndexRoute: InstituteSelectionIndexRoute,
+  LearnerInvitationResponseIndexRoute: LearnerInvitationResponseIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
   LogoutIndexRoute: LogoutIndexRoute,
   RegisterIndexRoute: RegisterIndexRoute,
@@ -600,6 +622,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardNotificationsIndexRoute: DashboardNotificationsIndexRoute,
   LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
   StudyLibraryCoursesIndexRoute: StudyLibraryCoursesIndexRoute,
+  UserProfileEditIndexRoute: UserProfileEditIndexRoute,
   AssessmentExaminationAssessmentIdLearnerLiveTestRoute:
     AssessmentExaminationAssessmentIdLearnerLiveTestRoute,
   AssessmentExaminationAssessmentIdAssessmentPreviewRoute:
@@ -608,8 +631,6 @@ const rootRouteChildren: RootRouteChildren = {
     AssessmentExaminationAssessmentIdIndexRoute,
   AssessmentReportsStudentReportIndexRoute:
     AssessmentReportsStudentReportIndexRoute,
-  LearnerInvitationResponseInstituteIdInviteCodeIndexRoute:
-    LearnerInvitationResponseInstituteIdInviteCodeIndexRoute,
   StudyLibraryCoursesLevelsIndexRoute: StudyLibraryCoursesLevelsIndexRoute,
   StudyLibraryCoursesLevelsSubjectsIndexRoute:
     StudyLibraryCoursesLevelsSubjectsIndexRoute,
@@ -636,6 +657,7 @@ export const routeTree = rootRoute
         "/delete-user/",
         "/enroll/",
         "/institute-selection/",
+        "/learner-invitation-response/",
         "/login/",
         "/logout/",
         "/register/",
@@ -646,11 +668,11 @@ export const routeTree = rootRoute
         "/dashboard/notifications/",
         "/login/forgot-password/",
         "/study-library/courses/",
+        "/user-profile/edit/",
         "/assessment/examination/$assessmentId/LearnerLiveTest",
         "/assessment/examination/$assessmentId/assessmentPreview",
         "/assessment/examination/$assessmentId/",
         "/assessment/reports/student-report/",
-        "/learner-invitation-response/$instituteId/$inviteCode/",
         "/study-library/courses/levels/",
         "/study-library/courses/levels/subjects/",
         "/study-library/courses/levels/subjects/modules/",
@@ -672,6 +694,9 @@ export const routeTree = rootRoute
     },
     "/institute-selection/": {
       "filePath": "institute-selection/index.tsx"
+    },
+    "/learner-invitation-response/": {
+      "filePath": "learner-invitation-response/index.tsx"
     },
     "/login/": {
       "filePath": "login/index.tsx"
@@ -703,6 +728,9 @@ export const routeTree = rootRoute
     "/study-library/courses/": {
       "filePath": "study-library/courses/index.tsx"
     },
+    "/user-profile/edit/": {
+      "filePath": "user-profile/edit/index.tsx"
+    },
     "/assessment/examination/$assessmentId/LearnerLiveTest": {
       "filePath": "assessment/examination/$assessmentId/LearnerLiveTest.tsx"
     },
@@ -714,9 +742,6 @@ export const routeTree = rootRoute
     },
     "/assessment/reports/student-report/": {
       "filePath": "assessment/reports/student-report/index.tsx"
-    },
-    "/learner-invitation-response/$instituteId/$inviteCode/": {
-      "filePath": "learner-invitation-response/$instituteId/$inviteCode/index.tsx"
     },
     "/study-library/courses/levels/": {
       "filePath": "study-library/courses/levels/index.tsx"
