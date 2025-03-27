@@ -25,7 +25,7 @@ export function AssessmentPreview() {
 
   const newPath = currentPath.replace(/\/[^/]+$/, "/LearnerLiveTest");
   const { assessment } = useAssessmentStore();
-  const { setAssessment, incrementTabSwitchCount, tabSwitchCount, resetAssessment } =
+  const { setAssessment, incrementTabSwitchCount, tabSwitchCount } =
     useAssessmentStore();
   const [activeSection, setActiveSection] = useState(0);
   const [timeLeft, setTimeLeft] = useState(() => {
