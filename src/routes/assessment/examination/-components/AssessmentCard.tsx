@@ -196,11 +196,10 @@ export const AssessmentCard = ({
                 Duration: {formatDuration(assessmentInfo.duration * 60)}
               </div>
               <div>
-                Attempts:{" "}
-                {assessmentInfo.user_attempts !== 0
+                Attempts: {assessmentInfo.created_attempts ?? 0}/
+                {assessmentInfo.user_attempts !== 0 && assessmentInfo.user_attempts !== null
                   ? assessmentInfo.user_attempts
                   : (assessmentInfo.assessment_attempts ?? 0)}
-                /{assessmentInfo.created_attempts ?? 1}
               </div>
             </div>
           </div>
