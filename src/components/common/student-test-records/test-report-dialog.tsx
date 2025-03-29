@@ -102,24 +102,36 @@ export const TestReportDialog = ({
     const attemptId = studentReport.attempt_id;
     const instituteId = instituteDetails.id;
 
-    console.log("studentReport", studentReport, instituteId, instituteDetails);
-
-    // Show loader
     setIsLoading(true);
 
     try {
-      const response = await authenticatedAxiosInstance.get(
-        EXPORT_ASSESSMENT_REPORT,
-        {
-          params: {
-            assessmentId: assessmentId,
-            attemptId: attemptId,
-            instituteId: instituteId,
-          },
-        }
-      );
-      console.log("Export data:", response.data);
-      // Handle the response, maybe download as CSV or display the data
+      const response = await authenticatedAxiosInstance({
+        method: "GET",
+        url: EXPORT_ASSESSMENT_REPORT,
+        params: {
+          assessmentId: assessmentId,
+          attemptId: attemptId,
+          instituteId: instituteId,
+        },
+        responseType: "blob",
+      });
+
+      // Create a new Blob object using the response data
+      const blob = new Blob([response.data], { type: "application/pdf" });
+
+      // Create a link element
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(blob); // Create a URL for the blob
+      link.download = "assessment_report.pdf"; // Set the file name
+
+      // Append to the body (required for Firefox)
+      document.body.appendChild(link);
+
+      // Programmatically click the link to trigger the download
+      link.click();
+
+      // Clean up and remove the link
+      document.body.removeChild(link);
     } catch (error) {
       console.error("Error exporting data:", error);
     } finally {
@@ -165,15 +177,19 @@ export const TestReportDialog = ({
               </div>
             </div>
             <div className="hidden md:block lg:block">
-            <MyButton
-              buttonType="secondary"
-              scale="large"
-              layoutVariant="default"
-              onClick={!isLoading ? handleExport : undefined}
-            >
-              <Export /> 
-              {isLoading ? <span className="ml-2">Exporting...</span> : <>Export</>}
-            </MyButton>
+              <MyButton
+                buttonType="secondary"
+                scale="large"
+                layoutVariant="default"
+                onClick={!isLoading ? handleExport : undefined}
+              >
+                <Export />
+                {isLoading ? (
+                  <span className="ml-2">Exporting...</span>
+                ) : (
+                  <>Export</>
+                )}
+              </MyButton>
             </div>
           </div>
 
@@ -616,8 +632,12 @@ export const TestReportDialog = ({
               layoutVariant="default"
               onClick={!isLoading ? handleExport : undefined}
             >
-              <Export /> 
-              {isLoading ? <span className="ml-2">Exporting...</span> : <>Export</>}
+              <Export />
+              {isLoading ? (
+                <span className="ml-2">Exporting...</span>
+              ) : (
+                <>Export</>
+              )}
             </MyButton>
           </div>
         </div>
