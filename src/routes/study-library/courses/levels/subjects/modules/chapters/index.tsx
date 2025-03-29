@@ -9,6 +9,7 @@ import { ChapterSidebarComponent } from '@/components/common/study-library/level
 import { InitStudyLibraryProvider } from '@/providers/study-library/init-study-library-provider'
 import { ModulesWithChaptersProvider } from '@/providers/study-library/modules-with-chapters-provider'
 import { useContentStore } from '@/stores/study-library/chapter-sidebar-store'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface ModulesSearchParams {
   subjectId: string
@@ -29,62 +30,67 @@ export const Route = createFileRoute(
 
 function ModuleMaterialPage() {
   const navigate = useNavigate();
+  const { subjectId, moduleId } = Route.useSearch();
+  const [currentModuleId, setCurrentModuleId] = useState(moduleId);
+  const { setNavHeading } = useNavHeadingStore();
+  const { setActiveItem } = useContentStore();
 
-    const { subjectId, moduleId } = Route.useSearch();
+  const queryClient = useQueryClient(); // Get the queryClient instance
 
-    const [currentModuleId, setCurrentModuleId] = useState(moduleId);
+  const invalidateModulesQuery = () => {
+    queryClient.invalidateQueries({
+      queryKey: ["GET_MODULES_WITH_CHAPTERS", subjectId],
+    });
+  };
 
-    const { setNavHeading } = useNavHeadingStore();
+  useEffect(() => {
+    setActiveItem(null);
+    invalidateModulesQuery()
+  }, [])
 
-    const {setActiveItem} = useContentStore();
+  useEffect(() => {
+    navigate({
+      to: "/study-library/courses/levels/subjects/modules/chapters",
+      search: {
+        subjectId,
+        moduleId: currentModuleId,
+      },
+      replace: true,
+    });
+  }, [currentModuleId, subjectId]);
 
-    useEffect(()=>{
-        setActiveItem(null);
-    }, [])
+  // Module page heading
+  const subjectName = getSubjectName(subjectId);
 
-    useEffect(() => {
-        navigate({
-            to: "/study-library/courses/levels/subjects/modules/chapters",
-            search: {
-                subjectId,
-                moduleId: currentModuleId,
-            },
-            replace: true,
-        });
-    }, [currentModuleId, subjectId]);
+  const handleBackClick = () => {
+    navigate({
+      to: `/study-library/courses/levels/subjects/modules`,
+      search: {
+        subjectId,
+      },
+    });
+  };
 
-    // Module page heading
-    const subjectName = getSubjectName(subjectId);
+  const heading = (
+    <div className="flex items-center gap-4">
+      <CaretLeft onClick={handleBackClick} className="cursor-pointer" />
+      <div>{`${subjectName}`}</div>
+    </div>
+  );
 
-    const handleBackClick = () => {
-        navigate({
-            to: `/study-library/courses/levels/subjects/modules`,
-            search: {
-                subjectId,
-            },
-        });
-    };
-
-    const heading = (
-        <div className="flex items-center gap-4">
-            <CaretLeft onClick={handleBackClick} className="cursor-pointer" />
-            <div>{`${subjectName}`}</div>
-        </div>
-    );
-
-    useEffect(() => {
-        setNavHeading(heading);
-    }, []);
+  useEffect(() => {
+    setNavHeading(heading);
+  }, []);
 
   return (
     <LayoutContainer sidebarComponent={<ChapterSidebarComponent
       currentModuleId={currentModuleId}
       setCurrentModuleId={setCurrentModuleId}
-  />}>
-  <InitStudyLibraryProvider>
-      <ModulesWithChaptersProvider subjectId={subjectId}>
-      <ChapterMaterial currentModuleId={currentModuleId} />
-      </ModulesWithChaptersProvider>
+    />}>
+      <InitStudyLibraryProvider>
+        <ModulesWithChaptersProvider subjectId={subjectId}>
+          <ChapterMaterial currentModuleId={currentModuleId} />
+        </ModulesWithChaptersProvider>
       </InitStudyLibraryProvider>
     </LayoutContainer>
   )
