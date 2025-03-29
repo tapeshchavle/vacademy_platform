@@ -1,4 +1,7 @@
-import React, { useEffect, useRef, useCallback, useState } from "react";
+"use client";
+
+import type React from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useTrackingStore } from "@/stores/study-library/youtube-video-tracking-store";
 import { getEpochTimeInMillis } from "./utils";
@@ -7,9 +10,9 @@ import { formatVideoTime } from "@/utils/study-library/tracking/formatVideoTime"
 import { calculateNetDuration } from "@/utils/study-library/tracking/calculateNetDuration";
 import { useVideoSync } from "@/hooks/study-library/useVideoSync";
 import YouTube, {
-  YouTubeEvent,
-  YouTubePlayer,
-  YouTubeProps,
+  type YouTubeEvent,
+  type YouTubePlayer,
+  type YouTubeProps,
 } from "react-youtube";
 import { MyButton } from "@/components/design-system/button";
 import { MyInput } from "@/components/design-system/input";
@@ -20,6 +23,7 @@ import {
   Pause,
   Play,
   Rewind,
+  X,
 } from "@phosphor-icons/react";
 import { Preferences } from "@capacitor/preferences";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
@@ -42,7 +46,7 @@ interface YouTubePlayerProps {
 export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   videoId,
 }) => {
-  const {activeItem} = useContentStore();
+  const { activeItem } = useContentStore();
   const { addActivity } = useTrackingStore();
   const activityId = useRef(uuidv4());
   const currentTimestamps = useRef<
@@ -65,7 +69,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   const { syncVideoTrackingData } = useVideoSync();
   const currentStartTimeInEpochRef = useRef<number>(0);
 
-  const [isPlayed, setIsPlayed] = useState(false);
+  const [isPlayed, setIsPlayed] = useState(true);
   const [player, setPlayer] = useState<YouTubePlayer | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -76,17 +80,28 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  const concentrationScoreId = useRef(uuidv4());
+  const [showFullscreenControls, setShowFullscreenControls] = useState(false);
+  const fullscreenControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Verification state
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCountdown, setVerificationCountdown] = useState(59);
   const [verificationNumbers, setVerificationNumbers] = useState<number[]>([]);
-  const [verificationInterval] = useState(60); // Fixed 1 minute interval
+  const [verificationInterval] = useState(600);
   const [lastVerificationTime, setLastVerificationTime] = useState(0);
-  const [responseTimesArray, setResponseTimesArray] = useState<number[]>([]);
-  const [answeredTimeArray, setAnsweredTimeArray] = useState<number[]>([]);
   const verificationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Concentration metrics
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [pauseCount, setPauseCount] = useState(0);
+  const [wrongAnswerCount, setWrongAnswerCount] = useState(0);
+  const [missedAnswerCount, setMissedAnswerCount] = useState(0);
+  const [answerTimesInSeconds, setAnswerTimesInSeconds] = useState<number[]>(
+    []
+  );
+  const [concentrationScore, setConcentrationScore] = useState(100); // Start with perfect score
 
   // Helper function to safely get a number from potentially a Promise<number>
   const safeGetNumber = async (value: any): Promise<number> => {
@@ -107,30 +122,56 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   useEffect(() => {
     const loadSavedData = async () => {
       try {
-        // Load answered_time array
-        const { value: answeredTimeValue } = await Preferences.get({
-          key: "answered_time",
+        const { value } = await Preferences.get({
+          key: "video_concentration_metrics",
         });
-        if (answeredTimeValue) {
-          const savedAnsweredTime = JSON.parse(answeredTimeValue);
-          setAnsweredTimeArray(savedAnsweredTime);
+        if (value) {
+          const savedMetrics = JSON.parse(value);
+          setTabSwitchCount(savedMetrics.tabSwitchCount || 0);
+          setWrongAnswerCount(savedMetrics.wrongAnswerCount || 0);
+          setMissedAnswerCount(savedMetrics.missedAnswerCount || 0);
+          setPauseCount(savedMetrics.pauseCount || 0);
+          setAnswerTimesInSeconds(savedMetrics.answerTimesInSeconds || []);
+          setConcentrationScore(savedMetrics.concentrationScore || 100);
         }
 
         // Load last verification time
-        const { value } = await Preferences.get({ key: "verification_time" });
-        if (value) {
-          const savedTime = Number.parseInt(value, 10);
+        const { value: verificationTimeValue } = await Preferences.get({
+          key: "verification_time",
+        });
+        if (verificationTimeValue) {
+          const savedTime = Number.parseInt(verificationTimeValue, 10);
           setLastVerificationTime(savedTime);
-          console.log("lastVerificationTime", lastVerificationTime);
+          console.log(lastVerificationTime);
         }
       } catch (error) {
-        console.error("Error loading saved verification data:", error);
+        console.error("Error loading saved concentration metrics:", error);
       }
     };
 
     loadSavedData();
   }, []);
 
+  // Save concentration metrics to Capacitor preferences
+  const saveConcentrationMetrics = async () => {
+    try {
+      const metrics = {
+        tabSwitchCount,
+        wrongAnswerCount,
+        missedAnswerCount,
+        pauseCount,
+        answerTimesInSeconds,
+        concentrationScore,
+      };
+
+      await Preferences.set({
+        key: "video_concentration_metrics",
+        value: JSON.stringify(metrics),
+      });
+    } catch (error) {
+      console.error("Error saving concentration metrics:", error);
+    }
+  };
   // Save verification time to Capacitor preferences
   const saveVerificationTime = async (time: number) => {
     try {
@@ -143,17 +184,27 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     }
   };
 
-  // Save answered time array to Capacitor preferences
-  const saveAnsweredTimeArray = async (times: number[]) => {
-    try {
-      await Preferences.set({
-        key: "answered_time",
-        value: JSON.stringify(times),
-      });
-    } catch (error) {
-      console.error("Error saving answered time array:", error);
-    }
-  };
+  // Update concentration score based on metrics
+  useEffect(() => {
+    // Simple algorithm to calculate concentration score
+    // This can be adjusted based on specific requirements
+    const baseScore = 100;
+    const tabSwitchPenalty = tabSwitchCount * 10;
+    const wrongAnswerPenalty = wrongAnswerCount * 5;
+    const pouseCountPenalty = pauseCount * 5;
+    const missedAnswerPenalty = missedAnswerCount * 20;
+
+    let newScore =
+      baseScore -
+      tabSwitchPenalty -
+      wrongAnswerPenalty -
+      missedAnswerPenalty -
+      pouseCountPenalty;
+    newScore = Math.max(0, newScore); // Ensure score doesn't go below 0
+
+    setConcentrationScore(newScore);
+    saveConcentrationMetrics();
+  }, [tabSwitchCount, wrongAnswerCount, missedAnswerCount, pauseCount]);
 
   // Generate verification numbers
   const generateVerificationNumbers = useCallback(() => {
@@ -190,13 +241,15 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
             player.pauseVideo();
             setIsPlayed(false);
           }
-
+          // Increment missed answer count
+          setMissedAnswerCount((prev) => prev + 1);
           // Clear the timer
           if (verificationTimerRef.current) {
             clearInterval(verificationTimerRef.current);
             verificationTimerRef.current = null;
           }
-
+          // Close the verification dialog
+          setShowVerification(false);
           return 0;
         }
         return prev - 1;
@@ -213,7 +266,9 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     }
 
     const responseTime = 59 - verificationCountdown;
-
+    // Add response time to array
+    const newAnswerTimes = [...answerTimesInSeconds, responseTime];
+    setAnswerTimesInSeconds(newAnswerTimes);
     // Check if correct number was clicked (middle position, index 1)
     if (index === 1) {
       // Record verification time
@@ -221,18 +276,13 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       setLastVerificationTime(currentTimeInSeconds);
       saveVerificationTime(currentTimeInSeconds);
 
-      // Add response time to arrays
-      const newResponseTimes = [...responseTimesArray, responseTime];
-      setResponseTimesArray(newResponseTimes);
-
-      const newAnsweredTimes = [...answeredTimeArray, responseTime];
-      setAnsweredTimeArray(newAnsweredTimes);
-      saveAnsweredTimeArray(newAnsweredTimes);
-
       // Hide verification
       setShowVerification(false);
     } else {
-      // Wrong number clicked, pause the video
+      // Wrong number clicked, increment wrong answer count
+      setWrongAnswerCount((prev) => prev + 1);
+
+      // Pause the video
       if (player) {
         player.pauseVideo();
         setIsPlayed(false);
@@ -315,10 +365,25 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   // Pause video when tab is switched
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && player) {
-        player.pauseVideo();
-        setIsPlayed(false);
-        console.log("Tab switched, video paused");
+      if (document.hidden) {
+        // Tab switched away
+        setTabSwitchCount((prev) => prev + 1);
+
+        if (player) {
+          player.pauseVideo();
+          setIsPlayed(false);
+        }
+
+        // Close the verification dialog if it's open
+        if (showVerification) {
+          setShowVerification(false);
+
+          // Clear the verification timer
+          if (verificationTimerRef.current) {
+            clearInterval(verificationTimerRef.current);
+            verificationTimerRef.current = null;
+          }
+        }
       }
     };
 
@@ -327,7 +392,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [player]);
+  }, [player, showVerification]);
 
   // Get duration when player is ready
   useEffect(() => {
@@ -359,7 +424,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     }, 1000);
 
     return () => clearInterval(updateTimeInterval);
-  }, [player, isPlayed, safeGetNumber]);
+  }, [player, isPlayed]);
 
   // Activity tracking effect
   useEffect(() => {
@@ -368,7 +433,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     const newActivity = {
       slide_id: activeItem?.slide_id || "",
       activity_id: activityId.current,
-      source: "VIDEO" as "VIDEO",
+      source: "VIDEO" as const,
       source_id: videoId,
       start_time: videoStartTime.current,
       end_time: endTime,
@@ -378,11 +443,32 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       sync_status: "STALE" as const,
       current_start_time: currentStartTimeRef.current,
       current_start_time_in_epoch: currentStartTimeInEpochRef.current,
-      answered_time: answeredTimeArray,
+      // answered_time: answeredTimeArray,
+      concentration_score: {
+        id: concentrationScoreId.current,
+        concentration_score: concentrationScore,
+        tab_switch_count: tabSwitchCount,
+        pause_count: missedAnswerCount,
+        wrong_answer_count: wrongAnswerCount,
+        missed_answer_count: missedAnswerCount,
+        answer_times_in_seconds: answerTimesInSeconds,
+      },
       new_activity: true,
     };
     addActivity(newActivity, true);
-  }, [elapsedTime, duration, videoId, addActivity]);
+    // }, [elapsedTime, duration, videoId, addActivity]);
+  }, [
+    elapsedTime,
+    duration,
+    videoId,
+    tabSwitchCount,
+    wrongAnswerCount,
+    missedAnswerCount,
+    answerTimesInSeconds,
+    pauseCount,
+    concentrationScore,
+    addActivity,
+  ]);
 
   // Prevent right-click on the video
   useEffect(() => {
@@ -526,7 +612,9 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   const togglePause = () => {
     setIsPlayed(false);
     console.log("video is paused");
-    if (player) player.pauseVideo();
+    if (player) {
+      player.pauseVideo();
+    }
   };
 
   const togglePlay = () => {
@@ -583,10 +671,50 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     }
   };
 
+  // Show/hide fullscreen controls on mouse movement
+  const handleMouseMove = useCallback(() => {
+    if (isFullscreen) {
+      setShowFullscreenControls(true);
+
+      // Clear any existing timeout
+      if (fullscreenControlsTimeoutRef.current) {
+        clearTimeout(fullscreenControlsTimeoutRef.current);
+      }
+
+      // Set a new timeout to hide controls after 3 seconds
+      fullscreenControlsTimeoutRef.current = setTimeout(() => {
+        setShowFullscreenControls(false);
+      }, 3000);
+    }
+  }, [isFullscreen]);
+
+  // Clean up fullscreen controls timeout
+  useEffect(() => {
+    return () => {
+      if (fullscreenControlsTimeoutRef.current) {
+        clearTimeout(fullscreenControlsTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
       console.log("fullscreen change", isFullscreen);
+
+      // Show controls briefly when entering/exiting fullscreen
+      if (!document.fullscreenElement) {
+        setShowFullscreenControls(true);
+
+        // Hide controls after 3 seconds
+        if (fullscreenControlsTimeoutRef.current) {
+          clearTimeout(fullscreenControlsTimeoutRef.current);
+        }
+
+        fullscreenControlsTimeoutRef.current = setTimeout(() => {
+          setShowFullscreenControls(false);
+        }, 3000);
+      }
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -606,6 +734,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         startProgressTracking();
       } else {
         player.pauseVideo();
+        setPauseCount((prev) => prev + 1);
         stopProgressTracking();
       }
     } catch (error) {
@@ -629,6 +758,9 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
       }
       if (verificationTimerRef.current) {
         clearInterval(verificationTimerRef.current);
+      }
+      if (fullscreenControlsTimeoutRef.current) {
+        clearTimeout(fullscreenControlsTimeoutRef.current);
       }
     };
   }, [clearUpdateInterval, stopProgressTracking]);
@@ -722,8 +854,8 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     if (!player || !playerReady) return;
 
     // Convert inputs to numbers
-    const minutes = minutesInput === "" ? 0 : parseInt(minutesInput);
-    const seconds = secondsInput === "" ? 0 : parseInt(secondsInput);
+    const minutes = minutesInput === "" ? 0 : Number.parseInt(minutesInput);
+    const seconds = secondsInput === "" ? 0 : Number.parseInt(secondsInput);
 
     // Calculate total seconds
     const totalSeconds = minutes * 60 + seconds;
@@ -753,34 +885,33 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
   };
 
   const toggleFullscreen = useCallback(async () => {
-    if (!iframeRef.current) {
-      console.error("Iframe not available");
+    if (!playerContainerRef.current) {
+      console.error("Player container not available");
       return;
     }
 
     try {
       if (!document.fullscreenElement) {
-        await iframeRef.current.requestFullscreen();
+        await playerContainerRef.current.requestFullscreen();
         setIsFullscreen(true);
+        setShowFullscreenControls(true);
+
+        // Hide controls after 3 seconds
+        if (fullscreenControlsTimeoutRef.current) {
+          clearTimeout(fullscreenControlsTimeoutRef.current);
+        }
+
+        fullscreenControlsTimeoutRef.current = setTimeout(() => {
+          setShowFullscreenControls(false);
+        }, 3000);
       } else {
         await document.exitFullscreen();
         setIsFullscreen(false);
+        setShowFullscreenControls(false);
       }
     } catch (error) {
       console.error("Error toggling fullscreen:", error);
     }
-  }, []);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
   }, []);
 
   // Format time for display
@@ -805,25 +936,61 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
 
   return (
     <div className="w-full flex flex-col items-center gap-4">
+      {/* Non-fullscreen verification overlay - shown outside the player */}
+      {showVerification && !isFullscreen && (
+        <div className="w-full mb-2 animate-in fade-in slide-in-from-top duration-300">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg shadow-lg overflow-hidden">
+            <div className="p-3">
+              <div className="mt-1">
+                <p className="text-xs text-neutral-600">
+                  Just ensuring that you are actively learning, please click the
+                  number{" "}
+                  <span className="text-primary-500 font-bold">
+                    {verificationNumbers[1]}
+                  </span>{" "}
+                  within{" "}
+                  <span className="text-primary-500 font-bold">
+                    {verificationCountdown}{" "}
+                  </span>
+                  seconds.
+                </p>
+              </div>
+              <div className="mt-2 flex justify-center space-x-2">
+                {verificationNumbers.map((number, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleVerificationClick(index)}
+                    className="px-2 py-1 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 bg-white text-neutral-600 border border-gray-200 hover:bg-gray-50"
+                  >
+                    {number}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Video player container with verification overlay */}
       <div
         ref={playerContainerRef}
         className="aspect-video w-full relative h-full items-center flex justify-center overflow-hidden"
+        onMouseMove={handleMouseMove}
       >
-        {/* Verification overlay - positioned to work in fullscreen */}
-        {showVerification && (
+        {/* Verification overlay - only shown in fullscreen */}
+        {showVerification && isFullscreen && (
           <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-full max-w-xs z-[10000] animate-in fade-in slide-in-from-top duration-300">
-            <div className="bg-yellow-50 border bg-primary-500 rounded-lg shadow-lg overflow-hidden">
-              <div className="p-2">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg shadow-lg overflow-hidden">
+              <div className="p-3">
                 <div className="mt-1">
                   <p className="text-xs text-neutral-600">
                     Just ensuring that you are actively learning, please click
                     the number{" "}
-                    <span className="text-primary-500">
+                    <span className="text-primary-500 font-bold">
                       {verificationNumbers[1]}
                     </span>{" "}
                     within{" "}
-                    <span className="text-primary-500">
+                    <span className="text-primary-500 font-bold">
                       {verificationCountdown}{" "}
                     </span>
                     seconds.
@@ -834,7 +1001,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                     <button
                       key={index}
                       onClick={() => handleVerificationClick(index)}
-                      className="px-2 py-1 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 bg-white text-neutral-600 border-xl"
+                      className="px-2 py-1 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 bg-white text-neutral-600 border border-gray-200 hover:bg-gray-50"
                     >
                       {number}
                     </button>
@@ -844,6 +1011,82 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
             </div>
           </div>
         )}
+
+        {/* Fullscreen controls overlay */}
+        {isFullscreen && showFullscreenControls && (
+          <div className="absolute inset-0 z-[9999] flex flex-col justify-between p-4 bg-gradient-to-b from-black/50 via-transparent to-black/50 animate-in fade-in duration-200">
+            {/* Top controls - Exit fullscreen */}
+            <div className="flex justify-end">
+              <button
+                onClick={toggleFullscreen}
+                className="p-2.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition-all hover:scale-105 shadow-lg backdrop-blur-sm border border-white/10"
+                aria-label="Exit fullscreen"
+              >
+                <X size={22} weight="bold" />
+              </button>
+            </div>
+
+            {/* Bottom controls - Play/Pause */}
+            <div className="flex items-center justify-center gap-6 mb-4">
+              <button
+                onClick={() => {
+                  if (player) {
+                    safeGetNumber(player.getCurrentTime()).then(
+                      (currentTime) => {
+                        const newTime = currentTime - 10;
+                        player.seekTo(Math.max(newTime, 0), true);
+                        setCurrentTime(Math.max(newTime, 0));
+                      }
+                    );
+                  }
+                }}
+                className="p-3 rounded-full bg-black/60 text-white hover:bg-black/80 transition-all hover:scale-105 shadow-lg backdrop-blur-sm border border-white/10"
+                aria-label="Rewind 10 seconds"
+              >
+                <Rewind size={22} weight="bold" />
+              </button>
+
+              {isPlayed ? (
+                <button
+                  onClick={togglePause}
+                  className="p-4 rounded-full bg-black/60 text-white hover:bg-black/80 transition-all hover:scale-105 shadow-lg backdrop-blur-sm border border-white/10"
+                  aria-label="Pause"
+                >
+                  <Pause size={28} weight="bold" />
+                </button>
+              ) : (
+                <button
+                  onClick={togglePlay}
+                  className="p-4 rounded-full bg-black/60 text-white hover:bg-black/80 transition-all hover:scale-105 shadow-lg backdrop-blur-sm border border-white/10"
+                  aria-label="Play"
+                >
+                  <Play size={28} weight="bold" />
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  if (player) {
+                    safeGetNumber(player.getCurrentTime()).then(
+                      (currentTime) => {
+                        const newTime = currentTime + 10;
+                        safeGetNumber(player.getDuration()).then((duration) => {
+                          player.seekTo(Math.min(newTime, duration), true);
+                          setCurrentTime(Math.min(newTime, duration));
+                        });
+                      }
+                    );
+                  }
+                }}
+                className="p-3 rounded-full bg-black/60 text-white hover:bg-black/80 transition-all hover:scale-105 shadow-lg backdrop-blur-sm border border-white/10"
+                aria-label="Forward 10 seconds"
+              >
+                <FastForward size={22} weight="bold" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* YouTube player */}
         <div className="w-full h-full pointer-events-none">
           <YouTube
@@ -856,9 +1099,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         </div>
       </div>
 
-      {/* Video controls */}
-
-      {/* Progress Bar */}
+      {/* Progress Bar and controls - only shown when not in fullscreen */}
       <div className="w-full flex flex-col gap-1">
         <div
           className="w-full h-2 bg-gray-200 rounded-full cursor-pointer"
@@ -943,7 +1184,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
             scale="medium"
             layoutVariant="icon"
             onClick={toggleFullscreen}
-            disable={!iframeRef.current}
+            disable={!playerContainerRef.current}
           >
             <ArrowsOut />
           </MyButton>

@@ -143,9 +143,9 @@ export function EmailLogin({
                   to: "/SessionSelectionPage",
                   search: { redirect: redirect || "/dashboard" },
                 });
-              } else {
+              } else if (status == 201) {
                 navigate({
-                  to: redirect,
+                  to: redirect || "/assessment/examination",
                 });
               }
             } catch (error) {

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,8 +18,9 @@ import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { ENROLL_DETAILS_RESPONSE, GET_ENROLL_DETAILS } from "@/constants/urls";
 import { toast } from "sonner";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
-import { useRouter } from "@tanstack/react-router";
+// import { useSearch } from "@tanstack/react-router";
 import { MyButton } from "@/components/design-system/button";
+import { getPublicUrl } from "@/services/upload_file";
 
 // Type definitions
 interface CustomField {
@@ -63,8 +63,7 @@ interface BatchOptions {
   pre_selected_packages: Package[];
   learner_choice_packages: Package[];
 }
-
-interface InviteData {
+interface LearnerInvitation {
   id: string;
   name: string;
   status: string;
@@ -76,6 +75,12 @@ interface InviteData {
   custom_fields: CustomField[];
 }
 
+interface ApiResponse {
+  learner_invitation: LearnerInvitation;
+  institute_name: string;
+  institute_logo_file_id: string | null;
+}
+
 // Validation schemas
 const emailSchema = z.string().email("Please enter a valid email address");
 const phoneSchema = z
@@ -84,25 +89,42 @@ const phoneSchema = z
   .transform((val) => val.trim());
 
 const EnrollByInvite = () => {
-  //   const route = useRouter();
-  // const searchParams = new URLSearchParams(route.latestLocation.search);
+  // const { instituteId, inviteCode } = useSearch({
+  //   instituteId: "",
+  //   inviteCode: "",
+  // });
 
-  // const instituteId = searchParams.get("instituteId");
-  // const inviteCode = searchParams.get("inviteCode");
+  // const { instituteId, inviteCode } = useSearch<{
+  //   instituteId: string;
+  //   inviteCode: string;
+  // }>();
 
-  // console.log({ instituteId, inviteCode });
-  const route = useRouter();
+  //   const searchParams = useSearch<{
+  //     instituteId?: string;
+  //     inviteCode?: string;
+  //   }>();
+  //   const instituteId = searchParams.instituteId ?? "";
+  // const inviteCode = searchParams.inviteCode ?? "";
 
-  const pathParts = route.latestLocation.pathname.split("/");
-  const instituteId = pathParts[2];
-  const inviteCode = pathParts[3];
+  // const { instituteId = "", inviteCode = "" } = useSearch<{
+  //   instituteId?: string;
+  //   inviteCode?: string;
+  // }>( { instituteId: "", inviteCode: "" });
+
+  // console.log("instituteId", instituteId, "inviteCode", inviteCode);
+  const instituteId = "0f1a4bb6-90ec-4e91-bbbf-2184a39c986e";
+  const inviteCode = "053OO";
 
   // Form state
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [inviteData, setInviteData] = useState<InviteData | null>(null);
+  const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
+  const [inviteData, setInviteData] = useState<LearnerInvitation | null>(null);
+  // const [instituteName, setInstituteName] = useState<string>("");
+  // const [instituteLogo, setInstituteLogo] = useState<string | null>(null);
   const [batchOptions, setBatchOptions] = useState<BatchOptions | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
   // Selection states
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
@@ -156,16 +178,36 @@ const EnrollByInvite = () => {
           },
         }
       );
+      console.log("Invite data:", response.data);
 
-      setInviteData(response.data);
+      // Store the full API response
+      setApiResponse(response.data);
+
+      // Extract the learner invitation data
+      const learnerInvitation = response.data.learner_invitation;
+      setInviteData(learnerInvitation);
+      if (response.data.institute_logo_file_id) {
+        try {
+          const institute_logo = await getPublicUrl(
+            response.data.institute_logo_file_id
+          );
+          setImageUrl(institute_logo);
+        } catch (error) {
+          console.error("Error fetching institute logo:", error);
+        }
+      }
+
+      // Set institute name and logo
+      // setInstituteName(response.data.institute_name);
+      // setInstituteLogo(response.data.institute_logo_file_id);
 
       // Parse batch options JSON
-      const batchOptionsData = JSON.parse(response.data.batch_options_json);
+      const batchOptionsData = JSON.parse(learnerInvitation.batch_options_json);
       setBatchOptions(batchOptionsData);
 
       // Initialize custom fields
       const initialCustomFields: Record<string, string> = {};
-      response.data.custom_fields.forEach((field: CustomField) => {
+      learnerInvitation.custom_fields.forEach((field: CustomField) => {
         initialCustomFields[field.id] = field.default_value || "";
       });
       setCustomFieldValues(initialCustomFields);
@@ -246,6 +288,10 @@ const EnrollByInvite = () => {
         delete newSelectedLevels[sessionId];
       });
       setSelectedLevels(newSelectedLevels);
+      // Clear any package-related errors
+      if (errors.packages) {
+        setErrors({ ...errors, packages: "" });
+      }
     }
   };
 
@@ -637,7 +683,7 @@ const EnrollByInvite = () => {
       console.log("Enrollment response:", response.data);
       toast.success("Enrollment submitted successfully!");
     } catch (error) {
-        console.error("Error submitting enrollment:", error);
+      console.error("Error submitting enrollment:", error);
       // if (error.response && error.response.data && error.response.data.ex) {
       //   toast.error(error.response.data.ex);
       // } else {
@@ -700,11 +746,11 @@ const EnrollByInvite = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen w-screen">
-      <DashboardLoader />
+        <DashboardLoader />
       </div>
     );
   }
-
+  console.log("inviteData", inviteData, batchOptions);
   if (!inviteData || !batchOptions) {
     return (
       <div className="flex items-center w-full justify-center bg-gray-50">
@@ -724,13 +770,15 @@ const EnrollByInvite = () => {
     <div className="flex items-center justify-center w-full bg-gray-50 p-4">
       <Card className="w-full max-w-md md:max-w-md lg:max-w-lg">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-full bg-orange-500 flex items-center justify-center">
-              <span className="text-white text-xl font-bold">S</span>
-            </div>
-          </div>
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt="Institute Logo"
+              className="h-12 w-12 rounded-full object-cover"
+            />
+          )}
           <CardTitle className="text-orange-500">
-            Shri Saidas Classess
+            {apiResponse?.institute_name}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -742,8 +790,6 @@ const EnrollByInvite = () => {
           {step === 1 ? (
             // Step 1: Package, Session, and Level Selection
             <div className="space-y-6">
-
-
               {/* Learner choice packages */}
               {batchOptions.learner_choice_packages &&
                 batchOptions.learner_choice_packages.length > 0 && (
@@ -831,29 +877,6 @@ const EnrollByInvite = () => {
                         className="space-y-2 border p-3 rounded-md"
                       >
                         <Label className="font-medium">{pkg.name}</Label>
-
-                        {/* Display pre-selected sessions */}
-                        {/* {pkg.pre_selected_session_dtos &&
-                          pkg.pre_selected_session_dtos.length > 0 && (
-                            <div className="space-y-2">
-                              <Label className="text-sm">
-                                Pre-selected Sessions
-                              </Label>
-                              <div className="flex flex-wrap gap-2">
-                                {pkg.pre_selected_session_dtos.map(
-                                  (session) => (
-                                    <Badge
-                                      key={session.id}
-                                      variant="secondary"
-                                      className="bg-orange-100"
-                                    >
-                                      {session.name}
-                                    </Badge>
-                                  )
-                                )}
-                              </div>
-                            </div>
-                          )} */}
 
                         {/* Learner choice sessions */}
                         {pkg.learner_choice_sessions &&
@@ -977,29 +1000,6 @@ const EnrollByInvite = () => {
                               {session.name}
                             </Label>
 
-                            {/* Display pre-selected levels */}
-                            {/* {session.pre_selected_levels &&
-                              session.pre_selected_levels.length > 0 && (
-                                <div className="space-y-2">
-                                  <Label className="text-sm">
-                                    Pre-selected Levels
-                                  </Label>
-                                  <div className="flex flex-wrap gap-2">
-                                    {session.pre_selected_levels.map(
-                                      (level) => (
-                                        <Badge
-                                          key={level.id}
-                                          variant="secondary"
-                                          className="bg-orange-100"
-                                        >
-                                          {level.name}
-                                        </Badge>
-                                      )
-                                    )}
-                                  </div>
-                                </div>
-                              )} */}
-
                             {/* Learner choice levels */}
                             {session.learner_choice_levels &&
                               session.learner_choice_levels.length > 0 && (
@@ -1104,8 +1104,16 @@ const EnrollByInvite = () => {
                 </div>
               )}
 
-              <div className="pt-4 flex justify-end">
-                <Button onClick={handleNext}>Next</Button>
+              <div className="flex justify-center">
+                <MyButton
+                  type="submit"
+                  scale="medium"
+                  buttonType="primary"
+                  layoutVariant="default"
+                  onClick={handleNext}
+                >
+                  Next
+                </MyButton>
               </div>
             </div>
           ) : (
@@ -1180,9 +1188,7 @@ const EnrollByInvite = () => {
                   onChange={(e) => updatePersonalInfo("mobile", e.target.value)}
                   className={errors.mobile ? "border-red-500" : ""}
                 />
-                <p className="text-xs text-gray-500">
-                  Enter 10 digits only (no spaces or special characters)
-                </p>
+                <p className="text-xs text-gray-500">Enter 10 digits only</p>
                 {errors.mobile && (
                   <p className="text-red-500 text-sm">{errors.mobile}</p>
                 )}

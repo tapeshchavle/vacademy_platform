@@ -12,7 +12,6 @@ import { MarksBreakdownComponent } from "./marks-breakdown-component";
 import { Crown } from "@/svgs";
 import { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import { StatusChips } from "@/components/design-system/chips";
 import { Clock } from "phosphor-react";
 import { parseHtmlToString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
@@ -23,7 +22,10 @@ import {
   Section,
   TestReportDialogProps,
 } from "@/types/assessments/assessment-data-type";
-import { GET_ASSESSMENT_MARKS } from "@/constants/urls";
+import {
+  EXPORT_ASSESSMENT_REPORT,
+  GET_ASSESSMENT_MARKS,
+} from "@/constants/urls";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 type TestMarks = {
   total_achievable_marks: number;
@@ -36,6 +38,7 @@ export const TestReportDialog = ({
 }: TestReportDialogProps) => {
   const report = useRouter();
   const [instituteDetails, setInstituteDetails] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
   // const { state } = report.__store.state.location.state as ParsedHistoryState;
   // const studentReport: Report = state?.report || {};
   const locationState = report.__store.state.location
@@ -56,7 +59,6 @@ export const TestReportDialog = ({
 
   const studentReport: Report = locationState?.report || defaultReport;
   const [testMarks, setTestMarks] = useState<TestMarks | null>(null);
-
   useEffect(() => {
     const fetchTestMarks = async () => {
       const assessmentId = studentReport.assessment_id;
@@ -95,6 +97,48 @@ export const TestReportDialog = ({
     })
   );
 
+  const handleExport = async () => {
+    const assessmentId = studentReport.assessment_id;
+    const attemptId = studentReport.attempt_id;
+    const instituteId = instituteDetails.id;
+
+    setIsLoading(true);
+
+    try {
+      const response = await authenticatedAxiosInstance({
+        method: "GET",
+        url: EXPORT_ASSESSMENT_REPORT,
+        params: {
+          assessmentId: assessmentId,
+          attemptId: attemptId,
+          instituteId: instituteId,
+        },
+        responseType: "blob",
+      });
+
+      // Create a new Blob object using the response data
+      const blob = new Blob([response.data], { type: "application/pdf" });
+
+      // Create a link element
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(blob); // Create a URL for the blob
+      link.download = "assessment_report.pdf"; // Set the file name
+
+      // Append to the body (required for Firefox)
+      document.body.appendChild(link);
+
+      // Programmatically click the link to trigger the download
+      link.click();
+
+      // Clean up and remove the link
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Error exporting data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const [selectedSection, setSelectedSection] = useState(
     sectionsInfo?.length ? sectionsInfo[0]?.id : undefined
   );
@@ -125,7 +169,7 @@ export const TestReportDialog = ({
       <div className="">
         {/* Test Info Section */}
 
-        <div className="flex flex-col gap-10 p-6">
+        <div className="flex flex-col gap-10 p-2">
           <div className="flex justify-between">
             <div className="flex flex-col gap-4">
               <div className="text-h2 font-semibold">
@@ -137,8 +181,14 @@ export const TestReportDialog = ({
                 buttonType="secondary"
                 scale="large"
                 layoutVariant="default"
+                onClick={!isLoading ? handleExport : undefined}
               >
-                <Export /> Export
+                <Export />
+                {isLoading ? (
+                  <span className="ml-2">Exporting...</span>
+                ) : (
+                  <>Export</>
+                )}
               </MyButton>
             </div>
           </div>
@@ -159,7 +209,7 @@ export const TestReportDialog = ({
                 ).date
               }
             </div>
-            <div>Marks: {studentReport.total_marks}</div>
+            {/* <div>Marks: {studentReport.total_marks}</div> */}
             <div>
               Duration: {formatDuration(studentReport.duration_in_seconds)}
             </div>
@@ -187,8 +237,8 @@ export const TestReportDialog = ({
         <div className="p-6 text-h3 font-semibold text-primary-500">
           Score Report
         </div>
-        <div className="flex flex-col md:flex-col lg:flex-row items-center gap-20 p-6">
-          <div className="ml-6 flex sm:flex-row lg:flex-col items-center gap-20 p-6">
+        <div className="flex flex-col md:flex-col lg:flex-row items-center gap-10 lg:gap-20 p-6">
+          <div className=" flex sm:flex-row lg:flex-col items-center gap-20 p-6">
             <div className="flex flex-col">
               <h1>Rank</h1>
               <div className="flex items-center gap-1">
@@ -216,10 +266,10 @@ export const TestReportDialog = ({
               </p>
             </div>
           </div>
-          <div className="flex w-full flex-col items-center gap-6">
+          <div className="flex w-full flex-col items-center">
             <div className="text-h3 font-semibold">Response Breakdown</div>
             <ResponseBreakdownComponent responseData={responseData} />
-            <div className="flex flex-col">
+            <div className="flex flex-col pt-8 ">
               <div className="-mt-14 flex items-center">
                 <DotOutline
                   weight="fill"
@@ -240,10 +290,10 @@ export const TestReportDialog = ({
               </div>
             </div>
           </div>
-          <div className="flex w-full flex-col items-center gap-6">
+          <div className="flex w-full flex-col items-center">
             <div className="text-h3 font-semibold">Marks Breakdown</div>
             <MarksBreakdownComponent marksData={marksData} />
-            <div className="flex flex-col">
+            {/* <div className="flex flex-col gap-3 ">
               <div className="-mb-8 flex items-center justify-between">
                 <div className="flex items-center">
                   <DotOutline
@@ -263,7 +313,7 @@ export const TestReportDialog = ({
                   </p>
                 </div>
               </div>
-              <div className=" flex items-center justify-between gap-4">
+              <div className="-mb-8 flex items-center justify-between gap-4">
                 <div className="flex items-center">
                   <DotOutline
                     size={70}
@@ -313,6 +363,88 @@ export const TestReportDialog = ({
                 <div className="flex items-center gap-2">
                   <p>{marksData.skipped}</p>
                   <p>(0)</p>
+                </div>
+              </div>
+            </div> */}
+            <div className="flex flex-col w-full">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <DotOutline
+                    size={35}
+                    weight="fill"
+                    className="text-success-400 flex-shrink-0"
+                  />
+                  <p className="text-sm md:text-base">Correct Respondents:</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm md:text-base">{marksData.correct}</p>
+                  <p className="text-sm md:text-base">
+                    {testReport.question_overall_detail_dto.totalCorrectMarks >
+                    0
+                      ? `(+${testReport.question_overall_detail_dto.totalCorrectMarks})`
+                      : `(${testReport.question_overall_detail_dto.totalCorrectMarks})`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <DotOutline
+                    size={35}
+                    weight="fill"
+                    className="text-warning-400 flex-shrink-0"
+                  />
+                  <p className="text-sm md:text-base">
+                    Partially Correct Respondents:
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm md:text-base">
+                    {marksData.partiallyCorrect}
+                  </p>
+                  <p className="text-sm md:text-base">
+                    {testReport.question_overall_detail_dto.totalPartialMarks >
+                    0
+                      ? `(+${testReport.question_overall_detail_dto.totalPartialMarks})`
+                      : `(${testReport.question_overall_detail_dto.totalPartialMarks})`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <DotOutline
+                    size={35}
+                    weight="fill"
+                    className="text-danger-400 flex-shrink-0"
+                  />
+                  <p className="text-sm md:text-base">Wrong Respondents:</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm md:text-base">
+                    {marksData.wrongResponse}
+                  </p>
+                  <p className="text-sm md:text-base">
+                    {testReport.question_overall_detail_dto
+                      .totalIncorrectMarks > 0
+                      ? `(+${testReport.question_overall_detail_dto.totalIncorrectMarks})`
+                      : `(${testReport.question_overall_detail_dto.totalIncorrectMarks})`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <DotOutline
+                    size={35}
+                    weight="fill"
+                    className="text-neutral-200 flex-shrink-0"
+                  />
+                  <p className="text-sm md:text-base">Skipped:</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm md:text-base">{marksData.skipped}</p>
+                  <p className="text-sm md:text-base">(0)</p>
                 </div>
               </div>
             </div>
@@ -416,7 +548,12 @@ export const TestReportDialog = ({
                             )}
                           </div>
                         </div>
-                        {/* <StatusChips
+                      </div>
+                    </div>
+                    <div className="">
+                      {/* <MarkBadge marks={review.mark} /> */}
+
+                      {/* <StatusChips
                           status={
                             review.answer_status == "CORRECT"
                               ? "active"
@@ -440,7 +577,6 @@ export const TestReportDialog = ({
                         >
                           <></>
                         </StatusChips> */}
-                      </div>
                     </div>
                     {review.answer_status !== "CORRECT" && (
                       <div className="flex w-full items-center gap-6 text-subtitle">
@@ -466,10 +602,15 @@ export const TestReportDialog = ({
                         </div>
                       </div>
                     )}
-                    {review.explanation && (
+                    {review.explanation ? (
                       <div className="flex items-center gap-6 text-subtitle">
                         <div>Explanation:</div>
                         <div>{parseHtmlToString(review.explanation)}</div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-6 text-subtitle">
+                        <div>Explanation:</div>
+                        <div>No explanation given</div>
                       </div>
                     )}
                   </div>
@@ -489,8 +630,14 @@ export const TestReportDialog = ({
               buttonType="secondary"
               scale="large"
               layoutVariant="default"
+              onClick={!isLoading ? handleExport : undefined}
             >
-              <Export /> Export
+              <Export />
+              {isLoading ? (
+                <span className="ml-2">Exporting...</span>
+              ) : (
+                <>Export</>
+              )}
             </MyButton>
           </div>
         </div>

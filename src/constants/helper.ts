@@ -60,5 +60,11 @@ export const getSubjectNameById = (subjects: Subject[], id: string | null): stri
 export const formatDuration = (durationInSeconds: number): string => {
   const hours = Math.floor(durationInSeconds / 3600);
   const minutes = Math.floor((durationInSeconds % 3600) / 60);
-  return `${hours > 0 ? `${hours} hr ` : ""}${minutes > 0 ? `${minutes} min` : ""}`;
+  const seconds = durationInSeconds % 60;
+
+  if (hours === 0 && minutes === 0 && seconds > 0) {
+    return `${seconds} sec`;
+  }
+
+  return `${hours > 0 ? `${hours} hr ` : ""}${minutes > 0 ? `${minutes} min ` : ""}${seconds > 0 ? `${seconds} sec` : ""}`.trim();
 };

@@ -81,6 +81,7 @@ export function AssessmentPreview() {
     return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
   const handleStartAssessment = async () => {
+    // resetAssessment();
     await startAssessment();
     router.navigate({ to: newPath, replace: true });
   };
