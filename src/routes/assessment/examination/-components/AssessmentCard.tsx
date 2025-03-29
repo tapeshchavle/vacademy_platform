@@ -137,34 +137,6 @@ export const AssessmentCard = ({
     setShowRestartDialog(false);
   };
 
-  // const getButtonLabel = () => {
-  //   if (
-  //     ["LIVE", "PREVIEW"].includes(assessmentInfo?.recent_attempt_status ?? "")
-  //   ) {
-  //     return "Resume";
-  //   }
-
-  //   if (
-  //     assessmentInfo.recent_attempt_status === "ENDED" ||
-  //     assessmentInfo.recent_attempt_status === null
-  //   ) {
-  //     const attemptsUsed =
-  //       assessmentInfo.user_attempts !== 0
-  //         ? assessmentInfo.user_attempts
-  //         : (assessmentInfo.assessment_attempts ?? 0);
-  //     const maxAttempts = assessmentInfo.created_attempts ?? 1;
-
-  //     if ((attemptsUsed ?? 0) < maxAttempts) {
-  //       return "Join Assessment";
-  //     } else {
-  //       return "Ended";
-  //     }
-  //   }
-
-  //   // Default
-  //   return " Assessment";
-  // };
-
   const getButtonLabel = () => {
     if (
       ["LIVE", "PREVIEW"].includes(assessmentInfo?.recent_attempt_status ?? "")
@@ -177,19 +149,47 @@ export const AssessmentCard = ({
       assessmentInfo.recent_attempt_status === null
     ) {
       const attemptsUsed =
-        assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 0;
-
+        assessmentInfo.user_attempts !== 0
+          ? assessmentInfo.user_attempts
+          : (assessmentInfo.assessment_attempts ?? 0);
       const maxAttempts = assessmentInfo.created_attempts ?? 1;
 
-      if (attemptsUsed < maxAttempts) {
+      if ((attemptsUsed ?? 0) < maxAttempts) {
         return "Join Assessment";
       } else {
         return "Ended";
       }
     }
 
-    return "Join Assessment";
+    // Default
+    return " Assessment";
   };
+
+  // const getButtonLabel = () => {
+  //   if (
+  //     ["LIVE", "PREVIEW"].includes(assessmentInfo?.recent_attempt_status ?? "")
+  //   ) {
+  //     return "Resume";
+  //   }
+
+  //   if (
+  //     assessmentInfo.recent_attempt_status === "ENDED" ||
+  //     assessmentInfo.recent_attempt_status === null
+  //   ) {
+  //     const attemptsUsed =
+  //       assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 0;
+
+  //     const maxAttempts = assessmentInfo.created_attempts ?? 1;
+
+  //     if (attemptsUsed < maxAttempts) {
+  //       return "Join Assessment";
+  //     } else {
+  //       return "Ended";
+  //     }
+  //   }
+
+  //   return "Join Assessment";
+  // };
 
   return (
     <>
