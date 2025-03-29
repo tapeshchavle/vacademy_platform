@@ -160,9 +160,8 @@ export const AssessmentCard = ({
         return "Ended";
       }
     }
-
-    // Default
-    return " Assessment";
+//new
+    return "Join  Assessment";
   };
 
   // const getButtonLabel = () => {
