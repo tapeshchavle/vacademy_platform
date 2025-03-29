@@ -137,6 +137,34 @@ export const AssessmentCard = ({
     setShowRestartDialog(false);
   };
 
+  // const getButtonLabel = () => {
+  //   if (
+  //     ["LIVE", "PREVIEW"].includes(assessmentInfo?.recent_attempt_status ?? "")
+  //   ) {
+  //     return "Resume";
+  //   }
+
+  //   if (
+  //     assessmentInfo.recent_attempt_status === "ENDED" ||
+  //     assessmentInfo.recent_attempt_status === null
+  //   ) {
+  //     const attemptsUsed =
+  //       assessmentInfo.user_attempts !== 0
+  //         ? assessmentInfo.user_attempts
+  //         : (assessmentInfo.assessment_attempts ?? 0);
+  //     const maxAttempts = assessmentInfo.created_attempts ?? 1;
+
+  //     if ((attemptsUsed ?? 0) < maxAttempts) {
+  //       return "Join Assessment";
+  //     } else {
+  //       return "Ended";
+  //     }
+  //   }
+
+  //   // Default
+  //   return " Assessment";
+  // };
+
   const getButtonLabel = () => {
     if (
       ["LIVE", "PREVIEW"].includes(assessmentInfo?.recent_attempt_status ?? "")
@@ -149,20 +177,18 @@ export const AssessmentCard = ({
       assessmentInfo.recent_attempt_status === null
     ) {
       const attemptsUsed =
-        assessmentInfo.user_attempts !== 0
-          ? assessmentInfo.user_attempts
-          : (assessmentInfo.assessment_attempts ?? 0);
+        assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 0;
+
       const maxAttempts = assessmentInfo.created_attempts ?? 1;
 
-      if ((attemptsUsed ?? 0) < maxAttempts) {
+      if (attemptsUsed < maxAttempts) {
         return "Join Assessment";
       } else {
         return "Ended";
       }
     }
 
-    // Default
-    return " Assessment";
+    return "Join Assessment";
   };
 
   return (
@@ -197,7 +223,8 @@ export const AssessmentCard = ({
               </div>
               <div>
                 Attempts: {assessmentInfo.created_attempts ?? 0}/
-                {assessmentInfo.user_attempts !== 0 && assessmentInfo.user_attempts !== null
+                {assessmentInfo.user_attempts !== 0 &&
+                assessmentInfo.user_attempts !== null
                   ? assessmentInfo.user_attempts
                   : (assessmentInfo.assessment_attempts ?? 0)}
               </div>
