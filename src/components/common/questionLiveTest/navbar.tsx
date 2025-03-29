@@ -117,6 +117,12 @@ export function Navbar() {
   };
 
   useEffect(() => {
+    if (tabSwitchCount >= 3) {
+      handleSubmit();
+    }
+  }, [tabSwitchCount]);
+
+  useEffect(() => {
     let backButtonListener: PluginListenerHandle | null = null;
 
     const setupBackButtonListener = async () => {
