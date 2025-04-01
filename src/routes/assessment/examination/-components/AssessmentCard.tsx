@@ -61,38 +61,32 @@ export const AssessmentCard = ({
   };
 
   const handleAction = async () => {
-    // For LIVE or PREVIEW status
     if (
-      assessmentInfo.recent_attempt_status === "PREVIEW" ||
-      assessmentInfo.recent_attempt_status === "LIVE"
+      ["LIVE", "PREVIEW"].includes(assessmentInfo?.recent_attempt_status ?? "")
     ) {
       setShowRestartDialog(true);
       return;
     }
 
-    // For ENDED status or null status
     if (
       assessmentInfo.recent_attempt_status === "ENDED" ||
       assessmentInfo.recent_attempt_status === null
     ) {
-      const attemptsUsed =
+      const max_posible_attempts =
         assessmentInfo.user_attempts !== 0
           ? assessmentInfo.user_attempts
-          : (assessmentInfo.assessment_attempts ?? 0);
-      const maxAttempts = assessmentInfo.created_attempts ?? 1;
+          : (assessmentInfo.assessment_attempts ?? 1);
+      const total_given_attempts = assessmentInfo.created_attempts ?? 0;
 
-      // If there are attempts left
-      if ((attemptsUsed ?? 0) < maxAttempts) {
+      if ((max_posible_attempts ?? 1) > total_given_attempts) {
         storeAssessmentInfo(assessmentInfo);
         navigate({
           to: `/assessment/examination/${assessmentInfo.assessment_id}`,
         });
       } else {
-        // No more attempts remaining
         return;
       }
     } else {
-      // For any other status
       storeAssessmentInfo(assessmentInfo);
       navigate({
         to: `/assessment/examination/${assessmentInfo.assessment_id}`,
@@ -122,7 +116,7 @@ export const AssessmentCard = ({
           to: `/assessment/examination/${assessmentInfo.assessment_id}/LearnerLiveTest`,
           replace: true,
         });
-        return; // Ensure no further execution
+        return;
       } else {
         toast.error(
           "Failed to resume the assessment. Assessment already Ended."
@@ -143,25 +137,29 @@ export const AssessmentCard = ({
     ) {
       return "Resume";
     }
-
+    console.log(assessmentInfo.recent_attempt_status);
     if (
       assessmentInfo.recent_attempt_status === "ENDED" ||
       assessmentInfo.recent_attempt_status === null
     ) {
-      const attemptsUsed =
+      const max_posible_attempts =
         assessmentInfo.user_attempts !== 0
           ? assessmentInfo.user_attempts
-          : (assessmentInfo.assessment_attempts ?? 0);
-      const maxAttempts = assessmentInfo.created_attempts ?? 1;
-
-      if ((attemptsUsed ?? 0) < maxAttempts) {
+          : (assessmentInfo.assessment_attempts ?? 1);
+      const total_given_attempts = assessmentInfo.created_attempts ?? 0;
+      console.log(
+        assessmentInfo.name,
+        "max_posible_attempts",
+        max_posible_attempts,
+        total_given_attempts
+      );
+      if ((max_posible_attempts ?? 1) > total_given_attempts) {
         return "Join Assessment";
       } else {
         return "Ended";
       }
     }
-//new
-    return "Join  Assessment";
+    return "Join Assessment";
   };
 
   // const getButtonLabel = () => {
@@ -175,12 +173,12 @@ export const AssessmentCard = ({
   //     assessmentInfo.recent_attempt_status === "ENDED" ||
   //     assessmentInfo.recent_attempt_status === null
   //   ) {
-  //     const attemptsUsed =
+  //     const max_posible_attempts =
   //       assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 0;
 
-  //     const maxAttempts = assessmentInfo.created_attempts ?? 1;
+  //     const total_given_attempts = assessmentInfo.created_attempts ?? 1;
 
-  //     if (attemptsUsed < maxAttempts) {
+  //     if (max_posible_attempts < total_given_attempts) {
   //       return "Join Assessment";
   //     } else {
   //       return "Ended";
@@ -217,11 +215,15 @@ export const AssessmentCard = ({
                   "DD MMM YYYY, hh:mm A"
                 )}
               </div>
+              {assessmentInfo.duration ? (
+                <div>
+                  Duration: {formatDuration(assessmentInfo.duration * 60)}
+                </div>
+              ) : (
+                <div></div>
+              )}
               <div>
-                Duration: {formatDuration(assessmentInfo.duration * 60)}
-              </div>
-              <div>
-                Attempts: {assessmentInfo.created_attempts ?? 0}/
+                Attempts: {assessmentInfo.created_attempts ?? 0} /
                 {assessmentInfo.user_attempts !== 0 &&
                 assessmentInfo.user_attempts !== null
                   ? assessmentInfo.user_attempts

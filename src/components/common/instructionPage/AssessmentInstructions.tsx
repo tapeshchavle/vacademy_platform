@@ -1,33 +1,40 @@
 import { StatusCheck } from "@/components/design-system/chips";
 import { parseHtmlToString } from "@/lib/utils";
+import { Assessment } from "@/types/assessment";
 
 interface AssessmentInstructionsProps {
   instructions: string;
   duration: number;
   preview: boolean;
   canSwitchSections: boolean;
-  assessment_attempts: number;
-  assessmentInfo: {
-    created_attempts: number | null;
-  };
+  assessmentInfo: Assessment;
 }
+
+const getAttemptLabel = (assessmentInfo: Assessment) => {
+  const max_posible_attempts =
+    assessmentInfo.user_attempts !== 0
+      ? assessmentInfo.user_attempts
+      : (assessmentInfo.assessment_attempts ?? 1);
+  const total_given_attempts = assessmentInfo.created_attempts ?? 0;
+
+  // Display the current attempt status
+  return `${total_given_attempts}/${max_posible_attempts}`;
+};
 
 export const AssessmentInstructions = ({
   instructions,
   duration,
   preview,
   canSwitchSections,
-  assessment_attempts,
   assessmentInfo,
 }: AssessmentInstructionsProps) => {
+  const attempt = getAttemptLabel(assessmentInfo);
   return (
     <div className="w-full sm:w-screen">
-      <div className="flex justify- text-primary-500 text-sm font-normal mb-2">
-        Attempts:{" "}
-        <span className="font-bold">
-          {assessmentInfo.created_attempts ?? 0}/{assessment_attempts}
-        </span>
+      <div className="flex justify-start text-primary-500 text-sm font-normal mb-2">
+        Attempts: <span className="font-bold">{attempt}</span>
       </div>
+
       <div className="font-bold text-lg mb-2">Assessment Instructions</div>
       <div className="text-gray-700 whitespace-pre-line text-sm font-normal mb-4">
         {parseHtmlToString(instructions)}
