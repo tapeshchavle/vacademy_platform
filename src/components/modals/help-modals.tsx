@@ -92,11 +92,7 @@ export function HelpModal({ open, onOpenChange, type }: HelpModalProps) {
                   duration={assessmentInfo.duration}
                   preview={assessmentInfo.preview_time > 0 ? true : false}
                   canSwitchSections={assessmentInfo.can_switch_section}
-                  assessment_attempts={
-                    assessmentInfo.user_attempts ?? assessmentInfo.assessment_attempts ?? 1
-                  }
                   assessmentInfo={assessmentInfo}
-                  
                 />
               )}
               {/* <p>Current Section Instructions:</p>
