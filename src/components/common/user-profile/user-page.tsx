@@ -9,10 +9,22 @@ import { Student } from "@/types/user/user-detail";
 import { MyButton } from "@/components/design-system/button";
 import { getPublicUrl } from "@/services/upload_file";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
+import SessionExpiry from "./sessionExpiery";
+// import { SessionExpiry } from "./sessionExpiery";
+interface CourseDetails {
+  packageName: string;
+  sessionName: string;
+  levelName: string;
+  startDate: string;
+  status: string;
+}
 
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [studentData, setStudentData] = useState<Student | null>(null);
+  const [courseDetails, setCourseDetails] = useState<CourseDetails | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
@@ -20,9 +32,63 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
+        const { value } = await Preferences.get({ key: "sessionList" });
+
+        if (!value) {
+          console.log("No data found in Preferences with key 'sessionList'");
+          return;
+        }
+
+        try {
+          // Parse the JSON data
+          const parsedData = JSON.parse(value);
+          console.log("Parsed course details:", parsedData);
+
+          // Initialize course details with defaults
+          let courseDetails = {
+            packageName: "N/A",
+            sessionName: "N/A",
+            levelName: "N/A",
+            startDate: "N/A",
+            status: "N/A",
+          };
+
+          // Check if parsedData is an array or object
+          if (Array.isArray(parsedData) && parsedData.length > 0) {
+            const course = parsedData[0]; // Take the first course if it's an array
+
+            courseDetails = {
+              packageName: course.package_dto?.package_name || "N/A",
+              sessionName: course.session?.session_name || "N/A",
+              levelName: course.level?.level_name || "N/A",
+              startDate: course.session?.start_date || "N/A",
+              status: course.status || "N/A",
+            };
+          } else if (typeof parsedData === "object" && parsedData !== null) {
+            // Handle if parsedData is a single course object
+            const course = parsedData;
+
+            courseDetails = {
+              packageName: course.package_dto?.package_name || "N/A",
+              sessionName: course.session?.session_name || "N/A",
+              levelName: course.level?.level_name || "N/A",
+              startDate: course.session?.start_date || "N/A",
+              status: course.status || "N/A",
+            };
+          }
+
+          // Set the course details to state
+          setCourseDetails(courseDetails);
+        } catch (parseError) {
+          console.error("Error parsing JSON from Preferences:", parseError);
+        }
+      } catch (error) {
+        console.error("Error fetching course data from Preferences:", error);
+      }
+
+      try {
         console.log("Fetching student data from Preferences...");
         const { value } = await Preferences.get({ key: "StudentDetails" });
-        console.log("Raw student details from Preferences:", value);
 
         if (!value) {
           console.log("No data found in Preferences with key 'StudentDetails'");
@@ -111,7 +177,10 @@ export default function ProfilePage() {
           <h2 className="text-xl font-medium mb-2">
             {studentData?.full_name || "Student Name"}
           </h2>
-          <p className="text-sm text-gray-500">{studentData?.username}</p>
+          <div className="flex gap-1 ">
+            <h3 className="text-sm font-medium">Username:</h3>
+            <p className="text-sm text-gray-500">{studentData?.username}</p>
+          </div>
         </div>
       </div>
       <Separator className="my-4" />
@@ -151,18 +220,7 @@ export default function ProfilePage() {
       </div>
       <Separator className="my-4" /> */}
       {/* Session Expiry */}
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium">Session Expiry (Days)</span>
-          <span className="text-sm font-medium">
-            {studentData?.session_expiry_days || "N/A"}
-          </span>
-        </div>
-        {/* <Progress
-          value={Number.parseInt(studentData?.session_expiry_days || "125") / 2}
-          className="h-2 bg-gray-200 bg-green-500"
-        /> */}
-      </div>
+      <div className="p-6">{studentData && SessionExpiry({ studentData })}</div>
       <Separator className="my-4" />
       {/* General Details */}
       <div className="p-6">
@@ -172,15 +230,19 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex justify-between">
             <span className="text-xs text-gray-500">Course:</span>
-            <span className="text-xs">{studentData?.course || "N/A"}</span>
+            <span className="text-xs">
+              {courseDetails?.packageName || "N/A"}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-xs text-gray-500">Session:</span>
-            <span className="text-xs">{studentData?.session || "N/A"}</span>
+            <span className="text-xs">
+              {courseDetails?.sessionName || "N/A"}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-xs text-gray-500">Level:</span>
-            <span className="text-xs">{studentData?.level || "N/A"}</span>
+            <span className="text-xs">{courseDetails?.levelName || "N/A"}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-xs text-gray-500">Enrollment No.:</span>
@@ -193,8 +255,10 @@ export default function ProfilePage() {
             <span className="text-xs">{studentData?.gender || "N/A"}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-xs text-gray-500">School:</span>
-            <span className="text-xs">{studentData?.school || "N/A"}</span>
+            <span className="text-xs text-gray-500">College/School Name:</span>
+            <span className="text-xs">
+              {studentData?.linked_institute_name || "N/A"}
+            </span>
           </div>
         </div>
       </div>
