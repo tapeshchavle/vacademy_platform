@@ -104,9 +104,8 @@ const SessionSelectionPage = () => {
       console.log("Stored selected student:", selectedStudent);
 
       // Cleanup: Remove previous studentData & sessionList from storage
-      await Preferences.remove({ key: "studentData" });
-      await Preferences.remove({ key: "sessionList" });
-      await Preferences.remove({ key: "students" });
+      // await Preferences.remove({ key: "sessionList" });
+      // await Preferences.remove({ key: "students" });
 
       // Navigate to Dashboard after selection
       navigate({ to: redirect });
