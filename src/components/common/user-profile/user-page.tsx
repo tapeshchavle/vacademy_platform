@@ -155,7 +155,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="bg-white rounded-lg w-full max-w-md mx-auto shadow-lg sm:max-w-md md:max-w-lg lg:max-w-xl">
+    <div className="bg-white rounded-lg w-full mx-auto shadow-lg md:max-w-lg lg:max-w-xl">
       {" "}
       {/* Header */}
       <div className="p-4 flex items-center justify-between border-b">

@@ -37,8 +37,8 @@ const SessionExpiry = ({ studentData }: { studentData: Student }) => {
     };
   };
 
-  //   const { formattedDate, progress, remainingDays } = getExpiryDetails(
-  const { formattedDate, progress } = getExpiryDetails(
+    const { formattedDate, progress, remainingDays } = getExpiryDetails(
+  // const { formattedDate, progress } = getExpiryDetails(
     studentData?.created_at,
     studentData?.expiry_date
   );
@@ -46,7 +46,7 @@ const SessionExpiry = ({ studentData }: { studentData: Student }) => {
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium">Session Expiry (Days)</span>
+        <span className="text-sm font-medium">Access Days ({remainingDays})</span>
         <span className="text-sm font-medium">{formattedDate}</span>
       </div>
 
