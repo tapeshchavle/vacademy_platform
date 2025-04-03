@@ -37,6 +37,12 @@ import {
 } from "@/types/assessment-open-registration";
 import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 import AssessmentClosedExpiredComponent from "./AssessmentClosedExpiredComponent";
+import { useNavigate } from "@tanstack/react-router";
+
+const checkCloseTestTimeCondition = (serverTime: number, endDate: string) => {
+  const registrationEndDate: number = new Date(Date.parse(endDate)).getTime();
+  return serverTime <= registrationEndDate;
+};
 
 // Define Zod Schema
 const formSchema = z.object({
@@ -79,6 +85,16 @@ const CheckEmailStatusAlertDialog = ({
   case3Status: boolean;
   serverTime: number;
 }) => {
+  const [
+    isPrivateAssessmentAlreadyRegistered,
+    setIsPrivateAssessmentAlreadyRegistered,
+  ] = useState(false);
+
+  const [
+    isPrivateAssessmentNotAlreadyRegistered,
+    setIsPrivateAssessmentNotAlreadyRegistered,
+  ] = useState(false);
+
   const [isOtpSent, setIsOTPSent] = useState(false);
   const [open, setOpen] = useState(false);
   const form = useForm<FormValues>({
@@ -89,6 +105,7 @@ const CheckEmailStatusAlertDialog = ({
     },
     mode: "onChange",
   });
+  const navigate = useNavigate();
 
   const handleCloseAlertDialog = () => {
     setOpen(false);
@@ -205,6 +222,18 @@ const CheckEmailStatusAlertDialog = ({
         });
       }
       if (
+        registrationData.error_message === "Assessment is Private" &&
+        getTestDetailsOfParticipants.is_already_registered &&
+        getTestDetailsOfParticipants.remaining_attempts > 0
+      ) {
+        setIsPrivateAssessmentAlreadyRegistered(true);
+      } else if (
+        registrationData.error_message === "Assessment is Private" &&
+        !getTestDetailsOfParticipants.is_already_registered &&
+        getTestDetailsOfParticipants.remaining_attempts > 0
+      ) {
+        setIsPrivateAssessmentNotAlreadyRegistered(true);
+      } else if (
         getTestDetailsOfParticipants.is_already_registered &&
         getTestDetailsOfParticipants.remaining_attempts > 0
       ) {
@@ -290,6 +319,28 @@ const CheckEmailStatusAlertDialog = ({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      isPrivateAssessmentAlreadyRegistered &&
+      checkCloseTestTimeCondition(
+        serverTime,
+        registrationData.assessment_public_dto.registration_close_date
+      )
+    ) {
+      navigate({
+        to: "/assessment/examination",
+      });
+    }
+  }, [isPrivateAssessmentAlreadyRegistered]);
+
+  if (isPrivateAssessmentNotAlreadyRegistered)
+    return (
+      <AssessmentClosedExpiredComponent
+        isExpired={false}
+        assessmentName={registrationData.assessment_public_dto.assessment_name}
+      />
+    );
 
   if (
     !userAlreadyRegistered &&

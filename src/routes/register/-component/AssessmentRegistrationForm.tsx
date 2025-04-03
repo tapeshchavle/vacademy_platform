@@ -492,7 +492,9 @@ const AssessmentRegistrationForm = () => {
           </div>
         </div>
       )}
-      {(case2Status || case3Status) && (
+      {(case2Status ||
+        case3Status ||
+        data.error_message === "Assessment is Private") && (
         <CheckEmailStatusAlertDialog
           timeLeft={timeLeft}
           registrationData={data}
