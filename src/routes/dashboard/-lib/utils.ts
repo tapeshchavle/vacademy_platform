@@ -23,7 +23,7 @@ export const fetchStaticData = async (
   const first_name = userData.full_name.split(" ")[0];
   const institute_id = userData.institute_id;
   const batch_id = userData.package_session_id;
-  const params = {instituteId : institute_id}
+  const params = {instituteId : institute_id, packageSessionId : batch_id}
   setUsername(first_name);
   try {
     const url = GET_DASHBOARD_DATA;
