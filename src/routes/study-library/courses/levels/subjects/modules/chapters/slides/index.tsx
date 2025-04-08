@@ -1,10 +1,8 @@
 import { LayoutContainer } from '@/components/common/layout-container/layout-container'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { SearchInput } from '@/components/common/search-input'
 import { ChevronRightIcon } from '@radix-ui/react-icons'
 import {  useSidebar } from '@/components/ui/sidebar'
-import { useEffect, useState } from 'react'
-import { MagnifyingGlass } from '@phosphor-icons/react'
+import { useEffect } from 'react'
 import { truncateString } from '@/lib/reusable/truncateString'
 import { useNavHeadingStore } from '@/stores/layout-container/useNavHeadingStore'
 import { CaretLeft } from 'phosphor-react'
@@ -41,8 +39,7 @@ export const Route = createFileRoute(
 
 function Slides() {
   const {subjectId, moduleId, chapterId, slideId} = Route.useSearch();
-  const [inputSearch, setInputSearch] = useState("");
-  const { open, state, toggleSidebar } = useSidebar();
+  const { open,  } = useSidebar();
   const navigate = useNavigate();
   const { setItems, activeItem, setActiveItem } = useContentStore();
   const { slides } = useSlides(chapterId || "");
@@ -90,10 +87,7 @@ function Slides() {
       });
   };
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInputSearch(e.target.value);
-  };
-
+ 
 
   const subjectName = getSubjectName(subjectId);
   const moduleName = getModuleName(moduleId);
@@ -124,20 +118,6 @@ function Slides() {
                   </p>
               </div>
               <div className="flex w-full flex-col items-center gap-6">
-                  {open ? (
-                      <SearchInput
-                          searchInput={inputSearch}
-                          placeholder="Search chapters"
-                          onSearchChange={handleSearchChange}
-                      />
-                  ) : (
-                      <MagnifyingGlass
-                          className="size-5 cursor-pointer text-neutral-500"
-                          onClick={() => {
-                              if (state === "collapsed") toggleSidebar();
-                          }}
-                      />
-                  )}
                   <ChapterSidebarSlides />
               </div>
           </div>
