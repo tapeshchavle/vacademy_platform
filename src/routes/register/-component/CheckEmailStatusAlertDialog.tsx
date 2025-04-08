@@ -339,6 +339,7 @@ const CheckEmailStatusAlertDialog = ({
       <AssessmentClosedExpiredComponent
         isExpired={false}
         assessmentName={registrationData.assessment_public_dto.assessment_name}
+        isPrivate={true}
       />
     );
 
