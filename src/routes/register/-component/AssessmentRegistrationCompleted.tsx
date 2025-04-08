@@ -26,12 +26,6 @@ const AssessmentRegistrationCompleted = ({
   timeLeft: TimeLeft;
 }) => {
   const navigate = useNavigate();
-  // const handleNavigateAssessment = () => {
-
-  //   navigate({
-  //     to: `/assessment/examination`,
-  //   });
-  // };
   const handleNavigateAssessment = async () => {
     try {
       const { value } = await Preferences.get({ key: "accessToken" });
