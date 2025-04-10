@@ -1,5 +1,4 @@
 import { StatusCheck } from "@/components/design-system/chips";
-import { parseHtmlToString } from "@/lib/utils";
 import { Assessment } from "@/types/assessment";
 
 interface AssessmentInstructionsProps {
