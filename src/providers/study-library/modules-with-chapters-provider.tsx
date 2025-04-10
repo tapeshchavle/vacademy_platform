@@ -20,7 +20,6 @@ export const ModulesWithChaptersProvider = ({
     // Main query for modules with chapters
     const { isLoading: isLoadingModules } = useQuery({
         ...useModulesWithChaptersQuery(subjectId, packageSessionId),
-        staleTime: 3600000,
         enabled: !!packageSessionId, // Only run when packageSessionId is available
     });
 
