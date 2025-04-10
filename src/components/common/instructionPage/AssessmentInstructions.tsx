@@ -36,9 +36,11 @@ export const AssessmentInstructions = ({
       </div>
 
       <div className="font-bold text-lg mb-2">Assessment Instructions</div>
-      <div className="text-gray-700 whitespace-pre-line text-sm font-normal mb-4">
-        {parseHtmlToString(instructions)}
-      </div>
+      <div
+        className="text-gray-700 text-sm font-normal mb-4"
+        dangerouslySetInnerHTML={{ __html: instructions }}
+      ></div>
+
       <div className="mt-4 gap-4 text-sm font-bold">
         <div className="mb-4">
           Assessment Duration:
