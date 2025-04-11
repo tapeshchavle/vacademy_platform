@@ -10,8 +10,10 @@ import {
 } from "@/types/assessment";
 import { processHtmlString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
-// import { NumericInputWithKeypad } from "./numeric";
+import { NumericInputWithKeypad } from "./numeric";
 import { ExpandableParagraph } from "./paragraph";
+import { OneWordInput } from "./OneWordInput";
+import { LongAnswerInput } from "./LongAnswerInput";
 
 export function QuestionDisplay() {
   const {
@@ -52,7 +54,7 @@ export function QuestionDisplay() {
   const isPracticeMode = playMode === "PRACTICE" || playMode === "SURVEY";
 
   useEffect(() => {
-    if (isPracticeMode || !currentQuestion?.question_id) return;
+    if (!currentQuestion?.question_id) return;
     initializeQuestionTime(currentQuestion.question_id);
 
     const interval = setInterval(() => {
@@ -60,12 +62,7 @@ export function QuestionDisplay() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [
-    currentQuestion,
-    initializeQuestionTime,
-    incrementQuestionTime,
-    isPracticeMode,
-  ]);
+  }, [currentQuestion, initializeQuestionTime, incrementQuestionTime]);
 
   useEffect(() => {
     if (
@@ -220,58 +217,68 @@ export function QuestionDisplay() {
         </div>
       </div>
 
-      {/* {currentQuestion.question_type === QUESTION_TYPES.NUMERICAL ? (
-        <NumericInputWithKeypad />
-      ) : ( */}
-        <div className="space-y-4">
-          {currentQuestion?.options?.map((option, index) => (
-            <div
-              key={option.id}
-              className={`flex flex-row-reverse items-center justify-between rounded-lg border p-4 w-full cursor-pointer ${
-                currentAnswer.includes(option.id)
-                  ? "border-primary-500 bg-primary-50"
-                  : "border-gray-200"
-              }`}
-              onClick={() => handleAnswerChange(option.id)}
-            >
-              <div className="relative flex items-center">
-                <div
-                  className={`w-6 h-6 border rounded-md flex items-center justify-center ${
-                    currentAnswer.includes(option.id)
-                      ? "bg-green-500 border-green-500"
-                      : "border-gray-300"
-                  }`}
-                >
-                  {currentAnswer.includes(option.id) && (
-                    <span className="text-white font-bold">✔</span>
-                  )}
-                </div>
-              </div>
+      {(() => {
+        switch (currentQuestion.question_type) {
+          case QUESTION_TYPES.NUMERIC:
+            return <NumericInputWithKeypad />;
+          case QUESTION_TYPES.ONE_WORD:
+            return <OneWordInput />;
+          case QUESTION_TYPES.LONG_ANSWER:
+            return <LongAnswerInput />;
+          default:
+            return (
+              <div className="space-y-4">
+                {currentQuestion?.options?.map((option, index) => (
+                  <div
+                    key={option.id}
+                    className={`flex flex-row-reverse items-center justify-between rounded-lg border p-4 w-full cursor-pointer ${
+                      currentAnswer.includes(option.id)
+                        ? "border-primary-500 bg-primary-50"
+                        : "border-gray-200"
+                    }`}
+                    onClick={() => handleAnswerChange(option.id)}
+                  >
+                    <div className="relative flex items-center">
+                      <div
+                        className={`w-6 h-6 border rounded-md flex items-center justify-center ${
+                          currentAnswer.includes(option.id)
+                            ? "bg-green-500 border-green-500"
+                            : "border-gray-300"
+                        }`}
+                      >
+                        {currentAnswer.includes(option.id) && (
+                          <span className="text-white font-bold">✔</span>
+                        )}
+                      </div>
+                    </div>
 
-              <label
-                className={`flex-grow cursor-pointer text-sm ${
-                  currentAnswer.includes(option.id)
-                    ? "font-semibold"
-                    : "text-gray-700"
-                }`}
-              >
-                {`(${String.fromCharCode(97 + index)}) `}
-                {processHtmlString(option.text.content).map((item, index) =>
-                  item.type === "text" ? (
-                    <span key={index}>{item.content}</span>
-                  ) : (
-                    <img
-                      key={index}
-                      src={item.content}
-                      alt={`Option ${index}`}
-                    />
-                  )
-                )}
-              </label>
-            </div>
-          ))}
-        </div>
-      {/* )} */}
+                    <label
+                      className={`flex-grow cursor-pointer text-sm ${
+                        currentAnswer.includes(option.id)
+                          ? "font-semibold"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      {`(${String.fromCharCode(97 + index)}) `}
+                      {processHtmlString(option.text.content).map(
+                        (item, index) =>
+                          item.type === "text" ? (
+                            <span key={index}>{item.content}</span>
+                          ) : (
+                            <img
+                              key={index}
+                              src={item.content}
+                              alt={`Option ${index}`}
+                            />
+                          )
+                      )}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            );
+        }
+      })()}
     </div>
   );
 }
