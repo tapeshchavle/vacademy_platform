@@ -12,6 +12,7 @@ import { MyButton } from "@/components/design-system/button";
 import { useNavigate } from "@tanstack/react-router";
 import { Report } from "@/types/assessments/assessment-data-type";
 import { formatDuration, getSubjectNameById } from "@/constants/helper";
+import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 
 export const viewStudentReport = async (
   assessmentId: string,
@@ -57,6 +58,11 @@ const AssessmentReportList = () => {
   const observer = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement | null>(null);
   const [instituteDetails, setInstituteDetails] = useState<any>(null);
+  const { setNavHeading } = useNavHeadingStore();
+
+  useEffect(() => {
+    setNavHeading(null);
+  }, []);
 
   useEffect(() => {
     const fetchInstituteDetails = async () => {
@@ -100,7 +106,7 @@ const AssessmentReportList = () => {
         {
           name: "",
           status: ["ENDED"],
-          release_result_status: ["RELEASED"],
+          // release_result_status: ["RELEASED"],
           sort_columns: {},
         },
         {
