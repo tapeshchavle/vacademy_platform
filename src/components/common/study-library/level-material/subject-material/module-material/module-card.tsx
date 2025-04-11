@@ -63,9 +63,10 @@ export const ModuleCard = ({ module }: { module: ModulesWithChapters}) => {
                         className="w-full rounded-lg object-cover h-[70%]"
                     />
                 ) : (
-                    <div className="flex w-full items-center justify-center rounded-lg bg-neutral-100 h-[80%]">
-                        <span className="text-neutral-400">No Image</span>
-                    </div>
+                    // <div className="flex w-full items-center justify-center rounded-lg bg-neutral-100 h-[80%]">
+                    //     <span className="text-neutral-400">No Image</span>
+                    // </div>
+                    <></>
                 )}
 
                 <div className="flex flex-col gap-2">
