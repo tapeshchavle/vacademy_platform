@@ -35,6 +35,7 @@ export function QuestionDisplay() {
   } = useAssessmentStore();
 
   const [playMode, setPlayMode] = useState<string | null>(null);
+  const [isManualTest, setIsManualTest] = useState(false);
 
   useEffect(() => {
     const fetchPlayMode = async () => {
@@ -44,6 +45,8 @@ export function QuestionDisplay() {
       if (storedMode.value) {
         const parsedData = JSON.parse(storedMode.value);
         setPlayMode(parsedData.play_mode);
+        setIsManualTest(parsedData.evaluation_type === "MANUAL");
+        // setIsManualTest(parsedData.evaluation_type === "AUTO");
       }
     };
 
@@ -191,69 +194,78 @@ export function QuestionDisplay() {
             )}
           </p>
         </div>
-        <div className="flex gap-2 mt-4 w-full justify-between">
-          <Button
-            variant="outline"
-            size="sm"
-            className={
-              isMarkedForReview
-                ? "text-primary-500 hover:text-primary-500 hover:bg-transparent"
-                : ""
-            }
-            onClick={() => markForReview(currentQuestion.question_id)}
-          >
-            Review Later
-          </Button>
+        {!isManualTest && (
+          <div className="flex gap-2 mt-4 w-full justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              className={
+                isMarkedForReview
+                  ? "text-primary-500 hover:text-primary-500 hover:bg-transparent"
+                  : ""
+              }
+              onClick={() => markForReview(currentQuestion.question_id)}
+            >
+              Review Later
+            </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => clearResponse(currentQuestion.question_id)}
-            // disabled={currentAnswer.length === 0 || isDisabled}
-            disabled={currentAnswer.length === 0}
-          >
-            Clear Response
-          </Button>
-        </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => clearResponse(currentQuestion.question_id)}
+              disabled={currentAnswer.length === 0}
+            >
+              Clear Response
+            </Button>
+          </div>
+        )}
       </div>
-
       {(() => {
         switch (currentQuestion.question_type) {
           case QUESTION_TYPES.NUMERIC:
-            return <NumericInputWithKeypad />;
+            return !isManualTest && <NumericInputWithKeypad />;
           case QUESTION_TYPES.ONE_WORD:
-            return <OneWordInput />;
+            return !isManualTest && <OneWordInput />;
           case QUESTION_TYPES.LONG_ANSWER:
-            return <LongAnswerInput />;
-          default:
+            return !isManualTest && <LongAnswerInput />;
+          case QUESTION_TYPES.MCQM:
+          case QUESTION_TYPES.MCQS:
             return (
               <div className="space-y-4">
                 {currentQuestion?.options?.map((option, index) => (
                   <div
                     key={option.id}
-                    className={`flex flex-row-reverse items-center justify-between rounded-lg border p-4 w-full cursor-pointer ${
+                    className={`flex ${
+                      isManualTest ? "flex-row" : "flex-row-reverse"
+                    } items-center justify-between rounded-lg border p-4 w-full ${
                       currentAnswer.includes(option.id)
                         ? "border-primary-500 bg-primary-50"
                         : "border-gray-200"
                     }`}
-                    onClick={() => handleAnswerChange(option.id)}
+                    onClick={
+                      !isManualTest
+                        ? () => handleAnswerChange(option.id)
+                        : undefined
+                    }
                   >
-                    <div className="relative flex items-center">
-                      <div
-                        className={`w-6 h-6 border rounded-md flex items-center justify-center ${
-                          currentAnswer.includes(option.id)
-                            ? "bg-green-500 border-green-500"
-                            : "border-gray-300"
-                        }`}
-                      >
-                        {currentAnswer.includes(option.id) && (
-                          <span className="text-white font-bold">✔</span>
-                        )}
+                    {!isManualTest && (
+                      <div className="relative flex items-center">
+                        <div
+                          className={`w-6 h-6 border rounded-md flex items-center justify-center ${
+                            currentAnswer.includes(option.id)
+                              ? "bg-green-500 border-green-500"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {currentAnswer.includes(option.id) && (
+                            <span className="text-white font-bold">✔</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <label
-                      className={`flex-grow cursor-pointer text-sm ${
+                      className={`flex-grow text-sm ${
                         currentAnswer.includes(option.id)
                           ? "font-semibold"
                           : "text-gray-700"
@@ -277,6 +289,8 @@ export function QuestionDisplay() {
                 ))}
               </div>
             );
+          default:
+            return null;
         }
       })()}
     </div>
