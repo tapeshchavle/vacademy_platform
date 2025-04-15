@@ -12,7 +12,7 @@ import { MarksBreakdownComponent } from "./marks-breakdown-component";
 import { Crown } from "@/svgs";
 import { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock } from "phosphor-react";
+import { CaretLeft, Clock } from "phosphor-react";
 import { parseHtmlToString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
 import { useRouter } from "@tanstack/react-router";
@@ -27,6 +27,7 @@ import {
   GET_ASSESSMENT_MARKS,
 } from "@/constants/urls";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
+import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 type TestMarks = {
   total_achievable_marks: number;
   section_wise_achievable_marks: Record<string, number>;
@@ -39,6 +40,8 @@ export const TestReportDialog = ({
   const report = useRouter();
   const [instituteDetails, setInstituteDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { setNavHeading } = useNavHeadingStore();
+
   // const { state } = report.__store.state.location.state as ParsedHistoryState;
   // const studentReport: Report = state?.report || {};
   const locationState = report.__store.state.location
@@ -79,6 +82,23 @@ export const TestReportDialog = ({
     };
 
     fetchTestMarks();
+  }, []);
+
+  const handleBackClick = () => {
+    report.navigate({
+      to: `/assessment/reports`,
+    });
+  };
+
+  const heading = (
+    <div className="flex items-center gap-2">
+      <CaretLeft onClick={handleBackClick} className="cursor-pointer size-5" />
+      <div>Report</div>
+    </div>
+  );
+
+  useEffect(() => {
+    setNavHeading(heading);
   }, []);
 
   useEffect(() => {

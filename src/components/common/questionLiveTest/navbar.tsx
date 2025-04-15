@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import type React from "react";
+
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { HelpModal } from "@/components/modals/help-modals";
 import { useAssessmentStore } from "@/stores/assessment-store";
@@ -18,19 +20,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Upload, FileText } from "lucide-react";
 import { MyButton } from "@/components/design-system/button";
 import { TimesUpModal } from "@/components/modals/times-up-modal";
-import { ASSESSMENT_SUBMIT } from "@/constants/urls";
+import { ASSESSMENT_SUBMIT, ASSESSMENT_SUBMIT_MANUAL } from "@/constants/urls";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { Preferences } from "@capacitor/preferences";
 import { toast } from "sonner";
 import { Storage } from "@capacitor/storage";
 import { useProctoring } from "@/hooks";
 import { App } from "@capacitor/app";
-import { PluginListenerHandle } from "@capacitor/core";
+import type { PluginListenerHandle } from "@capacitor/core";
 import { formatDataFromStore } from "./page";
-// import { disableProtection } from "@/constants/helper";
+import { useFileUpload } from "@/hooks/use-file-upload";
+// import { PdfViewerComponent } from "@/components/pdf-viewer"
+import type {
+  DocumentLoadEvent,
+  PageChangeEvent,
+} from "@react-pdf-viewer/core";
+import { PdfViewerComponent } from "../study-library/level-material/subject-material/module-material/chapter-material/slide-material/pdf-viewer-component";
 
 export function Navbar() {
   const {
@@ -42,12 +50,52 @@ export function Navbar() {
     entireTestTimer,
     setEntireTestTimer,
     resetAssessment,
+    setPdfFile,
+    pdfFile,
   } = useAssessmentStore();
 
   const navigate = useNavigate();
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showTimesUpModal, setShowTimesUpModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
+  const [evaluationType, setEvaluationType] = useState<string | null>(null);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  //   const fileInputRef = useRef<HTMLInputElement>(null);
+  // const [pdfFile, setPdfFile] = useState<{
+  //   fileId: string;
+  //   fileName: string;
+  //   fileUrl: string;
+  // } | null>(null);
+
+  const [isUploading, setIsUploading] = useState(false);
+
+  const { uploadFile, getPublicUrl } = useFileUpload();
+
+  const [INSTITUTE_ID, setInstituteId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const [pdfDocumentInfo, setPdfDocumentInfo] = useState({
+    numPages: 0,
+    currentPage: 0,
+  });
+
+  useEffect(() => {
+    const fetchInstituteAndUserId = async () => {
+      const instituteResult = await Preferences.get({ key: "InstituteId" });
+      setInstituteId(instituteResult.value || null);
+
+      const userResult = await Preferences.get({ key: "StudentDetails" });
+      const userDetails = userResult.value
+        ? JSON.parse(userResult.value)
+        : null;
+      setUserId(userDetails?.user_id || null);
+    };
+
+    fetchInstituteAndUserId();
+  }, []);
+
   interface HelpType {
     type: "instructions" | "alerts" | "reattempt" | "time" | null;
   }
@@ -60,35 +108,40 @@ export function Navbar() {
   });
 
   const [helpType, setHelpType] = useState<HelpType["type"]>(null);
-
   const [playMode, setPlayMode] = useState<string | null>(null);
 
   const sendFormattedData = async () => {
-    try {
-      const state = useAssessmentStore.getState();
-      const InstructionID_and_AboutID = await Preferences.get({
-        key: "InstructionID_and_AboutID",
-      });
+    const state = useAssessmentStore.getState();
+    const InstructionID_and_AboutID = await Preferences.get({
+      key: "InstructionID_and_AboutID",
+    });
 
-      const assessment_id_json = InstructionID_and_AboutID.value
-        ? JSON.parse(InstructionID_and_AboutID.value)
-        : null;
-      const formattedData = await formatDataFromStore(
-        assessment_id_json?.assessment_id,
-        "END"
-      );
+    const assessment_id_json = InstructionID_and_AboutID.value
+      ? JSON.parse(InstructionID_and_AboutID.value)
+      : null;
+    const formattedData = await formatDataFromStore(
+      assessment_id_json?.assessment_id,
+      "END"
+    );
+    console.log("evaluationType", evaluationType, "pdfFile", pdfFile);
+    if (evaluationType === "MANUAL" && pdfFile) {
+      console.log("Submitting manual assessment with PDF file:", pdfFile);
       const response = await authenticatedAxiosInstance.post(
-        `${ASSESSMENT_SUBMIT}`,
-        { json_content: JSON.stringify(formattedData) },
+        `${ASSESSMENT_SUBMIT_MANUAL}`,
+        {
+          json_content: JSON.stringify(formattedData),
+          set_id: pdfFile.fileId,
+        },
         {
           params: {
             attemptId: state.assessment?.attempt_id,
             assessmentId: assessment_id_json?.assessment_id,
+            instituteId: INSTITUTE_ID,
           },
         }
       );
-
-      if (response.data) {
+      console.log("response of manual", response);
+      if (response?.data) {
         const { value } = await Storage.get({ key: "Assessment_questions" });
 
         if (value) {
@@ -110,9 +163,42 @@ export function Navbar() {
         }
       }
 
-      return response.data;
-    } catch (error) {
-      console.error("Error sending data:", error);
+      return response?.data;
+    } else if (evaluationType === "AUTO") {
+      const response = await authenticatedAxiosInstance.post(
+        `${ASSESSMENT_SUBMIT}`,
+        { json_content: JSON.stringify(formattedData) },
+        {
+          params: {
+            attemptId: state.assessment?.attempt_id,
+            assessmentId: assessment_id_json?.assessment_id,
+          },
+        }
+      );
+
+      if (response?.data) {
+        const { value } = await Storage.get({ key: "Assessment_questions" });
+
+        if (value) {
+          try {
+            const parsedData = JSON.parse(value);
+            const attemptId = parsedData?.attempt_id;
+
+            if (attemptId) {
+              const storageKey = `ASSESSMENT_STATE_${attemptId}`;
+              await Storage.remove({ key: storageKey });
+            } else {
+              console.error("Attempt ID not found in Assessment_questions.");
+            }
+          } catch (error) {
+            console.error("Error parsing Assessment_questions:", error);
+          }
+        } else {
+          console.error("No data found in Assessment_questions.");
+        }
+      }
+
+      return response?.data;
     }
   };
 
@@ -167,6 +253,7 @@ export function Navbar() {
       if (storedMode.value) {
         const parsedData = JSON.parse(storedMode.value);
         setPlayMode(parsedData.play_mode);
+        setEvaluationType(parsedData.evaluation_type);
       }
     };
 
@@ -194,8 +281,8 @@ export function Navbar() {
       handleSubmit();
     }
   };
+
   const formatTime = (timeInSeconds: number) => {
-    // Calculate hours, minutes, and seconds directly from seconds
     const hours = Math.floor(timeInSeconds / 3600);
     const minutes = Math.floor((timeInSeconds % 3600) / 60);
     const seconds = timeInSeconds % 60;
@@ -207,7 +294,7 @@ export function Navbar() {
 
   if (!assessment) return null;
 
-  const isAllTimeUp = entireTestTimer === 0;
+  // const isAllTimeUp = entireTestTimer === 0;
 
   const handleSubmit = async () => {
     let attemptCount = 0;
@@ -222,6 +309,7 @@ export function Navbar() {
 
     const submitData = async () => {
       const success = await sendFormattedData();
+      console.log("Success:", success);
       if (!success && attemptCount < 5) {
         attemptCount++;
         const retryInterval = 10000 + attemptCount * 5000; // 10, 15, 20, 25, 30 seconds
@@ -232,7 +320,6 @@ export function Navbar() {
         submitAssessment();
         toast.success("Assessment submitted successfully!");
 
-        // disableProtection();
         resetAssessment();
 
         navigate({
@@ -266,15 +353,71 @@ export function Navbar() {
     };
 
     submitData();
-    // fullScreen.exit();
     if (document.fullscreenElement) {
       document.exitFullscreen();
     }
   };
 
-  if (isAllTimeUp && !showTimesUpModal) {
-    setShowTimesUpModal(true);
-  }
+  const handleDocumentLoad = (e: DocumentLoadEvent) => {
+    setPdfDocumentInfo((prev) => ({
+      ...prev,
+      numPages: e.doc.numPages,
+    }));
+    console.log("pdfDocumentInfo", pdfDocumentInfo);
+  };
+
+  const handlePageChange = (e: PageChangeEvent) => {
+    setPdfDocumentInfo((prev) => ({
+      ...prev,
+      currentPage: e.currentPage,
+    }));
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const fileId = await uploadFile({
+        file,
+        setIsUploading,
+        userId: userId ?? "",
+        source: INSTITUTE_ID ?? undefined,
+        sourceId: "EVALUATIONS",
+      });
+
+      if (fileId) {
+        const publicUrl = await getPublicUrl(fileId);
+        console.log("Public URL:", publicUrl);
+        console.log("File ID:", fileId);
+        setPdfFile({
+          fileId,
+          fileName: file.name,
+          fileUrl: publicUrl,
+          size: file.size,
+          file: file,
+        });
+      }
+    } catch (error) {
+      console.error("PDF Upload failed:", error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePreviewPdf = () => {
+    if (pdfFile) {
+      setShowPdfPreview(true);
+    }
+  };
+
+  // useEffect(()=>{
+
+  //   if (isAllTimeUp && !showTimesUpModal) {
+  //     setShowTimesUpModal(true);
+  //   }
+  // }, []);
 
   return (
     <>
@@ -337,17 +480,100 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
-          <MyButton
-            type="submit"
-            scale="medium"
-            buttonType="primary"
-            layoutVariant="default"
-            onClick={() => setShowSubmitModal(true)}
-          >
-            Submit
-          </MyButton>
+          {evaluationType === "MANUAL" ? (
+            <>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="application/pdf"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+
+              {pdfFile ? (
+                <div className="flex items-center gap-2">
+                  <MyButton
+                    scale="medium"
+                    buttonType="secondary"
+                    layoutVariant="default"
+                    onClick={handlePreviewPdf}
+                    className="flex items-center gap-2"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Preview PDF
+                  </MyButton>
+                </div>
+              ) : (
+                <MyButton
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2"
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <span className="loader h-4 w-4"></span>
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {isUploading ? "Uploading..." : "Upload PDF"}
+                </MyButton>
+              )}
+            </>
+          ) : (
+            <MyButton
+              type="submit"
+              scale="medium"
+              buttonType="primary"
+              layoutVariant="default"
+              onClick={() => setShowSubmitModal(true)}
+            >
+              Submit
+            </MyButton>
+          )}
         </div>
       </div>
+
+      {showPdfPreview && pdfFile ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-5xl h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b">
+              {/* <h2 className="text-lg font-semibold">
+                PDF Preview: {pdfFile.fileName} {pdfDocumentInfo.currentPage + 1}/{pdfDocumentInfo.numPages}
+              </h2> */}
+              <Button variant="ghost" onClick={() => setShowPdfPreview(false)}>
+                <span className="sr-only">Back</span>← Back
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <PdfViewerComponent
+                pdfUrl={pdfFile.fileUrl}
+                handleDocumentLoad={handleDocumentLoad}
+                handlePageChange={handlePageChange}
+              />
+            </div>
+            <div className="flex justify-between p-4 border-t">
+              <MyButton
+                // variant="outline"
+                buttonType="secondary"
+                onClick={() => {
+                  setShowPdfPreview(false);
+                  fileInputRef.current?.click();
+                }}
+              >
+                Replace PDF
+              </MyButton>
+              <MyButton
+                buttonType="primary"
+                onClick={() => {
+                  setShowPdfPreview(false);
+                  setShowSubmitModal(true);
+                }}
+              >
+                Submit
+              </MyButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <SubmitModal
         open={showSubmitModal}
@@ -380,25 +606,6 @@ export function Navbar() {
           </AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
-      {/* <AlertDialog open={true} modal={true}>
-        <AlertDialogContent>
-          <AlertDialogDescription>
-            Warning: You are attempting to leave the test environment. This is
-            warning {tabSwitchCount} of 3. If you attempt to leave again, your
-            test will be automatically submitted.
-          </AlertDialogDescription>
-          <AlertDialogAction
-            onClick={() => {
-              fullScreen.trigger();
-              setTimeout(() => {
-                handleWarningClose();
-              }, 100);
-            }}
-          >
-            Return to Test
-          </AlertDialogAction>
-        </AlertDialogContent>
-      </AlertDialog> */}
 
       <HelpModal
         open={helpType !== null}

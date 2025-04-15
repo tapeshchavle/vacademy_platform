@@ -1,11 +1,19 @@
 import { create } from "zustand";
 import { Storage } from "@capacitor/storage";
 import {
-  QuestionState,
-  AssessmentPreviewData,
+  type QuestionState,
+  type AssessmentPreviewData,
   distribution_duration_types,
-  QuestionDto,
+  type QuestionDto,
 } from "../types/assessment";
+
+interface PdfFile {
+  fileId: string;
+  fileName: string;
+  size: number;
+  file: File;
+  fileUrl: string;
+}
 
 interface SectionTimer {
   timeLeft: number;
@@ -53,6 +61,9 @@ interface AssessmentStore {
   questionTimeSpent: Record<string, number>;
   initializeQuestionTime: (questionId: string) => void;
   incrementQuestionTime: (questionId: string) => void;
+  // PDF file handling for manual evaluation
+  pdfFile: PdfFile | null;
+  setPdfFile: (file: PdfFile | null) => void;
 }
 
 export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
@@ -66,6 +77,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
   questionTimers: {},
   questionStartTime: {},
   questionTimeSpent: {},
+  pdfFile: null,
 
   resetAssessment: () =>
     set({
@@ -79,7 +91,10 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       questionTimers: {},
       questionStartTime: {},
       questionTimeSpent: {},
+      pdfFile: null,
     }),
+
+  setPdfFile: (file) => set({ pdfFile: file }),
 
   setAssessment: (assessment) =>
     set((state) => {
@@ -462,6 +477,14 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       tabSwitchCount: state.tabSwitchCount,
       questionStartTime: state.questionStartTime,
       questionTimeSpent: state.questionTimeSpent,
+      pdfFile: state.pdfFile
+        ? {
+            id: state.pdfFile.fileId,
+            name: state.pdfFile.fileName,
+            // size: state.pdfFile.size,
+            fileUrl: state.pdfFile.fileUrl,
+          }
+        : null,
     };
 
     const storageKey = `ASSESSMENT_STATE_${attemptId}`;
@@ -497,7 +520,6 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
     }
 
     const storageKey = `ASSESSMENT_STATE_${attemptId}`;
-    // let savedState = localStorage.getItem(storageKey);
     let { value: savedState } = await Storage.get({ key: storageKey });
 
     if (!savedState) {

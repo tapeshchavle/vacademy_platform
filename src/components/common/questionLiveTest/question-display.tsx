@@ -10,8 +10,10 @@ import {
 } from "@/types/assessment";
 import { processHtmlString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
-// import { NumericInputWithKeypad } from "./numeric";
+import { NumericInputWithKeypad } from "./numeric";
 import { ExpandableParagraph } from "./paragraph";
+import { OneWordInput } from "./OneWordInput";
+import { LongAnswerInput } from "./LongAnswerInput";
 
 export function QuestionDisplay() {
   const {
@@ -33,6 +35,7 @@ export function QuestionDisplay() {
   } = useAssessmentStore();
 
   const [playMode, setPlayMode] = useState<string | null>(null);
+  const [isManualTest, setIsManualTest] = useState(false);
 
   useEffect(() => {
     const fetchPlayMode = async () => {
@@ -42,6 +45,8 @@ export function QuestionDisplay() {
       if (storedMode.value) {
         const parsedData = JSON.parse(storedMode.value);
         setPlayMode(parsedData.play_mode);
+        setIsManualTest(parsedData.evaluation_type === "MANUAL");
+        // setIsManualTest(parsedData.evaluation_type === "AUTO");
       }
     };
 
@@ -52,7 +57,7 @@ export function QuestionDisplay() {
   const isPracticeMode = playMode === "PRACTICE" || playMode === "SURVEY";
 
   useEffect(() => {
-    if (isPracticeMode || !currentQuestion?.question_id) return;
+    if (!currentQuestion?.question_id) return;
     initializeQuestionTime(currentQuestion.question_id);
 
     const interval = setInterval(() => {
@@ -60,12 +65,7 @@ export function QuestionDisplay() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [
-    currentQuestion,
-    initializeQuestionTime,
-    incrementQuestionTime,
-    isPracticeMode,
-  ]);
+  }, [currentQuestion, initializeQuestionTime, incrementQuestionTime]);
 
   useEffect(() => {
     if (
@@ -194,84 +194,105 @@ export function QuestionDisplay() {
             )}
           </p>
         </div>
-        <div className="flex gap-2 mt-4 w-full justify-between">
-          <Button
-            variant="outline"
-            size="sm"
-            className={
-              isMarkedForReview
-                ? "text-primary-500 hover:text-primary-500 hover:bg-transparent"
-                : ""
-            }
-            onClick={() => markForReview(currentQuestion.question_id)}
-          >
-            Review Later
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => clearResponse(currentQuestion.question_id)}
-            // disabled={currentAnswer.length === 0 || isDisabled}
-            disabled={currentAnswer.length === 0}
-          >
-            Clear Response
-          </Button>
-        </div>
-      </div>
-
-      {/* {currentQuestion.question_type === QUESTION_TYPES.NUMERICAL ? (
-        <NumericInputWithKeypad />
-      ) : ( */}
-        <div className="space-y-4">
-          {currentQuestion?.options?.map((option, index) => (
-            <div
-              key={option.id}
-              className={`flex flex-row-reverse items-center justify-between rounded-lg border p-4 w-full cursor-pointer ${
-                currentAnswer.includes(option.id)
-                  ? "border-primary-500 bg-primary-50"
-                  : "border-gray-200"
-              }`}
-              onClick={() => handleAnswerChange(option.id)}
+        {!isManualTest && (
+          <div className="flex gap-2 mt-4 w-full justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              className={
+                isMarkedForReview
+                  ? "text-primary-500 hover:text-primary-500 hover:bg-transparent"
+                  : ""
+              }
+              onClick={() => markForReview(currentQuestion.question_id)}
             >
-              <div className="relative flex items-center">
-                <div
-                  className={`w-6 h-6 border rounded-md flex items-center justify-center ${
-                    currentAnswer.includes(option.id)
-                      ? "bg-green-500 border-green-500"
-                      : "border-gray-300"
-                  }`}
-                >
-                  {currentAnswer.includes(option.id) && (
-                    <span className="text-white font-bold">✔</span>
-                  )}
-                </div>
-              </div>
+              Review Later
+            </Button>
 
-              <label
-                className={`flex-grow cursor-pointer text-sm ${
-                  currentAnswer.includes(option.id)
-                    ? "font-semibold"
-                    : "text-gray-700"
-                }`}
-              >
-                {`(${String.fromCharCode(97 + index)}) `}
-                {processHtmlString(option.text.content).map((item, index) =>
-                  item.type === "text" ? (
-                    <span key={index}>{item.content}</span>
-                  ) : (
-                    <img
-                      key={index}
-                      src={item.content}
-                      alt={`Option ${index}`}
-                    />
-                  )
-                )}
-              </label>
-            </div>
-          ))}
-        </div>
-      {/* )} */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => clearResponse(currentQuestion.question_id)}
+              disabled={currentAnswer.length === 0}
+            >
+              Clear Response
+            </Button>
+          </div>
+        )}
+      </div>
+      {(() => {
+        switch (currentQuestion.question_type) {
+          case QUESTION_TYPES.NUMERIC:
+            return !isManualTest && <NumericInputWithKeypad />;
+          case QUESTION_TYPES.ONE_WORD:
+            return !isManualTest && <OneWordInput />;
+          case QUESTION_TYPES.LONG_ANSWER:
+            return !isManualTest && <LongAnswerInput />;
+          case QUESTION_TYPES.MCQM:
+          case QUESTION_TYPES.MCQS:
+            return (
+              <div className="space-y-4">
+                {currentQuestion?.options?.map((option, index) => (
+                  <div
+                    key={option.id}
+                    className={`flex ${
+                      isManualTest ? "flex-row" : "flex-row-reverse"
+                    } items-center justify-between rounded-lg border p-4 w-full ${
+                      currentAnswer.includes(option.id)
+                        ? "border-primary-500 bg-primary-50"
+                        : "border-gray-200"
+                    }`}
+                    onClick={
+                      !isManualTest
+                        ? () => handleAnswerChange(option.id)
+                        : undefined
+                    }
+                  >
+                    {!isManualTest && (
+                      <div className="relative flex items-center">
+                        <div
+                          className={`w-6 h-6 border rounded-md flex items-center justify-center ${
+                            currentAnswer.includes(option.id)
+                              ? "bg-green-500 border-green-500"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {currentAnswer.includes(option.id) && (
+                            <span className="text-white font-bold">✔</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <label
+                      className={`flex-grow text-sm ${
+                        currentAnswer.includes(option.id)
+                          ? "font-semibold"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      {`(${String.fromCharCode(97 + index)}) `}
+                      {processHtmlString(option.text.content).map(
+                        (item, index) =>
+                          item.type === "text" ? (
+                            <span key={index}>{item.content}</span>
+                          ) : (
+                            <img
+                              key={index}
+                              src={item.content}
+                              alt={`Option ${index}`}
+                            />
+                          )
+                      )}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            );
+          default:
+            return null;
+        }
+      })()}
     </div>
   );
 }
