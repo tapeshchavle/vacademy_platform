@@ -231,6 +231,19 @@ export const AssessmentCard = ({
               </div>
             </div>
           </div>
+          {/* {assessmentType !== assessmentTypes.UPCOMING &&
+            assessmentType !== assessmentTypes.PAST && (
+              <div className="w-full md:w-auto">
+                <MyButton
+                  buttonType="secondary"
+                  className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
+                  onClick={handleAction}
+                  disabled={assessmentInfo.recent_attempt_status === "ENDED"}
+                >
+                  {getButtonLabel()}
+                </MyButton>
+              </div>
+            )} */}
           {assessmentType !== assessmentTypes.UPCOMING &&
             assessmentType !== assessmentTypes.PAST && (
               <div className="w-full md:w-auto">
@@ -241,6 +254,28 @@ export const AssessmentCard = ({
                   disabled={assessmentInfo.recent_attempt_status === "ENDED"}
                 >
                   {getButtonLabel()}
+                </MyButton>
+              </div>
+            )}
+
+          {assessmentType === assessmentTypes.PAST &&
+            (assessmentInfo.created_attempts ?? 0) > 0 && (
+              <div className="w-full md:w-auto">
+                <MyButton
+                  buttonType="secondary"
+                  className="w-full max-w-xs md:w-[200px] lg:w-[300px]"
+                  onClick={() =>
+                    navigate({
+                      to: `/assessment/reports/student-report`,
+                      search: {
+                        assessmentId: assessmentInfo.assessment_id,
+                        attemptId: assessmentInfo.last_attempt_id ?? "",
+                      },
+                      // state: { report } as any,
+                    })
+                  }
+                >
+                  Show Report
                 </MyButton>
               </div>
             )}
