@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -11,16 +12,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { X, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { ENROLL_DETAILS_RESPONSE, GET_ENROLL_DETAILS } from "@/constants/urls";
 import { toast } from "sonner";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
-// import { useSearch } from "@tanstack/react-router";
 import { MyButton } from "@/components/design-system/button";
 import { getPublicUrl } from "@/services/upload_file";
+import axios from "axios";
+import { Route } from "@/routes/learner-invitation-response";
 
 // Type definitions
 interface CustomField {
@@ -63,6 +64,7 @@ interface BatchOptions {
   pre_selected_packages: Package[];
   learner_choice_packages: Package[];
 }
+
 interface LearnerInvitation {
   id: string;
   name: string;
@@ -81,6 +83,17 @@ interface ApiResponse {
   institute_logo_file_id: string | null;
 }
 
+// Extended level interface with additional context information
+interface LevelWithContext {
+  id: string;
+  name: string;
+  sessionId: string;
+  sessionName: string;
+  packageId: string;
+  packageName: string;
+  isPreSelected: boolean;
+}
+
 // Validation schemas
 const emailSchema = z.string().email("Please enter a valid email address");
 const phoneSchema = z
@@ -89,31 +102,12 @@ const phoneSchema = z
   .transform((val) => val.trim());
 
 const EnrollByInvite = () => {
-  // const { instituteId, inviteCode } = useSearch({
-  //   instituteId: "",
-  //   inviteCode: "",
-  // });
+  // const instituteId = "9d3f4ccb-a7f6-423f-bc4f-75c6d6176346";
+  // const inviteCode = "OQRTLE";
+  // const instituteId = "0f1a4bb6-90ec-4e91-bbbf-2184a39c986e";
+  // const inviteCode = "053OO";
 
-  // const { instituteId, inviteCode } = useSearch<{
-  //   instituteId: string;
-  //   inviteCode: string;
-  // }>();
-
-  //   const searchParams = useSearch<{
-  //     instituteId?: string;
-  //     inviteCode?: string;
-  //   }>();
-  //   const instituteId = searchParams.instituteId ?? "";
-  // const inviteCode = searchParams.inviteCode ?? "";
-
-  // const { instituteId = "", inviteCode = "" } = useSearch<{
-  //   instituteId?: string;
-  //   inviteCode?: string;
-  // }>( { instituteId: "", inviteCode: "" });
-
-  // console.log("instituteId", instituteId, "inviteCode", inviteCode);
-  const instituteId = "0f1a4bb6-90ec-4e91-bbbf-2184a39c986e";
-  const inviteCode = "053OO";
+  const { instituteId, inviteCode } = Route.useSearch();
 
   // Form state
   const [step, setStep] = useState(1);
@@ -121,10 +115,11 @@ const EnrollByInvite = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
   const [inviteData, setInviteData] = useState<LearnerInvitation | null>(null);
-  // const [instituteName, setInstituteName] = useState<string>("");
-  // const [instituteLogo, setInstituteLogo] = useState<string | null>(null);
   const [batchOptions, setBatchOptions] = useState<BatchOptions | null>(null);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+
+  // All available levels with context
+  const [allLevels, setAllLevels] = useState<LevelWithContext[]>([]);
 
   // Selection states
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
@@ -165,19 +160,106 @@ const EnrollByInvite = () => {
     }
   }, [instituteId, inviteCode]);
 
+  // Process batch options to create a flat list of all levels with context
+  useEffect(() => {
+    if (batchOptions) {
+      const levels: LevelWithContext[] = [];
+
+      // Process pre-selected packages
+      batchOptions.pre_selected_packages.forEach((pkg) => {
+        // Process pre-selected sessions
+        if (pkg.pre_selected_session_dtos) {
+          pkg.pre_selected_session_dtos.forEach((session) => {
+            // Process pre-selected levels
+            if (session.pre_selected_levels) {
+              session.pre_selected_levels.forEach((level) => {
+                levels.push({
+                  id: level.id,
+                  name: level.name,
+                  sessionId: session.id,
+                  sessionName: session.name,
+                  packageId: pkg.id,
+                  packageName: pkg.name,
+                  isPreSelected: true,
+                });
+              });
+            }
+
+            // Process learner choice levels for pre-selected sessions
+            if (session.learner_choice_levels) {
+              session.learner_choice_levels.forEach((level) => {
+                levels.push({
+                  id: level.id,
+                  name: level.name,
+                  sessionId: session.id,
+                  sessionName: session.name,
+                  packageId: pkg.id,
+                  packageName: pkg.name,
+                  isPreSelected: false,
+                });
+              });
+            }
+          });
+        }
+
+        // Process learner choice sessions for pre-selected packages
+        if (pkg.learner_choice_sessions) {
+          pkg.learner_choice_sessions.forEach((session) => {
+            // Process learner choice levels
+            if (session.learner_choice_levels) {
+              session.learner_choice_levels.forEach((level) => {
+                levels.push({
+                  id: level.id,
+                  name: level.name,
+                  sessionId: session.id,
+                  sessionName: session.name,
+                  packageId: pkg.id,
+                  packageName: pkg.name,
+                  isPreSelected: false,
+                });
+              });
+            }
+          });
+        }
+      });
+
+      // Process learner choice packages
+      batchOptions.learner_choice_packages.forEach((pkg) => {
+        // Process learner choice sessions
+        if (pkg.learner_choice_sessions) {
+          pkg.learner_choice_sessions.forEach((session) => {
+            // Process learner choice levels
+            if (session.learner_choice_levels) {
+              session.learner_choice_levels.forEach((level) => {
+                levels.push({
+                  id: level.id,
+                  name: level.name,
+                  sessionId: session.id,
+                  sessionName: session.name,
+                  packageId: pkg.id,
+                  packageName: pkg.name,
+                  isPreSelected: false,
+                });
+              });
+            }
+          });
+        }
+      });
+
+      setAllLevels(levels);
+    }
+  }, [batchOptions]);
+
   // Fetch invite data from API
   const fetchInviteData = async () => {
     setLoading(true);
     try {
-      const response = await authenticatedAxiosInstance.get(
-        GET_ENROLL_DETAILS,
-        {
-          params: {
-            instituteId: instituteId,
-            inviteCode: inviteCode,
-          },
-        }
-      );
+      const response = await axios.get(GET_ENROLL_DETAILS, {
+        params: {
+          instituteId: instituteId,
+          inviteCode: inviteCode,
+        },
+      });
       console.log("Invite data:", response.data);
 
       // Store the full API response
@@ -196,10 +278,6 @@ const EnrollByInvite = () => {
           console.error("Error fetching institute logo:", error);
         }
       }
-
-      // Set institute name and logo
-      // setInstituteName(response.data.institute_name);
-      // setInstituteLogo(response.data.institute_logo_file_id);
 
       // Parse batch options JSON
       const batchOptionsData = JSON.parse(learnerInvitation.batch_options_json);
@@ -254,151 +332,53 @@ const EnrollByInvite = () => {
     }
   };
 
-  // Add package if not already selected and within max limit
-  const addPackage = (packageId: string) => {
-    if (
-      !selectedPackages.includes(packageId) &&
-      batchOptions &&
-      selectedPackages.length < batchOptions.max_selectable_packages
-    ) {
+  // Toggle level selection
+  const toggleLevel = (level: LevelWithContext) => {
+    // If pre-selected, don't allow toggling
+    if (level.isPreSelected) return;
+
+    const { sessionId, packageId } = level;
+    const currentLevels = selectedLevels[sessionId] || [];
+    const isSelected = currentLevels.includes(level.id);
+
+    // Check if the package is selected
+    if (!selectedPackages.includes(packageId)) {
+      // Add package if not already selected
       setSelectedPackages([...selectedPackages, packageId]);
-      setErrors({ ...errors, packages: "" });
     }
-  };
 
-  // Remove package (only for learner choice packages)
-  const removePackage = (packageId: string) => {
-    // Check if it's a pre-selected package
-    const isPreSelected = batchOptions?.pre_selected_packages.some(
-      (pkg) => pkg.id === packageId
-    );
-
-    if (!isPreSelected) {
-      setSelectedPackages(selectedPackages.filter((id) => id !== packageId));
-
-      // Also remove any sessions and levels associated with this package
-      const newSelectedSessions = { ...selectedSessions };
-      delete newSelectedSessions[packageId];
-      setSelectedSessions(newSelectedSessions);
-
-      // Remove levels from sessions of this package
-      const packageSessions = getAllSessionsForPackage(packageId);
-      const newSelectedLevels = { ...selectedLevels };
-      packageSessions.forEach((sessionId) => {
-        delete newSelectedLevels[sessionId];
-      });
-      setSelectedLevels(newSelectedLevels);
-      // Clear any package-related errors
-      if (errors.packages) {
-        setErrors({ ...errors, packages: "" });
-      }
-    }
-  };
-
-  // Add session if not already selected and within max limit for the package
-  const addSession = (packageId: string, sessionId: string) => {
-    const packageData = findPackageById(packageId);
-    if (!packageData) return;
-
-    const maxSessions = packageData.max_selectable_sessions;
-    const currentSessions = selectedSessions[packageId] || [];
-
-    if (
-      !currentSessions.includes(sessionId) &&
-      currentSessions.length < maxSessions
-    ) {
+    // Check if the session is selected for this package
+    const packageSessions = selectedSessions[packageId] || [];
+    if (!packageSessions.includes(sessionId)) {
+      // Add session if not already selected
       setSelectedSessions({
         ...selectedSessions,
-        [packageId]: [...currentSessions, sessionId],
+        [packageId]: [...packageSessions, sessionId],
       });
-
-      // Clear error
-      const newSessionErrors = { ...errors.sessions };
-      delete newSessionErrors[packageId];
-      setErrors({ ...errors, sessions: newSessionErrors });
     }
-  };
 
-  // Remove session (only for learner choice sessions)
-  const removeSession = (packageId: string, sessionId: string) => {
-    const packageData = findPackageById(packageId);
-    if (!packageData) return;
-
-    // Check if it's a pre-selected session
-    const isPreSelected = packageData.pre_selected_session_dtos?.some(
-      (session) => session.id === sessionId
-    );
-
-    if (!isPreSelected) {
-      const newSessions = { ...selectedSessions };
-      if (newSessions[packageId]) {
-        newSessions[packageId] = newSessions[packageId].filter(
-          (id) => id !== sessionId
-        );
-      }
-      setSelectedSessions(newSessions);
-
-      // Also remove any levels associated with this session
+    // Toggle level selection
+    if (isSelected) {
+      // Remove level
       const newLevels = { ...selectedLevels };
-      delete newLevels[sessionId];
+      newLevels[sessionId] = currentLevels.filter((id) => id !== level.id);
       setSelectedLevels(newLevels);
-    }
-  };
+    } else {
+      // Add level if within max limit
+      const session = findSessionById(sessionId);
+      if (session) {
+        const maxLevels = session.max_selectable_levels;
+        const preSelectedCount = session.pre_selected_levels?.length || 0;
+        console.log("preSelectedCount", preSelectedCount);
 
-  // Add level if not already selected and within max limit for the session
-  const addLevel = (sessionId: string, levelId: string) => {
-    const sessionData = findSessionById(sessionId);
-    if (!sessionData) return;
-
-    const maxLevels = sessionData.max_selectable_levels;
-    const currentLevels = selectedLevels[sessionId] || [];
-
-    if (!currentLevels.includes(levelId) && currentLevels.length < maxLevels) {
-      setSelectedLevels({
-        ...selectedLevels,
-        [sessionId]: [...currentLevels, levelId],
-      });
-
-      // Clear error
-      const newLevelErrors = { ...errors.levels };
-      delete newLevelErrors[sessionId];
-      setErrors({ ...errors, levels: newLevelErrors });
-    }
-  };
-
-  // Remove level (only for learner choice levels)
-  const removeLevel = (sessionId: string, levelId: string) => {
-    const sessionData = findSessionById(sessionId);
-    if (!sessionData) return;
-
-    // Check if it's a pre-selected level
-    const isPreSelected = sessionData.pre_selected_levels?.some(
-      (level) => level.id === levelId
-    );
-
-    if (!isPreSelected) {
-      const newLevels = { ...selectedLevels };
-      if (newLevels[sessionId]) {
-        newLevels[sessionId] = newLevels[sessionId].filter(
-          (id) => id !== levelId
-        );
+        if (currentLevels.length < maxLevels) {
+          setSelectedLevels({
+            ...selectedLevels,
+            [sessionId]: [...currentLevels, level.id],
+          });
+        }
       }
-      setSelectedLevels(newLevels);
     }
-  };
-
-  // Helper function to find package by ID
-  const findPackageById = (packageId: string): Package | undefined => {
-    if (!batchOptions) return undefined;
-
-    const preSelected = batchOptions.pre_selected_packages.find(
-      (pkg) => pkg.id === packageId
-    );
-    if (preSelected) return preSelected;
-
-    return batchOptions.learner_choice_packages.find(
-      (pkg) => pkg.id === packageId
-    );
   };
 
   // Helper function to find session by ID
@@ -429,81 +409,30 @@ const EnrollByInvite = () => {
     return null;
   };
 
-  // Helper function to get all sessions for a package
-  const getAllSessionsForPackage = (packageId: string): string[] => {
-    const pkg = findPackageById(packageId);
-    if (!pkg) return [];
-
-    const sessionIds: string[] = [];
-
-    // Add pre-selected sessions
-    if (pkg.pre_selected_session_dtos) {
-      pkg.pre_selected_session_dtos.forEach((session) => {
-        sessionIds.push(session.id);
-      });
-    }
-
-    // Add learner choice sessions
-    if (pkg.learner_choice_sessions) {
-      pkg.learner_choice_sessions.forEach((session) => {
-        sessionIds.push(session.id);
-      });
-    }
-
-    return sessionIds;
+  // Check if a level is selected
+  const isLevelSelected = (levelId: string, sessionId: string): boolean => {
+    return (selectedLevels[sessionId] || []).includes(levelId);
   };
 
-  // Helper function to get all available levels for a session
-  const getAllLevelsForSession = (sessionId: string): Level[] => {
-    const session = findSessionById(sessionId);
-    if (!session) return [];
+  // Check if a level can be selected (based on session's max selectable levels)
+  const canSelectLevel = (level: LevelWithContext): boolean => {
+    if (level.isPreSelected) return false; // Pre-selected levels can't be toggled
 
-    const levels: Level[] = [];
+    const session = findSessionById(level.sessionId);
+    if (!session) return false;
 
-    // Add pre-selected levels
-    if (session.pre_selected_levels) {
-      levels.push(...session.pre_selected_levels);
-    }
+    const currentLevels = selectedLevels[level.sessionId] || [];
+    const isSelected = currentLevels.includes(level.id);
 
-    // Add learner choice levels
-    if (session.learner_choice_levels) {
-      levels.push(...session.learner_choice_levels);
-    }
+    // If already selected, allow deselection
+    if (isSelected) return true;
 
-    return levels;
-  };
+    // Check if we've reached the max limit
+    const maxLevels = session.max_selectable_levels;
+    const preSelectedCount = session.pre_selected_levels?.length || 0;
+    console.log("preSelectedCount", preSelectedCount);
 
-  // Get learner choice packages that haven't been selected
-  const getRemainingPackages = (): Package[] => {
-    if (!batchOptions || !batchOptions.learner_choice_packages) return [];
-
-    return batchOptions.learner_choice_packages.filter(
-      (pkg) => !selectedPackages.includes(pkg.id)
-    );
-  };
-
-  // Get learner choice sessions for a package that haven't been selected
-  const getRemainingSessions = (packageId: string): Session[] => {
-    const pkg = findPackageById(packageId);
-    if (!pkg || !pkg.learner_choice_sessions) return [];
-
-    const selectedSessionsForPackage = selectedSessions[packageId] || [];
-
-    return pkg.learner_choice_sessions.filter(
-      (session) => !selectedSessionsForPackage.includes(session.id)
-    );
-  };
-
-  // Get learner choice levels for a session that haven't been selected
-  const getRemainingLevels = (sessionId: string): Level[] => {
-    const session = findSessionById(sessionId);
-    if (!session || !session.learner_choice_levels) return [];
-
-    const selectedLevelsForSession = selectedLevels[sessionId] || [];
-
-    return session.learner_choice_levels.filter(
-      (level) => !selectedLevelsForSession.includes(level.id)
-    );
+    return currentLevels.length < maxLevels;
   };
 
   // Update personal info
@@ -539,9 +468,6 @@ const EnrollByInvite = () => {
 
     // Validate sessions for each selected package
     selectedPackages.forEach((packageId) => {
-      const packageData = findPackageById(packageId);
-      if (!packageData) return;
-
       const selectedSessionsForPackage = selectedSessions[packageId] || [];
       if (selectedSessionsForPackage.length === 0) {
         newErrors.sessions = {
@@ -557,9 +483,6 @@ const EnrollByInvite = () => {
       const sessions = selectedSessions[packageId] || [];
 
       sessions.forEach((sessionId) => {
-        const sessionData = findSessionById(sessionId);
-        if (!sessionData) return;
-
         const selectedLevelsForSession = selectedLevels[sessionId] || [];
         if (selectedLevelsForSession.length === 0) {
           newErrors.levels = {
@@ -672,10 +595,6 @@ const EnrollByInvite = () => {
     // Submit data
     setSubmitLoading(true);
     try {
-      //   const response = await authenticatedAxiosInstance.post(
-      //     `/admin-core-service/learner-invitation-response/confirm`,
-      //     submissionData
-      //   );
       const response = await authenticatedAxiosInstance.post(
         `${ENROLL_DETAILS_RESPONSE}`,
         submissionData
@@ -684,11 +603,6 @@ const EnrollByInvite = () => {
       toast.success("Enrollment submitted successfully!");
     } catch (error) {
       console.error("Error submitting enrollment:", error);
-      // if (error.response && error.response.data && error.response.data.ex) {
-      //   toast.error(error.response.data.ex);
-      // } else {
-      //   toast.error("An unexpected error occurred. Please try again later.");
-      // }
     } finally {
       setSubmitLoading(false);
     }
@@ -750,7 +664,7 @@ const EnrollByInvite = () => {
       </div>
     );
   }
-  console.log("inviteData", inviteData, batchOptions);
+
   if (!inviteData || !batchOptions) {
     return (
       <div className="flex items-center w-full justify-center bg-gray-50">
@@ -772,7 +686,7 @@ const EnrollByInvite = () => {
         <CardHeader className="text-center">
           {imageUrl && (
             <img
-              src={imageUrl}
+              src={imageUrl || "/placeholder.svg"}
               alt="Institute Logo"
               className="h-12 w-12 rounded-full object-cover"
             />
@@ -788,320 +702,68 @@ const EnrollByInvite = () => {
           </p>
 
           {step === 1 ? (
-            // Step 1: Package, Session, and Level Selection
+            // Step 1: Level Selection with Package and Session context
             <div className="space-y-6">
-              {/* Learner choice packages */}
-              {batchOptions.learner_choice_packages &&
-                batchOptions.learner_choice_packages.length > 0 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="package">
-                      Select Package
-                      <span className="text-red-500">*</span>
-                      <span className="text-xs text-gray-500 ml-2">
-                        (Max{" "}
-                        {batchOptions.max_selectable_packages -
-                          batchOptions.pre_selected_packages.length}
-                        )
-                      </span>
-                    </Label>
-                    <Select
-                      onValueChange={(value) => addPackage(value)}
-                      disabled={
-                        getRemainingPackages().length === 0 ||
-                        selectedPackages.length >=
-                          batchOptions.max_selectable_packages
-                      }
+              <div className="border-t pt-4">
+                <h3 className="font-medium mb-2">Select Levels</h3>
+                <p className="text-xs text-gray-500 mb-2">
+                  Pre-selected levels are not selectable
+                </p>
+                <p className="text-xs text-gray-500 mb-4">
+                  Select the levels you want to enroll in
+                </p>
+                <p className="text-xs text-gray-500 mb-2">{}</p>
+              </div>
+
+              {/* Flat list of all levels with context */}
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">
+                  Maximum selectable packages:{" "}
+                  {batchOptions?.max_selectable_packages}
+                </p>
+                {allLevels.map((level) => (
+                  <div key={level.id} className="flex items-start space-x-2">
+                    <Checkbox
+                      id={`level-${level.id}`}
+                      checked={isLevelSelected(level.id, level.sessionId)}
+                      onCheckedChange={() => toggleLevel(level)}
+                      disabled={level.isPreSelected || !canSelectLevel(level)}
+                      className={`w-6 h-6 flex items-center justify-center rounded-md shadow ${
+                        isLevelSelected(level.id, level.sessionId)
+                          ? "bg-primary-500"
+                          : "bg-transparent border border-gray-300"
+                      }`}
                     >
-                      <SelectTrigger
-                        id="package"
-                        className={errors.packages ? "border-red-500" : ""}
+                      {isLevelSelected(level.id, level.sessionId) && (
+                        <span className="text-white text-sm font-bold">✔</span>
+                      )}
+                    </Checkbox>
+
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor={`level-${level.id}`}
+                        className="text-sm font-medium cursor-pointer"
                       >
-                        <SelectValue placeholder="Select Package" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getRemainingPackages().map((pkg) => (
-                          <SelectItem key={pkg.id} value={pkg.id}>
-                            {pkg.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.packages && (
-                      <p className="text-red-500 text-sm">{errors.packages}</p>
-                    )}
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {selectedPackages.map((packageId) => {
-                        const pkg = findPackageById(packageId);
-                        if (!pkg) return null;
-
-                        // Check if it's a learner choice package
-                        const isLearnerChoice =
-                          batchOptions.learner_choice_packages.some(
-                            (p) => p.id === packageId
-                          );
-
-                        return (
-                          <Badge
-                            key={packageId}
-                            variant="outline"
-                            className="flex items-center gap-1"
-                          >
-                            {pkg.name}
-                            {isLearnerChoice && (
-                              <X
-                                className="h-3 w-3 cursor-pointer"
-                                onClick={() => removePackage(packageId)}
-                              />
-                            )}
-                          </Badge>
-                        );
-                      })}
+                        {level.name} {level.packageName} {level.sessionName}
+                      </Label>
                     </div>
                   </div>
-                )}
+                ))}
+              </div>
 
-              {/* Session selection for each package */}
-              {selectedPackages.length > 0 && (
-                <div className="space-y-4">
-                  <div className="border-t pt-4">
-                    <h3 className="font-medium mb-2">Select Sessions</h3>
-                  </div>
-
-                  {selectedPackages.map((packageId) => {
-                    const pkg = findPackageById(packageId);
-                    if (!pkg) return null;
-
-                    return (
-                      <div
-                        key={packageId}
-                        className="space-y-2 border p-3 rounded-md"
-                      >
-                        <Label className="font-medium">{pkg.name}</Label>
-
-                        {/* Learner choice sessions */}
-                        {pkg.learner_choice_sessions &&
-                          pkg.learner_choice_sessions.length > 0 && (
-                            <div className="space-y-2">
-                              <Label
-                                htmlFor={`session-${packageId}`}
-                                className="text-sm"
-                              >
-                                Select Session
-                                <span className="text-red-500">*</span>
-                                <span className="text-xs text-gray-500 ml-2">
-                                  (Max{" "}
-                                  {pkg.max_selectable_sessions -
-                                    (pkg.pre_selected_session_dtos?.length ||
-                                      0)}
-                                  )
-                                </span>
-                              </Label>
-                              <Select
-                                onValueChange={(value) =>
-                                  addSession(packageId, value)
-                                }
-                                disabled={
-                                  getRemainingSessions(packageId).length ===
-                                    0 ||
-                                  (selectedSessions[packageId]?.length || 0) >=
-                                    pkg.max_selectable_sessions
-                                }
-                              >
-                                <SelectTrigger
-                                  id={`session-${packageId}`}
-                                  className={
-                                    errors.sessions[packageId]
-                                      ? "border-red-500"
-                                      : ""
-                                  }
-                                >
-                                  <SelectValue placeholder="Select Session" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {getRemainingSessions(packageId).map(
-                                    (session) => (
-                                      <SelectItem
-                                        key={session.id}
-                                        value={session.id}
-                                      >
-                                        {session.name}
-                                      </SelectItem>
-                                    )
-                                  )}
-                                </SelectContent>
-                              </Select>
-                              {errors.sessions[packageId] && (
-                                <p className="text-red-500 text-sm">
-                                  {errors.sessions[packageId]}
-                                </p>
-                              )}
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {(selectedSessions[packageId] || []).map(
-                                  (sessionId) => {
-                                    const session = findSessionById(sessionId);
-                                    if (!session) return null;
-
-                                    // Check if it's a learner choice session
-                                    const isLearnerChoice =
-                                      pkg.learner_choice_sessions?.some(
-                                        (s) => s.id === sessionId
-                                      );
-
-                                    return (
-                                      <Badge
-                                        key={sessionId}
-                                        variant="outline"
-                                        className="flex items-center gap-1"
-                                      >
-                                        {session.name}
-                                        {isLearnerChoice && (
-                                          <X
-                                            className="h-3 w-3 cursor-pointer"
-                                            onClick={() =>
-                                              removeSession(
-                                                packageId,
-                                                sessionId
-                                              )
-                                            }
-                                          />
-                                        )}
-                                      </Badge>
-                                    );
-                                  }
-                                )}
-                              </div>
-                            </div>
-                          )}
-                      </div>
-                    );
-                  })}
-                </div>
+              {/* Error messages */}
+              {errors.packages && (
+                <p className="text-red-500 text-sm">{errors.packages}</p>
               )}
-
-              {/* Level selection for each session */}
-              {Object.keys(selectedSessions).length > 0 && (
-                <div className="space-y-4">
-                  <div className="border-t pt-4">
-                    <h3 className="font-medium mb-2">Select Levels</h3>
-                  </div>
-
-                  {Object.keys(selectedSessions).flatMap((packageId) => {
-                    return (selectedSessions[packageId] || []).map(
-                      (sessionId) => {
-                        const session = findSessionById(sessionId);
-                        if (!session) return null;
-
-                        return (
-                          <div
-                            key={sessionId}
-                            className="space-y-2 border p-3 rounded-md"
-                          >
-                            <Label className="font-medium">
-                              {session.name}
-                            </Label>
-
-                            {/* Learner choice levels */}
-                            {session.learner_choice_levels &&
-                              session.learner_choice_levels.length > 0 && (
-                                <div className="space-y-2">
-                                  <Label
-                                    htmlFor={`level-${sessionId}`}
-                                    className="text-sm"
-                                  >
-                                    Select Level
-                                    <span className="text-red-500">*</span>
-                                    <span className="text-xs text-gray-500 ml-2">
-                                      (Max{" "}
-                                      {session.max_selectable_levels -
-                                        (session.pre_selected_levels?.length ||
-                                          0)}
-                                      )
-                                    </span>
-                                  </Label>
-                                  <Select
-                                    onValueChange={(value) =>
-                                      addLevel(sessionId, value)
-                                    }
-                                    disabled={
-                                      getRemainingLevels(sessionId).length ===
-                                        0 ||
-                                      (selectedLevels[sessionId]?.length ||
-                                        0) >= session.max_selectable_levels
-                                    }
-                                  >
-                                    <SelectTrigger
-                                      id={`level-${sessionId}`}
-                                      className={
-                                        errors.levels[sessionId]
-                                          ? "border-red-500"
-                                          : ""
-                                      }
-                                    >
-                                      <SelectValue placeholder="Select Level" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {getRemainingLevels(sessionId).map(
-                                        (level) => (
-                                          <SelectItem
-                                            key={level.id}
-                                            value={level.id}
-                                          >
-                                            {level.name}
-                                          </SelectItem>
-                                        )
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                  {errors.levels[sessionId] && (
-                                    <p className="text-red-500 text-sm">
-                                      {errors.levels[sessionId]}
-                                    </p>
-                                  )}
-                                  <div className="flex flex-wrap gap-2 mt-2">
-                                    {(selectedLevels[sessionId] || []).map(
-                                      (levelId) => {
-                                        const level = getAllLevelsForSession(
-                                          sessionId
-                                        ).find((l) => l.id === levelId);
-                                        if (!level) return null;
-
-                                        // Check if it's a learner choice level
-                                        const isLearnerChoice =
-                                          session.learner_choice_levels?.some(
-                                            (l) => l.id === levelId
-                                          );
-
-                                        return (
-                                          <Badge
-                                            key={levelId}
-                                            variant="outline"
-                                            className="flex items-center gap-1"
-                                          >
-                                            {level.name}
-                                            {isLearnerChoice && (
-                                              <X
-                                                className="h-3 w-3 cursor-pointer"
-                                                onClick={() =>
-                                                  removeLevel(
-                                                    sessionId,
-                                                    levelId
-                                                  )
-                                                }
-                                              />
-                                            )}
-                                          </Badge>
-                                        );
-                                      }
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                          </div>
-                        );
-                      }
-                    );
-                  })}
-                </div>
+              {Object.values(errors.sessions).some((error) => error) && (
+                <p className="text-red-500 text-sm">
+                  Please select at least one session for each package
+                </p>
+              )}
+              {Object.values(errors.levels).some((error) => error) && (
+                <p className="text-red-500 text-sm">
+                  Please select at least one level for each session
+                </p>
               )}
 
               <div className="flex justify-center">
@@ -1161,22 +823,6 @@ const EnrollByInvite = () => {
               </div>
 
               {/* Mobile */}
-              {/* <div className="space-y-2">
-                <Label htmlFor="mobile">
-                  Mobile <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="mobile"
-                  placeholder="+91 XXX XXX XXX"
-                  value={personalInfo.mobile}
-                  onChange={(e) => updatePersonalInfo("mobile", e.target.value)}
-                  className={errors.mobile ? "border-red-500" : ""}
-                />
-                <p className="text-xs text-gray-500">Format: +91 XXX XXX XXX</p>
-                {errors.mobile && (
-                  <p className="text-red-500 text-sm">{errors.mobile}</p>
-                )}
-              </div> */}
               <div className="space-y-2">
                 <Label htmlFor="mobile">
                   Mobile <span className="text-red-500">*</span>

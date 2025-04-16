@@ -37,16 +37,24 @@ const getServerStartEndTime = async () => {
   return value ? JSON.parse(value) : {};
 };
 
-export const formatDataFromStore = async (assessment_id: string, status: string) => {
-  const parsedValue = await getServerStartEndTime(); 
-  const start_time = parsedValue.start_time ? new Date(parsedValue.start_time).getTime() : 0; 
+export const formatDataFromStore = async (
+  assessment_id: string,
+  status: string
+) => {
+  const parsedValue = await getServerStartEndTime();
+  const start_time = parsedValue.start_time
+    ? new Date(parsedValue.start_time).getTime()
+    : 0;
 
   const state = useAssessmentStore.getState();
   const attemptId = state.assessment?.attempt_id;
   const timeElapsedInSeconds = state.assessment?.duration
     ? state.assessment.duration * 60 - state.entireTestTimer
     : 0;
-  const clientLastSync = new Date(start_time + timeElapsedInSeconds * 1000).toISOString();
+  const clientLastSync = new Date(
+    start_time + timeElapsedInSeconds * 1000
+  ).toISOString();
+
   return {
     attemptId: attemptId,
     clientLastSync,
@@ -63,19 +71,40 @@ export const formatDataFromStore = async (assessment_id: string, status: string)
       timeElapsedInSeconds: section.duration
         ? (state.sectionTimers?.[idx]?.timeLeft || 0) - section.duration * 60
         : 0,
-      questions: section.question_preview_dto_list?.map((question) => ({
-        questionId: question.question_id,
-        questionDurationLeftInSeconds:
-          state.questionTimers?.[question.question_id] || 0,
-        timeTakenInSeconds: state.questionTimeSpent[question.question_id] || 0,
-        isMarkedForReview:
-          state.questionStates[question.question_id]?.isMarkedForReview || false,
-        isVisited: state.questionStates[question.question_id]?.isVisited || false,
-        responseData: {
-          type: question.question_type,
-          optionIds: state.answers?.[question.question_id] || [],
-        },
-      })),
+      questions: section.question_preview_dto_list?.map((question) => {
+        const rawAnswer = state.answers?.[question.question_id];
+        const normalizedAnswer = Array.isArray(rawAnswer)
+          ? rawAnswer[0]
+          : rawAnswer;
+
+        return {
+          questionId: question.question_id,
+          questionDurationLeftInSeconds:
+            state.questionTimers?.[question.question_id] || 0,
+          timeTakenInSeconds:
+            state.questionTimeSpent[question.question_id] || 0,
+          isMarkedForReview:
+            state.questionStates[question.question_id]?.isMarkedForReview ||
+            false,
+          isVisited:
+            state.questionStates[question.question_id]?.isVisited || false,
+          responseData: {
+            type: question.question_type,
+            ...(question.question_type === "NUMERIC"
+              ? {
+                  validAnswer:
+                    normalizedAnswer !== undefined &&
+                    normalizedAnswer !== null &&
+                    !isNaN(parseFloat(normalizedAnswer))
+                      ? parseFloat(normalizedAnswer)
+                      : null,
+                }
+              : ["ONE_WORD", "LONG_ANSWER"].includes(question.question_type)
+                ? { answer: normalizedAnswer || "" }
+                : { optionIds: rawAnswer || [] }),
+          },
+        };
+      }),
     })),
   };
 };
@@ -95,7 +124,8 @@ export default function Page() {
         ? JSON.parse(InstructionID_and_AboutID.value)
         : null;
       const formattedData = await formatDataFromStore(
-        assessment_id_json?.assessment_id, 'LIVE'
+        assessment_id_json?.assessment_id,
+        "LIVE"
       );
       const response = await authenticatedAxiosInstance.post(
         `${ASSESSMENT_SAVE}`,
@@ -138,18 +168,8 @@ export default function Page() {
     const sent = async () => {
       // Check if isSubmitted is false and time is not up before sending data
       const state = useAssessmentStore.getState();
-      const InstructionID_and_AboutID = await Preferences.get({
-        key: "InstructionID_and_AboutID",
-      });
-      const assessment_id_json = InstructionID_and_AboutID.value
-        ? JSON.parse(InstructionID_and_AboutID.value)
-        : null;
 
-      if (
-        !isSubmitted &&
-        state.entireTestTimer > 0 &&
-        assessment_id_json?.play_mode === "EXAM"
-      ) {
+      if (!isSubmitted && state.entireTestTimer > 0) {
         await sendData();
       }
     };

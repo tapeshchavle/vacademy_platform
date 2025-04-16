@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { QUESTION_TYPES } from "@/types/assessment";
 import { useAssessmentStore } from "@/stores/assessment-store";
+import { MyInput } from "@/components/design-system/input";
 
 export function NumericInputWithKeypad() {
   const { currentQuestion, answers, setAnswer } = useAssessmentStore();
@@ -15,7 +15,7 @@ export function NumericInputWithKeypad() {
   useEffect(() => {
     if (
       !currentQuestion ||
-      currentQuestion.question_type !== QUESTION_TYPES.MCQM
+      currentQuestion.question_type !== QUESTION_TYPES.NUMERIC
     ) {
       return;
     }
@@ -59,7 +59,7 @@ export function NumericInputWithKeypad() {
       }
     } else if (key === "." && isDecimal && !numericValue.includes(".")) {
       setNumericValue((prev) => prev + ".");
-    } else if (key === "submit") {
+    } else if (key === "save") {
       if (numericValue.trim() !== "" && currentQuestion) {
         setAnswer(currentQuestion.question_id, [numericValue]);
       }
@@ -111,7 +111,7 @@ export function NumericInputWithKeypad() {
 
   if (
     !currentQuestion ||
-    currentQuestion.question_type !== QUESTION_TYPES.MCQM
+    currentQuestion.question_type !== QUESTION_TYPES.NUMERIC
   ) {
     return null;
   }
@@ -119,16 +119,16 @@ export function NumericInputWithKeypad() {
   return (
     <div className="space-y-4 mt-6">
       <div className="flex justify-center">
-        <Input
-          type="text"
-          value={numericValue}
-          onChange={handleInputChange}
+        <MyInput
+          inputType="text"
+          input={numericValue}
+          onChangeFunction={handleInputChange}
           onBlur={handleBlur}
-          className="text-center text-xl py-4 font-medium w-full max-w-md"
-          placeholder={
+          inputPlaceholder={
             isDecimal ? "Enter decimal value" : "Enter integer value"
           }
           inputMode="numeric"
+          className="text-xl py-4 font-medium w-full"
         />
       </div>
 
@@ -181,11 +181,11 @@ export function NumericInputWithKeypad() {
             </Button>
             <Button
               variant="default"
-              className="h-14 bg-primary-500 hover:bg-primary-600"
-              onClick={() => handleKeyPress("submit")}
+              className="h-14 text-white bg-primary-500 hover:bg-primary-600"
+              onClick={() => handleKeyPress("save")}
               disabled={numericValue.trim() === ""}
             >
-              Submit
+              Save
             </Button>
           </div>
         </CardContent>
