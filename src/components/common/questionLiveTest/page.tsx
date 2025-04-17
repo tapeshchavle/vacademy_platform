@@ -32,7 +32,7 @@ export function convertToLocalDateTime(utcDate: string): string {
 }
 
 // Function to format data from assessment-store
-const getServerStartEndTime = async () => {
+export const getServerStartEndTime = async () => {
   const { value } = await Preferences.get({ key: "server_start_end_time" });
   return value ? JSON.parse(value) : {};
 };

@@ -31,7 +31,7 @@ import { Storage } from "@capacitor/storage";
 import { useProctoring } from "@/hooks";
 import { App } from "@capacitor/app";
 import type { PluginListenerHandle } from "@capacitor/core";
-import { formatDataFromStore } from "./page";
+// import { formatDataFromStore } from "./page";
 import { useFileUpload } from "@/hooks/use-file-upload";
 // import { PdfViewerComponent } from "@/components/pdf-viewer"
 import type {
@@ -39,6 +39,7 @@ import type {
   PageChangeEvent,
 } from "@react-pdf-viewer/core";
 import { PdfViewerComponent } from "../study-library/level-material/subject-material/module-material/chapter-material/slide-material/pdf-viewer-component";
+import { getServerStartEndTime } from "./page";
 
 export function Navbar() {
   const {
@@ -81,6 +82,179 @@ export function Navbar() {
     currentPage: 0,
   });
 
+  // const formatDataFromStore = async (
+  //   assessment_id: string,
+  //   status: string,
+  //   evaluationType: string // <-- Added parameter
+  // ) => {
+  //   const parsedValue = await getServerStartEndTime();
+  //   const start_time = parsedValue.start_time
+  //     ? new Date(parsedValue.start_time).getTime()
+  //     : 0;
+
+  //   const state = useAssessmentStore.getState();
+  //   const attemptId = state.assessment?.attempt_id;
+  //   const timeElapsedInSeconds = state.assessment?.duration
+  //     ? state.assessment.duration * 60 - state.entireTestTimer
+  //     : 0;
+  //   const clientLastSync = new Date(
+  //     start_time + timeElapsedInSeconds * 1000
+  //   ).toISOString();
+
+  //   return {
+  //     attemptId: attemptId,
+  //     clientLastSync,
+  //     assessment: {
+  //       assessmentId: assessment_id,
+  //       entireTestDurationLeftInSeconds: state.entireTestTimer,
+  //       timeElapsedInSeconds,
+  //       status: status,
+  //       tabSwitchCount: state.tabSwitchCount || 0,
+  //     },
+  //     sections: state.assessment?.section_dtos?.map((section, idx) => ({
+  //       sectionId: section.id,
+  //       sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+  //       timeElapsedInSeconds: section.duration
+  //         ? (state.sectionTimers?.[idx]?.timeLeft || 0) - section.duration * 60
+  //         : 0,
+  //       questions: section.question_preview_dto_list?.map((question) => {
+  //         const rawAnswer = state.answers?.[question.question_id];
+  //         const normalizedAnswer = Array.isArray(rawAnswer)
+  //           ? rawAnswer[0]
+  //           : rawAnswer;
+
+  //         const baseQuestionData = {
+  //           questionId: question.question_id,
+  //           questionDurationLeftInSeconds:
+  //             state.questionTimers?.[question.question_id] || 0,
+  //           timeTakenInSeconds:
+  //             state.questionTimeSpent[question.question_id] || 0,
+  //           isMarkedForReview:
+  //             state.questionStates[question.question_id]?.isMarkedForReview ||
+  //             false,
+  //           isVisited:
+  //             state.questionStates[question.question_id]?.isVisited || false,
+  //         };
+
+  //         if (evaluationType === "MANUAL") {
+  //           return {
+  //             ...baseQuestionData,
+  //             fieldId: question.field_id,
+  //             setId: question.set_id,
+  //           };
+  //         } else {
+  //           return {
+  //             ...baseQuestionData,
+  //             responseData: {
+  //               type: question.question_type,
+  //               ...(question.question_type === "NUMERIC"
+  //                 ? {
+  //                     validAnswer:
+  //                       normalizedAnswer !== undefined &&
+  //                       normalizedAnswer !== null &&
+  //                       !isNaN(parseFloat(normalizedAnswer))
+  //                         ? parseFloat(normalizedAnswer)
+  //                         : null,
+  //                   }
+  //                 : ["ONE_WORD", "LONG_ANSWER"].includes(question.question_type)
+  //                   ? { answer: normalizedAnswer || "" }
+  //                   : { optionIds: rawAnswer || [] }),
+  //             },
+  //           };
+  //         }
+  //       }),
+  //     })),
+  //   };
+  // };
+
+  const formatDataFromStore = async (
+    assessment_id: string,
+    status: string,
+    evaluationType: string,
+    fileId: string
+  ) => {
+    const parsedValue = await getServerStartEndTime();
+    const start_time = parsedValue.start_time
+      ? new Date(parsedValue.start_time).getTime()
+      : 0;
+
+    const state = useAssessmentStore.getState();
+    const attemptId = state.assessment?.attempt_id;
+    const timeElapsedInSeconds = state.assessment?.duration
+      ? state.assessment.duration * 60 - state.entireTestTimer
+      : 0;
+    const clientLastSync = new Date(
+      start_time + timeElapsedInSeconds * 1000
+    ).toISOString();
+
+    const base = {
+      attemptId,
+      ...(evaluationType === "MANUAL" && {
+        fileId: fileId,
+        setId: "ggcgc",
+      }),
+      clientLastSync,
+      assessment: {
+        assessmentId: assessment_id,
+        entireTestDurationLeftInSeconds: state.entireTestTimer,
+        timeElapsedInSeconds,
+        status,
+        tabSwitchCount: state.tabSwitchCount || 0,
+      },
+      sections: state.assessment?.section_dtos?.map((section, idx) => ({
+        sectionId: section.id,
+        sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
+        timeElapsedInSeconds: section.duration
+          ? (state.sectionTimers?.[idx]?.timeLeft || 0) - section.duration * 60
+          : 0,
+        questions: section.question_preview_dto_list?.map((question) => {
+          const rawAnswer = state.answers?.[question.question_id];
+          const normalizedAnswer = Array.isArray(rawAnswer)
+            ? rawAnswer[0]
+            : rawAnswer;
+
+          const baseQuestionData = {
+            questionId: question.question_id,
+            questionDurationLeftInSeconds:
+              state.questionTimers?.[question.question_id] || 0,
+            timeTakenInSeconds:
+              state.questionTimeSpent[question.question_id] || 0,
+            isMarkedForReview:
+              state.questionStates[question.question_id]?.isMarkedForReview ||
+              false,
+            isVisited:
+              state.questionStates[question.question_id]?.isVisited || false,
+          };
+
+          if (evaluationType !== "MANUAL") {
+            return {
+              ...baseQuestionData,
+              responseData: {
+                type: question.question_type,
+                ...(question.question_type === "NUMERIC"
+                  ? {
+                      validAnswer:
+                        normalizedAnswer !== undefined &&
+                        normalizedAnswer !== null &&
+                        !isNaN(parseFloat(normalizedAnswer))
+                          ? parseFloat(normalizedAnswer)
+                          : null,
+                    }
+                  : ["ONE_WORD", "LONG_ANSWER"].includes(question.question_type)
+                    ? { answer: normalizedAnswer || "" }
+                    : { optionIds: rawAnswer || [] }),
+              },
+            };
+          } else {
+            return baseQuestionData;
+          }
+        }),
+      })),
+    };
+
+    return base;
+  };
+
   useEffect(() => {
     const fetchInstituteAndUserId = async () => {
       const instituteResult = await Preferences.get({ key: "InstituteId" });
@@ -121,7 +295,9 @@ export function Navbar() {
       : null;
     const formattedData = await formatDataFromStore(
       assessment_id_json?.assessment_id,
-      "END"
+      "END",
+      evaluationType ?? "",
+      pdfFile?.fileId ?? ""
     );
     console.log("evaluationType", evaluationType, "pdfFile", pdfFile);
     if (evaluationType === "MANUAL" && pdfFile) {
