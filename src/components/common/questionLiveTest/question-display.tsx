@@ -46,7 +46,6 @@ export function QuestionDisplay() {
         const parsedData = JSON.parse(storedMode.value);
         setPlayMode(parsedData.play_mode);
         setIsManualTest(parsedData.evaluation_type === "MANUAL");
-        // setIsManualTest(parsedData.evaluation_type === "AUTO");
       }
     };
 
@@ -230,6 +229,7 @@ export function QuestionDisplay() {
             return !isManualTest && <LongAnswerInput />;
           case QUESTION_TYPES.MCQM:
           case QUESTION_TYPES.MCQS:
+          case QUESTION_TYPES.TRUE_FALSE:
             return (
               <div className="space-y-4">
                 {currentQuestion?.options?.map((option, index) => (

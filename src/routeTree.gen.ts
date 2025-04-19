@@ -24,6 +24,8 @@ import { Route as SessionSelectionPageIndexImport } from './routes/SessionSelect
 import { Route as UserProfileEditIndexImport } from './routes/user-profile/edit/index'
 import { Route as StudyLibraryCoursesIndexImport } from './routes/study-library/courses/index'
 import { Route as LoginForgotPasswordIndexImport } from './routes/login/forgot-password/index'
+import { Route as HomeworkReportsIndexImport } from './routes/homework/reports/index'
+import { Route as HomeworkListIndexImport } from './routes/homework/list/index'
 import { Route as DashboardNotificationsIndexImport } from './routes/dashboard/notifications/index'
 import { Route as AssessmentReportsIndexImport } from './routes/assessment/reports/index'
 import { Route as AssessmentExaminationIndexImport } from './routes/assessment/examination/index'
@@ -115,6 +117,18 @@ const StudyLibraryCoursesIndexRoute = StudyLibraryCoursesIndexImport.update({
 const LoginForgotPasswordIndexRoute = LoginForgotPasswordIndexImport.update({
   id: '/login/forgot-password/',
   path: '/login/forgot-password/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const HomeworkReportsIndexRoute = HomeworkReportsIndexImport.update({
+  id: '/homework/reports/',
+  path: '/homework/reports/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const HomeworkListIndexRoute = HomeworkListIndexImport.update({
+  id: '/homework/list/',
+  path: '/homework/list/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -297,6 +311,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardNotificationsIndexImport
       parentRoute: typeof rootRoute
     }
+    '/homework/list/': {
+      id: '/homework/list/'
+      path: '/homework/list'
+      fullPath: '/homework/list'
+      preLoaderRoute: typeof HomeworkListIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/homework/reports/': {
+      id: '/homework/reports/'
+      path: '/homework/reports'
+      fullPath: '/homework/reports'
+      preLoaderRoute: typeof HomeworkReportsIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/login/forgot-password/': {
       id: '/login/forgot-password/'
       path: '/login/forgot-password'
@@ -400,6 +428,8 @@ export interface FileRoutesByFullPath {
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/assessment/reports': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
+  '/homework/list': typeof HomeworkListIndexRoute
+  '/homework/reports': typeof HomeworkReportsIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
   '/study-library/courses': typeof StudyLibraryCoursesIndexRoute
   '/user-profile/edit': typeof UserProfileEditIndexRoute
@@ -428,6 +458,8 @@ export interface FileRoutesByTo {
   '/assessment/examination': typeof AssessmentExaminationIndexRoute
   '/assessment/reports': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications': typeof DashboardNotificationsIndexRoute
+  '/homework/list': typeof HomeworkListIndexRoute
+  '/homework/reports': typeof HomeworkReportsIndexRoute
   '/login/forgot-password': typeof LoginForgotPasswordIndexRoute
   '/study-library/courses': typeof StudyLibraryCoursesIndexRoute
   '/user-profile/edit': typeof UserProfileEditIndexRoute
@@ -457,6 +489,8 @@ export interface FileRoutesById {
   '/assessment/examination/': typeof AssessmentExaminationIndexRoute
   '/assessment/reports/': typeof AssessmentReportsIndexRoute
   '/dashboard/notifications/': typeof DashboardNotificationsIndexRoute
+  '/homework/list/': typeof HomeworkListIndexRoute
+  '/homework/reports/': typeof HomeworkReportsIndexRoute
   '/login/forgot-password/': typeof LoginForgotPasswordIndexRoute
   '/study-library/courses/': typeof StudyLibraryCoursesIndexRoute
   '/user-profile/edit/': typeof UserProfileEditIndexRoute
@@ -487,6 +521,8 @@ export interface FileRouteTypes {
     | '/assessment/examination'
     | '/assessment/reports'
     | '/dashboard/notifications'
+    | '/homework/list'
+    | '/homework/reports'
     | '/login/forgot-password'
     | '/study-library/courses'
     | '/user-profile/edit'
@@ -514,6 +550,8 @@ export interface FileRouteTypes {
     | '/assessment/examination'
     | '/assessment/reports'
     | '/dashboard/notifications'
+    | '/homework/list'
+    | '/homework/reports'
     | '/login/forgot-password'
     | '/study-library/courses'
     | '/user-profile/edit'
@@ -541,6 +579,8 @@ export interface FileRouteTypes {
     | '/assessment/examination/'
     | '/assessment/reports/'
     | '/dashboard/notifications/'
+    | '/homework/list/'
+    | '/homework/reports/'
     | '/login/forgot-password/'
     | '/study-library/courses/'
     | '/user-profile/edit/'
@@ -570,6 +610,8 @@ export interface RootRouteChildren {
   AssessmentExaminationIndexRoute: typeof AssessmentExaminationIndexRoute
   AssessmentReportsIndexRoute: typeof AssessmentReportsIndexRoute
   DashboardNotificationsIndexRoute: typeof DashboardNotificationsIndexRoute
+  HomeworkListIndexRoute: typeof HomeworkListIndexRoute
+  HomeworkReportsIndexRoute: typeof HomeworkReportsIndexRoute
   LoginForgotPasswordIndexRoute: typeof LoginForgotPasswordIndexRoute
   StudyLibraryCoursesIndexRoute: typeof StudyLibraryCoursesIndexRoute
   UserProfileEditIndexRoute: typeof UserProfileEditIndexRoute
@@ -598,6 +640,8 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentExaminationIndexRoute: AssessmentExaminationIndexRoute,
   AssessmentReportsIndexRoute: AssessmentReportsIndexRoute,
   DashboardNotificationsIndexRoute: DashboardNotificationsIndexRoute,
+  HomeworkListIndexRoute: HomeworkListIndexRoute,
+  HomeworkReportsIndexRoute: HomeworkReportsIndexRoute,
   LoginForgotPasswordIndexRoute: LoginForgotPasswordIndexRoute,
   StudyLibraryCoursesIndexRoute: StudyLibraryCoursesIndexRoute,
   UserProfileEditIndexRoute: UserProfileEditIndexRoute,
@@ -643,6 +687,8 @@ export const routeTree = rootRoute
         "/assessment/examination/",
         "/assessment/reports/",
         "/dashboard/notifications/",
+        "/homework/list/",
+        "/homework/reports/",
         "/login/forgot-password/",
         "/study-library/courses/",
         "/user-profile/edit/",
@@ -695,6 +741,12 @@ export const routeTree = rootRoute
     },
     "/dashboard/notifications/": {
       "filePath": "dashboard/notifications/index.tsx"
+    },
+    "/homework/list/": {
+      "filePath": "homework/list/index.tsx"
+    },
+    "/homework/reports/": {
+      "filePath": "homework/reports/index.tsx"
     },
     "/login/forgot-password/": {
       "filePath": "login/forgot-password/index.tsx"
