@@ -4,23 +4,23 @@ import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/
 import { useQuery } from "@tanstack/react-query";
 
 export const InitStudyLibraryProvider = ({
-    children,
+  children,
 }: {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }) => {
-    // First query to get the package session ID
-    const { data: packageSessionId, isLoading: isLoadingPackageId } = useQuery({
-        queryKey: ['packageSessionId'],
-        queryFn: getPackageSessionId,
-    });
+  // First query to get the package session ID
+  const { data: packageSessionId, isLoading: isLoadingPackageId } = useQuery({
+    queryKey: ["packageSessionId"],
+    queryFn: getPackageSessionId,
+  });
 
-    // Main query for modules with chapters
-    const { isLoading: isLoadingInitStudyLibrary } = useQuery({
-        ...useStudyLibraryQuery(packageSessionId),
-        staleTime: 3600000 // Only run when packageSessionId is available
-    });
+  // Main query for modules with chapters
+  const { isLoading: isLoadingInitStudyLibrary } = useQuery({
+    ...useStudyLibraryQuery(packageSessionId),
+    enabled: !!packageSessionId, // Only run when packageSessionId is available
+  });
 
-    const isLoading = isLoadingInitStudyLibrary || isLoadingPackageId;
+  const isLoading = isLoadingInitStudyLibrary || isLoadingPackageId;
 
-    return <div>{isLoading ? <DashboardLoader /> : children}</div>;
+  return <div>{isLoading ? <DashboardLoader /> : children}</div>;
 };
