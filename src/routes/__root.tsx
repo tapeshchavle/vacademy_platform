@@ -73,8 +73,6 @@
 //   component: RootComponent,
 // });
 
-
-
 import { QueryClient } from "@tanstack/react-query";
 import {
   createRootRouteWithContext,
@@ -116,6 +114,7 @@ const RootComponent = () => {
   useEffect(() => {
     (async () => {
       const result = await AppUpdate.getAppUpdateInfo();
+      toast.warning("AppUpdate result:");
       if (
         result.updateAvailability === AppUpdateAvailability.UPDATE_AVAILABLE
       ) {
@@ -132,10 +131,10 @@ const RootComponent = () => {
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
       console.log("Deep link opened:", event.url);
-      
+
       // Extract path after domain
       const path = new URL(event.url).pathname;
-      
+
       // Navigate within the app
       if (path) {
         navigate({ to: path });
