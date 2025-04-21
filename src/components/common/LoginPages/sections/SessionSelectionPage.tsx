@@ -156,9 +156,10 @@ const SessionSelectionPage = () => {
                     className="w-full rounded-t-lg object-cover h-full"
                   />
                 ) : (
-                  <div className="flex w-full items-center justify-center rounded-t-lg bg-neutral-100 h-full">
-                    <span className="text-neutral-400">No Image</span>
-                  </div>
+                  // <div className="flex w-full items-center justify-center rounded-t-lg bg-neutral-100 h-full">
+                  //   <span className="text-neutral-400">No Image</span>
+                  // </div>
+                  <></>
                 )}
               </div>
               <CardHeader>
