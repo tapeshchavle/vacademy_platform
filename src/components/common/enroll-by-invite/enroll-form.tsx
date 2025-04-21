@@ -111,7 +111,7 @@ const EnrollByInvite = () => {
   const [inviteData, setInviteData] = useState<LearnerInvitation | null>(null);
   const [batchOptions, setBatchOptions] = useState<BatchOptions | null>(null);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   // All available levels with context
   const [allLevels, setAllLevels] = useState<LevelWithContext[]>([]);
@@ -689,11 +689,11 @@ const EnrollByInvite = () => {
         submissionData
       );
       console.log("Enrollment response:", response.data);
-      setSuccess("Enrollment submitted successfully!");
+      setSuccess(true);
       toast.success("Enrollment submitted successfully!");
     } catch (error) {
       console.error("Error submitting enrollment:", error);
-      setSuccess(null);
+      setSuccess(false);
       toast.error("Failed to submit enrollment. Please try again.");
     } finally {
       setSubmitLoading(false);
