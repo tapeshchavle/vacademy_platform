@@ -101,11 +101,6 @@ const phoneSchema = z
   .transform((val) => val.trim());
 
 const EnrollByInvite = () => {
-  // const instituteId = "9d3f4ccb-a7f6-423f-bc4f-75c6d6176346";
-  // const inviteCode = "OQRTLE";
-  // const instituteId = "0f1a4bb6-90ec-4e91-bbbf-2184a39c986e";
-  // const inviteCode = "053OO";
-
   const { instituteId, inviteCode } = Route.useSearch();
 
   // Form state
@@ -116,6 +111,7 @@ const EnrollByInvite = () => {
   const [inviteData, setInviteData] = useState<LearnerInvitation | null>(null);
   const [batchOptions, setBatchOptions] = useState<BatchOptions | null>(null);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // All available levels with context
   const [allLevels, setAllLevels] = useState<LevelWithContext[]>([]);
@@ -649,16 +645,18 @@ const EnrollByInvite = () => {
 
               // Find the full level data for each selected level
               const selectedLevelsWithData = sessionLevels.map((levelId) => {
-                // Find the level in allLevels
                 const levelData = allLevels.find((l) => l.id === levelId);
-                // Return the full level data from the session's learner_choice_levels
+
                 const session = findSessionById(sessionId);
                 const fullLevelData = session?.learner_choice_levels?.find(
                   (l) => l.id === levelId
                 );
-                return (
-                  fullLevelData || { id: levelId, name: levelData?.name || "" }
-                );
+
+                return {
+                  id: levelId,
+                  name: levelData?.name || "",
+                  package_session_id: fullLevelData?.package_session_id || null,
+                };
               });
 
               return {
@@ -691,9 +689,11 @@ const EnrollByInvite = () => {
         submissionData
       );
       console.log("Enrollment response:", response.data);
+      setSuccess("Enrollment submitted successfully!");
       toast.success("Enrollment submitted successfully!");
     } catch (error) {
       console.error("Error submitting enrollment:", error);
+      setSuccess(null);
       toast.error("Failed to submit enrollment. Please try again.");
     } finally {
       setSubmitLoading(false);
@@ -906,6 +906,11 @@ const EnrollByInvite = () => {
                     ))}
                   </div>
                 )}
+              {success ? (
+                <p className="text-green-500 text-sm">
+                  Your data has been sent successfully!
+                </p>
+              ) : null}
 
               <div className="pt-4 flex justify-between">
                 <MyButton
