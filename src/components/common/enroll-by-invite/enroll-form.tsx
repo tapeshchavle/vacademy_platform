@@ -14,7 +14,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
-import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { ENROLL_DETAILS_RESPONSE, GET_ENROLL_DETAILS } from "@/constants/urls";
 import { toast } from "sonner";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
@@ -23,7 +22,6 @@ import { getPublicUrl } from "@/services/upload_file";
 import axios from "axios";
 import { Route } from "@/routes/learner-invitation-response";
 
-// Type definitions
 interface CustomField {
   id: string;
   field_name: string;
@@ -44,13 +42,14 @@ interface Session {
   id: string;
   name: string;
   institute_assigned?: boolean;
-  max_selectable_levels: number;
+  max_selectable_packages: number;
   pre_selected_levels?: Level[];
   learner_choice_levels?: Level[];
 }
 
 interface Package {
   id: string;
+
   name: string;
   institute_assigned?: boolean;
   max_selectable_sessions: number;
@@ -131,7 +130,7 @@ const EnrollByInvite = () => {
   >({});
 
   // Personal info state
-  const [personalInfo, setPersonalInfo] = useState({
+  const [personalInfo] = useState({
     fullName: "",
     email: "",
     mobile: "",
@@ -367,11 +366,11 @@ const EnrollByInvite = () => {
       // Add level if within max limit
       const session = findSessionById(sessionId);
       if (session) {
-        const maxLevels = session.max_selectable_levels;
+        const maxLevels = batchOptions?.max_selectable_packages; // Changed from max_selectable_levels
         const preSelectedCount = session.pre_selected_levels?.length || 0;
         console.log("preSelectedCount", preSelectedCount);
 
-        if (currentLevels.length < maxLevels) {
+        if (currentLevels.length < (maxLevels ?? 0)) {
           setSelectedLevels({
             ...selectedLevels,
             [sessionId]: [...currentLevels, level.id],
@@ -428,22 +427,22 @@ const EnrollByInvite = () => {
     if (isSelected) return true;
 
     // Check if we've reached the max limit
-    const maxLevels = session.max_selectable_levels;
+    const maxLevels = batchOptions?.max_selectable_packages; // Changed from max_selectable_levels
     const preSelectedCount = session.pre_selected_levels?.length || 0;
     console.log("preSelectedCount", preSelectedCount);
 
-    return currentLevels.length < maxLevels;
+    return currentLevels.length < (maxLevels ?? 0);
   };
 
   // Update personal info
-  const updatePersonalInfo = (field: string, value: string) => {
-    setPersonalInfo({ ...personalInfo, [field]: value });
+  // const updatePersonalInfo = (field: string, value: string) => {
+  //   setPersonalInfo({ ...personalInfo, [field]: value });
 
-    // Clear error when typing
-    if (errors[field as keyof typeof errors]) {
-      setErrors({ ...errors, [field]: "" });
-    }
-  };
+  //   // Clear error when typing
+  //   if (errors[field as keyof typeof errors]) {
+  //     setErrors({ ...errors, [field]: "" });
+  //   }
+  // };
 
   // Update custom field value
   const updateCustomField = (fieldId: string, value: string) => {
@@ -512,31 +511,6 @@ const EnrollByInvite = () => {
     const newErrors = { ...errors };
     let hasError = false;
 
-    // Validate personal info
-    if (!personalInfo.fullName.trim()) {
-      newErrors.fullName = "Full name is required";
-      hasError = true;
-    }
-
-    try {
-      emailSchema.parse(personalInfo.email);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        newErrors.email = error.errors[0].message;
-        hasError = true;
-      }
-    }
-
-    // Validation logic
-    try {
-      phoneSchema.parse(personalInfo.mobile);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        newErrors.mobile = error.errors[0].message;
-        hasError = true;
-      }
-    }
-
     // Validate custom fields
     if (inviteData && inviteData.custom_fields) {
       inviteData.custom_fields.forEach((field) => {
@@ -547,6 +521,36 @@ const EnrollByInvite = () => {
           };
           hasError = true;
         }
+
+        // Add validation for Email field
+        if (field.field_name === "Email") {
+          try {
+            emailSchema.parse(customFieldValues[field.id]);
+          } catch (error) {
+            if (error instanceof z.ZodError) {
+              newErrors.customFields = {
+                ...newErrors.customFields,
+                [field.id]: error.errors[0].message,
+              };
+              hasError = true;
+            }
+          }
+        }
+
+        // Add validation for Phone Number field
+        if (field.field_name === "Phone Number") {
+          try {
+            phoneSchema.parse(customFieldValues[field.id]);
+          } catch (error) {
+            if (error instanceof z.ZodError) {
+              newErrors.customFields = {
+                ...newErrors.customFields,
+                [field.id]: error.errors[0].message,
+              };
+              hasError = true;
+            }
+          }
+        }
       });
     }
 
@@ -555,47 +559,134 @@ const EnrollByInvite = () => {
       return;
     }
 
-    // Prepare data for submission
+    // Find email and phone number from custom fields
+    let emailValue = personalInfo.email;
+    let phoneValue = personalInfo.mobile;
+
+    if (inviteData && inviteData.custom_fields) {
+      const emailField = inviteData.custom_fields.find(
+        (field) => field.field_name === "Email"
+      );
+      const phoneField = inviteData.custom_fields.find(
+        (field) => field.field_name === "Phone Number"
+      );
+      const fullNameField = inviteData.custom_fields.find(
+        (field) => field.field_name === "Full Name"
+      );
+
+      if (emailField && customFieldValues[emailField.id]) {
+        emailValue = customFieldValues[emailField.id];
+      }
+
+      if (phoneField && customFieldValues[phoneField.id]) {
+        phoneValue = customFieldValues[phoneField.id];
+      }
+      if (fullNameField && customFieldValues[fullNameField.id]) {
+        personalInfo.fullName = customFieldValues[fullNameField.id];
+      }
+    }
+
+    // Find all package data
+    const getPackageData = (packageId: string) => {
+      if (!batchOptions) return { id: packageId };
+
+      const preSelectedPackage = batchOptions.pre_selected_packages.find(
+        (p) => p.id === packageId
+      );
+      const learnerChoicePackage = batchOptions.learner_choice_packages.find(
+        (p) => p.id === packageId
+      );
+
+      return preSelectedPackage || learnerChoicePackage || { id: packageId };
+    };
+
+    // Find all session data
+    const getSessionData = (packageId: string, sessionId: string) => {
+      const packageData = getPackageData(packageId);
+
+      if (!packageData) return { id: sessionId };
+
+      let preSelectedSession = null;
+      let learnerChoiceSession = null;
+
+      if ("pre_selected_session_dtos" in packageData) {
+        preSelectedSession = packageData.pre_selected_session_dtos?.find(
+          (s: Session) => s.id === sessionId
+        );
+      }
+
+      if ("learner_choice_sessions" in packageData) {
+        learnerChoiceSession = packageData.learner_choice_sessions?.find(
+          (s: Session) => s.id === sessionId
+        );
+      }
+
+      return preSelectedSession || learnerChoiceSession || { id: sessionId };
+    };
+
+    // Prepare data for submission with full data for packages, sessions, and levels
     const submissionData = {
       id: null,
       institute_id: inviteData?.institute_id,
       learner_invitation_id: inviteData?.id,
       status: "ACTIVE",
       full_name: personalInfo.fullName,
-      email: personalInfo.email,
-      contact_number: personalInfo.mobile,
+      email: emailValue,
+      contact_number: phoneValue,
       batch_options_json: inviteData?.batch_options_json,
       batch_selection_response_json: JSON.stringify(
         selectedPackages.map((packageId) => {
+          const packageData = getPackageData(packageId);
+          console.log("packageData", packageData);
           const packageSessions = selectedSessions[packageId] || [];
 
           return {
             package_id: packageId,
+            package_name: "name" in packageData ? packageData.name : "",
             selected_sessions: packageSessions.map((sessionId) => {
+              const sessionData = getSessionData(packageId, sessionId);
               const sessionLevels = selectedLevels[sessionId] || [];
+
+              // Find the full level data for each selected level
+              const selectedLevelsWithData = sessionLevels.map((levelId) => {
+                // Find the level in allLevels
+                const levelData = allLevels.find((l) => l.id === levelId);
+                // Return the full level data from the session's learner_choice_levels
+                const session = findSessionById(sessionId);
+                const fullLevelData = session?.learner_choice_levels?.find(
+                  (l) => l.id === levelId
+                );
+                return (
+                  fullLevelData || { id: levelId, name: levelData?.name || "" }
+                );
+              });
 
               return {
                 session_id: sessionId,
-                selected_levels: sessionLevels,
+                session_name: "name" in sessionData ? sessionData.name : "",
+                selected_levels: selectedLevelsWithData,
               };
             }),
           };
         })
       ),
       recorded_on: new Date().toISOString(),
-      custom_fields_response: Object.keys(customFieldValues).map((fieldId) => ({
-        custom_field_id: fieldId,
-        id: null,
-        value: customFieldValues[fieldId],
-        field_name: null,
-      })),
+      custom_fields_response: Object.keys(customFieldValues).map((fieldId) => {
+        const field = inviteData?.custom_fields.find((f) => f.id === fieldId);
+        return {
+          custom_field_id: fieldId,
+          id: null,
+          value: customFieldValues[fieldId],
+          field_name: field?.field_name || null,
+        };
+      }),
     };
-    console.log("customFieldValues", customFieldValues);
+    console.log("Submission data:", submissionData);
 
     // Submit data
     setSubmitLoading(true);
     try {
-      const response = await authenticatedAxiosInstance.post(
+      const response = await axios.post(
         `${ENROLL_DETAILS_RESPONSE}`,
         submissionData
       );
@@ -603,6 +694,7 @@ const EnrollByInvite = () => {
       toast.success("Enrollment submitted successfully!");
     } catch (error) {
       console.error("Error submitting enrollment:", error);
+      toast.error("Failed to submit enrollment. Please try again.");
     } finally {
       setSubmitLoading(false);
     }
@@ -621,7 +713,7 @@ const EnrollByInvite = () => {
             className={errors.customFields[field.id] ? "border-red-500" : ""}
           />
         );
-      case "DROPDOWN":
+      case "DROPDOWN": {
         const options = field.comma_separated_options
           ? field.comma_separated_options.split(",")
           : [];
@@ -644,6 +736,7 @@ const EnrollByInvite = () => {
             </SelectContent>
           </Select>
         );
+      }
       default:
         return (
           <Input
@@ -723,21 +816,25 @@ const EnrollByInvite = () => {
                 </p>
                 {allLevels.map((level) => (
                   <div key={level.id} className="flex items-start space-x-2">
-                    <Checkbox
-                      id={`level-${level.id}`}
-                      checked={isLevelSelected(level.id, level.sessionId)}
-                      onCheckedChange={() => toggleLevel(level)}
-                      disabled={level.isPreSelected || !canSelectLevel(level)}
-                      className={`w-6 h-6 flex items-center justify-center rounded-md shadow ${
-                        isLevelSelected(level.id, level.sessionId)
-                          ? "bg-primary-500"
-                          : "bg-transparent border border-gray-300"
-                      }`}
-                    >
-                      {isLevelSelected(level.id, level.sessionId) && (
-                        <span className="text-white text-sm font-bold">✔</span>
-                      )}
-                    </Checkbox>
+                    {!level.isPreSelected && (
+                      <Checkbox
+                        id={`level-${level.id}`}
+                        checked={isLevelSelected(level.id, level.sessionId)}
+                        onCheckedChange={() => toggleLevel(level)}
+                        disabled={!canSelectLevel(level)}
+                        className={`w-6 h-6 flex items-center justify-center rounded-md shadow ${
+                          isLevelSelected(level.id, level.sessionId)
+                            ? "bg-primary-500"
+                            : "bg-transparent border border-gray-300"
+                        }`}
+                      >
+                        {isLevelSelected(level.id, level.sessionId) && (
+                          <span className="text-white text-sm font-bold">
+                            ✔
+                          </span>
+                        )}
+                      </Checkbox>
+                    )}
 
                     <div className="space-y-1">
                       <Label
@@ -745,6 +842,7 @@ const EnrollByInvite = () => {
                         className="text-sm font-medium cursor-pointer"
                       >
                         {level.name} {level.packageName} {level.sessionName}
+                        {level.isPreSelected && " (Pre-selected)"}
                       </Label>
                     </div>
                   </div>
@@ -782,62 +880,7 @@ const EnrollByInvite = () => {
             // Step 2: Personal Information
             <div className="space-y-6">
               <div className="border-t pt-4">
-                <h3 className="font-medium mb-4">Personal Information</h3>
-              </div>
-
-              {/* Full Name */}
-              <div className="space-y-2">
-                <Label htmlFor="fullName">
-                  Full Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="fullName"
-                  placeholder="Enter your full name"
-                  value={personalInfo.fullName}
-                  onChange={(e) =>
-                    updatePersonalInfo("fullName", e.target.value)
-                  }
-                  className={errors.fullName ? "border-red-500" : ""}
-                />
-                {errors.fullName && (
-                  <p className="text-red-500 text-sm">{errors.fullName}</p>
-                )}
-              </div>
-
-              {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email">
-                  Email <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email address"
-                  value={personalInfo.email}
-                  onChange={(e) => updatePersonalInfo("email", e.target.value)}
-                  className={errors.email ? "border-red-500" : ""}
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-sm">{errors.email}</p>
-                )}
-              </div>
-
-              {/* Mobile */}
-              <div className="space-y-2">
-                <Label htmlFor="mobile">
-                  Mobile <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="mobile"
-                  placeholder="10 digit mobile number"
-                  value={personalInfo.mobile}
-                  onChange={(e) => updatePersonalInfo("mobile", e.target.value)}
-                  className={errors.mobile ? "border-red-500" : ""}
-                />
-                <p className="text-xs text-gray-500">Enter 10 digits only</p>
-                {errors.mobile && (
-                  <p className="text-red-500 text-sm">{errors.mobile}</p>
-                )}
+                <h3 className="font-medium mb-4">Additional Information</h3>
               </div>
 
               {/* Custom Fields */}
@@ -845,12 +888,6 @@ const EnrollByInvite = () => {
                 inviteData.custom_fields &&
                 inviteData.custom_fields.length > 0 && (
                   <div className="space-y-4">
-                    <div className="border-t pt-4">
-                      <h3 className="font-medium mb-2">
-                        Additional Information
-                      </h3>
-                    </div>
-
                     {inviteData.custom_fields.map((field) => (
                       <div key={field.id} className="space-y-2">
                         <Label htmlFor={field.id}>
