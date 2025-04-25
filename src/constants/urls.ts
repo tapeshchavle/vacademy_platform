@@ -35,10 +35,12 @@ export const INIT_STUDY_LIBRARY = `${BASE_URL}/admin-core-service/v1/learner-stu
 export const MODULES_WITH_CHAPTERS = `${BASE_URL}/admin-core-service/v1/learner-study-library/modules-with-chapters`;
 export const GET_SLIDES = `${BASE_URL}/admin-core-service/v1/learner-study-library/get-slides`;
 
+export const GET_DETAILS = `${BASE_URL}/media-service/get-details/ids`;
 export const GET_SIGNED_URL = `${BASE_URL}/media-service/get-signed-url`;
+export const GET_SIGNED_URL_PUBLIC = `${BASE_URL}/media-service/public/get-signed-url`;
 export const ACKNOWLEDGE = `${BASE_URL}/media-service/acknowledge`;
 export const GET_PUBLIC_URL = `${BASE_URL}/media-service/get-public-url`;
-export const GET_DETAILS = `${BASE_URL}/media-service/get-details/ids`;
+export const GET_PUBLIC_URL_PUBLIC = `${BASE_URL}/media-service/public/get-public-url`;
 
 export const ACKNOWLEDGE_FOR_PUBLIC_URL = `${BASE_URL}/media-service/acknowledge-get-details`;
 export const GET_DASHBOARD_DATA = `${BASE_URL}/admin-core-service/learner/v1/get-dashboard-details`;
