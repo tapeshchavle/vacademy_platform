@@ -9,7 +9,7 @@ export const Route = createFileRoute("/homework/reports/")({
 function RouteComponent() {
   return (
     <LayoutContainer>
-      <AssessmentReportList />
+      <AssessmentReportList assessment_types="HOMEWORK" />
     </LayoutContainer>
   );
 }

@@ -4,7 +4,7 @@ import {
   BookOpen,
   Scroll,
   SignOut,
-  // NotePencil,
+  NotePencil,
 } from "@phosphor-icons/react";
 import { UserCircle, UserCircleMinus } from "phosphor-react";
 
@@ -19,21 +19,20 @@ export const SidebarItemsData: SidebarItemsType[] = [
     title: "Learning Center",
     to: "/study-library",
   },
-  // {
-  //   icon: NotePencil,
-  //   title: "Homework",
-  //   // to: "/homework",
-  //   subItems: [
-  //     {
-  //       subItem: "Homework List",
-  //       subItemLink: "/homework/list",
-  //     },
-  //     {
-  //       subItem: "Reports",
-  //       subItemLink: "/homework/reports",
-  //     },
-  //   ],
-  // },
+  {
+    icon: NotePencil,
+    title: "Homework",
+    subItems: [
+      {
+        subItem: "Homework List",
+        subItemLink: "/homework/list",
+      },
+      {
+        subItem: "Reports",
+        subItemLink: "/homework/reports",
+      },
+    ],
+  },
   {
     icon: Scroll,
     title: "Assessment Centre",

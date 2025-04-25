@@ -71,7 +71,8 @@ const getDuration = async (): Promise<{
 export const fetchAssessmentData = async (
   pageNo: number,
   pageSize: number,
-  assessmentType: assessmentTypes
+  assessmentType: assessmentTypes,
+  assessment_types: "HOMEWORK"
 ) => {
   try {
     const { student, institute } = await getStoredDetails();
@@ -85,6 +86,7 @@ export const fetchAssessmentData = async (
       batch_ids: [student.package_session_id],
       user_ids: [student.user_id],
       tag_ids: [],
+      assessment_types: [assessment_types],
       get_live_assessments: assessmentType === assessmentTypes.LIVE,
       get_passed_assessments: assessmentType === assessmentTypes.PAST,
       get_upcoming_assessments: assessmentType === assessmentTypes.UPCOMING,
@@ -178,33 +180,41 @@ export const fetchPreviewData = async (assessment_id: string) => {
     if (response.status === 200) {
       // Clone response data to avoid direct mutation
       const responseData = { ...response.data, ...durationData };
-  
+
       // Iterate over sections to check for randomization
-      responseData.section_dtos = responseData.section_dtos.map((section : SectionDto) => {
-        if (section.problem_randomization === "RANDOM" && Array.isArray(section.question_preview_dto_list)) {
-          section.question_preview_dto_list = shuffleArray(section.question_preview_dto_list);
+      responseData.section_dtos = responseData.section_dtos.map(
+        (section: SectionDto) => {
+          if (
+            section.problem_randomization === "RANDOM" &&
+            Array.isArray(section.question_preview_dto_list)
+          ) {
+            section.question_preview_dto_list = shuffleArray(
+              section.question_preview_dto_list
+            );
+          }
+          // Assign serial question numbers
+          section.question_preview_dto_list =
+            section.question_preview_dto_list.map((question, index) => ({
+              ...question,
+              serial_number: index + 1,
+            }));
+          return section;
         }
-        // Assign serial question numbers
-        section.question_preview_dto_list = section.question_preview_dto_list.map((question, index) => ({
-          ...question,
-          serial_number: index + 1,
-        }));
-        return section;
-      });
-  
+      );
+
       // Save to local storage
       await Storage.set({
         key: "Assessment_questions",
         value: JSON.stringify(responseData),
       });
-  
+
       // Update the state
       useAssessmentStore.setState((state) => ({
         ...state,
         assessment: responseData,
       }));
     }
-  
+
     return response.data;
     // if (response.status === 200) {
     //   // Save to local storage
@@ -256,7 +266,7 @@ export const startAssessment = async () => {
 };
 
 // Utility function to shuffle an array (Fisher-Yates algorithm)
-function shuffleArray(array : any[]) {
+function shuffleArray(array: any[]) {
   const shuffledArray = [...array];
   for (let i = shuffledArray.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));

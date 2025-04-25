@@ -13,7 +13,7 @@ function RouteComponent() {
       <title>Assessment</title>
       <meta name="description" content="Assessment page" />
     </Helmet> */}
-      <ScheduleTestMainComponent />
+      <ScheduleTestMainComponent assessment_types = "HOMEWORK" />
     </LayoutContainer>
   );
 }
