@@ -72,7 +72,7 @@ export const fetchAssessmentData = async (
   pageNo: number,
   pageSize: number,
   assessmentType: assessmentTypes,
-  assessment_types: "HOMEWORK"
+  assessment_types: string
 ) => {
   try {
     const { student, institute } = await getStoredDetails();
