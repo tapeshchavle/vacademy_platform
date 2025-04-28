@@ -10,10 +10,10 @@ import {
 } from "@/types/assessment";
 import { processHtmlString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
-import { NumericInputWithKeypad } from "./numeric";
+import { NumericInputWithKeypad } from "./otherQuestionTypes/numeric";
 import { ExpandableParagraph } from "./paragraph";
-import { OneWordInput } from "./OneWordInput";
-import { LongAnswerInput } from "./LongAnswerInput";
+import { OneWordInput } from "./otherQuestionTypes/OneWordInput";
+import { LongAnswerInput } from "./otherQuestionTypes/LongAnswerInput";
 
 export function QuestionDisplay() {
   const {

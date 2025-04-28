@@ -112,6 +112,8 @@ export const formatDataFromStore = async (
 export default function Page() {
   const { loadState, saveState } = useAssessmentStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [playMode, setPlayMode] = useState<string>("");
+  const [evaluationType, setEvaluationType] = useState<string>("");
 
   const sendFormattedData = async () => {
     try {
@@ -200,12 +202,26 @@ export default function Page() {
       saveState();
     };
   }, []);
+  useEffect(() => {
+    const fetchPlayMode = async () => {
+      const storedMode = await Preferences.get({
+        key: "InstructionID_and_AboutID",
+      });
+      if (storedMode.value) {
+        const parsedData = JSON.parse(storedMode.value);
+        setPlayMode(parsedData.play_mode);
+        setEvaluationType(parsedData.evaluation_type);
+      }
+    };
+
+    fetchPlayMode();
+  }, []);
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   return (
     <div className="flex flex-col w-full bg-gray-50">
-      <Navbar />
+      <Navbar playMode={playMode} evaluationType={evaluationType} />
       <SectionTabs />
       <div className="flex-1 overflow-hidden">
         <main className="w-full h-full p-4 md:p-6 overflow-auto">
@@ -213,7 +229,11 @@ export default function Page() {
         </main>
       </div>
       <Footer onToggleSidebar={toggleSidebar} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        evaluationType={evaluationType}
+      />
       <NetworkStatus />
     </div>
   );

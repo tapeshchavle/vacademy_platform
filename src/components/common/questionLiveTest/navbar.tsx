@@ -41,7 +41,7 @@ import type {
 import { PdfViewerComponent } from "../study-library/level-material/subject-material/module-material/chapter-material/slide-material/pdf-viewer-component";
 import { getServerStartEndTime } from "./page";
 
-export function Navbar() {
+export function Navbar({ playMode, evaluationType }: { playMode: string; evaluationType: string }) {
   const {
     assessment,
     submitAssessment,
@@ -59,16 +59,8 @@ export function Navbar() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showTimesUpModal, setShowTimesUpModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
-  const [evaluationType, setEvaluationType] = useState<string | null>(null);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  //   const fileInputRef = useRef<HTMLInputElement>(null);
-  // const [pdfFile, setPdfFile] = useState<{
-  //   fileId: string;
-  //   fileName: string;
-  //   fileUrl: string;
-  // } | null>(null);
 
   const [isUploading, setIsUploading] = useState(false);
 
@@ -81,91 +73,6 @@ export function Navbar() {
     numPages: 0,
     currentPage: 0,
   });
-
-  // const formatDataFromStore = async (
-  //   assessment_id: string,
-  //   status: string,
-  //   evaluationType: string // <-- Added parameter
-  // ) => {
-  //   const parsedValue = await getServerStartEndTime();
-  //   const start_time = parsedValue.start_time
-  //     ? new Date(parsedValue.start_time).getTime()
-  //     : 0;
-
-  //   const state = useAssessmentStore.getState();
-  //   const attemptId = state.assessment?.attempt_id;
-  //   const timeElapsedInSeconds = state.assessment?.duration
-  //     ? state.assessment.duration * 60 - state.entireTestTimer
-  //     : 0;
-  //   const clientLastSync = new Date(
-  //     start_time + timeElapsedInSeconds * 1000
-  //   ).toISOString();
-
-  //   return {
-  //     attemptId: attemptId,
-  //     clientLastSync,
-  //     assessment: {
-  //       assessmentId: assessment_id,
-  //       entireTestDurationLeftInSeconds: state.entireTestTimer,
-  //       timeElapsedInSeconds,
-  //       status: status,
-  //       tabSwitchCount: state.tabSwitchCount || 0,
-  //     },
-  //     sections: state.assessment?.section_dtos?.map((section, idx) => ({
-  //       sectionId: section.id,
-  //       sectionDurationLeftInSeconds: state.sectionTimers?.[idx]?.timeLeft || 0,
-  //       timeElapsedInSeconds: section.duration
-  //         ? (state.sectionTimers?.[idx]?.timeLeft || 0) - section.duration * 60
-  //         : 0,
-  //       questions: section.question_preview_dto_list?.map((question) => {
-  //         const rawAnswer = state.answers?.[question.question_id];
-  //         const normalizedAnswer = Array.isArray(rawAnswer)
-  //           ? rawAnswer[0]
-  //           : rawAnswer;
-
-  //         const baseQuestionData = {
-  //           questionId: question.question_id,
-  //           questionDurationLeftInSeconds:
-  //             state.questionTimers?.[question.question_id] || 0,
-  //           timeTakenInSeconds:
-  //             state.questionTimeSpent[question.question_id] || 0,
-  //           isMarkedForReview:
-  //             state.questionStates[question.question_id]?.isMarkedForReview ||
-  //             false,
-  //           isVisited:
-  //             state.questionStates[question.question_id]?.isVisited || false,
-  //         };
-
-  //         if (evaluationType === "MANUAL") {
-  //           return {
-  //             ...baseQuestionData,
-  //             fieldId: question.field_id,
-  //             setId: question.set_id,
-  //           };
-  //         } else {
-  //           return {
-  //             ...baseQuestionData,
-  //             responseData: {
-  //               type: question.question_type,
-  //               ...(question.question_type === "NUMERIC"
-  //                 ? {
-  //                     validAnswer:
-  //                       normalizedAnswer !== undefined &&
-  //                       normalizedAnswer !== null &&
-  //                       !isNaN(parseFloat(normalizedAnswer))
-  //                         ? parseFloat(normalizedAnswer)
-  //                         : null,
-  //                   }
-  //                 : ["ONE_WORD", "LONG_ANSWER"].includes(question.question_type)
-  //                   ? { answer: normalizedAnswer || "" }
-  //                   : { optionIds: rawAnswer || [] }),
-  //             },
-  //           };
-  //         }
-  //       }),
-  //     })),
-  //   };
-  // };
 
   const formatDataFromStore = async (
     assessment_id: string,
@@ -282,7 +189,6 @@ export function Navbar() {
   });
 
   const [helpType, setHelpType] = useState<HelpType["type"]>(null);
-  const [playMode, setPlayMode] = useState<string | null>(null);
 
   const sendFormattedData = async () => {
     const state = useAssessmentStore.getState();
@@ -421,20 +327,20 @@ export function Navbar() {
     };
   }, []);
 
-  useEffect(() => {
-    const fetchPlayMode = async () => {
-      const storedMode = await Preferences.get({
-        key: "InstructionID_and_AboutID",
-      });
-      if (storedMode.value) {
-        const parsedData = JSON.parse(storedMode.value);
-        setPlayMode(parsedData.play_mode);
-        setEvaluationType(parsedData.evaluation_type);
-      }
-    };
+  // useEffect(() => {
+  //   const fetchPlayMode = async () => {
+  //     const storedMode = await Preferences.get({
+  //       key: "InstructionID_and_AboutID",
+  //     });
+  //     if (storedMode.value) {
+  //       const parsedData = JSON.parse(storedMode.value);
+  //       setPlayMode(parsedData.play_mode);
+  //       setEvaluationType(parsedData.evaluation_type);
+  //     }
+  //   };
 
-    fetchPlayMode();
-  }, []);
+  //   fetchPlayMode();
+  // }, []);
 
   useEffect(() => {
     const updateEntireTimeLeft = () => {

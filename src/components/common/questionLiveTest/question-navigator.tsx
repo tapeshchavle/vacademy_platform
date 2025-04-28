@@ -7,14 +7,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAssessmentStore } from "@/stores/assessment-store";
 import { ViewToggle } from "./view-toggle";
 import { QuestionListView } from "./question-list-view";
-import { QuestionDto , QuestionState} from "@/types/assessment";
+import { QuestionDto, QuestionState } from "@/types/assessment";
 import { Circle } from "@phosphor-icons/react";
 
 interface QuestionNavigatorProps {
   onClose: () => void;
+  evaluationType: string;
 }
 
-export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
+export function QuestionNavigator({
+  onClose,
+  evaluationType,
+}: QuestionNavigatorProps) {
   const [view, setView] = React.useState<"grid" | "list">("grid");
   const {
     assessment,
@@ -27,7 +31,8 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
 
   if (!assessment) return null;
 
-  const currentSectionQuestions = assessment.section_dtos[currentSection].question_preview_dto_list;
+  const currentSectionQuestions =
+    assessment.section_dtos[currentSection].question_preview_dto_list;
 
   const handleQuestionClick = (question: QuestionDto) => {
     setCurrentQuestion(question);
@@ -44,7 +49,7 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
 
   const getCounts = () => {
     const counts = {
-      "Answered": 0,
+      Answered: 0,
       "Not Answered": 0,
       "Not Visited": 0,
       "Marked for review": 0,
@@ -74,7 +79,6 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
 
     return counts;
   };
-  
 
   return (
     <div className="flex flex-col h-full">
@@ -82,9 +86,9 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
         <ViewToggle view={view} onViewChange={setView} />
       </div>
 
-      
-        <div className="p-4">
-          {/* answred and not answerd section */}
+      <div className="p-4">
+        {/* answred and not answerd section */}
+        {evaluationType !== "manual" && (
           <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
             {Object.entries(getCounts()).map(([key, count]) => (
               <div key={key} className="flex items-center gap-2">
@@ -105,15 +109,19 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
                   </div>
                   {(key === "Marked for review" ||
                     key === "Answered & Marked for review") && (
-                    <Circle className="absolute -top-1 -right-1 w-3 h-3 text-primary-500" weight="fill" />
+                    <Circle
+                      className="absolute -top-1 -right-1 w-3 h-3 text-primary-500"
+                      weight="fill"
+                    />
                   )}
                 </div>
                 <span>{key}</span>
               </div>
             ))}
           </div>
-        </div>
-        <ScrollArea className="flex-1">
+        )}
+      </div>
+      <ScrollArea className="flex-1">
         {view === "grid" ? (
           <div className="grid grid-cols-5 gap-2 p-1 px-4">
             {currentSectionQuestions.map((question, index) => {
@@ -135,7 +143,10 @@ export function QuestionNavigator({ onClose }: QuestionNavigatorProps) {
                     {index + 1}
                   </Button>
                   {state?.isMarkedForReview && (
-                    <Circle className="absolute -top-1 -right-1 w-3 h-3 text-primary-500" weight="fill" />
+                    <Circle
+                      className="absolute -top-1 -right-1 w-3 h-3 text-primary-500"
+                      weight="fill"
+                    />
                   )}
                 </div>
               );
