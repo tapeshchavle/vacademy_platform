@@ -1,4 +1,5 @@
 import { StatusCheck } from "@/components/design-system/chips";
+import { formatDuration } from "@/constants/helper";
 import { Assessment } from "@/types/assessment";
 
 interface AssessmentInstructionsProps {
@@ -13,7 +14,7 @@ const getAttemptLabel = (assessmentInfo: Assessment) => {
   const max_posible_attempts =
     assessmentInfo.user_attempts !== 0
       ? assessmentInfo.user_attempts
-      : (assessmentInfo.assessment_attempts ?? 1);
+      : assessmentInfo.assessment_attempts || 1;
   const total_given_attempts = assessmentInfo.created_attempts ?? 0;
 
   // Display the current attempt status
@@ -45,7 +46,7 @@ export const AssessmentInstructions = ({
           Assessment Duration:
           <div className="flex items-center gap-2 font-normal">
             <div>Entire Assessment Duration</div>
-            <span>{duration} minutes</span>
+            <span>{formatDuration(duration * 60)}</span>
           </div>
         </div>
         <div className="flex items-center justify-between text-gray-600 font-normal mb-4">

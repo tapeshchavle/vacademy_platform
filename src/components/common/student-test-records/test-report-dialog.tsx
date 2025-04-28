@@ -28,6 +28,7 @@ import {
 } from "@/constants/urls";
 import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
+import { MarksStatusIndicator } from "./marks-chip";
 type TestMarks = {
   total_achievable_marks: number;
   section_wise_achievable_marks: Record<string, number>;
@@ -571,6 +572,18 @@ export const TestReportDialog = ({
                       </div>
                     </div>
                     <div className="">
+                      {/* <StatusChip mark={review.mark} status={review.answer_status} /> */}
+                      <MarksStatusIndicator
+                        mark={review.mark}
+                        answer_status={
+                          review.answer_status as
+                            | "CORRECT"
+                            | "INCORRECT"
+                            | "PARTIAL_CORRECT"
+                            | "DEFAULT"
+                        }
+                      />
+
                       {/* <MarkBadge marks={review.mark} /> */}
 
                       {/* <StatusChips

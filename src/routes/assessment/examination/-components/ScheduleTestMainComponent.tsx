@@ -5,11 +5,15 @@ import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore
 import { assessmentTypes } from "@/types/assessment";
 import { fetchAssessmentData } from "../-utils.ts/useFetchAssessment";
 import { AssessmentCard } from "../-components/AssessmentCard";
-import {  EmptyAssessment } from "@/svgs";
+import { EmptyAssessment } from "@/svgs";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 // import PullToRefresh from "./PullToRefresh";
 
-export const ScheduleTestMainComponent = () => {
+export const ScheduleTestMainComponent = ({
+  assessment_types,
+}: {
+  assessment_types: "HOMEWORK" | "ASSESSMENT";
+}) => {
   const { setNavHeading } = useNavHeadingStore();
   const [selectedTab, setSelectedTab] = useState<assessmentTypes>(
     assessmentTypes.LIVE
@@ -48,7 +52,9 @@ export const ScheduleTestMainComponent = () => {
   const pageSize = 5;
 
   useEffect(() => {
-    setNavHeading("Assessment");
+    setNavHeading(
+      assessment_types === "ASSESSMENT" ? "Assessment" : "Homework"
+    );
     fetchAllTabsData();
   }, []);
 
@@ -67,7 +73,12 @@ export const ScheduleTestMainComponent = () => {
       setLoadingMore(!isInitialLoad);
 
       try {
-        const data = await fetchAssessmentData(pageNum, pageSize, tab);
+        const data = await fetchAssessmentData(
+          pageNum,
+          pageSize,
+          tab,
+          assessment_types
+        );
 
         setAssessmentData((prevData) => ({
           ...prevData,
@@ -157,6 +168,7 @@ export const ScheduleTestMainComponent = () => {
                     <AssessmentCard
                       assessmentInfo={assessment}
                       assessmentType={selectedTab}
+                      assessment_types={assessment_types}
                     />
                   </div>
                 );
@@ -166,6 +178,7 @@ export const ScheduleTestMainComponent = () => {
                   key={assessment.assessment_id}
                   assessmentInfo={assessment}
                   assessmentType={selectedTab}
+                  assessment_types={assessment_types}
                 />
               );
             })
@@ -176,9 +189,10 @@ export const ScheduleTestMainComponent = () => {
               <span className="text-neutral-600">No tests found.</span>
             </div>
             // <EmptyAssessment />
-
           )}
-          {loading && <div className="text-center text-primary-500 py-4">Loading...</div>}
+          {loading && (
+            <div className="text-center text-primary-500 py-4">Loading...</div>
+          )}
           {loadingMore && (
             <div className="">
               <div className="text-center text-primary-500 py-4">

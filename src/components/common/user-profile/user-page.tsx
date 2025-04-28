@@ -10,6 +10,7 @@ import { MyButton } from "@/components/design-system/button";
 import { getPublicUrl } from "@/services/upload_file";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import SessionExpiry from "./sessionExpiery";
+import { User } from "lucide-react";
 // import { SessionExpiry } from "./sessionExpiery";
 interface CourseDetails {
   packageName: string;
@@ -155,10 +156,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="bg-white rounded-lg w-full mx-auto shadow-lg md:max-w-lg lg:max-w-xl">
+    <div className="bg-white pb-12 rounded-lg w-full mx-auto shadow-lg md:max-w-lg lg:max-w-xl">
       {" "}
       {/* Header */}
-      <div className="p-4 flex items-center justify-between border-b">
+      <div className="p-3 flex items-center justify-between border-b sticky top-0 bg-white z-10">
         <h1 className="text-lg font-medium text-orange-500">Profile Details</h1>
         <button onClick={handleClose} className="text-gray-500">
           <X size={20} weight="bold" />
@@ -166,12 +167,23 @@ export default function ProfilePage() {
       </div>
       {/* Profile Info */}
       <div className="p-6 flex flex-col items-center md:flex-row md:items-start md:gap-6">
-        {imageUrl && (
+        {/* {imageUrl && (
           <img
             src={imageUrl}
             alt="Profile Photo"
             className="h-24 w-24 rounded-full object-cover"
           />
+        )} */}
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt="Profile Photo"
+            className="h-24 w-24 rounded-full object-cover"
+          />
+        ) : (
+          <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center">
+            <User size={40} className="text-gray-400" />
+          </div>
         )}
         <div className="text-center md:text-left">
           <h2 className="text-xl font-medium mb-2">
@@ -345,9 +357,8 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-      {/* </div> */}
       {/* Edit Profile Button */}
-      <div className="p-4 border-t flex justify-center pt-6">
+      <div className="p-2  flex justify-center fixed bottom-0 left-0 w-full bg-white ">
         <MyButton
           type="submit"
           scale="large"

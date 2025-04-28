@@ -1,7 +1,7 @@
 import { LayoutContainer } from "@/components/common/layout-container/layout-container";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ScheduleTestMainComponent } from "./-components/ScheduleTestMainComponent";
-import { Helmet } from "react-helmet";
+// import { Helmet } from "react-helmet";
 import { TokenKey } from "@/constants/auth/tokens";
 import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
 import { getFromStorage } from "@/components/common/LoginPages/sections/login-form";
@@ -22,11 +22,11 @@ export const Route = createFileRoute("/assessment/examination/")({
   },
   component: () => (
     <LayoutContainer>
-      <Helmet>
+      {/* <Helmet>
         <title>Assessment</title>
         <meta name="description" content="Assessment page" />
-      </Helmet>
-      <ScheduleTestMainComponent />
+      </Helmet> */}
+      <ScheduleTestMainComponent assessment_types="ASSESSMENT" />
     </LayoutContainer>
   ),
 });

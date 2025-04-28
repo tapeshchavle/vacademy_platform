@@ -47,7 +47,11 @@ export const handleGetStudentReport = ({
   };
 };
 
-const AssessmentReportList = () => {
+const AssessmentReportList = ({
+  assessment_types,
+}: {
+  assessment_types: "HOMEWORK" | "ASSESSMENT";
+}) => {
   const navigate = useNavigate();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,7 +65,7 @@ const AssessmentReportList = () => {
   const { setNavHeading } = useNavHeadingStore();
 
   useEffect(() => {
-    setNavHeading(null);
+    setNavHeading("Reports");
   }, []);
 
   useEffect(() => {
@@ -107,6 +111,7 @@ const AssessmentReportList = () => {
           name: "",
           status: ["ENDED"],
           release_result_status: ["RELEASED"],
+          assessment_type: assessment_types,
           sort_columns: {},
         },
         {
