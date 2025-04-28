@@ -23,6 +23,7 @@ import { toast } from "sonner";
 interface AssessmentProps {
   assessmentInfo: Assessment;
   assessmentType: assessmentTypes;
+  assessment_types: string;
 }
 
 const playModeColors: { [key: string]: string } = {
@@ -35,6 +36,7 @@ const playModeColors: { [key: string]: string } = {
 export const AssessmentCard = ({
   assessmentInfo,
   assessmentType,
+  assessment_types,
 }: AssessmentProps) => {
   const navigate = useNavigate();
   const [showPopup, setShowPopup] = useState(false);
@@ -147,12 +149,7 @@ export const AssessmentCard = ({
           ? assessmentInfo.user_attempts
           : (assessmentInfo.assessment_attempts ?? 1);
       const total_given_attempts = assessmentInfo.created_attempts ?? 0;
-      console.log(
-        assessmentInfo.name,
-        "max_posible_attempts",
-        max_posible_attempts,
-        total_given_attempts
-      );
+      
       if ((max_posible_attempts ?? 1) > total_given_attempts) {
         return "Join Assessment";
       } else {
@@ -196,40 +193,48 @@ export const AssessmentCard = ({
         </h2>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <div className="flex gap-3 pb-3 items-center">
-              <StatusChip
-                playMode={assessmentInfo.play_mode as PlayMode}
-                className={playModeColors[assessmentInfo.play_mode as PlayMode]}
-              />
-            </div>
-            <div className="space-y-2 text-xs lg:text-sm text-gray-600">
-              <div>
-                Start Date and Time:{" "}
-                {dayjs(assessmentInfo.bound_start_time).format(
-                  "DD MMM YYYY, hh:mm A"
-                )}
+            {assessment_types == "ASSESSMENT" && (
+              <div className="flex gap-3 pb-3 items-center">
+                <StatusChip
+                  playMode={assessmentInfo.play_mode as PlayMode}
+                  className={
+                    playModeColors[assessmentInfo.play_mode as PlayMode]
+                  }
+                />
               </div>
-              <div>
-                End Date and Time:{" "}
-                {dayjs(assessmentInfo.bound_end_time).format(
-                  "DD MMM YYYY, hh:mm A"
+            )}
+            {assessmentInfo.play_mode !== "PRACTICE" && (
+              <div className="space-y-2 text-xs lg:text-sm text-gray-600">
+                {assessmentInfo.play_mode !== "MOCK" && (
+                  <>
+                    <div>
+                      Start Date and Time:{" "}
+                      {dayjs(assessmentInfo.bound_start_time).format(
+                        "DD MMM YYYY, hh:mm A"
+                      )}
+                    </div>
+                    <div>
+                      End Date and Time:{" "}
+                      {dayjs(assessmentInfo.bound_end_time).format(
+                        "DD MMM YYYY, hh:mm A"
+                      )}
+                    </div>
+                  </>
                 )}
-              </div>
-              {assessmentInfo.duration ? (
+                {assessmentInfo.duration && (
+                  <div>
+                    Duration: {formatDuration(assessmentInfo.duration * 60)}
+                  </div>
+                )}
                 <div>
-                  Duration: {formatDuration(assessmentInfo.duration * 60)}
+                  Attempts: {assessmentInfo.created_attempts ?? 0} /{" "}
+                  {assessmentInfo.user_attempts !== 0 &&
+                  assessmentInfo.user_attempts !== null
+                    ? assessmentInfo.user_attempts
+                    : (assessmentInfo.assessment_attempts ?? 0)}
                 </div>
-              ) : (
-                <div></div>
-              )}
-              <div>
-                Attempts: {assessmentInfo.created_attempts ?? 0} /
-                {assessmentInfo.user_attempts !== 0 &&
-                assessmentInfo.user_attempts !== null
-                  ? assessmentInfo.user_attempts
-                  : (assessmentInfo.assessment_attempts ?? 0)}
               </div>
-            </div>
+            )}
           </div>
           {/* {assessmentType !== assessmentTypes.UPCOMING &&
             assessmentType !== assessmentTypes.PAST && (

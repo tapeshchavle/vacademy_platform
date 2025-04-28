@@ -168,6 +168,7 @@ export const ScheduleTestMainComponent = ({
                     <AssessmentCard
                       assessmentInfo={assessment}
                       assessmentType={selectedTab}
+                      assessment_types={assessment_types}
                     />
                   </div>
                 );
@@ -177,6 +178,7 @@ export const ScheduleTestMainComponent = ({
                   key={assessment.assessment_id}
                   assessmentInfo={assessment}
                   assessmentType={selectedTab}
+                  assessment_types={assessment_types}
                 />
               );
             })
