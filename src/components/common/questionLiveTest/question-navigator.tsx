@@ -88,7 +88,7 @@ export function QuestionNavigator({
 
       <div className="p-4">
         {/* answred and not answerd section */}
-        {evaluationType !== "manual" && (
+        {evaluationType !== "MANUAL" && (
           <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
             {Object.entries(getCounts()).map(([key, count]) => (
               <div key={key} className="flex items-center gap-2">

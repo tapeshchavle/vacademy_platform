@@ -11,7 +11,7 @@ import {
 import { processHtmlString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
 import { NumericInputWithKeypad } from "./otherQuestionTypes/numeric";
-import { ExpandableParagraph } from "./paragraph";
+import { ExpandableParagraph } from "./otherQuestionTypes/paragraph";
 import { OneWordInput } from "./otherQuestionTypes/OneWordInput";
 import { LongAnswerInput } from "./otherQuestionTypes/LongAnswerInput";
 

@@ -41,7 +41,13 @@ import type {
 import { PdfViewerComponent } from "../study-library/level-material/subject-material/module-material/chapter-material/slide-material/pdf-viewer-component";
 import { getServerStartEndTime } from "./page";
 
-export function Navbar({ playMode, evaluationType }: { playMode: string; evaluationType: string }) {
+export function Navbar({
+  playMode,
+  evaluationType,
+}: {
+  playMode: string;
+  evaluationType: string;
+}) {
   const {
     assessment,
     submitAssessment,
@@ -285,11 +291,11 @@ export function Navbar({ playMode, evaluationType }: { playMode: string; evaluat
   };
 
   useEffect(() => {
-    if (tabSwitchCount >= 3) {
+    if (evaluationType !== "MANUAL" && tabSwitchCount >= 3) {
       setShowSubmitModal(true);
       handleSubmit();
     }
-  }, [tabSwitchCount]);
+  }, [tabSwitchCount, evaluationType]);
 
   useEffect(() => {
     let backButtonListener: PluginListenerHandle | null = null;
@@ -327,21 +333,6 @@ export function Navbar({ playMode, evaluationType }: { playMode: string; evaluat
     };
   }, []);
 
-  // useEffect(() => {
-  //   const fetchPlayMode = async () => {
-  //     const storedMode = await Preferences.get({
-  //       key: "InstructionID_and_AboutID",
-  //     });
-  //     if (storedMode.value) {
-  //       const parsedData = JSON.parse(storedMode.value);
-  //       setPlayMode(parsedData.play_mode);
-  //       setEvaluationType(parsedData.evaluation_type);
-  //     }
-  //   };
-
-  //   fetchPlayMode();
-  // }, []);
-
   useEffect(() => {
     const updateEntireTimeLeft = () => {
       const { entireTestTimer } = useAssessmentStore.getState();
@@ -356,13 +347,6 @@ export function Navbar({ playMode, evaluationType }: { playMode: string; evaluat
 
     return () => clearInterval(timer);
   }, []);
-
-  const handleWarningClose = () => {
-    setShowWarningModal(false);
-    if (tabSwitchCount >= 3) {
-      handleSubmit();
-    }
-  };
 
   const formatTime = (timeInSeconds: number) => {
     const hours = Math.floor(timeInSeconds / 3600);
@@ -668,26 +652,27 @@ export function Navbar({ playMode, evaluationType }: { playMode: string; evaluat
         onOpenChange={setShowTimesUpModal}
         onFinish={handleSubmit}
       />
-
-      <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
-        <AlertDialogContent>
-          <AlertDialogDescription>
-            Warning: You are attempting to leave the test environment. This is
-            warning {tabSwitchCount} of 3. If you attempt to leave again, your
-            test will be automatically submitted.
-          </AlertDialogDescription>
-          <AlertDialogAction
-            onClick={() => {
-              fullScreen.trigger();
-              setTimeout(() => {
-                handleWarningClose();
-              }, 100);
-            }}
-          >
-            Return to Test
-          </AlertDialogAction>
-        </AlertDialogContent>
-      </AlertDialog>
+      {evaluationType !== "MANUAL" ? (
+        <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+          <AlertDialogContent>
+            <AlertDialogDescription>
+              Warning: You are attempting to leave the test environment. This is
+              warning {tabSwitchCount} of 3. If you attempt to leave again, your
+              test will be automatically submitted.
+            </AlertDialogDescription>
+            <AlertDialogAction
+              onClick={() => {
+                fullScreen.trigger();
+                setTimeout(() => {
+                  setShowWarningModal(false);
+                }, 100);
+              }}
+            >
+              Return to Test
+            </AlertDialogAction>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
 
       <HelpModal
         open={helpType !== null}
