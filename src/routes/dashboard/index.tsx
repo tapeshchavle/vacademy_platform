@@ -2,11 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { LayoutContainer } from "@/components/common/layout-container/layout-container";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { useEffect, useState } from "react";
-import { CourseData } from "@/types/dashbaord/types";
 import { fetchStaticData } from "./-lib/utils";
 import { DashboardTabs } from "./-components/DashboardTabs";
 import { Helmet } from "react-helmet";
 import { DashboardImg } from "@/assets/svgs";
+import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
+import { fetchStudyLibraryDetails } from "@/services/study-library/getStudyLibraryDetails";
+import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
 
 export const Route = createFileRoute("/dashboard/")({
   component: () => (
@@ -18,13 +20,20 @@ export const Route = createFileRoute("/dashboard/")({
 
 export function DashboardComponent() {
   const [username, setUsername] = useState<string | null>(null);
-  const [data, setData] = useState<CourseData>();
   const [assessmentCount, setAssessmentCount] = useState<number>();
   const { setNavHeading } = useNavHeadingStore();
   const navigate = useNavigate();
+  const { studyLibraryData, setStudyLibraryData } = useStudyLibraryStore();
+
+  const handleGetStudyLibraryData = async () => {
+    const PackageSessionId = await getPackageSessionId();
+    const data = await fetchStudyLibraryDetails(PackageSessionId);
+    setStudyLibraryData(data);
+  }
   useEffect(() => {
     setNavHeading("Dashboard");
-    fetchStaticData(setUsername, setData, setAssessmentCount);
+    fetchStaticData(setUsername, setAssessmentCount);
+    handleGetStudyLibraryData();
   }, []);
   return (
     <div>
@@ -53,8 +62,8 @@ export function DashboardComponent() {
           className="cursor-pointer"
         >
           <DashboardTabs
-            title={"Courses"}
-            count={data?.courses}
+            title={"Subjects"}
+            count={studyLibraryData?.length}
             button={false}
           />
         </div>
