@@ -16,8 +16,8 @@ export const fetchUserData = async () => {
 
 export const fetchStaticData = async (
   setUsername: (username: string | null) => void,
-  setData: (data: any) => void,
-  setAssessmentCount: (count: number) => void
+  setAssessmentCount: (count: number) => void,
+  setData?: (data: any) => void,
 ) => {
   const userData = await fetchUserData();
   const first_name = userData.full_name.split(" ")[0];
@@ -32,7 +32,7 @@ export const fetchStaticData = async (
       url,
       params,
     });
-    setData(response.data);
+    setData && setData(response.data);
   } catch (error) {
     console.error("Error fetching assessments:", error);
   }
