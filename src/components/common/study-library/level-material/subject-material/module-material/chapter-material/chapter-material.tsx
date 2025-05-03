@@ -17,9 +17,7 @@ export const ChapterMaterial = ({ currentModuleId }: ChapterMaterialProps) => {
 
     useEffect(() => {
         setExistingChapters(getChaptersByModuleId(currentModuleId) || []);
-    }, [ modulesWithChaptersData]);
-
-    
+    }, [ modulesWithChaptersData, currentModuleId]); 
 
     return (
         <Chapters
