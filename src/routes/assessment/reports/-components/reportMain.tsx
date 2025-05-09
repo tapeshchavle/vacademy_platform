@@ -203,7 +203,7 @@ const AssessmentReportList = ({
           key={report.attempt_id}
           ref={index === reports.length - 1 ? lastReportElementRef : null}
         >
-          <Card className="w-full p-6 space-y-6">
+          <Card className="w-full p-6 space-y-2">
             <h2 className="text-sm lg:text-base font-semibold text-gray-900">
               {report.assessment_name}
             </h2>
