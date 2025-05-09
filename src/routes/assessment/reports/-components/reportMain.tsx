@@ -111,7 +111,7 @@ const AssessmentReportList = ({
           name: "",
           status: ["ENDED"],
           release_result_status: ["RELEASED"],
-          assessment_type: assessment_types,
+          assessment_type: [assessment_types],
           sort_columns: {},
         },
         {
