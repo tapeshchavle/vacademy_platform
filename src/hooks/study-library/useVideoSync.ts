@@ -51,7 +51,7 @@ export const useVideoSync = () => {
                     source_id: activity.source_id,
                     source_type: activity.source,
                     user_id: userId,
-                    slide_id: activeItem?.slide_id || "",
+                    slide_id: activeItem?.id || "",
                     start_time_in_millis: activity.start_time,
                     end_time_in_millis: activity.end_time,
                     percentage_watched: parseFloat(activity.percentage_watched),
