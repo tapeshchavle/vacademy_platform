@@ -69,15 +69,18 @@ export const ModuleCard = ({ module }: { module: ModulesWithChapters}) => {
                      </div>
                 )}
 
-                <div className="flex flex-col gap-2">
-                    <div className="flex gap-2 text-subtitle font-semibold">
-                        <div className="text-primary-500">{module.chapters.length}</div>
-                        <div>Chapters</div>
-                    </div>
+                <div className="w-full flex justify-between">
+                    <div className="flex flex-col gap-2">
+                        <div className="flex gap-2 text-subtitle font-semibold">
+                            <div className="text-primary-500">{module.chapters.length}</div>
+                            <div>Chapters</div>
+                        </div>
 
-                    <div className="flex items-center justify-between">
-                        <div className="text-caption text-neutral-500">{module.module.description}</div>
+                        <div className="flex items-center justify-between">
+                            <div className="text-caption text-neutral-500">{module.module.description}</div>
+                        </div>
                     </div>
+                    <p className="text-neutral-500 text-body">{module.percentage_completed}% completed</p>
                 </div>
             </div>
         </div>
