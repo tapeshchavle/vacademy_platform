@@ -3,6 +3,7 @@ import { getPublicUrl } from "@/services/upload_file";
 import { ModulesWithChapters } from "@/stores/study-library/use-modules-with-chapters-store";
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { ModuleDefaultImage } from "@/assets/svgs";
 
 export const ModuleCard = ({ module }: { module: ModulesWithChapters}) => {
 
@@ -50,7 +51,7 @@ export const ModuleCard = ({ module }: { module: ModulesWithChapters}) => {
     return (
         <div onClick={handleCardClick} className="cursor-pointer w-full items-center flex justify-center h-[380px]">
             <div
-                className={`flex w-[310px] xs:w-[340px] sm:w-full ${open ? "md-tablet:w-[270px]" : "md-tablet:w-[340px]"} h-full flex-col gap-4 rounded-lg border border-neutral-300 bg-neutral-50 p-6`}
+                className={`flex w-[310px] xs:w-[340px] sm:w-full ${open ? "md-tablet:w-[270px]" : "md-tablet:w-[340px]"} h-full flex-col gap-4 rounded-lg border border-neutral-300 p-6`}
             >
                 <div className="flex items-center justify-between text-title font-semibold">
                     <div>{module.module.module_name}</div>
@@ -63,10 +64,9 @@ export const ModuleCard = ({ module }: { module: ModulesWithChapters}) => {
                         className="w-full rounded-lg object-cover h-[70%]"
                     />
                 ) : (
-                    // <div className="flex w-full items-center justify-center rounded-lg bg-neutral-100 h-[80%]">
-                    //     <span className="text-neutral-400">No Image</span>
-                    // </div>
-                    <></>
+                    <div className="flex w-full items-center justify-center rounded-lg bg-neutral-100 h-[80%]">
+                         <ModuleDefaultImage />
+                     </div>
                 )}
 
                 <div className="flex flex-col gap-2">
