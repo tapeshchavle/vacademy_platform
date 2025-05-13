@@ -51,7 +51,9 @@ export const ChapterCard = ({ chapter }: {chapter: Chapter}) => {
                             <div className="text-primary-500">{chapter.video_count || 0}</div>
                         </div>
                     </div>
-                    <CheckCircle size={20} weight="fill" className="text-success-600 " />
+                    {chapter.percentage_completed==100 &&
+                        <CheckCircle size={20} weight="fill" className="text-success-600 " />
+                    }
                 </div>
             </div>
         </div>

@@ -64,8 +64,9 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
             <SubjectDefaultImage />
           )}
         </div>
-        <div className="flex items-center justify-between gap-5">
-          <div className="text-body font-semibold">{subject.subject_name}</div>
+        <div className="flex items-center justify-center gap-2 w-full">
+          <div className="text-subtitle font-semibold ">{subject.subject_name}</div>
+          <p className="text-body text-neutral-500">({subject.percentage_completed}% completed)</p>
         </div>
       </div>
     </div>
