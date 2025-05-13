@@ -160,7 +160,9 @@ export default function ProfilePage() {
       {" "}
       {/* Header */}
       <div className="p-3 flex items-center justify-between border-b sticky top-0 bg-white z-10">
-        <h1 className="text-lg font-medium text-orange-500">Profile Details</h1>
+        <h1 className="text-lg font-medium text-primary-500">
+          Profile Details
+        </h1>
         <button onClick={handleClose} className="text-gray-500">
           <X size={20} weight="bold" />
         </button>
