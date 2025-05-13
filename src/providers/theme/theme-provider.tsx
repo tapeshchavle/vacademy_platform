@@ -15,7 +15,7 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [primaryColor, setPrimaryColor] = useState("#1E88E5");
+  const [primaryColor, setPrimaryColor] = useState("#E67E22");
 
   // Apply CSS variables when primary color changes
   useEffect(() => {
