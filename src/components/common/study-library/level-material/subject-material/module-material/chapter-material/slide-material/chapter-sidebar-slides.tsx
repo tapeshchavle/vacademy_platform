@@ -15,7 +15,8 @@ export const ChapterSidebarSlides = () => {
   const { slides, isLoading } = useSlides(chapterId || "");
 
   const getIcon = (slide: Slide): ReactNode => {
-    const type = slide.published_url != null ? "VIDEO" : slide.document_type;
+    const type =
+      slide.source_type == "VIDEO" ? "VIDEO" : slide.document_slide?.type;
     switch (type) {
       case "VIDEO":
         return <PlayCircle className="size-6" />;
@@ -27,31 +28,36 @@ export const ChapterSidebarSlides = () => {
   if (isLoading) {
     return <DashboardLoader />;
   }
+  // };
+
+  // if (isLoading) {
+  //   return <DashboardLoader />;
+  // }
 
   return (
     <div className="flex w-full flex-col items-center gap-6 text-neutral-600">
       {slides?.map((slide: Slide) => (
         <div
-          key={slide.slide_id}
+          key={slide.id}
           onClick={() => setActiveItem(slide)} // Pass the entire item
           className={`flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-2 ${
-            slide.slide_id === activeItem?.slide_id
+            slide.id === activeItem?.id
               ? "border border-neutral-200 bg-white text-primary-500"
               : "hover:border hover:border-neutral-200 hover:bg-white hover:text-primary-500"
           }`}
-          title={slide.document_title || slide.video_title || ""}
+          title={slide.title || ""}
         >
           {getIcon(slide)}
           <p
             className={`flex-1 text-subtitle ${open ? "visible" : "hidden"} text-body`}
           >
-            {truncateString(
-              slide.document_title || slide.video_title || "",
-              18
-            )}
+            {truncateString(slide.title || "", 18)}
           </p>
         </div>
       ))}
     </div>
   );
+  // )}
+  // </div>
+  // );
 };

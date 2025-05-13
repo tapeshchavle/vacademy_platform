@@ -51,7 +51,7 @@ function Slides() {
         // If we have a slideId in URL, find that slide
         if (slideId) {
             const targetSlide: Slide | null = slides.find(
-                (slide: Slide) => slide.slide_id === slideId,
+                (slide: Slide) => slide.id === slideId,
             );
             if (targetSlide) {
                 setActiveItem(targetSlide);
@@ -133,7 +133,7 @@ function Slides() {
             subjectId,
             moduleId,
             chapterId,
-            slideId: activeItem?.slide_id || "",
+            slideId: activeItem?.id || "",
         },
         replace: true,
     });

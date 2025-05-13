@@ -33,7 +33,7 @@ export const ADD_UPDATE_DOCUMENT_ACTIVITY = `${BASE_URL}/admin-core-service/lear
 
 export const INIT_STUDY_LIBRARY = `${BASE_URL}/admin-core-service/v1/learner-study-library/init-details`;
 export const MODULES_WITH_CHAPTERS = `${BASE_URL}/admin-core-service/v1/learner-study-library/modules-with-chapters`;
-export const GET_SLIDES = `${BASE_URL}/admin-core-service/v1/learner-study-library/get-slides`;
+export const GET_SLIDES = `${BASE_URL}/admin-core-service/v1/learner-study-library/slides`;
 
 export const GET_DETAILS = `${BASE_URL}/media-service/get-details/ids`;
 export const GET_SIGNED_URL = `${BASE_URL}/media-service/get-signed-url`;
