@@ -389,7 +389,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
 
     addActivity(
       {
-        slide_id: activeItem?.slide_id || "",
+        slide_id: activeItem?.id || "",
         activity_id: activityId.current,
         source: "DOCUMENT" as const,
         source_id: documentId || "",
@@ -424,7 +424,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
     tabSwitchCount,
     missedAnswerCount,
     wrongAnswerCount,
-    activeItem?.slide_id,
+    activeItem?.id,
     addActivity,
     currentPage,
   ]);

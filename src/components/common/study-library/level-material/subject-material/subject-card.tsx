@@ -51,9 +51,9 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
   return (
     <div onClick={handleCardClick} className="cursor-pointer w-full h-[300px]">
       <div
-        className={`h-full relative flex flex-col items-center justify-center gap-4 border rounded-lg border-neutral-200 bg-neutral-50 p-4  w-full`}
+        className={`h-full relative flex flex-col items-center justify-center gap-4 border rounded-lg border-neutral-200 shadow-sm p-4  w-full`}
       >
-        <div className="h-[85%]">
+        <div className="h-full">
           {imageUrl ? (
             <img
               src={imageUrl}
