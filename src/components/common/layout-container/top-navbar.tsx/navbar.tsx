@@ -74,7 +74,7 @@ export function Navbar() {
           )}
         </div> */}
         <div
-          className="size-5 "
+          className="size-5 cursor-pointer"
           onClick={() => {
             setSidebarOpen();
           }}
