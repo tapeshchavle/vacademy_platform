@@ -62,7 +62,7 @@ export function DashboardComponent() {
           className="cursor-pointer"
         >
           <DashboardTabs
-            title={"Subjects"}
+            title={"My Subjects"}
             count={studyLibraryData?.length}
             button={false}
           />
