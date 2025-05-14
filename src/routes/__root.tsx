@@ -91,6 +91,8 @@ import { toast } from "sonner";
 import { useUpdate } from "@/stores/useUpdate";
 import Favicon from "react-favicon";
 import useStore from "@/components/common/layout-container/sidebar/useSidebar";
+import { Preferences } from "@capacitor/preferences";
+import { useTheme } from "@/providers/theme/theme-provider";
 import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
 import { TokenKey } from "@/constants/auth/tokens";
 
@@ -108,6 +110,16 @@ const RootComponent = () => {
   const { instituteLogoFileUrl } = useStore();
   const navigate = useNavigate(); // Get the router navigation function
   const vacademyUrl = "/vacademy-logo.svg";
+  const { setPrimaryColor } = useTheme();
+
+  const setPrimaryColorFromStorage = async () => {
+    const details = await Preferences.get({ key: "InstituteDetails" });
+    const parsedDetails = details.value ? JSON.parse(details.value) : null;
+    const themeCode = parsedDetails?.institute_theme_code;
+    if (themeCode) {
+      setPrimaryColor(themeCode);
+    }
+  };
 
   const getFallbackLogoUrl = (logoUrl: string | null | undefined): string => {
     return logoUrl && logoUrl.trim() !== "" ? logoUrl : vacademyUrl;
@@ -138,6 +150,7 @@ const RootComponent = () => {
         }
       }
     })();
+    setPrimaryColorFromStorage();
   }, []);
 
   // Handle deep links
