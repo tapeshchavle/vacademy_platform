@@ -92,6 +92,7 @@ export const useAssessmentStore = create<AssessmentStore>((set, get) => ({
       questionStartTime: {},
       questionTimeSpent: {},
       pdfFile: null,
+      tabSwitchCount: 0,
     }),
 
   setPdfFile: (file) => set({ pdfFile: file }),

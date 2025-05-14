@@ -91,6 +91,8 @@ import { toast } from "sonner";
 import { useUpdate } from "@/stores/useUpdate";
 import Favicon from "react-favicon";
 import useStore from "@/components/common/layout-container/sidebar/useSidebar";
+import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
+import { TokenKey } from "@/constants/auth/tokens";
 
 const TanStackRouterDevtools =
   process.env.NODE_ENV === "production"
@@ -110,6 +112,17 @@ const RootComponent = () => {
   const getFallbackLogoUrl = (logoUrl: string | null | undefined): string => {
     return logoUrl && logoUrl.trim() !== "" ? logoUrl : vacademyUrl;
   };
+
+  useEffect(() => {
+    (async () => {
+      const token = await getTokenFromStorage(TokenKey.accessToken);
+      console.log("Token from storage:", token);
+
+      if (!token) {
+        navigate({ to: "/login", replace: true });
+      }
+    })();
+  }, [navigate]);
 
   useEffect(() => {
     (async () => {
@@ -164,12 +177,11 @@ const RootComponent = () => {
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
 }>()({
-  beforeLoad: ({ location }) => {
+  beforeLoad: async ({ location }) => {
     if (location.pathname === "/") {
-      throw redirect({
-        to: "/login",
-      });
+      throw redirect({ to: "/login" });
     }
   },
+
   component: RootComponent,
 });
