@@ -9,6 +9,8 @@ import { DashboardImg } from "@/assets/svgs";
 import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
 import { fetchStudyLibraryDetails } from "@/services/study-library/getStudyLibraryDetails";
 import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
+import { DashbaordResponse } from "./-types/dashboard-data-types";
+import { MyButton } from "@/components/design-system/button";
 
 export const Route = createFileRoute("/dashboard/")({
   component: () => (
@@ -24,6 +26,7 @@ export function DashboardComponent() {
   const { setNavHeading } = useNavHeadingStore();
   const navigate = useNavigate();
   const { studyLibraryData, setStudyLibraryData } = useStudyLibraryStore();
+  const [dashboardData, setDashboardData] = useState<DashbaordResponse>();
 
   const handleGetStudyLibraryData = async () => {
     const PackageSessionId = await getPackageSessionId();
@@ -32,9 +35,14 @@ export function DashboardComponent() {
   }
   useEffect(() => {
     setNavHeading("Dashboard");
-    fetchStaticData(setUsername, setAssessmentCount);
+    fetchStaticData(setUsername, setAssessmentCount, setDashboardData);
     handleGetStudyLibraryData();
   }, []);
+
+  useEffect(() => {
+    console.log("dashboardData: ", dashboardData);
+  }, [dashboardData]);
+  
   return (
     <div>
       <Helmet>
@@ -75,6 +83,11 @@ export function DashboardComponent() {
             buttonText="Resume"
             list={data?.slides}
           /> */}
+        
+       <div className="p-4 w-full flex flex-col gap-4 rounded-lg border border-neutral-200 items-center">
+          <p className="text-subtitle font-semibold">Continue where you left</p>
+          <MyButton buttonType="secondary" className="w-fit">Resume</MyButton>
+       </div>
         <div
           onClick={() => {
             navigate({

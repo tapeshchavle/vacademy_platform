@@ -6,6 +6,7 @@ import {
   GET_ANNOUNCEMENTS,
   GET_ASSESSMENT_COUNT,
 } from "@/constants/urls";
+import { DashbaordResponse } from "../-types/dashboard-data-types";
 
 export const fetchUserData = async () => {
   const studentData = await Preferences.get({ key: "StudentDetails" });
@@ -17,7 +18,7 @@ export const fetchUserData = async () => {
 export const fetchStaticData = async (
   setUsername: (username: string | null) => void,
   setAssessmentCount: (count: number) => void,
-  setData?: (data: any) => void,
+  setData?: (data: DashbaordResponse) => void,
 ) => {
   const userData = await fetchUserData();
   const first_name = userData.full_name.split(" ")[0];
