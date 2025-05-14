@@ -129,6 +129,9 @@ export function NumericInputWithKeypad() {
           }
           inputMode="numeric"
           className="text-xl py-4 font-medium w-full"
+          onCopy={(e) => e.preventDefault()}
+          onCut={(e) => e.preventDefault()}
+          onPaste={(e) => e.preventDefault()}
         />
       </div>
 

@@ -8,11 +8,18 @@ import {
   STUDENT_REPORT_URL,
 } from "@/constants/urls";
 import { MyButton } from "@/components/design-system/button";
-// import { StatusChip } from "@/components/design-system/chips";
 import { useNavigate } from "@tanstack/react-router";
 import { Report } from "@/types/assessments/assessment-data-type";
 import { formatDuration, getSubjectNameById } from "@/constants/helper";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
+import { PlayMode, StatusChip } from "@/components/design-system/chips";
+
+const playModeColors: { [key: string]: string } = {
+  EXAM: "bg-green-500 text-white",
+  MOCK: "bg-purple-500 text-white",
+  PRACTICE: "bg-blue-500 text-white",
+  SURVEY: "bg-red-500 text-white",
+};
 
 export const viewStudentReport = async (
   assessmentId: string,
@@ -110,8 +117,8 @@ const AssessmentReportList = ({
         {
           name: "",
           status: ["ENDED"],
-          release_result_status: ["RELEASED"],
-          assessment_type: assessment_types,
+          // release_result_status: ["RELEASED"],
+          assessment_type: [assessment_types],
           sort_columns: {},
         },
         {
@@ -196,18 +203,20 @@ const AssessmentReportList = ({
           key={report.attempt_id}
           ref={index === reports.length - 1 ? lastReportElementRef : null}
         >
-          <Card className="w-full p-6 space-y-6">
+          <Card className="w-full p-6 space-y-2">
             <h2 className="text-sm lg:text-base font-semibold text-gray-900">
               {report.assessment_name}
             </h2>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <div className="flex gap-3 pb-3 items-center">
-                  {/* <StatusChip
-            status={report.assessment_status}
-            className={getStatusColor(report.assessment_status)}
-            /> */}
-                </div>
+                {assessment_types !== "HOMEWORK" && (
+                  <div className="flex gap-3 pb-3 items-center">
+                    <StatusChip
+                      playMode={report.play_mode as PlayMode}
+                      className={playModeColors[report.play_mode as PlayMode]}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2 text-xs lg:text-sm text-gray-600">
                   <div>Attempt Date: {formatDateTime(report.attempt_date)}</div>
                   <div>

@@ -35,6 +35,9 @@ export function OneWordInput() {
         }
       }}
       inputPlaceholder="Type your one-word answer"
+      onCopy={(e) => e.preventDefault()} 
+      onCut={(e) => e.preventDefault()}  
+      onPaste={(e) => e.preventDefault()}
     />
   );
 }
