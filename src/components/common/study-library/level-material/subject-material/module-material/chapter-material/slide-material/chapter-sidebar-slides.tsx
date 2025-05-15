@@ -36,7 +36,7 @@ export const ChapterSidebarSlides = () => {
                 <div
                     key={slide.id}
                     onClick={() => setActiveItem(slide)} // Pass the entire item
-                    className={`flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-2 ${
+                    className={`flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-2 ${activeItem?.progress_marker && activeItem?.progress_marker >= 80 ? "text-success-600" : "text-neutral-600"} ${
                         slide.id === activeItem?.id
                             ? "border border-neutral-200 bg-white text-primary-500"
                             : "hover:border hover:border-neutral-200 hover:bg-white hover:text-primary-500"
