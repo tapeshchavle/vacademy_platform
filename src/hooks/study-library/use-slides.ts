@@ -112,6 +112,8 @@ export interface Slide {
     assignment_slide?: AssignmentSlide;
     is_loaded: boolean;
     new_slide: boolean;
+    percentage_completed: number;
+    progress_marker: number;
 }
 
 export const useSlides = (chapterId: string) => {

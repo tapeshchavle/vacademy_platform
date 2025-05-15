@@ -41,10 +41,12 @@ enum PlayerState {
 interface YouTubePlayerProps {
     videoId: string;
     videoTitle?: string;
+    ms?: number;
 }
 
 export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
     videoId,
+    ms=0
 }) => {
     const { activeItem } = useContentStore();
     const { addActivity } = useTrackingStore();
@@ -879,39 +881,64 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         }
     };
 
-    const seekToTimestamp = async () => {
+    const seekToTimestamp = async (targetTimeInSeconds?: number) => {
         if (!player || !playerReady) return;
 
-        // Convert inputs to numbers
-        const minutes = minutesInput === "" ? 0 : Number.parseInt(minutesInput);
-        const seconds = secondsInput === "" ? 0 : Number.parseInt(secondsInput);
+        let totalSecondsToSeek: number;
 
-        // Calculate total seconds
-        const totalSeconds = minutes * 60 + seconds;
+        if (typeof targetTimeInSeconds === "number") {
+            totalSecondsToSeek = targetTimeInSeconds;
+        } else {
+            const minutes =
+                minutesInput === "" ? 0 : Number.parseInt(minutesInput);
+            const seconds =
+                secondsInput === "" ? 0 : Number.parseInt(secondsInput);
+            totalSecondsToSeek = minutes * 60 + seconds;
+        }
 
         try {
-            // Get video duration
             const videoDuration = await safeGetNumber(player.getDuration());
 
+            let finalSeekTime = totalSecondsToSeek;
             // Ensure timestamp is within valid range
-            if (totalSeconds <= 0) {
-                player.seekTo(0, true);
-            } else if (totalSeconds >= videoDuration) {
-                player.seekTo(videoDuration, true);
-            } else {
-                player.seekTo(totalSeconds, true);
+            if (finalSeekTime <= 0) {
+                finalSeekTime = 0;
+            } else if (finalSeekTime >= videoDuration) {
+                finalSeekTime = videoDuration;
             }
+            
+            player.seekTo(finalSeekTime, true);
 
             // Update currentTime state to reflect new position
-            setCurrentTime(totalSeconds);
+            setCurrentTime(finalSeekTime);
 
-            // Optional: Clear inputs after seeking
+            // Optional: Clear inputs after seeking if called via button without targetTimeInSeconds
+            // if (typeof targetTimeInSeconds === 'undefined') {
             // setMinutesInput("");
             // setSecondsInput("");
+            // }
         } catch (error) {
             console.error("Error seeking to timestamp:", error);
         }
     };
+
+    
+
+    useEffect(()=>{
+        // Only seek if ms is greater than 0 and player is ready
+        if (ms > 0 && player && playerReady) {
+            const totalSeconds = ms / 1000;
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = Math.floor(totalSeconds % 60); // Use Math.floor for whole seconds
+            
+            // Update input fields for display consistency
+            setMinutesInput(minutes.toString());
+            setSecondsInput(seconds.toString());
+
+            // Call seekToTimestamp with the calculated totalSeconds
+            seekToTimestamp(totalSeconds);
+        }
+    }, [ms, player, playerReady]) // Add player and playerReady to dependencies
 
     const toggleFullscreen = useCallback(async () => {
         if (!playerContainerRef.current) {
@@ -1278,7 +1305,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
                         buttonType="secondary"
                         scale="medium"
                         layoutVariant="icon"
-                        onClick={seekToTimestamp}
+                        onClick={() => seekToTimestamp()}
                         disable={!playerReady}
                     >
                         <Check />

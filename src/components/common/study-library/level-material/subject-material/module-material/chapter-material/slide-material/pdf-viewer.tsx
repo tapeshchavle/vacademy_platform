@@ -587,6 +587,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
         pdfUrl={pdfUrl}
         handlePageChange={handlePageChange}
         handleDocumentLoad={handleDocumentLoad}
+        initialPage={activeItem?.progress_marker}
       />
     </div>
   );
