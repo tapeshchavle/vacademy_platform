@@ -31,9 +31,12 @@ export const AssessmentInstructions = ({
   const attempt = getAttemptLabel(assessmentInfo);
   return (
     <div className="w-full sm:w-screen">
-      <div className="flex justify-start text-primary-500 text-sm font-normal mb-2">
-        Attempt no: <span className="font-bold">{attempt}</span>
-      </div>
+      {assessmentInfo.play_mode !== "PRACTICE" &&
+        assessmentInfo.play_mode !== "MOCK" && (
+          <div className="flex justify-start text-primary-500 text-sm font-normal mb-2">
+            Attempt no: <span className="font-bold">{attempt}</span>
+          </div>
+        )}
 
       <div className="font-bold text-lg mb-2">Assessment Instructions</div>
       <div
