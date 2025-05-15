@@ -54,7 +54,7 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
       <div
         className={`h-full relative flex flex-col items-center justify-center gap-4 border rounded-lg border-neutral-200 shadow-sm px-4 py-2 w-full`}
       >
-        <div className="h-full">
+        <div className="h-[65%]">
           {imageUrl ? (
             <img
               src={imageUrl}
