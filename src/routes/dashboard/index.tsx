@@ -13,7 +13,6 @@ import { Preferences } from "@capacitor/preferences";
 import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
 import { fetchStudyLibraryDetails } from "@/services/study-library/getStudyLibraryDetails";
 import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
-import { DashbaordResponse } from "./-types/dashboard-data-types";
 import { MyButton } from "@/components/design-system/button";
 
 export const Route = createFileRoute("/dashboard/")({
@@ -49,7 +48,6 @@ export function DashboardComponent() {
   const { setNavHeading } = useNavHeadingStore();
   const navigate = useNavigate();
   const { studyLibraryData, setStudyLibraryData } = useStudyLibraryStore();
-  const [dashboardData, setDashboardData] = useState<DashbaordResponse>();
 
   const handleGetStudyLibraryData = async () => {
     const PackageSessionId = await getPackageSessionId();
