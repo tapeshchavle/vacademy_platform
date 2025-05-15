@@ -6,6 +6,10 @@ import { fetchStaticData } from "./-lib/utils";
 import { DashboardTabs } from "./-components/DashboardTabs";
 import { Helmet } from "react-helmet";
 import { DashboardImg } from "@/assets/svgs";
+import { fetchStudentDetails } from "@/services/studentDetails";
+import { getUserId } from "@/constants/getUserId";
+import { getInstituteId } from "@/constants/helper";
+import { Preferences } from "@capacitor/preferences";
 import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
 import { fetchStudyLibraryDetails } from "@/services/study-library/getStudyLibraryDetails";
 import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
@@ -13,16 +17,35 @@ import { DashbaordResponse } from "./-types/dashboard-data-types";
 import { MyButton } from "@/components/design-system/button";
 
 export const Route = createFileRoute("/dashboard/")({
-  component: () => (
-    <LayoutContainer>
-      <DashboardComponent />
-    </LayoutContainer>
-  ),
+  beforeLoad: async () => {
+    const instituteId = await getInstituteId();
+    const userId = await getUserId();
+    if (!instituteId || !userId) {
+      throw new Error("Institute ID or User ID is missing");
+    }
+    const response = await fetchStudentDetails(instituteId, userId);
+    const studentDetails = response.data[0];
+    await Preferences.set({
+      key: "studentDetails",
+      value: JSON.stringify(studentDetails),
+    });
+  },
+  component: () => {
+    // const { studentDetails } = Route.useLoaderData();
+
+    return (
+      <LayoutContainer>
+        <DashboardComponent />
+      </LayoutContainer>
+    );
+  },
 });
 
 export function DashboardComponent() {
   const [username, setUsername] = useState<string | null>(null);
-  const [assessmentCount, setAssessmentCount] = useState<number>();
+  const [testAssignedCount, setTestAssignedCount] = useState<number>(0);
+  const [homeworkAssignedCount, setHomeworkAssignedCount] = useState<number>(0);
+
   const { setNavHeading } = useNavHeadingStore();
   const navigate = useNavigate();
   const { studyLibraryData, setStudyLibraryData } = useStudyLibraryStore();
@@ -32,17 +55,17 @@ export function DashboardComponent() {
     const PackageSessionId = await getPackageSessionId();
     const data = await fetchStudyLibraryDetails(PackageSessionId);
     setStudyLibraryData(data);
-  }
+  };
   useEffect(() => {
     setNavHeading("Dashboard");
-    fetchStaticData(setUsername, setAssessmentCount, setDashboardData);
+    fetchStaticData(
+      setUsername,
+      setTestAssignedCount,
+      setHomeworkAssignedCount
+    );
     handleGetStudyLibraryData();
   }, []);
 
-  useEffect(() => {
-    console.log("dashboardData: ", dashboardData);
-  }, [dashboardData]);
-  
   return (
     <div>
       <Helmet>
@@ -75,6 +98,20 @@ export function DashboardComponent() {
             button={false}
           />
         </div>
+        <div
+          onClick={() => {
+            navigate({
+              to: `/homework/list`,
+            });
+          }}
+          className="cursor-pointer"
+        >
+          <DashboardTabs
+            title={"Home work assigned "}
+            count={homeworkAssignedCount}
+            button={false}
+          />
+        </div>
         {/* TODO: implemnet resume feature after api is changed */}
         {/* <DashboardTabs
             title="Begin your journey"
@@ -98,7 +135,7 @@ export function DashboardComponent() {
         >
           <DashboardTabs
             title="Test Assigned"
-            count={assessmentCount}
+            count={testAssignedCount}
             button={false}
           />
         </div>

@@ -8,27 +8,26 @@ import { Slide, useSlides } from "@/hooks/study-library/use-slides";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 
 export const ChapterSidebarSlides = () => {
-    const { open } = useSidebar();
-    const { activeItem, setActiveItem } = useContentStore();
-    const router = useRouter();
-    const { chapterId } = router.state.location.search;
-    const { slides, isLoading } = useSlides(chapterId || "");
+  const { open } = useSidebar();
+  const { activeItem, setActiveItem } = useContentStore();
+  const router = useRouter();
+  const { chapterId } = router.state.location.search;
+  const { slides, isLoading } = useSlides(chapterId || "");
 
-   
-    
-    const getIcon = (slide: Slide): ReactNode => {
-        const type = slide.source_type == "VIDEO" ? "VIDEO" : slide.document_slide?.type;
-        switch (type) {
-            case "VIDEO":
-                return <PlayCircle className="size-6" />;
-            default:
-                return <BookOpenText className="size-6" />;
-        }
-    };
-
-    if (isLoading) {
-        return <DashboardLoader />;
+  const getIcon = (slide: Slide): ReactNode => {
+    const type =
+      slide.source_type == "VIDEO" ? "VIDEO" : slide.document_slide?.type;
+    switch (type) {
+      case "VIDEO":
+        return <PlayCircle className="size-6" />;
+      default:
+        return <BookOpenText className="size-6" />;
     }
+  };
+
+  if (isLoading) {
+    return <DashboardLoader />;
+  }
 
     return (
         <div className="flex w-full flex-col items-center gap-6 text-neutral-600">
@@ -58,5 +57,8 @@ export const ChapterSidebarSlides = () => {
                 </div>
             ))}
         </div>
-    );
+  );
+  // )}
+  // </div>
+  // );
 };
