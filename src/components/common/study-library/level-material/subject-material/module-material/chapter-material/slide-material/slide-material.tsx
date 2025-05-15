@@ -11,6 +11,7 @@ import { extractVideoId } from "@/utils/study-library/tracking/extractVideoId";
 export const SlideMaterial = () => {
     const { activeItem } = useContentStore();
     const selectionRef = useRef(null);
+    const loadGenerationRef = useRef(0);
     const [heading, setHeading] = useState(activeItem?.title || "");
     const [content, setContent] = useState<JSX.Element | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -52,10 +53,12 @@ export const SlideMaterial = () => {
         return null; // Return null if the upload fails
     };
 
-    const loadContent = async () => {
+    const loadContent = async ( generationId: number) => {
+        if (generationId !== loadGenerationRef.current) return;
         setError(null);
         
         if (!activeItem) {
+            if (generationId !== loadGenerationRef.current) return;
             setContent(
                 <div className="flex h-[500px] flex-col items-center justify-center rounded-lg py-10">
                     <EmptySlideMaterial />
@@ -65,11 +68,12 @@ export const SlideMaterial = () => {
             return;
         }
 
-        // Show loading state immediately
+        if (generationId !== loadGenerationRef.current) return;
         setContent(<DashboardLoader />);
 
         try {
             if (activeItem.source_type == "VIDEO") {
+                if (generationId !== loadGenerationRef.current) return;
                 setContent(
                     <div key={`video-${activeItem.id}`} className="h-full w-full">
                         <YouTubePlayerComp videoId={extractVideoId(activeItem.video_slide?.published_url || "") || ""} ms={activeItem.progress_marker} />
@@ -80,6 +84,7 @@ export const SlideMaterial = () => {
 
             if (activeItem?.source_type == "DOCUMENT" && activeItem.document_slide?.type=="PDF") {
                 const url = await getPublicUrl(activeItem?.document_slide?.published_data || "");
+                if (generationId !== loadGenerationRef.current) return;
                 if (!url) {
                     throw new Error("Failed to retrieve PDF URL");
                 }
@@ -89,6 +94,7 @@ export const SlideMaterial = () => {
 
             if (activeItem?.source_type == "DOCUMENT" && activeItem.document_slide?.type=="DOC") {
                 const url = await handleConvertAndUpload(activeItem.document_slide?.published_data);
+                if (generationId !== loadGenerationRef.current) return;
                 if (url == null) {
                     throw new Error("Error generating PDF URL");
                 }
@@ -97,27 +103,37 @@ export const SlideMaterial = () => {
             }
         } catch (err) {
             console.error("Error loading content:", err);
-            setError(err instanceof Error ? err.message : "Failed to load content");
-            setContent(
-                <div className="flex h-[300px] flex-col items-center justify-center">
-                    <p className="text-red-500">{error || "An error occurred while loading content"}</p>
-                </div>
-            );
+            if (generationId === loadGenerationRef.current) {
+                setError(err instanceof Error ? err.message : "Failed to load content");
+                setContent(
+                    <div className="flex h-[300px] flex-col items-center justify-center">
+                        <p className="text-red-500">{error || "An error occurred while loading content"}</p>
+                    </div>
+                );
+            }
         }
     };
 
     useEffect(() => {
+        loadGenerationRef.current += 1;
+        const currentGeneration = loadGenerationRef.current;
+
         if (activeItem) {
             setHeading(activeItem.title || "");
-            loadContent();
+            loadContent( currentGeneration);
+        } else {
+            setHeading("No content");
+            if (currentGeneration === loadGenerationRef.current) {
+                setContent(
+                    <div className="flex h-[500px] flex-col items-center justify-center rounded-lg py-10">
+                        <EmptySlideMaterial />
+                        <p className="mt-4 text-neutral-500">No study material has been added yet</p>
+                    </div>,
+                );
+            }
         }
     }, [activeItem]);
 
-    useEffect(() => {
-        if (activeItem) {
-            setHeading(activeItem.title || "");
-        }
-    }, [activeItem]);
 
     return (
         <div className="flex w-full flex-col" ref={selectionRef}>
