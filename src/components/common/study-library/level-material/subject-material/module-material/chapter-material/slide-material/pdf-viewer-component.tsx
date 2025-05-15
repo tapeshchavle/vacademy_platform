@@ -19,10 +19,12 @@ export const PdfViewerComponent = ({
   pdfUrl,
   handleDocumentLoad,
   handlePageChange,
+  initialPage=0
 }: {
   pdfUrl: string;
   handleDocumentLoad: (e: DocumentLoadEvent) => void;
   handlePageChange: (e: PageChangeEvent) => void;
+  initialPage?: number;
 }) => {
   const transform: TransformToolbarSlot = (slot: ToolbarSlot) => ({
     ...slot,
@@ -49,6 +51,7 @@ export const PdfViewerComponent = ({
           onDocumentLoad={handleDocumentLoad}
           onPageChange={handlePageChange}
           plugins={[defaultLayoutPluginInstance]}
+          initialPage={initialPage}
         />
       </div>
     </Worker>
