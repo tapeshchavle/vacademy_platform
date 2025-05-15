@@ -26,7 +26,7 @@ export const ChapterCard = ({ chapter }: {chapter: Chapter}) => {
                 subjectId: subjectId,
                 moduleId: moduleId,
                 chapterId: chapter.id,
-                slideId: "yourSlideId",
+                slideId: chapter.last_slide_viewed,
             },
         });
     };
@@ -34,8 +34,11 @@ export const ChapterCard = ({ chapter }: {chapter: Chapter}) => {
     return (
         <div onClick={handleCardClick} className="w-full cursor-pointer">
             <div className="flex w-full flex-col justify-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 p-4">
-                <div className="flex items-center justify-between text-body font-semibold">
-                    <div>{chapter.chapter_name}</div>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between text-body font-semibold">
+                        <div>{chapter.chapter_name}</div>
+                    </div>
+                    <p className="text-neutral-500 text-body">{chapter.percentage_completed}% completed</p>
                 </div>
                 <div className="flex items-center justify-between">
                     <div className="flex gap-4 text-body font-semibold">
@@ -48,7 +51,9 @@ export const ChapterCard = ({ chapter }: {chapter: Chapter}) => {
                             <div className="text-primary-500">{chapter.video_count || 0}</div>
                         </div>
                     </div>
-                    <CheckCircle size={20} weight="fill" className="text-success-600 " />
+                    {chapter.percentage_completed==100 &&
+                        <CheckCircle size={20} weight="fill" className="text-success-600 " />
+                    }
                 </div>
             </div>
         </div>

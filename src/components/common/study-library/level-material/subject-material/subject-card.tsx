@@ -51,9 +51,9 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
   return (
     <div onClick={handleCardClick} className="cursor-pointer w-full h-[300px]">
       <div
-        className={`h-full relative flex flex-col items-center justify-center gap-4 border rounded-lg border-neutral-200 bg-neutral-50 p-4  w-full`}
+        className={`h-full relative flex flex-col items-center justify-center gap-4 border rounded-lg border-neutral-200 shadow-sm p-4  w-full`}
       >
-        <div className="h-[85%]">
+        <div className="h-full">
           {imageUrl ? (
             <img
               src={imageUrl}
@@ -64,8 +64,9 @@ export const SubjectCard = ({ subject }: SubjectCardProps) => {
             <SubjectDefaultImage />
           )}
         </div>
-        <div className="flex items-center justify-between gap-5">
-          <div className="text-body font-semibold">{subject.subject_name}</div>
+        <div className="flex items-center justify-center gap-2 w-full">
+          <div className="text-subtitle font-semibold ">{subject.subject_name}</div>
+          <p className="text-body text-neutral-500">({subject.percentage_completed}% completed)</p>
         </div>
       </div>
     </div>

@@ -1,3 +1,5 @@
+"use client";
+
 import { DotOutline, Export } from "@phosphor-icons/react";
 import { MyButton } from "@/components/design-system/button";
 import { Separator } from "@radix-ui/react-separator";
@@ -7,7 +9,11 @@ import {
   formatDuration,
   getSubjectNameById,
 } from "@/constants/helper";
-import { ResponseBreakdownComponent } from "./response-breakdown-component";
+import {
+  renderCorrectAnswer,
+  renderStudentResponse,
+  ResponseBreakdownComponent,
+} from "./response-breakdown-component";
 import { MarksBreakdownComponent } from "./marks-breakdown-component";
 import { Crown } from "@/svgs";
 import { useEffect, useState } from "react";
@@ -16,7 +22,7 @@ import { CaretLeft, Clock } from "phosphor-react";
 import { parseHtmlToString } from "@/lib/utils";
 import { Preferences } from "@capacitor/preferences";
 import { useRouter } from "@tanstack/react-router";
-import {
+import type {
   ParsedHistoryState,
   Report,
   Section,
@@ -59,6 +65,7 @@ export const TestReportDialog = ({
     duration_in_seconds: 0,
     sections: {},
     attempt_date: "",
+    play_mode: "",
   };
 
   const studentReport: Report = locationState?.report || defaultReport;
@@ -493,9 +500,7 @@ export const TestReportDialog = ({
                   onClick={() => setSelectedSection(section.id)}
                 >
                   <span
-                    className={`${
-                      selectedSection === section.id ? "text-primary-500" : ""
-                    }`}
+                    className={`${selectedSection === section.id ? "text-primary-500" : ""}`}
                   >
                     {section.name}
                   </span>
@@ -524,132 +529,89 @@ export const TestReportDialog = ({
           <div className="flex w-full flex-col gap-10 pb-10 md:pb-0">
             {currentSectionAllQuestions &&
             currentSectionAllQuestions.length > 0 ? (
-              currentSectionAllQuestions.map((review, index) => (
-                <div className="flex w-full flex-col gap-10" key={index}>
-                  <div className="flex w-full flex-col gap-4">
-                    <div className="flex w-full items-start justify-between gap-6 text-subtitle">
-                      <div className=" md:flex-row w-full items-start gap-6 text-title">
-                        <div className="flex justify-between w-full">
-                          <div className="">Question ({index + 1}.)</div>
-                          <div className="flex  items-center gap-2 ">
-                            <Clock size={20} />
-                            <p className="text-primary-500">
-                              {review.time_taken_in_seconds} sec
-                            </p>
+              currentSectionAllQuestions.map((review, index) => {
+                // Import the renderer functions
+                // const { renderStudentResponse, renderCorrectAnswer } = require("./question-response-renderer")
+
+                return (
+                  <div className="flex w-full flex-col gap-10" key={index}>
+                    <div className="flex w-full flex-col gap-4">
+                      <div className="flex w-full items-start justify-between gap-6 text-subtitle">
+                        <div className="md:flex-row w-full items-start gap-6 text-title">
+                          <div className="flex justify-between w-full">
+                            <div className="">
+                              Question ({index + 1}.)
+                              <span className="ml-2 text-xs text-neutral-500">
+                                {review.question_type}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock size={20} />
+                              <p className="text-primary-500">
+                                {review.time_taken_in_seconds} sec
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <div>{parseHtmlToString(review.question_name)}</div>
-                      </div>
-                    </div>
-                    <div className="flex w-full items-center gap-6 text-subtitle">
-                      <div>Your response:</div>
-                      <div className="flex w-full items-center justify-between">
-                        <div
-                          className={`flex w-full items-center rounded-lg p-4 ${
-                            review.answer_status == "CORRECT"
-                              ? "bg-success-50"
-                              : review.answer_status == "INCORRECT"
-                                ? "bg-danger-100"
-                                : "bg-neutral-50"
-                          }`}
-                        >
-                          <div>
-                            {review.student_response_options.length > 0 ? (
-                              review.student_response_options.map(
-                                (option, idx) => {
-                                  return (
-                                    <p key={idx}>
-                                      {parseHtmlToString(option.option_name)}
-                                    </p>
-                                  );
-                                }
-                              )
-                            ) : (
-                              <p>No response</p>
-                            )}
-                          </div>
+                          <div>{parseHtmlToString(review.question_name)}</div>
                         </div>
                       </div>
-                    </div>
-                    <div className="">
-                      {/* <StatusChip mark={review.mark} status={review.answer_status} /> */}
-                      <MarksStatusIndicator
-                        mark={review.mark}
-                        answer_status={
-                          review.answer_status as
-                            | "CORRECT"
-                            | "INCORRECT"
-                            | "PARTIAL_CORRECT"
-                            | "DEFAULT"
-                        }
-                      />
-
-                      {/* <MarkBadge marks={review.mark} /> */}
-
-                      {/* <StatusChips
-                          status={
-                            review.answer_status == "CORRECT"
-                              ? "active"
-                              : review.answer_status == "INCORRECT"
-                                ? "error"
-                                : "inactive"
-                          }
-                          showIcon={false}
-                        >
-                          {review.mark} Marks
-                        </StatusChips>
-                        <StatusChips
-                          status={
-                            review.answer_status == "CORRECT"
-                              ? "active"
-                              : review.answer_status == "INCORRECT"
-                                ? "error"
-                                : "inactive"
-                          }
-                          className="rounded-full"
-                        >
-                          <></>
-                        </StatusChips> */}
-                    </div>
-                    {review.answer_status !== "CORRECT" && (
-                      <div className="flex w-full items-center gap-6 text-subtitle">
-                        <div>Correct answer:</div>
-                        <div className="flex w-full items-center justify-between">
+                      <div className="flex w-full items-start gap-6 text-subtitle">
+                        <div className="min-w-[120px]">Your response:</div>
+                        <div className="flex w-full items-start justify-between">
                           <div
-                            className={`flex w-full rounded-lg bg-success-50 p-4`}
+                            className={`flex w-full rounded-lg p-4 ${
+                              review.answer_status == "CORRECT"
+                                ? "bg-success-50"
+                                : review.answer_status == "INCORRECT"
+                                  ? "bg-danger-100"
+                                  : "bg-neutral-50"
+                            }`}
                           >
-                            <div>
-                              {review.correct_options ? (
-                                review.correct_options.map((option, idx) => {
-                                  return (
-                                    <p key={idx}>
-                                      {parseHtmlToString(option.option_name)}
-                                    </p>
-                                  );
-                                })
-                              ) : (
-                                <p>No response</p>
-                              )}
+                            {renderStudentResponse(review)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="">
+                        <MarksStatusIndicator
+                          mark={review.mark}
+                          answer_status={
+                            review.answer_status as
+                              | "CORRECT"
+                              | "INCORRECT"
+                              | "PARTIAL_CORRECT"
+                              | "DEFAULT"
+                            // | "PENDING"
+                          }
+                        />
+                      </div>
+                      {review.answer_status !== "CORRECT" && (
+                        <div className="flex w-full items-start gap-6 text-subtitle">
+                          <div className="min-w-[120px]">Correct answer:</div>
+                          <div className="flex w-full items-start justify-between">
+                            <div
+                              className={`flex w-full rounded-lg bg-success-50 p-4`}
+                            >
+                              {renderCorrectAnswer(review)}
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                    {review.explanation ? (
-                      <div className="flex items-center gap-6 text-subtitle">
-                        <div>Explanation:</div>
-                        <div>{parseHtmlToString(review.explanation)}</div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-6 text-subtitle">
-                        <div>Explanation:</div>
-                        <div>No explanation given</div>
-                      </div>
-                    )}
+                      )}
+                      {review.explanation ? (
+                        <div className="flex items-start gap-6 text-subtitle">
+                          <div className="min-w-[120px]">Explanation:</div>
+                          <div>{parseHtmlToString(review.explanation)}</div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-6 text-subtitle">
+                          <div className="min-w-[120px]">Explanation:</div>
+                          <div>No explanation given</div>
+                        </div>
+                      )}
+                    </div>
+                    <Separator />
                   </div>
-                  <Separator />
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="py-4 text-center text-subtitle">
                 No answer review available

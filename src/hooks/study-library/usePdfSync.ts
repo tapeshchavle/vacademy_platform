@@ -51,7 +51,7 @@ export const usePDFSync = () => {
           source_id: activity.source_id,
           source_type: activity.source,
           user_id: chapterId || "",
-          slide_id: activeItem?.slide_id || "",
+          slide_id: activeItem?.id || "",
           start_time_in_millis: activity.start_time_in_millis,
           end_time_in_millis: activity.end_time_in_millis,
           percentage_watched: activity.total_pages_read,

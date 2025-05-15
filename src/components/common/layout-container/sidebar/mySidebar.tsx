@@ -1,7 +1,6 @@
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
@@ -32,27 +31,23 @@ export const MySidebar = ({
           state == "expanded" ? "w-[307px]" : "w-28"
         }`}
       >
-        <SidebarHeader className="">
-          <div
-            className={`flex items-center justify-center  ${
-              state == "expanded" ? "pl-4" : "pl-0"
-            }`}
-          >
-            <div className="size-12">
+        <SidebarHeader className={`flex items-center flex-row gap-4  ${
+              state == "expanded" ? "pl-4 justify-start" : "pl-0 justify-center"
+            }`}>
+            <div className="size-14">
               {!isNullOrEmptyOrUndefined(instituteLogoFileUrl) ? (
                 <img
-                  className="size-12"
+                  className="size-14 rounded-full"
                   src={instituteLogoFileUrl}
                   alt="Logo"
                 />
               ) : (
-                <div className="size-12 border border-primary-500 rounded-full"></div>
+                <div className="size-20 border border-primary-500 rounded-full"></div>
               )}
             </div>
-            <SidebarGroup className="text-[18px] font-semibold text-primary-500 group-data-[collapsible=icon]:hidden">
+            <div className="text-[18px] font-semibold text-primary-500 group-data-[collapsible=icon]:hidden">
               {instituteName}
-            </SidebarGroup>
-          </div>
+            </div>
         </SidebarHeader>
         <SidebarMenu
           className={`flex  flex-col justify-center gap-6 py-4 ${

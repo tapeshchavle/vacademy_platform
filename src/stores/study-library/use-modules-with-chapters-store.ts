@@ -14,6 +14,8 @@ export interface Chapter {
     pdf_count: number,
     doc_count: number,
     unknown_count: number,
+    question_slide_count: number,
+    assignment_slide_count: number
 }
 
 export interface Module {
@@ -26,6 +28,7 @@ export interface Module {
 
 export interface ModulesWithChapters {
     module: Module;
+    percentage_completed: number;
     chapters: Chapter[];
 }
 

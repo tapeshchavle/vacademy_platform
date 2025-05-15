@@ -449,7 +449,7 @@ export const YouTubePlayerComp: React.FC<YouTubePlayerProps> = ({
         const endTime = videoEndTime.current || getEpochTimeInMillis();
 
         const newActivity = {
-            slide_id: activeItem?.slide_id || "",
+            slide_id: activeItem?.id || "",
             activity_id: activityId.current,
             source: "VIDEO" as const,
             source_id: videoId,

@@ -11,7 +11,7 @@ import { extractVideoId } from "@/utils/study-library/tracking/extractVideoId";
 export const SlideMaterial = () => {
     const { activeItem } = useContentStore();
     const selectionRef = useRef(null);
-    const [heading, setHeading] = useState(activeItem?.document_title || activeItem?.video_title || "");
+    const [heading, setHeading] = useState(activeItem?.title || "");
     const [content, setContent] = useState<JSX.Element | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -69,17 +69,17 @@ export const SlideMaterial = () => {
         setContent(<DashboardLoader />);
 
         try {
-            if (activeItem.published_url != null) {
+            if (activeItem.source_type == "VIDEO") {
                 setContent(
-                    <div key={`video-${activeItem.slide_id}`} className="h-full w-full">
-                        <YouTubePlayerComp videoId={extractVideoId(activeItem.published_url) || ""} />
+                    <div key={`video-${activeItem.id}`} className="h-full w-full">
+                        <YouTubePlayerComp videoId={extractVideoId(activeItem.video_slide?.published_url || "") || ""} />
                     </div>,
                 );
                 return;
             }
 
-            if (activeItem?.document_type == "PDF") {
-                const url = await getPublicUrl(activeItem?.published_data || "");
+            if (activeItem?.source_type == "DOCUMENT" && activeItem.document_slide?.type=="PDF") {
+                const url = await getPublicUrl(activeItem?.document_slide?.published_data || "");
                 if (!url) {
                     throw new Error("Failed to retrieve PDF URL");
                 }
@@ -87,8 +87,8 @@ export const SlideMaterial = () => {
                 return;
             }
 
-            if (activeItem?.document_type == "DOC") {
-                const url = await handleConvertAndUpload(activeItem.published_data);
+            if (activeItem?.source_type == "DOCUMENT" && activeItem.document_slide?.type=="DOC") {
+                const url = await handleConvertAndUpload(activeItem.document_slide?.published_data);
                 if (url == null) {
                     throw new Error("Error generating PDF URL");
                 }
@@ -108,14 +108,14 @@ export const SlideMaterial = () => {
 
     useEffect(() => {
         if (activeItem) {
-            setHeading(activeItem.document_title || activeItem.video_title || "");
+            setHeading(activeItem.title || "");
             loadContent();
         }
     }, [activeItem]);
 
     useEffect(() => {
         if (activeItem) {
-            setHeading(activeItem.slide_title || "");
+            setHeading(activeItem.title || "");
         }
     }, [activeItem]);
 
@@ -128,7 +128,7 @@ export const SlideMaterial = () => {
             </div>
             <div
                 className={`mx-auto mt-8 ${
-                    activeItem?.published_url == "PDF" ? "h-[calc(100vh-200px)] w-[500px]" : "h-full"
+                    activeItem?.source_type=="DOCUMENT" && activeItem?.document_slide?.type == "PDF" ? "h-[calc(100vh-200px)] w-[500px]" : "h-full"
                 } w-full overflow-hidden`}
             >
                 {content}
