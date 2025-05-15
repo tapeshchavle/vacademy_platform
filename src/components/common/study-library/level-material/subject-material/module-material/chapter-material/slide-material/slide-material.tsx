@@ -72,7 +72,7 @@ export const SlideMaterial = () => {
             if (activeItem.source_type == "VIDEO") {
                 setContent(
                     <div key={`video-${activeItem.id}`} className="h-full w-full">
-                        <YouTubePlayerComp videoId={extractVideoId(activeItem.video_slide?.published_url || "") || ""} />
+                        <YouTubePlayerComp videoId={extractVideoId(activeItem.video_slide?.published_url || "") || ""} ms={activeItem.progress_marker} />
                     </div>,
                 );
                 return;
