@@ -105,7 +105,7 @@ export interface Slide {
     image_file_id: string;
     description: string;
     status: string;
-    slide_order: number;
+    slide_order: number ;
     video_slide?: VideoSlide;
     document_slide?: DocumentSlide;
     question_slide?: QuestionSlide;

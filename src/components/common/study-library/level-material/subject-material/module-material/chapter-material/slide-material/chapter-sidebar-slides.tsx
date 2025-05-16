@@ -7,10 +7,10 @@ import { useRouter } from "@tanstack/react-router";
 import { Slide, useSlides } from "@/hooks/study-library/use-slides";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 
-export const getIcon = (slide: Slide , size?:string): ReactNode => {
+export const getIcon = (sourceType: string , size?:string): ReactNode => {
   const sizeClass = `size-${size ? size : "6"}`
   const type =
-    slide.source_type == "VIDEO" ? "VIDEO" : slide.document_slide?.type;
+    sourceType == "VIDEO" ? "VIDEO" : "DOCUMENT";
   switch (type) {
     case "VIDEO":
       return <PlayCircle className={sizeClass} />;
@@ -44,7 +44,7 @@ export const ChapterSidebarSlides = () => {
                     title={slide.title || ""}
                 >
                     <div className="flex items-center gap-3">
-                        {getIcon(slide)}
+                        {getIcon(slide.source_type)}
                         <p className={`flex-1 text-subtitle ${open ? "visible" : "hidden"} text-body`}>
                             {truncateString(
                                 slide.title || "",
