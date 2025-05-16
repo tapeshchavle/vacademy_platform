@@ -1,4 +1,5 @@
 import { LineChartComponent } from "./LineChartComponent"
+import { StudentProgressTable } from "./StudentProgressTable"
 
 export const PastLearningInsights = () => {
     return(
@@ -15,6 +16,7 @@ export const PastLearningInsights = () => {
 
             <div>
                 {/* table */}
+                <StudentProgressTable />
             </div>
         </div>
     )
