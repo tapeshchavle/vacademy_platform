@@ -29,36 +29,35 @@ export const ChapterSidebarSlides = () => {
   if (isLoading) {
     return <DashboardLoader />;
   }
-  // };
 
-  // if (isLoading) {
-  //   return <DashboardLoader />;
-  // }
-
-  return (
-    <div className="flex w-full flex-col items-center gap-6 text-neutral-600">
-      {slides?.map((slide: Slide) => (
-        <div
-          key={slide.id}
-          onClick={() => setActiveItem(slide)} // Pass the entire item
-          className={`flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-2 ${
-            slide.id === activeItem?.id
-              ? "border border-neutral-200 bg-white text-primary-500"
-              : "hover:border hover:border-neutral-200 hover:bg-white hover:text-primary-500"
-          }`}
-          title={slide.title || ""}
-        >
-          {getIcon(slide)}
-          <p
-            className={`flex-1 text-subtitle ${
-              open ? "visible" : "hidden"
-            } text-body`}
-          >
-            {truncateString(slide.title || "", 18)}
-          </p>
+    return (
+        <div className="flex w-full flex-col items-center gap-6 text-neutral-600">
+            {slides?.map((slide:Slide) => (
+                <div
+                    key={slide.id}
+                    onClick={() => setActiveItem(slide)} // Pass the entire item
+                    className={`flex w-full cursor-pointer justify-between items-center gap-3 rounded-xl px-4 py-2 ${activeItem?.percentage_completed && activeItem?.percentage_completed >= 80 ? "text-success-600" : "text-neutral-600"} ${
+                        slide.id === activeItem?.id
+                            ? "border border-neutral-200 bg-white text-primary-500"
+                            : "hover:border hover:border-neutral-200 hover:bg-white hover:text-primary-500"
+                    }`}
+                    title={slide.title || ""}
+                >
+                    <div className="flex items-center gap-3">
+                        {getIcon(slide)}
+                        <p className={`flex-1 text-subtitle ${open ? "visible" : "hidden"} text-body`}>
+                            {truncateString(
+                                slide.title || "",
+                                18,
+                            )}
+                        </p>
+                    </div>
+                    {slide.percentage_completed!=null &&
+                        <p className="text-body">{slide.percentage_completed}%</p>
+                    }
+                </div>
+            ))}
         </div>
-      ))}
-    </div>
   );
   // )}
   // </div>

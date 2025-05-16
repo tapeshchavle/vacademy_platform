@@ -13,6 +13,7 @@ import { Preferences } from "@capacitor/preferences";
 import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
 import { fetchStudyLibraryDetails } from "@/services/study-library/getStudyLibraryDetails";
 import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
+import { MyButton } from "@/components/design-system/button";
 
 export const Route = createFileRoute("/dashboard/")({
   beforeLoad: async () => {
@@ -117,6 +118,11 @@ export function DashboardComponent() {
             buttonText="Resume"
             list={data?.slides}
           /> */}
+        
+       <div className="p-4 w-full flex flex-col gap-4 rounded-lg border border-neutral-200 items-center">
+          <p className="text-subtitle font-semibold">Continue where you left</p>
+          <MyButton buttonType="secondary" className="w-fit">Resume</MyButton>
+       </div>
         <div
           onClick={() => {
             navigate({
