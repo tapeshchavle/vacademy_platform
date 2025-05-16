@@ -431,11 +431,6 @@ export const SubjectMaterial = () => {
         )}
       </div>
     ),
-    [TabType.STUDENT]: (
-      <div className="rounded-md bg-white p-3 text-sm text-gray-600 shadow-sm">
-        Student content coming soon.
-      </div>
-    ),
     [TabType.TEACHERS]: (
       <div className="rounded-md bg-white p-3 text-sm text-gray-600 shadow-sm">
         Teachers content coming soon.
@@ -446,21 +441,22 @@ export const SubjectMaterial = () => {
         Assessment content coming soon.
       </div>
     ),
-    [TabType.ASSIGNMENT]: (
-      <div className="rounded-md bg-white p-3 text-sm text-gray-600 shadow-sm">
-        Assignment content coming soon.
-      </div>
-    ),
-    [TabType.GRADING]: (
-      <div className="rounded-md bg-white p-3 text-sm text-gray-600 shadow-sm">
-        Grading content coming soon.
-      </div>
-    ),
-    [TabType.ANNOUNCEMENT]: (
-      <div className="rounded-md bg-white p-3 text-sm text-gray-600 shadow-sm">
-        Announcement content coming soon.
-      </div>
-    ),
+    // TODO : add when feature  is available 
+    // [TabType.ASSIGNMENT]: (
+    //   <div className="rounded-md bg-white p-3 text-sm text-gray-600 shadow-sm">
+    //     Assignment content coming soon.
+    //   </div>
+    // ),
+    // [TabType.GRADING]: (
+    //   <div className="rounded-md bg-white p-3 text-sm text-gray-600 shadow-sm">
+    //     Grading content coming soon.
+    //   </div>
+    // ),
+    // [TabType.ANNOUNCEMENT]: (
+    //   <div className="rounded-md bg-white p-3 text-sm text-gray-600 shadow-sm">
+    //     Announcement content coming soon.
+    //   </div>
+    // ),
   };
 
   return (
