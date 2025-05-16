@@ -14,6 +14,9 @@ import { getPackageSessionId } from "@/utils/study-library/get-list-from-stores/
 import { fetchStudyLibraryDetails } from "@/services/study-library/getStudyLibraryDetails";
 import { useStudyLibraryStore } from "@/stores/study-library/use-study-library-store";
 import { MyButton } from "@/components/design-system/button";
+import { DashbaordResponse, DashboardSlide } from "./-types/dashboard-data-types";
+import { getIcon } from "@/components/common/study-library/level-material/subject-material/module-material/chapter-material/slide-material/chapter-sidebar-slides";
+import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 
 export const Route = createFileRoute("/dashboard/")({
   beforeLoad: async () => {
@@ -48,18 +51,42 @@ export function DashboardComponent() {
   const { setNavHeading } = useNavHeadingStore();
   const navigate = useNavigate();
   const { studyLibraryData, setStudyLibraryData } = useStudyLibraryStore();
+  const [data, setData] = useState<DashbaordResponse | null>(null);
+  const { setActiveItem } = useContentStore();
 
   const handleGetStudyLibraryData = async () => {
     const PackageSessionId = await getPackageSessionId();
     const data = await fetchStudyLibraryDetails(PackageSessionId);
     setStudyLibraryData(data);
   };
+
+  const handleResumeClick = (slide: DashboardSlide) => {
+    setActiveItem({
+      id: slide.slide_id,
+      source_id: "",
+      source_type: slide.source_type,
+      title: slide.slide_title,
+      image_file_id: "",
+      description: slide.slide_description,
+      status: slide.status,
+      slide_order: 0,
+      is_loaded: false,
+      new_slide: false,
+      percentage_completed: 0,
+      progress_marker: slide.progress_marker
+    });
+    navigate({
+      to: `/study-library/courses/levels/subjects/modules/chapters/slides?subjectId=${slide.subject_id}&moduleId=${slide.module_id}&chapterId=${slide.chapter_id}&slideId=${slide.slide_id}`,
+    });
+  };
+
   useEffect(() => {
     setNavHeading("Dashboard");
     fetchStaticData(
       setUsername,
       setTestAssignedCount,
-      setHomeworkAssignedCount
+      setHomeworkAssignedCount,
+      setData
     );
     handleGetStudyLibraryData();
   }, []);
@@ -121,7 +148,15 @@ export function DashboardComponent() {
         
        <div className="p-4 w-full flex flex-col gap-4 rounded-lg border border-neutral-200 items-center">
           <p className="text-subtitle font-semibold">Continue where you left</p>
-          <MyButton buttonType="secondary" className="w-fit">Resume</MyButton>
+          {data?.slides.map((slide) => (
+            <div key={slide.slide_id} className="flex gap-2 justify-between">
+              <div className="flex gap-2">
+                {getIcon(slide?.source_type)}
+                <p>{slide?.slide_title}</p>
+              </div>
+              <MyButton buttonType="secondary" className="w-fit" onClick={()=>handleResumeClick(slide)}>Resume</MyButton>
+            </div>
+          ))}
        </div>
         <div
           onClick={() => {
