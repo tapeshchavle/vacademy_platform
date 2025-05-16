@@ -114,6 +114,11 @@ export interface Slide {
     new_slide: boolean;
 }
 
+export const fetchSlidesByChapterId = async (chapterId: string): Promise<Slide[]> => {
+  const response = await authenticatedAxiosInstance.get(`${GET_SLIDES}?chapterId=${chapterId}`);
+  return response.data;
+};
+
 export const useSlides = (chapterId: string) => {
 
     const getSlidesQuery = useQuery({

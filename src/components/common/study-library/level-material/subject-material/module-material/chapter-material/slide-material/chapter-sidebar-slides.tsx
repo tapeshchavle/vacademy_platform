@@ -7,23 +7,24 @@ import { useRouter } from "@tanstack/react-router";
 import { Slide, useSlides } from "@/hooks/study-library/use-slides";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 
+export const getIcon = (slide: Slide , size?:string): ReactNode => {
+  const sizeClass = `size-${size ? size : "6"}`
+  const type =
+    slide.source_type == "VIDEO" ? "VIDEO" : slide.document_slide?.type;
+  switch (type) {
+    case "VIDEO":
+      return <PlayCircle className={sizeClass} />;
+    default:
+      return <BookOpenText className={sizeClass} />;
+  }
+};
+
 export const ChapterSidebarSlides = () => {
   const { open } = useSidebar();
   const { activeItem, setActiveItem } = useContentStore();
   const router = useRouter();
   const { chapterId } = router.state.location.search;
   const { slides, isLoading } = useSlides(chapterId || "");
-
-  const getIcon = (slide: Slide): ReactNode => {
-    const type =
-      slide.source_type == "VIDEO" ? "VIDEO" : slide.document_slide?.type;
-    switch (type) {
-      case "VIDEO":
-        return <PlayCircle className="size-6" />;
-      default:
-        return <BookOpenText className="size-6" />;
-    }
-  };
 
   if (isLoading) {
     return <DashboardLoader />;
@@ -49,7 +50,9 @@ export const ChapterSidebarSlides = () => {
         >
           {getIcon(slide)}
           <p
-            className={`flex-1 text-subtitle ${open ? "visible" : "hidden"} text-body`}
+            className={`flex-1 text-subtitle ${
+              open ? "visible" : "hidden"
+            } text-body`}
           >
             {truncateString(slide.title || "", 18)}
           </p>
