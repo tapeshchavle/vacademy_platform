@@ -18,6 +18,7 @@ import {
 } from "@/lib/auth/sessionUtility";
 import { fetchAndStoreInstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
 import { fetchAndStoreStudentDetails } from "@/services/studentDetails";
+import { useTheme } from "@/providers/theme/theme-provider";
 type FormValues = z.infer<typeof loginSchema>;
 
 interface UsernameLoginProps {
@@ -26,8 +27,10 @@ interface UsernameLoginProps {
 export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  /* eslint-disable-next-line */
   const { redirect } = useSearch<any>({ from: "/login/" });
-  
+  const { setPrimaryColor } = useTheme();
+
   const form = useForm<FormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -72,7 +75,12 @@ export function UsernameLogin({ onSwitchToEmail }: UsernameLoginProps) {
 
             if (instituteId && userId) {
               try {
-                await fetchAndStoreInstituteDetails(instituteId, userId);
+                const details = await fetchAndStoreInstituteDetails(
+                  instituteId,
+                  userId
+                );
+                console.log("Institute color:", details?.institute_theme_code);
+                setPrimaryColor(details?.institute_theme_code ?? "#E67E22");
               } catch (error) {
                 console.error("Error fetching institute details:", error);
               }

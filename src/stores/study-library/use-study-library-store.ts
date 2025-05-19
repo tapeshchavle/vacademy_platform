@@ -14,6 +14,7 @@ export interface StudyLibrarySessionType {
 }
 
 export interface SubjectType {
+    percentage_completed: number;
     id: string;
     subject_name: string;
     subject_code: string;

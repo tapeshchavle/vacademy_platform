@@ -247,7 +247,7 @@ export const SlideMaterial = () => {
                       activeItem.video_slide?.url ||
                       ""
                   )}
-                  onTimeUpdate={handleVideoTimeUpdate}
+                  // onTimeUpdate={handleVideoTimeUpdate}
                 />
               </div>
             );
@@ -357,8 +357,3 @@ export const SlideMaterial = () => {
     </div>
   );
 };
-// similar to the youtube player , give the call backs for the custom video player to track activity and keep the concentration score and all the custom controlls and ui same as youtube-player , show the question overlay
-
-// in progressbar show the points as doted where question are present in time stamps, show the question in dailog box which covers full screen and have scroll , pause the video while attempting question, save the answer when attempted and store the answer locally , after answering the give the button to continue the video , and also a skip button if the skip field is true to continue with the video
-
-// in assessment slide , give the question as shown in the ui, and only give the chances to upload as the re_attempt_count
