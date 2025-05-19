@@ -142,16 +142,52 @@ const AssessmentRegistrationForm = () => {
     const formRef = useRef<HTMLDivElement>(null);
     const form = useForm<FormValues>({
         resolver: zodResolver(zodSchema),
-        defaultValues: (
-            data.assessment_custom_fields.sort(
+        defaultValues: (data.assessment_custom_fields || [])
+            .sort(
                 (
                     a: AssessmentCustomFieldOpenRegistration,
                     b: AssessmentCustomFieldOpenRegistration
                 ) => a.field_order - b.field_order
-            ) || []
-        ).reduce(
-            (
-                defaults: Record<
+            )
+            .reduce(
+                (
+                    defaults: Record<
+                        string,
+                        {
+                            name: string;
+                            value: string;
+                            is_mandatory: boolean;
+                            type: string;
+                            comma_separated_options?: string[];
+                        }
+                    >,
+                    field: AssessmentCustomFieldOpenRegistration
+                ) => {
+                    if (field.field_type === "dropdown") {
+                        const optionsArray = field.comma_separated_options
+                            ? field.comma_separated_options
+                                  .split(",")
+                                  .map((opt) => opt.trim())
+                            : [];
+
+                        defaults[field.field_key] = {
+                            name: field.field_name,
+                            value: optionsArray[0] || "",
+                            is_mandatory: field.is_mandatory || false,
+                            comma_separated_options: optionsArray,
+                            type: field.field_type,
+                        };
+                    } else {
+                        defaults[field.field_key] = {
+                            name: field.field_name,
+                            value: "",
+                            is_mandatory: field.is_mandatory || false,
+                            type: field.field_type,
+                        };
+                    }
+                    return defaults;
+                },
+                {} as Record<
                     string,
                     {
                         name: string;
@@ -160,44 +196,8 @@ const AssessmentRegistrationForm = () => {
                         type: string;
                         comma_separated_options?: string[];
                     }
-                >,
-                field: AssessmentCustomFieldOpenRegistration
-            ) => {
-                if (field.field_type === "dropdown") {
-                    const optionsArray = field.comma_separated_options
-                        ? field.comma_separated_options
-                              .split(",")
-                              .map((opt) => opt.trim())
-                        : [];
-
-                    defaults[field.field_key] = {
-                        name: field.field_name,
-                        value: optionsArray[0] || "",
-                        is_mandatory: field.is_mandatory || false,
-                        comma_separated_options: optionsArray,
-                        type: field.field_type,
-                    };
-                } else {
-                    defaults[field.field_key] = {
-                        name: field.field_name,
-                        value: "",
-                        is_mandatory: field.is_mandatory || false,
-                        type: field.field_type,
-                    };
-                }
-                return defaults;
-            },
-            {} as Record<
-                string,
-                {
-                    name: string;
-                    value: string;
-                    is_mandatory: boolean;
-                    type: string;
-                    comma_separated_options?: string[];
-                }
-            >
-        ),
+                >
+            ),
         mode: "onChange",
     });
     form.watch();
