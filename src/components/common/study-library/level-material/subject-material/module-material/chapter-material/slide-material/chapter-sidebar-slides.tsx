@@ -63,3 +63,7 @@ export const ChapterSidebarSlides = () => {
   // </div>
   // );
 };
+
+
+
+//similar to the youtube player , for the custom video player track the activity and  the concentration score , make all the custom controlls and ui same as youtube-player , show the question overlay 
