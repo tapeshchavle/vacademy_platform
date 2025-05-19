@@ -25,13 +25,13 @@ export const LogoutSidebar = ({
       >
         <SheetHeader className="">
           <div className={`flex items-center justify-center gap-4`}>
-            <div className="size-12">
+            <div className="size-14">
               {!isNullOrEmptyOrUndefined(instituteLogoFileUrl) ? (
-                <img
-                  className="size-12"
-                  src={instituteLogoFileUrl}
-                  alt="Logo"
-                />
+                 <img
+                 className="size-14 rounded-full"
+                 src={instituteLogoFileUrl}
+                 alt="Logo"
+               />
               ) : (
                 <div className="size-12 border border-primary-500 rounded-full"></div>
               )}

@@ -15,6 +15,11 @@ import { useUpdate } from "@/stores/useUpdate";
 import Favicon from "react-favicon";
 import useStore from "@/components/common/layout-container/sidebar/useSidebar";
 
+import { Preferences } from "@capacitor/preferences";
+import { useTheme } from "@/providers/theme/theme-provider";
+import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
+import { TokenKey } from "@/constants/auth/tokens";
+
 const TanStackRouterDevtools =
   process.env.NODE_ENV === "production"
     ? () => null
@@ -28,6 +33,18 @@ const RootComponent = () => {
   const { setUpdateAvailable } = useUpdate();
   const { instituteLogoFileUrl } = useStore();
   const vacademyUrl = "/vacademy-logo.svg";
+
+  const { setPrimaryColor } = useTheme();
+
+  const setPrimaryColorFromStorage = async () => {
+    const details = await Preferences.get({ key: "InstituteDetails" });
+    const parsedDetails = details.value ? JSON.parse(details.value) : null;
+    const themeCode = parsedDetails?.institute_theme_code;
+    if (themeCode) {
+      setPrimaryColor(themeCode);
+    }
+  };
+
   const getFallbackLogoUrl = (logoUrl: string | null | undefined): string => {
     return logoUrl && logoUrl.trim() !== "" ? logoUrl : vacademyUrl;
   };
@@ -45,6 +62,7 @@ const RootComponent = () => {
         }
       }
     })();
+    setPrimaryColorFromStorage();
   }, []);
 
   return (

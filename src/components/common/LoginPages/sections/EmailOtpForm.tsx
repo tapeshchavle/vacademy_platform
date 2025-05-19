@@ -45,6 +45,7 @@ export function EmailLogin({
   const navigate = useNavigate();
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  /* eslint-disable-next-line */
   const { redirect } = useSearch<any>({ from: "/login/" });
 
   const emailForm = useForm<EmailFormValues>({
@@ -360,7 +361,7 @@ export function EmailLogin({
                 >
                   Back
                 </MyButton>
-                
+
                 <MyButton
                   type="button"
                   scale="medium"
