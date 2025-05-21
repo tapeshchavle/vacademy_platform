@@ -1,9 +1,8 @@
 import katex from "katex";
 window.katex = katex;
 import "katex/dist/katex.css";
-
-import ReactQuill, { Quill } from "react-quill";
-import "react-quill/dist/quill.snow.css";
+import ReactQuill, { Quill } from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
 import "./jquery";
 
 import "@edtr-io/mathquill/build/mathquill.js";
@@ -22,10 +21,15 @@ export const MainViewQuillEditor = ({ value, onChange }) => {
     useEffect(() => {
         // Initialize MathQuill formula authoring only once
         if (!mathQuillInitialized.current) {
-            const enableMathQuillFormulaAuthoring = mathquill4quill({ Quill, katex });
+            const enableMathQuillFormulaAuthoring = mathquill4quill({
+                Quill,
+                katex,
+            });
             const quill = reactQuillRef.current?.getEditor();
             if (quill) {
-                enableMathQuillFormulaAuthoring(quill, { operators: ALL_OPERATORS });
+                enableMathQuillFormulaAuthoring(quill, {
+                    operators: ALL_OPERATORS,
+                });
                 mathQuillInitialized.current = true; // Mark as initialized
             }
         }
