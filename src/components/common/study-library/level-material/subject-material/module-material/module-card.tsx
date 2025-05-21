@@ -4,6 +4,7 @@ import { ModulesWithChapters } from "@/stores/study-library/use-modules-with-cha
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ModuleDefaultImage } from "@/assets/svgs";
+import { CompletionStatusComponent } from "@/components/common/completion-status-component";
 
 export const ModuleCard = ({ module }: { module: ModulesWithChapters}) => {
 
@@ -80,7 +81,10 @@ export const ModuleCard = ({ module }: { module: ModulesWithChapters}) => {
                             <div className="text-caption text-neutral-500">{module.module.description}</div>
                         </div>
                     </div>
-                    <p className="text-neutral-500 text-body">{module.percentage_completed}% completed</p>
+                    <div className="flex items-center gap-2">
+                        <CompletionStatusComponent completionPercentage={module.percentage_completed} />
+                        <p className="text-neutral-500 text-body">{module.percentage_completed}% completed</p>
+                    </div>
                 </div>
             </div>
         </div>
