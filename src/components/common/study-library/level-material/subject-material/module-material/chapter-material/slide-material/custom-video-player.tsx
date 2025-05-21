@@ -29,17 +29,35 @@ import {
 } from "@phosphor-icons/react";
 import { Preferences } from "@capacitor/preferences";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
+import VideoQuestionOverlay from "./video-question-overlay";
 import { getPublicUrl } from "@/services/upload_file";
-// import { getPublicUrl } from "@/utils/youtube-player"
+// import { getPublicUrl } from "@/utils/study-library/storage/get-public-url";
 
 interface CustomVideoPlayerProps {
   videoUrl: string;
   sourceType?: "FILE_ID" | "URL";
   onTimeUpdate?: (currentTime: number) => void;
+  questions?: Array<{
+    id: string;
+    question_time_in_millis: number;
+    text_data: {
+      content: string;
+    };
+    parent_rich_text?: {
+      content: string;
+    };
+    options: Array<{
+      id: string;
+      text: {
+        content: string;
+      };
+    }>;
+    can_skip?: boolean;
+  }>;
 }
 
 const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
-  ({ videoUrl, sourceType = "URL", onTimeUpdate }, ref) => {
+  ({ videoUrl, sourceType = "URL", onTimeUpdate, questions = [] }, ref) => {
     const { activeItem } = useContentStore();
     const { addActivity } = useTrackingStore();
     const activityId = useRef(uuidv4());
@@ -77,6 +95,13 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
     const [showFullscreenControls, setShowFullscreenControls] = useState(false);
     const fullscreenControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Question state
+    const [currentQuestion, setCurrentQuestion] = useState<any>(null);
+    const [showQuestion, setShowQuestion] = useState(false);
+    const [answeredQuestions, setAnsweredQuestions] = useState<
+      Record<string, boolean>
+    >({});
 
     // Verification state
     const [showVerification, setShowVerification] = useState(false);
@@ -126,6 +151,95 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
         }
       },
     }));
+
+    // Load answered questions from storage
+    useEffect(() => {
+      const loadAnsweredQuestions = async () => {
+        try {
+          const { value } = await Preferences.get({
+            key: "video_answered_questions",
+          });
+          if (value) {
+            setAnsweredQuestions(JSON.parse(value));
+          }
+        } catch (error) {
+          console.error("Error loading answered questions:", error);
+        }
+      };
+
+      loadAnsweredQuestions();
+    }, []);
+
+    // Save answered question to storage
+    const saveAnsweredQuestion = async (questionId: string) => {
+      try {
+        const newAnsweredQuestions = {
+          ...answeredQuestions,
+          [questionId]: true,
+        };
+        await Preferences.set({
+          key: "video_answered_questions",
+          value: JSON.stringify(newAnsweredQuestions),
+        });
+        setAnsweredQuestions(newAnsweredQuestions);
+      } catch (error) {
+        console.error("Error saving answered question:", error);
+      }
+    };
+
+    // Check for questions at current timestamp
+    const checkForQuestions = useCallback(() => {
+      if (!questions || questions.length === 0 || !videoRef.current) return;
+
+      const currentTimeMs = videoRef.current.currentTime * 1000;
+
+      // Find a question that should be shown at the current time
+      const questionToShow = questions.find((q) => {
+        // Skip already answered questions
+        if (answeredQuestions[q.id]) return false;
+
+        // Check if we're within 500ms of the question time
+        const questionTime = q.question_time_in_millis;
+        return Math.abs(currentTimeMs - questionTime) < 500;
+      });
+
+      if (questionToShow && !showQuestion) {
+        // Pause the video
+        videoRef.current.pause();
+        setIsPlayed(false);
+
+        // Show the question
+        setCurrentQuestion(questionToShow);
+        setShowQuestion(true);
+      }
+    }, [questions, showQuestion, answeredQuestions]);
+
+    // Handle question submission
+    const handleQuestionSubmit = async () => {
+      if (!currentQuestion) return { success: false };
+
+      // Mark question as answered
+      await saveAnsweredQuestion(currentQuestion.id);
+
+      // Return mock response (in a real app, this would come from the server)
+      return {
+        success: true,
+        isCorrect: true,
+        explanation: "Great job! You've answered correctly.",
+      };
+    };
+
+    // Handle closing the question overlay
+    const handleQuestionClose = () => {
+      setShowQuestion(false);
+      setCurrentQuestion(null);
+
+      // Resume video playback
+      if (videoRef.current) {
+        videoRef.current.play();
+        setIsPlayed(true);
+      }
+    };
 
     // Load the actual video URL if it's a FILE_ID
     useEffect(() => {
@@ -378,12 +492,16 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
         if (videoRef.current) {
           const time = videoRef.current.currentTime;
           setCurrentTime(time);
+
+          // Check for questions at current timestamp
+          checkForQuestions();
+
           if (onTimeUpdate) {
             onTimeUpdate(time);
           }
         }
       }, 250); // Update 4 times per second for smoother progress
-    }, [onTimeUpdate]);
+    }, [onTimeUpdate, checkForQuestions]);
 
     // Stop progress tracking interval
     const stopProgressTracking = useCallback(() => {
@@ -825,6 +943,28 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
       setPauseCount((prev) => prev + 1);
     };
 
+    // Render question markers on progress bar
+    const renderQuestionMarkers = () => {
+      if (!questions || questions.length === 0 || duration <= 0) return null;
+
+      return questions.map((question) => {
+        const position =
+          (question.question_time_in_millis / 1000 / duration) * 100;
+        const isAnswered = answeredQuestions[question.id];
+
+        return (
+          <div
+            key={question.id}
+            className={`absolute h-3 w-3 rounded-full -translate-x-1/2 -translate-y-1/2 top-1/2 cursor-pointer ${
+              isAnswered ? "bg-green-500" : "bg-orange-500"
+            }`}
+            style={{ left: `${position}%` }}
+            title={`Question: ${question.text_data.content}`}
+          />
+        );
+      });
+    };
+
     return (
       <div className="w-full flex flex-col items-center gap-4">
         {/* Non-fullscreen verification overlay - shown outside the player */}
@@ -1009,12 +1149,21 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
               Your browser does not support the video tag or the video format.
             </video>
           )}
+
+          {/* Question overlay */}
+          {showQuestion && currentQuestion && (
+            <VideoQuestionOverlay
+              question={currentQuestion}
+              onSubmit={handleQuestionSubmit}
+              onClose={handleQuestionClose}
+            />
+          )}
         </div>
 
         {/* Progress Bar and controls - only shown when not in fullscreen */}
         <div className="w-full flex flex-col gap-1">
           <div
-            className="w-full h-2 bg-gray-200 rounded-full cursor-pointer"
+            className="w-full h-2 bg-gray-200 rounded-full cursor-pointer relative"
             onClick={handleProgressBarClick}
           >
             <div
@@ -1023,6 +1172,8 @@ const CustomVideoPlayer = forwardRef<any, CustomVideoPlayerProps>(
                 width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`,
               }}
             ></div>
+            {/* Question markers */}
+            {renderQuestionMarkers()}
           </div>
           <div className="flex justify-between text-xs text-gray-600">
             <span>{formatTime(currentTime)}</span>

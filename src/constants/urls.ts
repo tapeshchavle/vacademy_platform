@@ -30,7 +30,7 @@ export const ASSESSMENT_SUBMIT_MANUAL = `${BASE_URL}/assessment-service/assessme
 
 export const ADD_UPDATE_VIDEO_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-or-update-video-activity`;
 export const ADD_UPDATE_DOCUMENT_ACTIVITY = `${BASE_URL}/admin-core-service/learner-tracking/v1/add-or-update-document-activity`;
-
+export const SUBMIT_SLIDE_ANSWERS = `${BASE_URL}/admin-core-service/learner-tracking/activity-log/video-question-slide/add-or-update`;
 export const INIT_STUDY_LIBRARY = `${BASE_URL}/admin-core-service/v1/learner-study-library/init-details`;
 export const MODULES_WITH_CHAPTERS = `${BASE_URL}/admin-core-service/v1/learner-study-library/modules-with-chapters`;
 export const GET_SLIDES = `${BASE_URL}/admin-core-service/v1/learner-study-library/slides`;
