@@ -126,7 +126,6 @@ export function NumericInputWithKeypad() {
     <div className="space-y-4 mt-6">
       <div className="flex justify-center">
         <MyInput
-          ref={inputRef}
           inputType="text"
           input={numericValue}
           onChangeFunction={handleInputChange}
