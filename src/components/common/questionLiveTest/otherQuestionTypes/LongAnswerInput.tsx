@@ -15,6 +15,9 @@ export function LongAnswerInput() {
       onChange={(e) => setAnswer(currentQuestion.question_id, [e.target.value])}
       placeholder="Type your answer..."
       rows={5}
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onPaste={(e) => e.preventDefault()}
     />
   );
 }

@@ -16,7 +16,7 @@ import { Batch, Institute, Student } from "@/types/user/user-detail";
 //   });
 // };
 
-const fetchStudentDetails = async (instituteId: string, userId: string) => {
+export const fetchStudentDetails = async (instituteId: string, userId: string) => {
   const response = await authenticatedAxiosInstance({
     method: "GET",
     url: STUDENT_DETAIL,

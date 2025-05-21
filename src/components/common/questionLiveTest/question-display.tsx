@@ -290,7 +290,9 @@ export function QuestionDisplay() {
               </div>
             );
           default:
-            return null;
+            return (
+              <div className="">other question type was found</div>
+            );
         }
       })()}
     </div>
