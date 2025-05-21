@@ -13,8 +13,9 @@ import "mathquill4quill/mathquill4quill.css";
 import "./index.css";
 import { useEffect, useRef } from "react";
 import { ALL_OPERATORS } from "./Operators";
+import { cn } from "@/lib/utils";
 
-export const MainViewQuillEditor = ({ value, onChange }) => {
+export const MainViewQuillEditor = ({ value, onChange, className="" }) => {
     const reactQuillRef = useRef(null);
     const mathQuillInitialized = useRef(false); // Flag to prevent multiple initializations
 
@@ -71,6 +72,7 @@ export const MainViewQuillEditor = ({ value, onChange }) => {
             value={value}
             onChange={onChange}
             preserveWhitespace={true}
+            className={cn(className)}
         />
     );
 };

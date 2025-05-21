@@ -21,9 +21,10 @@ import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 interface PDFViewerProps {
   documentId?: string;
   pdfUrl: string;
+  progressMarker?: number | null;
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
+const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl, progressMarker }) => {
   const { addActivity } = useTrackingStore();
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -454,6 +455,10 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
     }
   };
 
+  useEffect(() => {
+    setCurrentPage(progressMarker || activeItem?.progress_marker || 0);
+  }, [progressMarker || activeItem?.progress_marker]);
+
   const handlePageChange = (e: PageChangeEvent) => {
     const now = getEpochTimeInMillis();
     const duration = Math.round((now - pageStartTime.current.getTime()) / 1000);
@@ -587,7 +592,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl }) => {
         pdfUrl={pdfUrl}
         handlePageChange={handlePageChange}
         handleDocumentLoad={handleDocumentLoad}
-        initialPage={activeItem?.progress_marker}
+        initialPage={progressMarker || activeItem?.progress_marker}
       />
     </div>
   );
