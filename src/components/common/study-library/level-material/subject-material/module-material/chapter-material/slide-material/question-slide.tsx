@@ -1,11 +1,18 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useEffect } from "react";
 import { Check, X } from "lucide-react";
 import { MyInput } from "@/components/design-system/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MyButton } from "@/components/design-system/button";
+import { useMutation } from "@tanstack/react-query";
+import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
+import { SUBMIT_SLIDE_ANSWERS } from "@/constants/urls";
+import { v4 as uuidv4 } from "uuid";
+import { getUserId } from "@/constants/getUserId";
 
 interface Option {
   id: string;
@@ -42,11 +49,13 @@ interface QuestionSlideProps {
 
 const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [submissionState, setSubmissionState] = useState<
     "idle" | "submitted" | "correct" | "incorrect"
   >("idle");
   const [attempts, setAttempts] = useState(0);
   const [correctOption, setCorrectOption] = useState<string | null>(null);
+  const [correctOptions, setCorrectOptions] = useState<string[]>([]);
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,6 +69,67 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
   const maxAttempts = questionData?.re_attempt_count || 1;
   const questionType = questionData?.question_type || "MCQS";
 
+  // Submit question mutation
+  const submitQuestionMutation = useMutation({
+    mutationFn: async (selectedAnswer: string | string[]) => {
+      // Extract slideId and chapterId from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const slideId = urlParams.get("slideId") || "";
+      const userId = await getUserId();
+
+      if (!slideId || !userId) {
+        throw new Error("Missing slideId or userId in URL");
+      }
+
+      const payload = {
+        id: uuidv4(),
+        source_id: slideId,
+        source_type: "QUESTION",
+        user_id: "current-user-id", // Replace with actual user ID
+        slide_id: slideId,
+        start_time_in_millis: Date.now() - 60000,
+        end_time_in_millis: Date.now(),
+        percentage_watched: 100,
+        videos: [],
+        documents: [],
+        question_slides: [
+          {
+            id: slideId,
+            attempt_number: attempts + 1,
+            response_json: JSON.stringify({
+              selectedOption: selectedAnswer,
+            }),
+            response_status: "SUBMITTED",
+            marks: 0,
+          },
+        ],
+        assignment_slides: [],
+        video_slides_questions: [],
+        new_activity: true,
+        concentration_score: {
+          id: uuidv4(),
+          concentration_score: 100,
+          tab_switch_count: 0,
+          pause_count: 0,
+          answer_times_in_seconds: [],
+        },
+      };
+
+      return authenticatedAxiosInstance.post(SUBMIT_SLIDE_ANSWERS, payload, {
+        params: {
+          slideId,
+          userId,
+        },
+      });
+    },
+    onSuccess: () => {
+      console.log("Question answer submitted successfully");
+    },
+    onError: (error: any) => {
+      console.error("Error submitting question answer:", error);
+    },
+  });
+
   // Parse auto evaluation JSON to find correct answer
   useEffect(() => {
     try {
@@ -69,13 +139,16 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
         if (questionType === "MCQS") {
           // For multiple choice questions
           if (evaluationData.data?.correctOptionIds) {
-            const correctIndex = parseInt(
-              evaluationData.data.correctOptionIds[0]
-            );
-            setCorrectOption(questionData.options[correctIndex]?.id);
+            const correctId = evaluationData.data.correctOptionIds[0];
+            setCorrectOption(correctId);
           } else {
             // If not specified, assume first option is correct (for demo)
             setCorrectOption(questionData.options[0]?.id);
+          }
+        } else if (questionType === "MCQM") {
+          // For multiple select questions
+          if (evaluationData.data?.correctOptionIds) {
+            setCorrectOptions(evaluationData.data.correctOptionIds);
           }
         } else if (questionType === "ONE_WORD" || questionType === "NUMERIC") {
           // For one-word or numeric questions
@@ -104,7 +177,17 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
 
   const handleOptionSelect = (optionId: string) => {
     if (submissionState === "idle") {
-      setSelectedOption(optionId);
+      if (questionType === "MCQS") {
+        setSelectedOption(optionId);
+      } else if (questionType === "MCQM") {
+        setSelectedOptions((prev) => {
+          if (prev.includes(optionId)) {
+            return prev.filter((id) => id !== optionId);
+          } else {
+            return [...prev, optionId];
+          }
+        });
+      }
     }
   };
 
@@ -166,6 +249,7 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
     // Check if we have a valid answer to submit
     if (
       (questionType === "MCQS" && !selectedOption) ||
+      (questionType === "MCQM" && selectedOptions.length === 0) ||
       (questionType === "ONE_WORD" && !inputValue.trim()) ||
       (questionType === "NUMERIC" && !numericValue.trim())
     ) {
@@ -179,6 +263,8 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
       // Prepare submission value based on question type
       if (questionType === "MCQS") {
         submissionValue = selectedOption || "";
+      } else if (questionType === "MCQM") {
+        submissionValue = selectedOptions;
       } else if (questionType === "ONE_WORD") {
         submissionValue = inputValue.trim();
       } else if (questionType === "NUMERIC") {
@@ -186,6 +272,16 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
       } else {
         submissionValue = "";
       }
+
+      // Submit to API
+      // Prevent submission if max attempts reached
+      if (attempts >= maxAttempts) {
+        setIsSubmitting(false);
+        // setSubmissionState("incorrect");
+        setExplanation("No more attempts left.");
+        return;
+      }
+      await submitQuestionMutation.mutateAsync(submissionValue);
 
       // Call the onSubmit function passed from parent
       const result = await onSubmit(
@@ -203,6 +299,11 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
         // Check if answer is correct based on question type
         if (questionType === "MCQS") {
           isAnswerCorrect = selectedOption === correctOption;
+        } else if (questionType === "MCQM") {
+          // Check if all selected options are correct and all correct options are selected
+          isAnswerCorrect =
+            correctOptions.length === selectedOptions.length &&
+            correctOptions.every((id) => selectedOptions.includes(id));
         } else if (questionType === "ONE_WORD" || questionType === "NUMERIC") {
           // This logic would depend on how you want to compare answers
           // Could be exact match, case-insensitive, or using a range for numeric
@@ -239,6 +340,10 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
                   questionData.explanation_text_data?.content ||
                   ""
               );
+            } else if (questionType === "MCQM") {
+              setExplanation(
+                `The correct answers are marked in green. ${questionData.explanation_text_data?.content || ""}`
+              );
             } else {
               setExplanation(
                 `The correct answer is: ${correctAnswer}. ${questionData.explanation_text_data?.content || ""}`
@@ -269,6 +374,7 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
     if (attempts < maxAttempts) {
       setSubmissionState("idle");
       setSelectedOption(null);
+      // setSelectedOptions([]);
       setInputValue("");
       setNumericValue("");
       setExplanation("");
@@ -281,6 +387,7 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
     submissionState === "correct" ||
     (submissionState === "incorrect" && attempts >= maxAttempts) ||
     (questionType === "MCQS" && !selectedOption) ||
+    (questionType === "MCQM" && selectedOptions.length === 0) ||
     (questionType === "ONE_WORD" && !inputValue.trim()) ||
     (questionType === "NUMERIC" && !numericValue.trim());
 
@@ -305,7 +412,11 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
                         : submissionState === "incorrect"
                           ? "border-red-500 bg-red-50"
                           : "border-orange-500 bg-orange-50"
-                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    : submissionState === "incorrect" &&
+                        attempts >= maxAttempts &&
+                        option.id === correctOption
+                      ? "border-green-500 bg-green-50"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 <div className="flex-1">
@@ -319,8 +430,7 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
                     (submissionState === "incorrect" &&
                       attempts >= maxAttempts &&
                       option.id === correctOption) ? (
-                      // <Check className="h-5 w-5 text-green-500" />
-                      <span className="text-white font-bold">✔</span>
+                      <Check className="h-5 w-5 text-green-500" />
                     ) : submissionState === "incorrect" &&
                       selectedOption === option.id ? (
                       <X className="h-5 w-5 text-red-500" />
@@ -334,6 +444,59 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
                     ) : (
                       <div className="h-5 w-5 border border-gray-300 rounded-sm"></div>
                     ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+
+      case "MCQM":
+        return (
+          <div className="space-y-3">
+            {questionData?.options?.map((option, index) => (
+              <div
+                key={option.id}
+                onClick={() => handleOptionSelect(option.id)}
+                className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all ${
+                  selectedOptions.includes(option.id)
+                    ? submissionState === "correct"
+                      ? "border-green-500 bg-green-50"
+                      : submissionState === "incorrect" &&
+                          attempts >= maxAttempts &&
+                          correctOptions.includes(option.id)
+                        ? "border-green-500 bg-green-50"
+                        : submissionState === "incorrect"
+                          ? "border-red-500 bg-red-50"
+                          : "border-orange-500 bg-orange-50"
+                    : submissionState === "incorrect" &&
+                        attempts >= maxAttempts &&
+                        correctOptions.includes(option.id)
+                      ? "border-green-500 bg-green-50"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <div className="flex-1">
+                  <span className="text-neutral-600">
+                    ({String.fromCharCode(97 + index)}) {option.text.content}
+                  </span>
+                </div>
+                <div className="ml-2">
+                  {selectedOptions.includes(option.id) ? (
+                    submissionState === "correct" ||
+                    (submissionState === "incorrect" &&
+                      attempts >= maxAttempts &&
+                      correctOptions.includes(option.id)) ? (
+                      <Check className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <X className="h-5 w-5 text-red-500" />
+                    )
+                  ) : submissionState === "incorrect" &&
+                    attempts >= maxAttempts &&
+                    correctOptions.includes(option.id) ? (
+                    <Check className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <div className="h-5 w-5 border border-gray-300 rounded-sm"></div>
+                  )}
                 </div>
               </div>
             ))}
@@ -471,10 +634,12 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
       <div className="mt-6">
         <h3 className="text-lg font-medium text-neutral-700 mb-3">
           {questionType === "MCQS"
-            ? "Answer:"
-            : questionType === "ONE_WORD"
-              ? "Enter your answer:"
-              : "Enter numeric value:"}
+            ? "Select one answer:"
+            : questionType === "MCQM"
+              ? "Select all that apply:"
+              : questionType === "ONE_WORD"
+                ? "Enter your answer:"
+                : "Enter numeric value:"}
         </h3>
 
         {renderQuestionContent()}
@@ -490,9 +655,7 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
           }`}
         >
           <h4
-            className={`font-medium ${
-              submissionState === "correct" ? "text-green-700" : "text-red-700"
-            }`}
+            className={`font-medium ${submissionState === "correct" ? "text-green-700" : "text-red-700"}`}
           >
             {submissionState === "correct"
               ? "Correct Answer!"
@@ -523,7 +686,7 @@ const QuestionSlide = ({ questionData, onSubmit }: QuestionSlideProps) => {
             buttonType="primary"
             layoutVariant="default"
             onClick={handleSubmit}
-            disabled={isSubmitDisabled}
+            disabled={isSubmitDisabled || attempts >= maxAttempts}
           >
             {isSubmitting ? "Submitting..." : "Submit"}
           </MyButton>
