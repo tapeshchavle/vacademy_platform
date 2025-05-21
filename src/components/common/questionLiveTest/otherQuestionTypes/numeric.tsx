@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { QUESTION_TYPES } from "@/types/assessment";
@@ -10,8 +10,9 @@ export function NumericInputWithKeypad() {
   const [numericValue, setNumericValue] = useState("");
   const [isDecimal, setIsDecimal] = useState(false);
   const [maxDecimals, setMaxDecimals] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize the component based on current question settings
+  // Initialize component state based on question settings
   useEffect(() => {
     if (
       !currentQuestion ||
@@ -20,12 +21,14 @@ export function NumericInputWithKeypad() {
       return;
     }
 
-    // Get current answer if exists
+    // Load existing answer
     if (answers[currentQuestion.question_id]?.[0]) {
       setNumericValue(answers[currentQuestion.question_id][0]);
     } else {
       setNumericValue("");
     }
+
+    // Set numeric type and decimals (for now, hardcoded options_json)
     const options_json = {
       numeric_type: "INTEGER",
       decimals: 0,
@@ -33,47 +36,51 @@ export function NumericInputWithKeypad() {
       max_value: 1000,
       units: "days",
     };
-    // Parse options to determine numeric type and decimal places
+
     try {
-      //   if (currentQuestion.options_json) {
-      if (options_json) {
-        // const options = JSON.parse(currentQuestion.options_json);
-        const options = options_json;
-        setIsDecimal(options.numeric_type === "DECIMAL");
-        setMaxDecimals(options.decimals || 0);
-      }
+      const options = options_json;
+      setIsDecimal(options.numeric_type === "DECIMAL");
+      setMaxDecimals(options.decimals || 0);
     } catch (error) {
       console.error("Error parsing options_json:", error);
     }
   }, [currentQuestion, answers]);
 
+  // Auto-focus input on load
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [currentQuestion]);
+
   // Handle keypad button press
   const handleKeyPress = (key: string) => {
     if (key === "backspace") {
-      setNumericValue((prev) => prev.slice(0, -1));
-    } else if (key === "clear") {
-      setNumericValue("");
-      // Clear the answer in the store
+      const updated = numericValue.slice(0, -1);
+      setNumericValue(updated);
       if (currentQuestion) {
-        setAnswer(currentQuestion.question_id, []);
+        setAnswer(currentQuestion.question_id, [updated]);
       }
     } else if (key === "." && isDecimal && !numericValue.includes(".")) {
-      setNumericValue((prev) => prev + ".");
-    } else if (key === "save") {
-      if (numericValue.trim() !== "" && currentQuestion) {
-        setAnswer(currentQuestion.question_id, [numericValue]);
+      const updated = numericValue + ".";
+      setNumericValue(updated);
+      if (currentQuestion) {
+        setAnswer(currentQuestion.question_id, [updated]);
       }
     } else if (/[0-9]/.test(key)) {
-      setNumericValue((prev) => {
-        // If there's a decimal point, check we don't exceed max decimal places
-        if (prev.includes(".")) {
-          const parts = prev.split(".");
+      const updated = (() => {
+        if (numericValue.includes(".")) {
+          const parts = numericValue.split(".");
           if (parts[1].length >= maxDecimals) {
-            return prev;
+            return numericValue;
           }
         }
-        return prev + key;
-      });
+        return numericValue + key;
+      })();
+      setNumericValue(updated);
+      if (currentQuestion) {
+        setAnswer(currentQuestion.question_id, [updated]);
+      }
     }
   };
 
@@ -81,31 +88,30 @@ export function NumericInputWithKeypad() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
 
-    // Validate input based on the question type (INTEGER or DECIMAL)
     if (isDecimal) {
       if (/^-?\d*\.?\d*$/.test(value)) {
-        // Check decimal places don't exceed max
         if (value.includes(".")) {
           const parts = value.split(".");
           if (parts[1].length <= maxDecimals) {
             setNumericValue(value);
+            if (currentQuestion) {
+              setAnswer(currentQuestion.question_id, [value]);
+            }
           }
         } else {
           setNumericValue(value);
+          if (currentQuestion) {
+            setAnswer(currentQuestion.question_id, [value]);
+          }
         }
       }
     } else {
-      // Integer only
       if (/^-?\d*$/.test(value)) {
         setNumericValue(value);
+        if (currentQuestion) {
+          setAnswer(currentQuestion.question_id, [value]);
+        }
       }
-    }
-  };
-
-  // Handle blur to save the answer
-  const handleBlur = () => {
-    if (numericValue.trim() !== "" && currentQuestion) {
-      setAnswer(currentQuestion.question_id, [numericValue]);
     }
   };
 
@@ -120,10 +126,10 @@ export function NumericInputWithKeypad() {
     <div className="space-y-4 mt-6">
       <div className="flex justify-center">
         <MyInput
+          ref={inputRef}
           inputType="text"
           input={numericValue}
           onChangeFunction={handleInputChange}
-          onBlur={handleBlur}
           inputPlaceholder={
             isDecimal ? "Enter decimal value" : "Enter integer value"
           }
@@ -171,24 +177,6 @@ export function NumericInputWithKeypad() {
               onClick={() => handleKeyPress("backspace")}
             >
               ←
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <Button
-              variant="outline"
-              className="h-14"
-              onClick={() => handleKeyPress("clear")}
-            >
-              Clear
-            </Button>
-            <Button
-              variant="default"
-              className="h-14 text-white bg-primary-500 hover:bg-primary-600"
-              onClick={() => handleKeyPress("save")}
-              disabled={numericValue.trim() === ""}
-            >
-              Save
             </Button>
           </div>
         </CardContent>
