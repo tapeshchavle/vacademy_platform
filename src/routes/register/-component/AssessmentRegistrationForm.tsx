@@ -41,6 +41,7 @@ import { TokenKey } from "@/constants/auth/tokens";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
 import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
+import { useNavigate } from "@tanstack/react-router";
 
 const case1 = (serverTime: number, startDate: string) => {
     const registrationStartDate: number = new Date(
@@ -65,6 +66,7 @@ const case3 = (serverTime: number, endDate: string) => {
 };
 
 const AssessmentRegistrationForm = () => {
+    const navigate = useNavigate();
     const [userHasAttemptCount, setUserHasAttemptCount] = useState(false);
     const [isAlreadyLoggedIn, setIsAlreadyLoggedIn] = useState(false);
     const [userAlreadyRegistered, setUserAlreadyRegistered] = useState(false);
@@ -394,6 +396,14 @@ const AssessmentRegistrationForm = () => {
         };
 
         fetchToken();
+    }, []);
+
+    useEffect(() => {
+        if (data.error_message === "Assessment is Private") {
+            navigate({
+                to: "/login",
+            });
+        }
     }, []);
 
     if (isLoading) return <DashboardLoader />;
