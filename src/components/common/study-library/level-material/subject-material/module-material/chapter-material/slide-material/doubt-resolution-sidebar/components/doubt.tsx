@@ -1,17 +1,18 @@
-import { DoubtType } from "../types/doubt-list-type"
 import { useEffect, Dispatch, SetStateAction, useState } from "react";
 import { getUserId } from "@/constants/getUserId";
 import { ArrowSquareOut, CaretUp, TrashSimple } from "@phosphor-icons/react";
 import { CaretDown } from "@phosphor-icons/react";
 import { Reply } from "./reply";
-import { getPublicUrl } from "@/services/upload_file";
 import { StatusChip } from "@/components/design-system/status-chips";
 import { Switch } from "@/components/ui/switch";
 import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
 import { useSidebar } from "@/components/ui/sidebar";
+import { Doubt as DoubtType } from "../types/get-doubts-type";
 
 export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerVideo}:{doubt:DoubtType, setDoubtProgressMarkerPdf:Dispatch<SetStateAction<number | null>>, setDoubtProgressMarkerVideo:Dispatch<SetStateAction<number | null>>}) => {
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    
+    // const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const imageUrl: string | null = null;
     const [userId, setUserId] = useState<string | null>(null);
     const [showReplies, setShowReplies] = useState<boolean>(false);
     const {activeItem} = useContentStore();
@@ -36,20 +37,20 @@ export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerV
         fetchUserId();
     }, []);
 
-    useEffect(() => {
-        const fetchImageUrl = async () => {
-          if (doubt.face_file_id) {
-            try {
-              const url = await getPublicUrl(doubt.face_file_id);
-              setImageUrl(url);
-            } catch (error) {
-              console.error("Failed to fetch image URL:", error);
-            }
-          }
-        };
+    // useEffect(() => {
+    //     const fetchImageUrl = async () => {
+    //       if (doubt.face_file_id) {
+    //         try {
+    //           const url = await getPublicUrl(doubt.face_file_id);
+    //           setImageUrl(url);
+    //         } catch (error) {
+    //           console.error("Failed to fetch image URL:", error);
+    //         }
+    //       }
+    //     };
     
-        fetchImageUrl();
-      }, [doubt.face_file_id]);
+    //     fetchImageUrl();
+    //   }, [doubt.face_file_id]);
     
     
     return (
@@ -62,26 +63,26 @@ export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerV
                             {imageUrl ? (
                                 <img
                                 src={imageUrl}
-                                alt={doubt.user_name}
+                                alt={doubt.name}
                                 className="size-full rounded-lg object-cover "
                                 />
                             ) : (
                                 <></>
                             )}
                         </div>
-                        <div className="text-body font-semibold">
-                            {doubt.user_name}
+                        <div className="text-subtitle text-neutral-700 font-semibold">
+                            {doubt.name}
                         </div>
                     </div>
                     <div className="flex gap-3 items-center">
                         <StatusChip text={doubt.status === "RESOLVED" ? "Resolved" : "Unresolved"} textSize="text-caption" status={doubt.status === "RESOLVED" ? "SUCCESS" : "INFO"} />
-                        <p className="text-neutral-500 sm:text-regular text-caption">{doubt.timestamp}</p>
+                        <p className="text-neutral-500 sm:text-body text-caption">{doubt.raised_time}</p>
                     </div>
                 </div>
                 <div className="flex items-center justify-between">
                     <div className="flex gap-2">
-                        <p><span className="font-semibold">Timestamp: </span>{doubt.slide_progress_marker}</p>
-                        <ArrowSquareOut className="cursor-pointer mt-[3px]" onClick={()=>handleTimeStampClick(doubt.slide_progress_marker)}/>
+                        <p><span className="font-semibold">Timestamp: </span>{doubt.content_position}</p>
+                        <ArrowSquareOut className="cursor-pointer mt-[3px]" onClick={()=>handleTimeStampClick(parseInt(doubt.content_position))}/>
                     </div>
                     {userId && doubt.user_id === userId && ( 
                         <div className="flex gap-2 items-center font-semibold w-full ">
@@ -91,7 +92,7 @@ export const Doubt = ({doubt, setDoubtProgressMarkerPdf, setDoubtProgressMarkerV
                 </div>
                 <div
                     dangerouslySetInnerHTML={{
-                        __html:doubt.doubt_text || '',
+                        __html:doubt.html_text || '',
                     }}
                     className="custom-html-content"
                 />

@@ -1,19 +1,72 @@
 import { MyButton } from "@/components/design-system/button";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, useSidebar } from "@/components/ui/sidebar"
 import { ArrowUp, X } from "@phosphor-icons/react"
-import {  Dispatch, SetStateAction, useState } from "react";
-import { doubtListDummy } from "../dummy-data/doubt-list";
+import {  Dispatch, SetStateAction, useState, useRef, useCallback } from "react";
 import { Doubt } from "./doubt";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MainViewQuillEditor } from "@/components/quill/MainViewQuillEditor";
+import { useAddDoubt } from "../services/AddDoubt";
+import { useContentStore } from "@/stores/study-library/chapter-sidebar-store";
+import { handleAddDoubt } from "../helpers/handleAddDoubt";
+import { DoubtFilter } from "../types/get-doubts-type";
+import { useGetDoubts } from "../services/GetDoubts";
+import { DashboardLoader } from "@/components/core/dashboard-loader";
+
+const TabsTriggerClass = "w-full data-[state=active]:shadow-none rounded-none rounded-tl-md rounded-tr-md border-white border-l-[1px] border-r-[1px] border-t-[1px] data-[state=active]:border-primary-200 data-[state=active]:text-primary-500 pt-2"
 
 export const DoubtResolutionSidebar = ({setDoubtProgressMarkerPdf, setDoubtProgressMarkerVideo}:{setDoubtProgressMarkerPdf:Dispatch<SetStateAction<number | null>>, setDoubtProgressMarkerVideo:Dispatch<SetStateAction<number | null>>}) => {
+
     const {open, setOpen} = useSidebar();
     const [showInput, setShowInput] = useState<boolean>(false)
     const [doubt, setDoubt] = useState<string>("")
+    const addDoubt = useAddDoubt();
+    const {activeItem} = useContentStore();
+    const observer = useRef<IntersectionObserver | null>(null);
+
+    const [filter, setFilter] = useState<DoubtFilter>({
+        name: "",
+        start_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end_date: new Date().toISOString().split('T')[0],
+        user_ids: [],
+        content_positions: [],
+        content_types: [],
+        sources: ["SLIDE"],
+        source_ids: [activeItem?.id || ""],
+        status: ["ACTIVE"],
+        sort_columns: {
+            "created_at" : "DESC"
+        },
+    })
+
+    const handleTabChange = (value: string) => {
+        if (value === "RESOLVED") {
+            setFilter(prev => ({...prev, status: ["ACTIVE", "RESOLVED"]}));
+        } else if (value === "UNRESOLVED") {
+            setFilter(prev => ({...prev, status: ["ACTIVE", "UNRESOLVED"]}));
+        } else {
+            setFilter(prev => ({...prev, status: ["ACTIVE"]}));
+        }
+    }
+
+    const {data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch} = useGetDoubts(filter);
+
+    const lastDoubtElementRef = useCallback((node: HTMLDivElement) => {
+        if (isLoading) return;
+        if (observer.current) observer.current.disconnect();
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+            }
+        });
+        if (node) observer.current.observe(node);
+    }, [isLoading, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+    if (isLoading) return <DashboardLoader />
+    if(isError) return <p>Error fetching doubts</p>
+
+    const allDoubts = data?.pages.flatMap(page => page.content) || [];
 
    return(
-    // <SidebarProvider >
       <Sidebar side="right" className={`${open? "w-[50vw]" : "w-0"} bg-white p-4 flex flex-col gap-6 overflow-y-hidden`} >
         <SidebarHeader className="flex items-center justify-between w-full bg-white overflow-y-hidden">
             <div className="flex items-center justify-between bg-white w-full">
@@ -22,17 +75,27 @@ export const DoubtResolutionSidebar = ({setDoubtProgressMarkerPdf, setDoubtProgr
             </div>
         </SidebarHeader>
         <SidebarContent className="flex flex-col gap-4 overflow-y-scroll no-scrollbar bg-white pt-6">
-            <Tabs defaultValue="All ">
+            <Tabs defaultValue="ALL" onValueChange={(value) => { handleTabChange(value) }}>
                 <TabsList className="w-full flex border-b border-neutral-300 p-0 bg-white rounded-none">
-                    <TabsTrigger value="All" className="w-full data-[state=active]:shadow-none rounded-none rounded-tl-md rounded-tr-md border-white border-l-[1px] border-r-[1px] border-t-[1px] data-[state=active]:border-primary-200 data-[state=active]:text-primary-500 pt-2">All</TabsTrigger>
-                    <TabsTrigger value="Resolved" className="w-full data-[state=active]:shadow-none rounded-none rounded-tl-md rounded-tr-md border-white border-l-[1px] border-r-[1px] border-t-[1px] data-[state=active]:border-primary-200 data-[state=active]:text-primary-500 pt-2">Resolved</TabsTrigger>
-                    <TabsTrigger value="Unresolved" className="w-full data-[state=active]:shadow-none rounded-none rounded-tl-md rounded-tr-md border-white border-l-[1px] border-r-[1px] border-t-[1px] data-[state=active]:border-primary-200 data-[state=active]:text-primary-500 pt-2">Unresolved</TabsTrigger>
+                    <TabsTrigger value="ALL" className={TabsTriggerClass}>All</TabsTrigger>
+                    <TabsTrigger value="RESOLVED" className={TabsTriggerClass}>Resolved</TabsTrigger>
+                    <TabsTrigger value="UNRESOLVED" className={TabsTriggerClass}>Unresolved</TabsTrigger>
                 </TabsList>
-                <TabsContent value="All">
-                    {doubtListDummy.map((doubt, key) => (
-                        <Doubt doubt={doubt} key={key} setDoubtProgressMarkerPdf={setDoubtProgressMarkerPdf} setDoubtProgressMarkerVideo={setDoubtProgressMarkerVideo} />
+                <TabsContent value="ALL" className="flex flex-col gap-4">
+                    {allDoubts.map((doubt, index) => (
+                        <div 
+                            key={doubt.id || index}
+                            ref={index === allDoubts.length - 1 ? lastDoubtElementRef : undefined}
+                        >
+                            <Doubt 
+                                doubt={doubt} 
+                                setDoubtProgressMarkerPdf={setDoubtProgressMarkerPdf} 
+                                setDoubtProgressMarkerVideo={setDoubtProgressMarkerVideo} 
+                            />
+                        </div>
                     ))}
-            </TabsContent>
+                    {isFetchingNextPage && <DashboardLoader />}
+                </TabsContent>
             </Tabs>
         </SidebarContent>
         <SidebarFooter className="w-full flex items-center justify-center bg-white sm:py-0">
@@ -44,7 +107,7 @@ export const DoubtResolutionSidebar = ({setDoubtProgressMarkerPdf, setDoubtProgr
                         className="w-full sm:mb-10 mb-16 h-[80px] max-sm:h-[50px]"
                     />
                     <div className="flex flex-col items-center gap-3">
-                        <MyButton layoutVariant="icon">
+                        <MyButton layoutVariant="icon" disable={doubt.length === 0} onClick={()=>handleAddDoubt(doubt, activeItem, setDoubt, setShowInput, addDoubt, refetch)}>
                             <ArrowUp />
                         </MyButton>
                         <MyButton layoutVariant="icon" buttonType="secondary" onClick={()=>setShowInput(false)}>
@@ -57,6 +120,5 @@ export const DoubtResolutionSidebar = ({setDoubtProgressMarkerPdf, setDoubtProgr
             }
         </SidebarFooter>
       </Sidebar>
-    // </SidebarProvider>
    )
 }

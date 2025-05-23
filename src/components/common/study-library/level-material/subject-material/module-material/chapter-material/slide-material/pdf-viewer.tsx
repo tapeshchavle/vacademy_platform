@@ -446,7 +446,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ documentId, pdfUrl, progressMarke
       if (!updateIntervalRef.current) {
         updateIntervalRef.current = setInterval(
           () => {
-            console.log("integrate update document activity api now");
             syncPDFTrackingData();
           },
           2 * 60 * 1000
