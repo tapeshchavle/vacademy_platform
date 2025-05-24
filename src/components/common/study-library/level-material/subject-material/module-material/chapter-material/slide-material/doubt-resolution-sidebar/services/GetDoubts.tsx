@@ -5,12 +5,10 @@ import { GET_DOUBTS } from "@/constants/urls";
 
 export const useGetDoubts = (filter: Omit<DoubtFilter, 'page_no' | 'page_size'>) => {
     return useInfiniteQuery({
-        queryKey: ['doubts', filter],
+        queryKey: ['GET_DOUBTS'],
         queryFn: async ({ pageParam = 0 }) => {
-            const response = await authenticatedAxiosInstance.post<PaginatedDoubtResponse>(GET_DOUBTS, {
+            const response = await authenticatedAxiosInstance.post<PaginatedDoubtResponse>(`${GET_DOUBTS}?pageNo=${pageParam}&pageSize=10`, {
                 ...filter,
-                page_no: pageParam,
-                page_size: 10 // You can adjust this value based on your needs
             });
             return response.data;
         },

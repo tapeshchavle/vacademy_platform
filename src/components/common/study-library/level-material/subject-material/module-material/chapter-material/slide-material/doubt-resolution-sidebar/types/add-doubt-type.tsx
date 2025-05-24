@@ -5,13 +5,14 @@ export interface DoubtType {
     source_id: string;
     raised_time: string; // ISO 8601 timestamp
     resolved_time: string | null; // ISO 8601 timestamp
-    content_position: string; // Format: HH:MM:SS
+    content_position: string | null; // Format: HH:MM:SS
     content_type: string;
     html_text: string;
-    status: 'ACTIVE' | 'INACTIVE' | 'RESOLVED' | 'UNRESOLVED' | 'DELETED';
+    status: 'ACTIVE' | 'RESOLVED' | 'DELETED';
     parent_id: string | null;
     parent_level: number;
     doubt_assignee_request_user_ids: string[];
+    id?:string;
   }
   
   export interface StudentDetailsType {
