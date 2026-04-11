@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { MyButton } from '@/components/design-system/button';
 import { toast } from 'sonner';
 import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
@@ -15,11 +16,15 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 interface TncSettingsData {
     settingEnabled: boolean;
     fileMediaId: string | null;
+    notifyOnSign: boolean;
+    notifyEmails: string;
 }
 
 const DEFAULT_TNC_SETTINGS: TncSettingsData = {
     settingEnabled: false,
     fileMediaId: null,
+    notifyOnSign: false,
+    notifyEmails: '',
 };
 
 const SETTING_KEY = 'STUDENT_TNC_SETTING';
@@ -32,7 +37,8 @@ const fetchTncSettings = async (): Promise<TncSettingsData> => {
         url: GET_INSITITUTE_SETTINGS,
         params: { instituteId, settingKey: SETTING_KEY },
     });
-    return response.data?.data ?? DEFAULT_TNC_SETTINGS;
+    // Merge with defaults so new fields (notifyOnSign, notifyEmails) are always present
+    return { ...DEFAULT_TNC_SETTINGS, ...(response.data?.data ?? {}) };
 };
 
 const saveTncSettings = async (data: TncSettingsData): Promise<void> => {
@@ -92,6 +98,10 @@ export default function TncSettings() {
     const handleSave = () => {
         if (settings.settingEnabled && !settings.fileMediaId) {
             toast.error('Please upload a PDF file to enable Terms & Conditions');
+            return;
+        }
+        if (settings.notifyOnSign && !settings.notifyEmails.trim()) {
+            toast.error('Please enter at least one recipient email for notifications');
             return;
         }
         save(settings);
@@ -181,6 +191,42 @@ export default function TncSettings() {
                         )}
                         {isUploadingMedia && <p className="text-xs text-primary">Uploading PDF...</p>}
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Notify on Sign</CardTitle>
+                    <CardDescription>
+                        Send an email notification with the signed PDF link whenever a student accepts the Terms &amp; Conditions.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center gap-3">
+                        <Switch
+                            id="notify-on-sign"
+                            checked={settings.notifyOnSign}
+                            onCheckedChange={(v) => update({ notifyOnSign: v })}
+                        />
+                        <Label htmlFor="notify-on-sign" className="cursor-pointer">
+                            {settings.notifyOnSign ? 'Enabled' : 'Disabled'}
+                        </Label>
+                    </div>
+
+                    {settings.notifyOnSign && (
+                        <div className="space-y-2">
+                            <Label htmlFor="notify-emails">Recipient Emails</Label>
+                            <Input
+                                id="notify-emails"
+                                placeholder="admin@example.com, hr@example.com"
+                                value={settings.notifyEmails}
+                                onChange={(e) => update({ notifyEmails: e.target.value })}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Separate multiple email addresses with commas. Each address will receive the signed PDF link.
+                            </p>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

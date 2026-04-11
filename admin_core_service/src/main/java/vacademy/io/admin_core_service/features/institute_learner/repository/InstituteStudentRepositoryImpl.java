@@ -75,7 +75,10 @@ public class InstituteStudentRepositoryImpl implements InstituteStudentRepositor
                 ssigm.desired_level_id AS desiredLevelId,
                 ssigm.sub_org_id AS subOrgId,
                 sub_org.name AS subOrgName,
-                ssigm.comma_separated_org_roles AS commaSeparatedOrgRoles
+                ssigm.comma_separated_org_roles AS commaSeparatedOrgRoles,
+                s.tnc_accepted AS tncAccepted,
+                s.tnc_file_id AS tncFileId,
+                s.tnc_accepted_date AS tncAcceptedDate
             FROM student s
             JOIN student_session_institute_group_mapping ssigm
                 ON s.user_id = ssigm.user_id
@@ -129,7 +132,8 @@ public class InstituteStudentRepositoryImpl implements InstituteStudentRepositor
                      s.parents_to_mother_email, ssigm.institute_enrollment_number,
                      ssigm.institute_id, ssigm.group_id, ssigm.status, up.plan_json, up.payment_option_json, 
                      ssigm.destination_package_session_id, ssigm.user_plan_id, up.enroll_invite_id, ei.name,
-                     ssigm.desired_level_id, ssigm.sub_org_id, sub_org.name, ssigm.comma_separated_org_roles
+                     ssigm.desired_level_id, ssigm.sub_org_id, sub_org.name, ssigm.comma_separated_org_roles,
+                     s.tnc_accepted, s.tnc_file_id, s.tnc_accepted_date
             """;
 
     /**
@@ -423,6 +427,9 @@ public class InstituteStudentRepositoryImpl implements InstituteStudentRepositor
             public String getSubOrgId() { return str("suborgid"); }
             public String getSubOrgName() { return str("suborgname"); }
             public String getCommaSeparatedOrgRoles() { return str("commaseparatedorgroles"); }
+            public Boolean getTncAccepted() { try { Object v = t.get("tncaccepted"); return v == null ? null : (Boolean) v; } catch (Exception e) { return null; } }
+            public String getTncFileId() { return str("tncfileid"); }
+            public java.util.Date getTncAcceptedDate() { try { return t.get("tncaccepteddate", java.util.Date.class); } catch (Exception e) { return null; } }
         }).collect(java.util.stream.Collectors.toList());
     }
 

@@ -116,10 +116,17 @@ public class LearnerDashBoardService {
         }
 
         boolean askForTnc = false;
+        java.util.Date tncAcceptedDate = null;
+        String tncFileUrl = null;
         if (isTncEnabled && tncUrl != null) {
             Optional<Student> optStudent = instituteStudentRepository.findTopByUserId(user.getUserId());
             if (optStudent.isPresent() && (optStudent.get().getTncAccepted() == null || !optStudent.get().getTncAccepted())) {
                 askForTnc = true;
+            } else if (optStudent.isPresent() && optStudent.get().getTncAccepted() != null && optStudent.get().getTncAccepted()) {
+                tncAcceptedDate = optStudent.get().getTncAcceptedDate();
+                if (optStudent.get().getTncFileId() != null) {
+                    tncFileUrl = mediaService.getFilePublicUrlByIdWithoutExpiry(optStudent.get().getTncFileId());
+                }
             }
         }
 
@@ -137,7 +144,9 @@ public class LearnerDashBoardService {
                         List.of(PackageSessionStatusEnum.ACTIVE.name(), PackageSessionStatusEnum.HIDDEN.name())
                 ),
                 askForTnc,
-                tncUrl
+                tncUrl,
+                tncAcceptedDate,
+                tncFileUrl
         );
     }
 
@@ -209,14 +218,21 @@ public class LearnerDashBoardService {
             PdfWriter writer = new PdfWriter(out);
             PdfDocument pdfDoc = new PdfDocument(reader, writer);
             
-            Document document = new Document(pdfDoc);
-            document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+            // Append a new blank page exactly at the end
+            int totalPages = pdfDoc.getNumberOfPages();
+            com.itextpdf.kernel.pdf.PdfPage newPage = pdfDoc.addNewPage(totalPages + 1);
             
-            document.add(new Paragraph("Terms and Conditions Acceptance"));
-            document.add(new Paragraph("Accepted by: " + request.getName()));
-            document.add(new Paragraph("Accepted Account User ID: " + user.getUserId()));
-            document.add(new Paragraph("Accepted Date: " + new Date().toString()));
-            document.close();
+            // Draw on the newly appended page
+            com.itextpdf.layout.Canvas canvas = new com.itextpdf.layout.Canvas(
+                new com.itextpdf.kernel.pdf.canvas.PdfCanvas(newPage), 
+                pdfDoc.getDefaultPageSize()
+            );
+            
+            canvas.add(new Paragraph("Terms and Conditions Acceptance"));
+            canvas.add(new Paragraph("Accepted by: " + request.getName()));
+            canvas.add(new Paragraph("Accepted Account User ID: " + user.getUserId()));
+            canvas.add(new Paragraph("Accepted Date: " + new Date().toString()));
+            canvas.close();
             
             byte[] fileBytes = out.toByteArray();
             
@@ -245,6 +261,40 @@ public class LearnerDashBoardService {
             student.setTncAcceptedDate(new Date());
             student.setTncFileId(fileDetails.getId());
             instituteStudentRepository.save(student);
+
+            // Fetch notify_on_sign settings and process notifications
+            if (tncSetting != null && tncSetting.getData() != null && tncSetting.getData() instanceof java.util.Map) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> dataMap = (java.util.Map<String, Object>) tncSetting.getData();
+                boolean notifyOnSign = false;
+                if (dataMap.containsKey("notify_on_sign")) {
+                    notifyOnSign = Boolean.parseBoolean(dataMap.get("notify_on_sign").toString());
+                } else if (dataMap.containsKey("notifyOnSign")) {
+                    notifyOnSign = Boolean.parseBoolean(dataMap.get("notifyOnSign").toString());
+                }
+
+                if (notifyOnSign) {
+                    Object emailsObj = dataMap.containsKey("notify_emails") ? dataMap.get("notify_emails") : dataMap.get("notifyEmails");
+                    String emailStr = (emailsObj != null) ? emailsObj.toString() : "";
+                    if (!emailStr.isEmpty()) {
+                        String[] emailArr = emailStr.split(",");
+                        String signedDocUrl = mediaService.getFilePublicUrlById(fileDetails.getId());
+                        for (String email : emailArr) {
+                            String emailText = email.trim();
+                            if (!emailText.isEmpty()) {
+                                vacademy.io.common.notification.dto.GenericEmailRequest req = 
+                                        new vacademy.io.common.notification.dto.GenericEmailRequest();
+                                req.setTo(emailText);
+                                req.setSubject("Student T&C Accepted: " + request.getName());
+                                req.setBody("<p>Student <b>" + request.getName() + "</b> (User ID: " + user.getUserId() + ") has accepted the Terms & Conditions.</p>" +
+                                            "<p>You can view their digitally signed agreement here: <a href='" + signedDocUrl + "'>View Document</a>.</p>");
+                                notificationService.sendGenericHtmlMailViaUnified(req);
+                            }
+                        }
+                    }
+                }
+            }
+
             return "T&C Accepted Successfully";
         } catch(Exception e) {
             throw new VacademyException("Failed to generate and upload T&C PDF: " + e.getMessage());

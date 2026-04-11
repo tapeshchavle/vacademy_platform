@@ -461,7 +461,11 @@ public class StudentListManager {
             dto.setSubOrgId(p.getSubOrgId());
             dto.setSubOrgName(p.getSubOrgName());
             dto.setCommaSeparatedOrgRoles(p.getCommaSeparatedOrgRoles());
-            
+
+            dto.setTncAccepted(p.getTncAccepted());
+            dto.setTncFileId(p.getTncFileId());
+            dto.setTncAcceptedDate(p.getTncAcceptedDate());
+
             dtos.add(dto);
         }
 

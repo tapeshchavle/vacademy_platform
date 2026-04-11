@@ -26,7 +26,8 @@ import { StudentTable } from '@/types/student-table-types';
 import { getFieldsForLocation, type FieldForLocation } from '@/lib/custom-fields/utils';
 import { getCustomFieldSettingsFromCache } from '@/services/custom-field-settings';
 import type { FieldGroup } from '@/services/custom-field-settings';
-import { Tag, Folders } from '@phosphor-icons/react';
+import { getPublicUrl } from '@/services/upload_file';
+import { Tag, Folders, FileText, DownloadSimple } from '@phosphor-icons/react';
 import { MonitorPlay } from '@phosphor-icons/react';
 
 export const StudentOverview = ({ isSubmissionTab }: { isSubmissionTab?: boolean }) => {
@@ -37,6 +38,7 @@ export const StudentOverview = ({ isSubmissionTab }: { isSubmissionTab?: boolean
     const [copiedField, setCopiedField] = useState<string>('');
     const [customFields, setCustomFields] = useState<FieldForLocation[]>([]);
     const [fieldGroups, setFieldGroups] = useState<FieldGroup[]>([]);
+    const [tncFileUrl, setTncFileUrl] = useState<string | null>(null);
     const userId = isSubmissionTab ? selectedStudent?.id : selectedStudent?.user_id;
     const { data: studentDetails, isLoading, isError, error } = useGetStudentDetails(userId || '');
 
@@ -84,6 +86,16 @@ export const StudentOverview = ({ isSubmissionTab }: { isSubmissionTab?: boolean
             setFieldGroups([]);
         }
     }, []);
+
+    // Fetch signed TnC PDF URL when student changes
+    useEffect(() => {
+        setTncFileUrl(null);
+        if (selectedStudent?.tnc_accepted && selectedStudent?.tnc_file_id) {
+            getPublicUrl(selectedStudent.tnc_file_id).then((url) => {
+                if (url) setTncFileUrl(url);
+            });
+        }
+    }, [selectedStudent?.tnc_file_id]);
 
     // Copy function with feedback
     const handleCopy = async (text: string, fieldName: string) => {
@@ -561,6 +573,59 @@ export const StudentOverview = ({ isSubmissionTab }: { isSubmissionTab?: boolean
                     )}
                 </div>
             )}
+
+            {/* Terms & Conditions Status */}
+            <div className="group">
+                <div className="rounded-lg border border-neutral-200/50 bg-gradient-to-br from-white to-teal-50/20 p-2.5 transition-all duration-200 hover:scale-[1.01] hover:border-teal-200/50 hover:shadow-md">
+                    <div className="mb-2 flex items-center gap-2">
+                        <div className="rounded-md bg-gradient-to-br from-teal-50 to-teal-100 p-1 transition-transform duration-200 group-hover:scale-105">
+                            <FileText className="size-3.5 text-teal-600" />
+                        </div>
+                        <h3 className="text-xs font-semibold text-neutral-700">Terms &amp; Conditions</h3>
+                    </div>
+
+                    <div className="space-y-1.5 px-1.5">
+                        <div className="flex items-center gap-2">
+                            <div className="mt-1.5 size-1 shrink-0 rounded-full bg-neutral-300"></div>
+                            <span className="text-xs font-medium text-neutral-600">Status: </span>
+                            {selectedStudent?.tnc_accepted ? (
+                                <span className="inline-flex items-center rounded-full bg-success-50 px-2 py-0.5 text-[10px] font-semibold text-success-700 ring-1 ring-success-200">
+                                    Signed
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center rounded-full bg-warning-50 px-2 py-0.5 text-[10px] font-semibold text-warning-700 ring-1 ring-warning-200">
+                                    Not Signed
+                                </span>
+                            )}
+                        </div>
+
+                        {selectedStudent?.tnc_accepted && selectedStudent?.tnc_accepted_date && (
+                            <div className="flex items-start gap-2">
+                                <div className="mt-1.5 size-1 shrink-0 rounded-full bg-neutral-300"></div>
+                                <p className="text-xs text-neutral-700">
+                                    <span className="font-medium text-neutral-600">Signed on: </span>
+                                    {new Date(selectedStudent.tnc_accepted_date).toLocaleDateString()}
+                                </p>
+                            </div>
+                        )}
+
+                        {selectedStudent?.tnc_accepted && tncFileUrl && (
+                            <div className="flex items-center gap-2 pt-0.5">
+                                <div className="size-1 shrink-0 rounded-full bg-neutral-300"></div>
+                                <a
+                                    href={tncFileUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-800 hover:underline"
+                                >
+                                    <DownloadSimple className="size-3" />
+                                    Download Signed PDF
+                                </a>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };

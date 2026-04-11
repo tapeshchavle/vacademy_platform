@@ -80,6 +80,9 @@ export interface StudentTable {
     sub_org_name?: string;
     sub_org_id?: string;
     comma_separated_org_roles?: string;
+    tnc_accepted?: boolean | null;
+    tnc_file_id?: string | null;
+    tnc_accepted_date?: string | number | null;
 }
 
 export interface StudentListResponse {

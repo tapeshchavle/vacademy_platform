@@ -17,6 +17,8 @@ public class LeanerDashBoardDetailDTO {
     private List<LearnerRecentSlides> slides;
     private Boolean askForTnc;
     private String tncUrl;
+    private java.util.Date tncAcceptedDate;
+    private String tncFileUrl;
 
     public LeanerDashBoardDetailDTO() {
     }

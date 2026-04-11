@@ -20,6 +20,8 @@ export type DashbaordResponse = {
   slides: DashboardSlide[];
   ask_for_tnc?: boolean;
   tnc_url?: string;
+  tnc_accepted_date?: string | number;
+  tnc_file_url?: string;
 };
 
 

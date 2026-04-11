@@ -37,6 +37,7 @@ jobs:
   resolve-servers:
     name: Resolve Servers
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       matrix: ${{ steps.resolve.outputs.matrix }}
     steps:
@@ -73,6 +74,7 @@ jobs:
   start-server:
     name: Start ${{ matrix.slug }}
     runs-on: ubuntu-latest
+    timeout-minutes: 50
     needs: resolve-servers
     if: inputs.action == 'start'
     strategy:
@@ -234,7 +236,7 @@ jobs:
         if: steps.check.outputs.skip != 'true' && steps.check.outputs.needs_poweron != 'true'
         run: |
           SERVER_ID="${{ steps.create.outputs.server_id }}"
-          for i in $(seq 1 120); do
+          for i in $(seq 1 180); do
             sleep 10
             STATUS=$(curl -s -H "Authorization: Bearer ${{ secrets.BBB_HETZNER_API_TOKEN }}" \
               "${{ env.HETZNER_API }}/servers/$SERVER_ID" | jq -r '.server.status')
@@ -242,8 +244,10 @@ jobs:
               echo "[${{ matrix.slug }}] Running!"
               exit 0
             fi
+            echo "[${{ matrix.slug }}] Attempt $i/180 — status: $STATUS"
           done
-          echo "::warning::Boot timeout for ${{ matrix.slug }}"
+          echo "::error::Boot timeout for ${{ matrix.slug }} after 30 minutes"
+          exit 1
 
       - name: Reconfigure BBB IP
         if: steps.check.outputs.skip != 'true'
@@ -261,16 +265,17 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
 
           READY=false
-          for i in $(seq 1 15); do
-            if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 root@$IP "echo 'SSH up'"; then
+          for i in $(seq 1 36); do
+            if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 root@$IP "echo 'SSH up'"; then
               READY=true
               break
             fi
+            echo "[${{ matrix.slug }}] SSH attempt $i/36 failed, retrying in 10s..."
             sleep 10
           done
 
           if [ "$READY" != "true" ]; then
-            echo "::error::SSH timeout for ${{ matrix.slug }}"
+            echo "::error::SSH timeout for ${{ matrix.slug }} after 6 minutes"
             exit 1
           fi
 
@@ -353,6 +358,7 @@ jobs:
   stop-server:
     name: Stop ${{ matrix.slug }}
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     needs: resolve-servers
     if: inputs.action == 'stop'
     strategy:
@@ -520,6 +526,7 @@ jobs:
   status:
     name: Status ${{ matrix.slug }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: resolve-servers
     if: inputs.action == 'status'
     strategy:

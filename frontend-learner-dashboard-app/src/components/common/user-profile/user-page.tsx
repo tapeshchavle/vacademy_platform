@@ -12,12 +12,14 @@ import { DashboardLoader } from "@/components/core/dashboard-loader";
 import SessionExpiry from "./sessionExpiery";
 import { User } from "lucide-react";
 import { useInstituteFeatureStore } from "@/stores/insititute-feature-store";
-import { HOLISTIC_INSTITUTE_ID } from "@/constants/urls";
+import { HOLISTIC_INSTITUTE_ID, GET_DASHBOARD_DATA } from "@/constants/urls";
 import { getTerminology } from "../layout-container/sidebar/utils";
 import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 import { toTitleCase } from "@/lib/utils";
 import { useStudentPermissions } from "@/hooks/use-student-permissions";
 import ProgressStats from "./progress-stats";
+import authenticatedAxiosInstance from "@/lib/auth/axiosInstance";
+import { FileText } from "@phosphor-icons/react";
 // import { SessionExpiry } from "./sessionExpiery";
 interface CourseDetails {
   packageName: string;
@@ -35,6 +37,9 @@ export default function ProfilePage() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+  const [tncAccepted, setTncAccepted] = useState(false);
+  const [tncAcceptedDate, setTncAcceptedDate] = useState<string | number | null>(null);
+  const [tncFileUrl, setTncFileUrl] = useState<string | null>(null);
   const { showForInstitutes } = useInstituteFeatureStore();
   const { permissions, isLoading: permissionsLoading } =
     useStudentPermissions();
@@ -228,6 +233,41 @@ export default function ProfilePage() {
     };
 
     fetchStudentData();
+  }, []);
+
+  // Fetch TnC status from dashboard API
+  useEffect(() => {
+    const fetchTncStatus = async () => {
+      try {
+        const { value } = await Preferences.get({ key: "StudentDetails" });
+        if (!value) return;
+        const parsed = JSON.parse(value);
+        const students = Array.isArray(parsed) ? parsed : [parsed];
+        if (students.length === 0) return;
+
+        const instituteId = students[0]?.institute_id;
+        const packageSessionId = students[0]?.package_session_id;
+        if (!instituteId || !packageSessionId) return;
+
+        const packageSessionIds = students.map((s: any) => s.package_session_id).filter(Boolean);
+
+        const response = await authenticatedAxiosInstance({
+          method: "POST",
+          url: GET_DASHBOARD_DATA,
+          params: { instituteId, packageSessionId },
+          data: packageSessionIds,
+        });
+        const data = response.data;
+        if (data?.tnc_accepted_date) {
+          setTncAccepted(true);
+          setTncAcceptedDate(data.tnc_accepted_date);
+          setTncFileUrl(data.tnc_file_url || null);
+        }
+      } catch {
+        // silently ignore — TnC section just won't show
+      }
+    };
+    fetchTncStatus();
   }, []);
 
   const handleEditProfile = () => {
@@ -511,6 +551,56 @@ export default function ProfilePage() {
                         {studentData?.parents_mobile_number || "N/A"}
                       </p>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Terms & Conditions Card — only shown when TnC is enabled for the institute */}
+              {(tncAccepted || tncFileUrl) && (
+                <div className="bg-card rounded-xl border shadow p-6 md:p-8">
+                  <h3 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
+                    <span className="w-1 h-6 bg-teal-500 rounded-full"></span>
+                    <FileText className="size-5 text-teal-600" />
+                    Terms &amp; Conditions
+                  </h3>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-3">
+                      <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                        Status
+                      </p>
+                      {tncAccepted ? (
+                        <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 ring-1 ring-green-200">
+                          Signed
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700 ring-1 ring-yellow-200">
+                          Pending
+                        </span>
+                      )}
+                    </div>
+
+                    {tncAccepted && tncAcceptedDate && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                          Signed On
+                        </p>
+                        <p className="text-base font-medium text-foreground">
+                          {new Date(tncAcceptedDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+
+                    {tncAccepted && tncFileUrl && (
+                      <a
+                        href={tncFileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 w-fit rounded-lg border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-100 transition-colors"
+                      >
+                        <FileText className="size-4" />
+                        Download Signed Agreement
+                      </a>
+                    )}
                   </div>
                 </div>
               )}

@@ -61,4 +61,9 @@ public class StudentV2DTO {
     private String subOrgId;
     private String subOrgName;
     private String commaSeparatedOrgRoles;
+
+    // T&C fields
+    private Boolean tncAccepted;
+    private String tncFileId;
+    private Date tncAcceptedDate;
 }
