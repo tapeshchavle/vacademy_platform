@@ -125,7 +125,7 @@ public class LearnerDashBoardService {
             } else if (optStudent.isPresent() && optStudent.get().getTncAccepted() != null && optStudent.get().getTncAccepted()) {
                 tncAcceptedDate = optStudent.get().getTncAcceptedDate();
                 if (optStudent.get().getTncFileId() != null) {
-                    tncFileUrl = mediaService.getFilePublicUrlByIdWithoutExpiry(optStudent.get().getTncFileId());
+                    tncFileUrl = mediaService.getFileUrlById(optStudent.get().getTncFileId());
                 }
             }
         }
@@ -236,7 +236,9 @@ public class LearnerDashBoardService {
             canvas.add(new Paragraph("Accepted Account User ID: " + user.getUserId()));
             canvas.add(new Paragraph("Accepted Date: " + new Date().toString()));
             canvas.close();
-            
+            // Must close pdfDoc before reading bytes — this writes the xref table and trailer
+            pdfDoc.close();
+
             byte[] fileBytes = out.toByteArray();
             
             MultipartFile multipartFile = new MultipartFile() {
@@ -281,7 +283,7 @@ public class LearnerDashBoardService {
                     String emailStr = (emailsObj != null) ? emailsObj.toString() : "";
                     if (!emailStr.isEmpty()) {
                         String[] emailArr = emailStr.split(",");
-                        String signedDocUrl = mediaService.getFilePublicUrlById(fileDetails.getId());
+                        String signedDocUrl = mediaService.getFileUrlById(fileDetails.getId());
                         for (String email : emailArr) {
                             String emailText = email.trim();
                             if (!emailText.isEmpty()) {
