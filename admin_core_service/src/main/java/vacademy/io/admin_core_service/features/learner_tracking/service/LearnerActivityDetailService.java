@@ -13,6 +13,7 @@ import vacademy.io.admin_core_service.features.subject.enums.SubjectStatusEnum;
 import vacademy.io.common.auth.model.CustomUserDetails;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class LearnerActivityDetailService {
@@ -21,9 +22,17 @@ public class LearnerActivityDetailService {
     private ActivityLogRepository activityLogRepository;
 
     public List<DailyTimeSpentProjection> getLearnerAndBatchTimeSpent(ActivityLogFilterDTO activityLogFilterDTO, CustomUserDetails user) {
+        List<String> rawIds = activityLogFilterDTO.getPackageSessionIds();
+        List<String> validIds = (rawIds == null) ? List.of()
+                : rawIds.stream().filter(id -> id != null && !id.isBlank()).collect(Collectors.toList());
+
+        if (validIds.isEmpty()) {
+            return List.of();
+        }
+
         return activityLogRepository.getDailyUserAndBatchTimeSpent(
                 activityLogFilterDTO.getUserId(),
-                activityLogFilterDTO.getPackageSessionIds(),
+                validIds,
                 activityLogFilterDTO.getStartDate(),
                 activityLogFilterDTO.getEndDate(),
                 List.of(SlideStatus.PUBLISHED.name(),SlideStatus.UNSYNC.name()),

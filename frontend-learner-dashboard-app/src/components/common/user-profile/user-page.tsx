@@ -249,7 +249,7 @@ export default function ProfilePage() {
         const packageSessionId = students[0]?.package_session_id;
         if (!instituteId || !packageSessionId) return;
 
-        const packageSessionIds = students.map((s: any) => s.package_session_id).filter(Boolean);
+        const packageSessionIds = students.map((s: any) => s.package_session_id).filter((id: any): id is string => !!id);
 
         const response = await authenticatedAxiosInstance({
           method: "POST",

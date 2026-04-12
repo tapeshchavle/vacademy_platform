@@ -54,9 +54,9 @@ export const fetchStaticData = async (
   // const response1 = await fetchStudentDetails(institute_id, userData.id);
   const studentDetails = await getDataFromPreferences<Student[]>("students");
 
-  const packageSessionIds = studentDetails?.map(
-    (item) => item.package_session_id
-  );
+  const packageSessionIds = studentDetails
+    ?.map((item) => item.package_session_id)
+    .filter((id): id is string => !!id);
 
   try {
     const url = GET_DASHBOARD_DATA;
@@ -141,9 +141,9 @@ export const fetchLast7DaysProgress = async ({
 
     const url = GET_LAST_7_DAYS_PROGRESS;
     const studentDetails = await getDataFromPreferences<Student[]>("students");
-    const packageSessionIds = studentDetails?.map(
-      (item) => item.package_session_id
-    );
+    const packageSessionIds = studentDetails
+      ?.map((item) => item.package_session_id)
+      .filter((id): id is string => !!id);
     const response = await authenticatedAxiosInstance({
       method: "POST",
       url: url,

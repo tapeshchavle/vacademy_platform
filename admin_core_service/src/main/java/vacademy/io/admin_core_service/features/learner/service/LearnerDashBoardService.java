@@ -130,12 +130,15 @@ public class LearnerDashBoardService {
             }
         }
 
+        List<String> validPackageSessionIds = (packageSessionId == null) ? List.of()
+                : packageSessionId.stream().filter(id -> id != null && !id.isBlank()).collect(java.util.stream.Collectors.toList());
+
         return new LeanerDashBoardDetailDTO(
                 packageRepository.countDistinctPackagesByUserIdAndInstituteId(user.getUserId(), instituteId),
                 0,
-                (packageSessionId == null || packageSessionId.isEmpty()) ? List.of() : slideRepository.findRecentIncompleteSlides(
+                validPackageSessionIds.isEmpty() ? List.of() : slideRepository.findRecentIncompleteSlides(
                         user.getUserId(),
-                        packageSessionId,
+                        validPackageSessionIds,
                         VALID_SLIDE_STATUSES,
                         VALID_SLIDE_STATUSES, 
                         ACTIVE_CHAPTERS,
@@ -282,13 +285,18 @@ public class LearnerDashBoardService {
                         for (String email : emailArr) {
                             String emailText = email.trim();
                             if (!emailText.isEmpty()) {
-                                vacademy.io.common.notification.dto.GenericEmailRequest req = 
-                                        new vacademy.io.common.notification.dto.GenericEmailRequest();
-                                req.setTo(emailText);
-                                req.setSubject("Student T&C Accepted: " + request.getName());
-                                req.setBody("<p>Student <b>" + request.getName() + "</b> (User ID: " + user.getUserId() + ") has accepted the Terms & Conditions.</p>" +
-                                            "<p>You can view their digitally signed agreement here: <a href='" + signedDocUrl + "'>View Document</a>.</p>");
-                                notificationService.sendGenericHtmlMailViaUnified(req);
+                                try {
+                                    vacademy.io.common.notification.dto.GenericEmailRequest req =
+                                            new vacademy.io.common.notification.dto.GenericEmailRequest();
+                                    req.setTo(emailText);
+                                    req.setSubject("Student T&C Accepted: " + request.getName());
+                                    req.setBody("<p>Student <b>" + request.getName() + "</b> (User ID: " + user.getUserId() + ") has accepted the Terms & Conditions.</p>" +
+                                                "<p>You can view their digitally signed agreement here: <a href='" + signedDocUrl + "'>View Document</a>.</p>");
+                                    notificationService.sendGenericHtmlMailViaUnified(req, request.getInstituteId());
+                                } catch (Exception emailEx) {
+                                    // Log but don't fail — student has already accepted; email is best-effort
+                                    System.err.println("TnC notification email failed for " + emailText + ": " + emailEx.getMessage());
+                                }
                             }
                         }
                     }
