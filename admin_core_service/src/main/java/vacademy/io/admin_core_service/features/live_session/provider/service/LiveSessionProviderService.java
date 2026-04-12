@@ -158,24 +158,22 @@ public class LiveSessionProviderService {
 
     public List<MeetingRecordingDTO> getRecordings(String scheduleId, String instituteId) {
         SessionSchedule schedule = getScheduleOrThrow(scheduleId);
-        LiveSessionProviderStrategy strategy = getStrategyForSchedule(schedule);
-
-        // Route to the correct BBB server (multi-server pool support)
-        List<MeetingRecordingDTO> recordings;
-        if (strategy instanceof BbbMeetingManager bbbManager && schedule.getBbbServerId() != null) {
-            recordings = bbbManager.getRecordings(schedule.getProviderMeetingId(), instituteId, schedule.getBbbServerId());
-        } else {
-            recordings = strategy.getRecordings(schedule.getProviderMeetingId(), instituteId);
+        if (schedule.getProviderRecordingsJson() == null || schedule.getProviderRecordingsJson().isBlank()) {
+            return List.of();
         }
-
         try {
-            schedule.setProviderRecordingsJson(objectMapper.writeValueAsString(recordings));
-            schedule.setLastRecordingSyncAt(new java.util.Date());
-            scheduleRepository.save(schedule);
+            List<MeetingRecordingDTO> all = objectMapper.readValue(
+                    schedule.getProviderRecordingsJson(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, MeetingRecordingDTO.class));
+            // Return only S3-uploaded recordings (those with a fileId set by the post-publish hook).
+            // BBB-native hosted playback URLs (no fileId) are excluded.
+            return all.stream()
+                    .filter(r -> r.getFileId() != null && !r.getFileId().isBlank())
+                    .collect(java.util.stream.Collectors.toList());
         } catch (Exception e) {
-            log.warn("Failed to cache recordings for schedule {}: {}", scheduleId, e.getMessage());
+            log.warn("Failed to parse recordings for schedule {}: {}", scheduleId, e.getMessage());
+            return List.of();
         }
-        return recordings;
     }
 
     public List<MeetingAttendeeDTO> getAttendance(String scheduleId, String instituteId) {

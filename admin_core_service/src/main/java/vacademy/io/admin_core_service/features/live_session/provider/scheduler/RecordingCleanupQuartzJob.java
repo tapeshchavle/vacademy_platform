@@ -6,13 +6,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class LiveSessionProviderSyncQuartzJob implements Job {
+public class RecordingCleanupQuartzJob implements Job {
 
     @Autowired
-    private LiveSessionProviderSyncProcessor processor;
+    private RecordingCleanupProcessor processor;
 
     @Override
     public void execute(JobExecutionContext context) {
-        processor.syncAll();
+        processor.cleanupOldRecordings();
     }
 }

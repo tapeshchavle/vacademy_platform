@@ -431,4 +431,16 @@ public interface SessionScheduleRepository extends JpaRepository<SessionSchedule
             """, nativeQuery = true)
     Optional<String> findInstituteIdByScheduleId(@Param("scheduleId") String scheduleId);
 
+    /**
+     * Returns all schedules that have at least one recording entry.
+     * Used by the daily recording cleanup job to find BBB recordings to delete.
+     */
+    @Query(value = """
+                SELECT * FROM session_schedules
+                WHERE provider_recordings_json IS NOT NULL
+                  AND provider_recordings_json != '[]'
+                  AND provider_recordings_json != ''
+            """, nativeQuery = true)
+    List<SessionSchedule> findAllWithRecordings();
+
 }

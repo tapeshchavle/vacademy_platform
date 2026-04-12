@@ -235,6 +235,13 @@ public class BbbMeetingManager implements LiveSessionProviderStrategy {
             params.put("duration", String.valueOf(request.getDurationMinutes()));
         }
 
+        // Guard: if bbbCallbackBaseUrl is localhost the BBB server (Hetzner) can never
+        // reach it — callbacks will silently fail. Log a loud error so it's caught early.
+        if (bbbCallbackBaseUrl.contains("localhost")) {
+            log.error("[BBB] CRITICAL: bbb.callback.base-url='{}' — BBB callbacks will FAIL from external server! "
+                    + "Set BBB_CALLBACK_BASE_URL or ADMIN_CORE_SERVICE_BASE_URL env var.", bbbCallbackBaseUrl);
+        }
+
         // Set end callback URL so BBB notifies us when the meeting ends.
         // Uses bbbCallbackBaseUrl (public URL) since BBB server is external.
         if (request.getScheduleId() != null) {
@@ -570,6 +577,68 @@ public class BbbMeetingManager implements LiveSessionProviderStrategy {
                     .build());
         }
         return recordings;
+    }
+
+    // -----------------------------------------------------------------------
+    // Delete recording from BBB server
+    // -----------------------------------------------------------------------
+
+    /**
+     * Calls BBB's deleteRecordings API to remove a recording from the BBB server.
+     * Only deletes from BBB — S3/Vacademy file storage is untouched.
+     *
+     * @param recordingId BBB recordID (e.g. "abc123-content")
+     * @param bbbServerId pool server ID to route to (null = legacy config)
+     * @return true if BBB confirmed deletion, false if it failed or was not found
+     */
+    public boolean deleteRecording(String recordingId, String bbbServerId) {
+        String apiUrl;
+        String secret;
+        if (bbbServerId != null) {
+            try {
+                BbbServerPool server = serverRouter.getServer(bbbServerId);
+                apiUrl = server.getApiUrl();
+                secret = server.getSecret();
+            } catch (Exception e) {
+                log.warn("[BBB] deleteRecording: failed to resolve server {}, falling back to legacy config", bbbServerId);
+                Map<String, Object> cfg = getConfigMap(null);
+                apiUrl = (String) cfg.get("apiUrl");
+                secret = (String) cfg.get("secret");
+            }
+        } else {
+            Map<String, Object> cfg = getConfigMap(null);
+            apiUrl = (String) cfg.get("apiUrl");
+            secret = (String) cfg.get("secret");
+        }
+
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("recordID", recordingId);
+
+        String queryString = buildQueryString(params);
+        String checksum = sha256("deleteRecordings" + queryString + secret);
+        String url = apiUrl + "/deleteRecordings?" + queryString + "&checksum=" + checksum;
+
+        try {
+            String xmlResponse = webClientBuilder.build()
+                    .get().uri(URI.create(url))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            Document doc = parseXml(xmlResponse);
+            String returnCode = getXmlText(doc, "returncode");
+            if ("SUCCESS".equals(returnCode)) {
+                log.info("[BBB] Deleted recording {} from BBB server", recordingId);
+                return true;
+            } else {
+                String msg = getXmlText(doc, "message");
+                log.warn("[BBB] deleteRecordings returned non-SUCCESS for recordingId={}: {}", recordingId, msg);
+                return false;
+            }
+        } catch (Exception e) {
+            log.warn("[BBB] deleteRecording failed for recordingId={}: {}", recordingId, e.getMessage());
+            return false;
+        }
     }
 
     // -----------------------------------------------------------------------

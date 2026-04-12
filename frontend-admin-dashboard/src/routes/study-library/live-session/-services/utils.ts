@@ -9,6 +9,7 @@ import {
     BATCH_SESSION_ATTENDANCE_REPORT,
     SEARCH_SESSIONS,
     ADMIN_MARK_ATTENDANCE,
+    GET_SCHEDULE_RECORDINGS,
 } from '@/constants/urls';
 import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
 
@@ -147,6 +148,7 @@ export interface MeetingRecording {
     startTime?: string;
     providerMeetingId?: string;
     fileId?: string;
+    type?: string;
 }
 
 export interface NotificationAction {
@@ -460,5 +462,15 @@ export const searchSessions = async (
             },
         }
     );
+    return response.data;
+};
+
+export const getScheduleRecordings = async (
+    scheduleId: string,
+    instituteId: string
+): Promise<MeetingRecording[]> => {
+    const response = await authenticatedAxiosInstance.get(GET_SCHEDULE_RECORDINGS, {
+        params: { scheduleId, instituteId },
+    });
     return response.data;
 };

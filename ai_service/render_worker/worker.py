@@ -289,6 +289,11 @@ class RenderWorker:
                         f"Worker {i} browser errors ({len(browser_lines)} lines):\n"
                         + '\n'.join(browser_lines[:50])  # Log up to 50 lines per worker
                     )
+                # Forward diagnostic lines from worker stdout
+                diag_lines = [l for l in result.stdout.split('\n')
+                              if any(tag in l for tag in ('RENDER-VERSION', 'SIZING-DIAG', 'ANNOT-DIAG', 'VIDEO-DIAG', 'VIVUS-DIAG', 'ROUGHNOTATION-DIAG'))]
+                if diag_lines:
+                    logger.info(f"Worker {i} diagnostics ({len(diag_lines)} lines):\n" + '\n'.join(diag_lines[:50]))
                 logger.info(f"Worker {i} done: {result.stdout[-200:]}")
 
             # Write consolidated browser error log

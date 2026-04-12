@@ -416,11 +416,15 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                   };
 
                   // SVG drawing animation
-                  window.animateSVG = function(svgId, duration, callback) {
+                  window.animateSVG = function(svgIdOrEl, duration, callback) {
                     if (!window.Vivus) return;
                     var cb = typeof callback === 'function' ? callback : undefined;
                     function tryInit(attemptsLeft) {
-                      var el = typeof svgId === 'string' ? document.getElementById(svgId) : svgId;
+                      // Accept either an element (from scoped resolve) or an ID string.
+                      // Pass the element (not ID) to Vivus so it works inside shadow DOM.
+                      var el = (typeof svgIdOrEl === 'string')
+                          ? document.getElementById(svgIdOrEl)
+                          : svgIdOrEl;
                       if (!el) {
                         if (attemptsLeft > 0) {
                           setTimeout(function() { tryInit(attemptsLeft - 1); }, 100);
@@ -428,7 +432,8 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                         return;
                       }
                       try {
-                        new Vivus(svgId, {
+                        // Pass element directly — Vivus accepts SVG elements
+                        new Vivus(el, {
                           duration: duration || 100,
                           type: 'oneByOne',
                           animTimingFunction: Vivus.EASE_OUT
@@ -1036,6 +1041,11 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                     }
                   );
 
+                  // 1.5. Rewrite :root to :host so CSS variables apply inside shadow DOM.
+                  // The LLM often generates `:root { --primary: ... }` which doesn't work
+                  // in shadow DOM (no document root). `:host` is the shadow DOM equivalent.
+                  processedHtml = processedHtml.split(':root').join(':host');
+
                   // 2. placeholder.png: replace with transparent 1x1 GIF
                   if (processedHtml.includes('placeholder.png')) {
                     const TRANSPARENT = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -1068,8 +1078,17 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                       const newScript = document.createElement('script');
                       Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
                       
-                      // Wrap content in IIFE with scoped GSAP
-                      const originalCode = oldScript.textContent;
+                      // Wrap content in IIFE with scoped GSAP.
+                      // Rewrite the LLM source so window.RoughNotation/window.Vivus/document.querySelector
+                      // calls go through our scoped helpers and resolve elements from the shadow root.
+                      let originalCode = oldScript.textContent;
+                      originalCode = originalCode.split('window.RoughNotation').join('__sd_RoughNotation');
+                      originalCode = originalCode.split('new Vivus').join('new __sd_Vivus');
+                      originalCode = originalCode.split('window.Vivus').join('__sd_Vivus');
+                      originalCode = originalCode.split('window.d3').join('d3');
+                      originalCode = originalCode.split('document.getElementById').join('__sd_getElementById');
+                      originalCode = originalCode.split('document.querySelectorAll').join('__sd_querySelectorAll');
+                      originalCode = originalCode.split('document.querySelector').join('__sd_querySelector');
                       const scopedCode = `
                         (function(scope) {
                             // Helper to resolve selectors in this shadow root
@@ -1080,6 +1099,11 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                                 return el;
                             };
                             const resolveAll = (s) => (typeof s === 'string' ? scope.querySelectorAll(s) : s);
+
+                            // Shadow-DOM-aware document.* replacements (used after rewriting LLM source)
+                            const __sd_getElementById = (id) => scope.querySelector('#' + CSS.escape(id));
+                            const __sd_querySelector = (sel) => scope.querySelector(sel);
+                            const __sd_querySelectorAll = (sel) => scope.querySelectorAll(sel);
 
                             // Proxy global helpers to use scoped resolution
                             const annotate = (target, opts) => {
@@ -1095,7 +1119,25 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                                 console.log('Proxy showThenAnnotate:', txt, term);
                                 window.showThenAnnotate(resolve(txt), resolve(term), type, col, txtDel, annDel);
                             };
-                            const animateSVG = (id, dur, cb) => window.animateSVG(resolve(id) || id, dur, cb);
+                            const animateSVG = (id, dur, cb) => {
+                                // Resolve from shadow root, retrying if not yet present
+                                const tryResolve = (attempts) => {
+                                    let el;
+                                    if (typeof id === 'string') {
+                                        // Try by ID then by tag/id selector inside shadow root
+                                        el = scope.querySelector('#' + id) || scope.querySelector(id);
+                                    } else {
+                                        el = id;
+                                    }
+                                    if (el) {
+                                        window.animateSVG(el, dur, cb);
+                                    } else if (attempts > 0) {
+                                        setTimeout(() => tryResolve(attempts - 1), 100);
+                                    }
+                                    // Silently give up after retries — element never appeared
+                                };
+                                tryResolve(15);
+                            };
 
                             // Creator of scoped GSAP instance
                             const createScopedGsap = () => {
@@ -1145,6 +1187,45 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                                 return proxy;
                             })() : undefined;
 
+                            // ── Shadow-DOM-aware helpers (called from rewritten LLM code) ──
+                            // The LLM source is rewritten before injection so that:
+                            //   document.querySelector(...)    → __sd_querySelector(...)
+                            //   document.getElementById(...)   → __sd_getElementById(...)
+                            //   document.querySelectorAll(...) → __sd_querySelectorAll(...)
+                            //   window.RoughNotation           → __sd_RoughNotation
+                            //   window.Vivus                   → __sd_Vivus
+                            //   new Vivus(...)                 → new __sd_Vivus(...)
+                            // These helpers are unique names to avoid TDZ from shadowing globals.
+                            const __sd_RoughNotation = window.RoughNotation ? {
+                                annotate: function(el, opts) {
+                                    if (typeof el === 'string') {
+                                        const resolved = scope.querySelector(el);
+                                        if (!resolved) return { show: function(){}, hide: function(){}, isShowing: false };
+                                        el = resolved;
+                                    }
+                                    return window.RoughNotation.annotate(el, opts);
+                                },
+                                annotationGroup: window.RoughNotation.annotationGroup
+                                    ? window.RoughNotation.annotationGroup.bind(window.RoughNotation)
+                                    : undefined
+                            } : undefined;
+
+                            function __sd_Vivus(el, opts, cb) {
+                                if (!window.Vivus) return { play: function(){}, stop: function(){}, reset: function(){} };
+                                if (typeof el === 'string') {
+                                    const resolved = scope.querySelector('#' + CSS.escape(el));
+                                    if (!resolved) return { play: function(){}, stop: function(){}, reset: function(){} };
+                                    el = resolved;
+                                }
+                                return new window.Vivus(el, opts, cb);
+                            }
+                            if (window.Vivus) {
+                                __sd_Vivus.EASE = window.Vivus.EASE;
+                                __sd_Vivus.EASE_IN = window.Vivus.EASE_IN;
+                                __sd_Vivus.EASE_OUT = window.Vivus.EASE_OUT;
+                                __sd_Vivus.LINEAR = window.Vivus.LINEAR;
+                            }
+
                             try {
                                 ${originalCode}
                             } catch (e) {
@@ -1192,7 +1273,7 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                               let graphDefinition = el.textContent.trim();
                               if (!graphDefinition) return;
                               
-                              if (el.tagName.toLowerCase() === 'code' && el.parentElement.tagName.toLowerCase() === 'pre') {
+                              if (el.tagName.toLowerCase() === 'code' && el.parentElement && el.parentElement.tagName.toLowerCase() === 'pre') {
                                   const div = document.createElement('div');
                                   div.id = id;
                                   div.className = 'mermaid-diagram';
@@ -1289,12 +1370,14 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                 host.style.top = (e.y | 0) + 'px';
                 host.style.width = (e.w | 0) + 'px';
                 host.style.height = (e.h | 0) + 'px';
+                console.log('[SIZING-DIAG] branding ' + e.id + ' size=' + e.w + 'x' + e.h + ' pos=' + e.x + ',' + e.y);
               } else {
                 host.style.left = '0px';
                 host.style.top = '0px';
                 host.style.width = window.innerWidth + 'px';
                 host.style.height = window.innerHeight + 'px';
                 host.style.background = getComputedStyle(document.body).backgroundColor || '#ffffff';
+                console.log('[SIZING-DIAG] full-viewport ' + e.id + ' (orig size=' + e.w + 'x' + e.h + ', forced=' + window.innerWidth + 'x' + window.innerHeight + ')');
               }
             };
           }
@@ -2141,15 +2224,33 @@ def render_video_from_json(
             if msg.type in ("error", "warning"):
                 _browser_error_count[0] += 1
                 print(f"[BROWSER {msg.type.upper()}] {msg.text}")
-            elif msg.type == "info":
-                print(f"[BROWSER INFO] {msg.text}")
+            elif msg.type in ("info", "log", "debug"):
+                txt = msg.text
+                if any(tag in txt for tag in ("DIAG", "VERSION", "ANNOT", "SIZING", "VIVUS", "ROUGHNOTATION")):
+                    print(f"[BROWSER LOG] {txt}")
         page.on("console", _on_console)
         def _on_pageerror(err):
+            # Filter known cosmetic errors from LLM-generated content
+            err_str = str(err)
+            harmless_patterns = (
+                "Vivus [constructor]",  # SVG ID not in shadow DOM — falls back gracefully
+                "Cannot read properties of null (reading 'parentElement')",  # LLM script ref to detached node
+                "Cannot read properties of null (reading 'getTotalLength')",  # SVG path on null
+                "Cannot read properties of null (reading 'classList')",  # null element manipulation
+                "Cannot read properties of null (reading 'style')",  # null element style
+                "Cannot read properties of undefined (reading 'show')",  # annotation on undefined
+            )
+            if any(p in err_str for p in harmless_patterns):
+                # Track but don't print — these don't break rendering
+                _browser_error_count[0] += 1
+                return
             _browser_error_count[0] += 1
             print(f"[BROWSER EXCEPTION] {err}")
         page.on("pageerror", _on_pageerror)
         
         _prepare_page(page, width=width, height=height, background_color=background_color)
+        # ── Build version marker ── (bump this when deploying changes)
+        print(f"[RENDER-VERSION] generate_video.py build=2026-04-11-v13 (root-to-host-rewrite, fps={fps})")
         # Wait for fonts to load before rendering frames
         try:
             page.evaluate("() => document.fonts.ready")
@@ -2220,23 +2321,43 @@ def render_video_from_json(
                     if (seekPromises.length > 0) await Promise.all(seekPromises);
                     } // end else (hasVideos)
                 }
-                // 7. Rough Notation — always force-show all registered annotations
-                // and force their SVGs visible. This matches the snippet-injection
-                // behavior and ensures underlines/highlights persist across frames.
+                // 7. Rough Notation — force redraw on segment changes (hide+show
+                // to rebuild the SVG path with current layout). On non-segment
+                // frames, just ensure isShowing without redrawing.
                 if (window.__registeredAnnotations && window.__registeredAnnotations.length > 0) {
+                    let redrawnCount = 0;
                     window.__registeredAnnotations.forEach(a => {
-                        try { if (!a.isShowing) a.show(); } catch(e) {}
+                        try {
+                            if (state.segmentChanged) {
+                                // Force redraw — handles cases where the SVG was
+                                // drawn before layout settled (zero-length paths)
+                                if (a.isShowing) a.hide();
+                                a.show();
+                                redrawnCount++;
+                            } else if (!a.isShowing) {
+                                a.show();
+                            }
+                        } catch(e) {}
                     });
+                    if (state.segmentChanged) {
+                        console.log('[ANNOT-DIAG] registered=' + window.__registeredAnnotations.length + ' redrawn=' + redrawnCount);
+                    }
                 }
-                // Force-show all annotation SVGs in shadow DOMs (battles any !important hide rules)
+                // Force-show all annotation SVGs in shadow DOMs
+                let svgCount = 0;
                 document.querySelectorAll('[id^="snippet-"], [id^="segment-"], [id^="shot-"], [id^="branding-"]').forEach(host => {
                     const root = host.shadowRoot;
                     if (!root) return;
                     root.querySelectorAll('svg.rough-annotation').forEach(svg => {
                         svg.style.setProperty('opacity', '1', 'important');
                         svg.style.setProperty('visibility', 'visible', 'important');
+                        svg.style.setProperty('display', 'block', 'important');
+                        svgCount++;
                     });
                 });
+                if (state.segmentChanged && svgCount > 0) {
+                    console.log('[ANNOT-DIAG] forced visible on ' + svgCount + ' rough-annotation SVGs');
+                }
                 // 8. Wait for paint — always at least one RAF to ensure video frames
                 // and DOM mutations are rendered before screenshot capture.
                 // Double-RAF on segment changes for layout/annotation settling.

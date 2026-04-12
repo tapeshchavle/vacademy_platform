@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { BASE_URL } from '@/constants/urls';
 import { getPublicUrl } from '@/services/upload_file';
-import { getSessionBySessionId, getLiveSessionReport } from '../-services/utils';
+import { getSessionBySessionId, getLiveSessionReport, getScheduleRecordings } from '../-services/utils';
 import type { SessionBySessionIdResponse, LiveSessionReport, MeetingRecording } from '../-services/utils';
 import { AttendanceMarkingTable } from '../-components/AttendanceMarkingTable';
 import {
@@ -26,6 +26,7 @@ import {
     Play,
     Download,
     Clock,
+    RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SessionCalendarView } from '../-components/session-calendar-view';
@@ -119,6 +120,8 @@ function ViewLiveSession() {
     const [attendanceLoading, setAttendanceLoading] = useState(false);
     const [selectedScheduleForAttendance, setSelectedScheduleForAttendance] = useState<string | null>(null);
     const [recordingUrls, setRecordingUrls] = useState<Record<string, string>>({});
+    const [refreshedRecordings, setRefreshedRecordings] = useState<Record<string, MeetingRecording[]>>({});
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     useEffect(() => {
         const fetchSessionDetails = async () => {
@@ -301,15 +304,15 @@ function ViewLiveSession() {
         const recordings: Array<MeetingRecording & { date: string; scheduleId: string }> = [];
         groupedSchedules.forEach((day) => {
             day.sessions.forEach((session) => {
-                if (session.recordings && session.recordings.length > 0) {
-                    session.recordings.forEach((rec) => {
-                        recordings.push({ ...rec, date: day.date, scheduleId: session.id });
-                    });
-                }
+                // Prefer manually refreshed recordings over session-loaded ones
+                const recs = refreshedRecordings[session.id] ?? session.recordings ?? [];
+                recs.forEach((rec) => {
+                    recordings.push({ ...rec, date: day.date, scheduleId: session.id });
+                });
             });
         });
         return recordings;
-    }, [groupedSchedules]);
+    }, [groupedSchedules, refreshedRecordings]);
 
     // Resolve fileId to public URLs for recordings that have no playbackUrl
     useEffect(() => {
@@ -339,6 +342,39 @@ function ViewLiveSession() {
         if (hrs > 0) return `${hrs}h ${mins}m`;
         return `${mins}m`;
     };
+
+    const RECORDING_LABELS: Record<string, string> = {
+        content: 'Presenter View',
+        webcams: 'Webcam View',
+        full: 'Full Recording',
+    };
+
+    const handleRefreshRecordings = useCallback(async () => {
+        const instituteId = sessionData?.schedule?.institute_id;
+        if (!instituteId) return;
+        setIsRefreshing(true);
+        try {
+            const allScheduleIds = groupedSchedules.flatMap((day) =>
+                day.sessions.map((s) => s.id)
+            );
+            const uniqueIds = [...new Set(allScheduleIds)];
+            const results: Record<string, MeetingRecording[]> = {};
+            await Promise.all(
+                uniqueIds.map(async (scheduleId) => {
+                    try {
+                        results[scheduleId] = await getScheduleRecordings(scheduleId, instituteId);
+                    } catch {
+                        // keep existing for this schedule on error
+                    }
+                })
+            );
+            setRefreshedRecordings((prev) => ({ ...prev, ...results }));
+        } catch {
+            toast.error('Failed to refresh recordings');
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, [sessionData, groupedSchedules]);
 
     const uniqueNotifications = useMemo(() => {
         if (!sessionData?.notifications?.addedNotificationActions) return [];
@@ -770,7 +806,7 @@ function ViewLiveSession() {
                         </Card>
 
                         {/* Recordings Section */}
-                        {allRecordings.length > 0 && (
+                        {allRecordings.length > 0 ? (
                             <Card className="overflow-hidden border-border/60 shadow-sm">
                                 <CardHeader className="bg-muted/40 px-6 py-4">
                                     <div className="flex items-center justify-between">
@@ -780,9 +816,20 @@ function ViewLiveSession() {
                                             </div>
                                             Recordings
                                         </CardTitle>
-                                        <Badge variant="secondary" className="px-3 py-1 text-xs font-medium">
-                                            {allRecordings.length} recording{allRecordings.length !== 1 ? 's' : ''}
-                                        </Badge>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="secondary" className="px-3 py-1 text-xs font-medium">
+                                                {allRecordings.length} recording{allRecordings.length !== 1 ? 's' : ''}
+                                            </Badge>
+                                            <button
+                                                onClick={handleRefreshRecordings}
+                                                disabled={isRefreshing}
+                                                className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 disabled:opacity-50"
+                                                title="Refresh recordings"
+                                            >
+                                                <RefreshCw className={cn('size-3', isRefreshing && 'animate-spin')} />
+                                                Refresh
+                                            </button>
+                                        </div>
                                     </div>
                                 </CardHeader>
                                 <Separator />
@@ -798,11 +845,12 @@ function ViewLiveSession() {
                                                 </div>
                                                 <div>
                                                     <div className="text-sm font-medium">
-                                                        {isRecurring
-                                                            ? format(new Date(rec.date), 'MMM d, yyyy')
-                                                            : `Recording ${idx + 1}`}
+                                                        {RECORDING_LABELS[rec.type ?? ''] ?? `Recording ${idx + 1}`}
                                                     </div>
                                                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                        {isRecurring && (
+                                                            <span>{format(new Date(rec.date), 'MMM d, yyyy')}</span>
+                                                        )}
                                                         {rec.startTime && (
                                                             <span className="flex items-center gap-1">
                                                                 <Clock className="size-3" />
@@ -852,6 +900,30 @@ function ViewLiveSession() {
                                             </div>
                                         </div>
                                     ))}
+                                </CardContent>
+                            </Card>
+                        ) : groupedSchedules.some((day) =>
+                            day.sessions.some((s) => s.status === 'past')
+                        ) && (
+                            <Card className="overflow-hidden border-border/60 shadow-sm">
+                                <CardContent className="flex flex-col items-center gap-4 px-6 py-10 text-center">
+                                    <div className="flex size-14 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
+                                        <Video className="size-7" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-foreground">No recordings yet</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Recordings are usually ready 10–20 min after the session ends.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={handleRefreshRecordings}
+                                        disabled={isRefreshing}
+                                        className="flex items-center gap-2 rounded-md border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 disabled:opacity-50"
+                                    >
+                                        <RefreshCw className={cn('size-3', isRefreshing && 'animate-spin')} />
+                                        {isRefreshing ? 'Checking...' : 'Fetch Recordings'}
+                                    </button>
                                 </CardContent>
                             </Card>
                         )}
