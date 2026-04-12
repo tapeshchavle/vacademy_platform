@@ -162,6 +162,8 @@ export function RegistrationFormPage() {
     const [paymentOptionDetails, setPaymentOptionDetails] = useState<PaymentOptionDetails | null>(
         null
     );
+    const [applicationTrackingId, setApplicationTrackingId] = useState<string | null>(null);
+    const [enquiryTrackingId, setEnquiryTrackingId] = useState<string | null>(null);
 
     // Get institute details
     const { instituteDetails } = useInstituteDetailsStore();
