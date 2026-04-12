@@ -268,7 +268,10 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
           ei.name AS "enrollInviteName",
           ssigm.sub_org_id AS "subOrgId",
           sub_org.name AS "subOrgName",
-          ssigm.comma_separated_org_roles AS "commaSeparatedOrgRoles"
+          ssigm.comma_separated_org_roles AS "commaSeparatedOrgRoles",
+          s.tnc_accepted AS "tncAccepted",
+          s.tnc_file_id AS "tncFileId",
+          s.tnc_accepted_date AS "tncAcceptedDate"
       FROM student s
       JOIN student_session_institute_group_mapping ssigm
           ON s.user_id = ssigm.user_id
@@ -328,7 +331,8 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
                s.created_at, s.updated_at, s.face_file_id, s.parents_to_mother_mobile_number,
                s.parents_to_mother_email, ssigm.institute_enrollment_number,
                ssigm.institute_id, ssigm.group_id, ssigm.status, up.plan_json, up.payment_option_json, ssigm.destination_package_session_id, ssigm.user_plan_id, up.enroll_invite_id, ei.name,
-               ssigm.sub_org_id, sub_org.name, ssigm.comma_separated_org_roles
+               ssigm.sub_org_id, sub_org.name, ssigm.comma_separated_org_roles,
+               s.tnc_accepted, s.tnc_file_id, s.tnc_accepted_date
       """, countQuery = """
       SELECT COUNT(DISTINCT s.id)
       FROM student s
@@ -433,7 +437,10 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
           ei.name AS "enrollInviteName",
           ssigm.sub_org_id AS "subOrgId",
           sub_org.name AS "subOrgName",
-          ssigm.comma_separated_org_roles AS "commaSeparatedOrgRoles"
+          ssigm.comma_separated_org_roles AS "commaSeparatedOrgRoles",
+          s.tnc_accepted AS "tncAccepted",
+          s.tnc_file_id AS "tncFileId",
+          s.tnc_accepted_date AS "tncAcceptedDate"
       FROM student s
       JOIN student_session_institute_group_mapping ssigm
           ON s.user_id = ssigm.user_id
@@ -498,7 +505,8 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
                s.created_at, s.updated_at, s.face_file_id, s.parents_to_mother_mobile_number,
                s.parents_to_mother_email, ssigm.institute_enrollment_number,
                ssigm.institute_id, ssigm.group_id, ssigm.status, up.plan_json, up.payment_option_json, ssigm.destination_package_session_id, ssigm.user_plan_id, up.enroll_invite_id, ei.name,
-               ssigm.sub_org_id, sub_org.name, ssigm.comma_separated_org_roles
+               ssigm.sub_org_id, sub_org.name, ssigm.comma_separated_org_roles,
+               s.tnc_accepted, s.tnc_file_id, s.tnc_accepted_date
       """, countQuery = """
       SELECT COUNT(DISTINCT s.id)
       FROM student s
@@ -734,7 +742,10 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
           ssigm.desired_level_id AS "desiredLevelId",
           ssigm.sub_org_id AS "subOrgId",
           sub_org.name AS "subOrgName",
-          ssigm.comma_separated_org_roles AS "commaSeparatedOrgRoles"
+          ssigm.comma_separated_org_roles AS "commaSeparatedOrgRoles",
+          s.tnc_accepted AS "tncAccepted",
+          s.tnc_file_id AS "tncFileId",
+          s.tnc_accepted_date AS "tncAcceptedDate"
       FROM student s
       JOIN student_session_institute_group_mapping ssigm
           ON s.user_id = ssigm.user_id
@@ -799,7 +810,8 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
                s.created_at, s.updated_at, s.face_file_id, s.parents_to_mother_mobile_number,
                s.parents_to_mother_email, ssigm.institute_enrollment_number,
                ssigm.institute_id, ssigm.group_id, ssigm.status, up.plan_json, up.payment_option_json, ssigm.destination_package_session_id, ssigm.user_plan_id, up.enroll_invite_id, ei.name, ssigm.desired_level_id,
-               ssigm.sub_org_id, sub_org.name, ssigm.comma_separated_org_roles
+               ssigm.sub_org_id, sub_org.name, ssigm.comma_separated_org_roles,
+               s.tnc_accepted, s.tnc_file_id, s.tnc_accepted_date
       """, countQuery = """
       SELECT COUNT(DISTINCT s.id)
       FROM student s
@@ -915,7 +927,10 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
           ssigm.desired_level_id AS "desiredLevelId",
           ssigm.sub_org_id AS "subOrgId",
           sub_org.name AS "subOrgName",
-          ssigm.comma_separated_org_roles AS "commaSeparatedOrgRoles"
+          ssigm.comma_separated_org_roles AS "commaSeparatedOrgRoles",
+          s.tnc_accepted AS "tncAccepted",
+          s.tnc_file_id AS "tncFileId",
+          s.tnc_accepted_date AS "tncAcceptedDate"
       FROM student s
       JOIN student_session_institute_group_mapping ssigm
           ON s.user_id = ssigm.user_id
@@ -995,7 +1010,8 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
                s.created_at, s.updated_at, s.face_file_id, s.parents_to_mother_mobile_number,
                s.parents_to_mother_email, ssigm.institute_enrollment_number,
                ssigm.institute_id, ssigm.group_id, ssigm.status, up.plan_json, up.payment_option_json, ssigm.destination_package_session_id, ssigm.user_plan_id, up.enroll_invite_id, ei.name, ssigm.desired_level_id,
-               ssigm.sub_org_id, sub_org.name, ssigm.comma_separated_org_roles
+               ssigm.sub_org_id, sub_org.name, ssigm.comma_separated_org_roles,
+               s.tnc_accepted, s.tnc_file_id, s.tnc_accepted_date
       """, countQuery = """
       SELECT COUNT(DISTINCT s.id)
       FROM student s
