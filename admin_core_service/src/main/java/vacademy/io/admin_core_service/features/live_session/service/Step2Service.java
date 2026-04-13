@@ -71,9 +71,13 @@ public class Step2Service {
     public Boolean step2AddService(LiveSessionStep2RequestDTO request, CustomUserDetails user) {
         LiveSession session = getSessionOrThrow(request.getSessionId());
 
+        // Capture before any mutation: if the session is already LIVE, this Step2 call
+        // is an edit of an existing live class (not the first publish from DRAFT).
+        boolean isEdit = LiveSessionStatus.LIVE.name().equalsIgnoreCase(session.getStatus());
+
         updateSessionAccessLevel(session, request);
         linkParticipants(request);
-        processNotificationActions(request, session.getId());
+        processNotificationActions(request, session.getId(), isEdit);
         processCustomFields(request, session);
 
         session.setStatus(LiveSessionStatus.LIVE.name());
@@ -94,7 +98,7 @@ public class Step2Service {
         }
     }
 
-    private void processNotificationActions(LiveSessionStep2RequestDTO request, String sessionId) {
+    private void processNotificationActions(LiveSessionStep2RequestDTO request, String sessionId, boolean isEdit) {
         // Fetch all schedules for the session
         List<SessionSchedule> schedules = scheduleRepository.findBySessionId(sessionId);
 
@@ -105,6 +109,13 @@ public class Step2Service {
                 // Handle ON_CREATE notification immediately
                 if (dto.getType() == NotificationTypeEnum.ON_CREATE && dto.getNotify()) {
                     liveSessionNotificationProcessor.sendOnCreateNotification(sessionId, schedules);
+                    continue;
+                }
+                // Handle ON_EDIT notification immediately — only fire on edit, never on first publish
+                if (dto.getType() == NotificationTypeEnum.ON_EDIT && dto.getNotify()) {
+                    if (isEdit) {
+                        liveSessionNotificationProcessor.sendOnEditNotification(sessionId, schedules);
+                    }
                     continue;
                 }
                 // Handle ATTENDANCE — event-driven, not time-based

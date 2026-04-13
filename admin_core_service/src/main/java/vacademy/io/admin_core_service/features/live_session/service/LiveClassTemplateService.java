@@ -27,7 +27,8 @@ public class LiveClassTemplateService {
             NotificationEventType.LIVE_CLASS_ON_CREATE, "default-live-class-on-create-email",
             NotificationEventType.LIVE_CLASS_BEFORE_LIVE, "default-live-class-before-live-email",
             NotificationEventType.LIVE_CLASS_ON_LIVE, "default-live-class-on-live-email",
-            NotificationEventType.LIVE_CLASS_DELETE, "default-live-class-delete-email"
+            NotificationEventType.LIVE_CLASS_DELETE, "default-live-class-delete-email",
+            NotificationEventType.LIVE_CLASS_ON_EDIT, "default-live-class-on-edit-email"
     );
 
     private final NotificationEventConfigRepository notificationEventConfigRepository;
@@ -103,6 +104,7 @@ public class LiveClassTemplateService {
             case LIVE_CLASS_BEFORE_LIVE -> "Get Ready! Your session begins shortly.";
             case LIVE_CLASS_ON_LIVE -> "Your Live Session has started – Join now!";
             case LIVE_CLASS_DELETE -> "Live Class Cancelled - {{SESSION_TITLE}}";
+            case LIVE_CLASS_ON_EDIT -> "Live Class Rescheduled - {{SESSION_TITLE}}";
             default -> "Live Class Notification";
         };
     }
@@ -110,6 +112,7 @@ public class LiveClassTemplateService {
     private String getDefaultBody(NotificationEventType eventType) {
         return switch (eventType) {
             case LIVE_CLASS_DELETE -> LiveClassEmailBody.Live_Class_Delete_Email_Body;
+            case LIVE_CLASS_ON_EDIT -> LiveClassEmailBody.Live_Class_Edit_Email_Body;
             default -> LiveClassEmailBody.Live_Class_Email_Body;
         };
     }

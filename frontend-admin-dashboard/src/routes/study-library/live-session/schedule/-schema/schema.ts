@@ -173,6 +173,7 @@ export const addParticipantsSchema = z.object({
     }),
     notifySettings: z.object({
         onCreate: z.boolean(),
+        onEdit: z.boolean().optional(),
         beforeLive: z.boolean(),
         beforeLiveTime: z
             .array(

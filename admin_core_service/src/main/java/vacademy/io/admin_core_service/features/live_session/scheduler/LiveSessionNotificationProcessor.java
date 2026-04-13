@@ -491,6 +491,91 @@ public class LiveSessionNotificationProcessor {
         return dto;
     }
 
+    public void sendOnEditNotification(String sessionId, List<SessionSchedule> schedules) {
+        try {
+            LiveSession session = liveSessionRepository.findById(sessionId)
+                    .orElseThrow(() -> new RuntimeException("Session not found: " + sessionId));
+
+            SessionSchedule selectedSchedule = findEarliestUpcomingSchedule(schedules);
+            if (selectedSchedule == null) {
+                System.out.println("No upcoming schedule found for session: " + sessionId);
+                return;
+            }
+
+            List<LiveSessionParticipants> participants = liveSessionParticipantRepository.findBySessionId(sessionId);
+            if (participants == null || participants.isEmpty()) {
+                System.out.println("No participants found for session: " + sessionId);
+                return;
+            }
+
+            List<Object[]> rows = getStudentsForNotification(participants, session.getInstituteId());
+            if (rows.isEmpty()) {
+                System.out.println("No students found for notification for session: " + sessionId);
+                return;
+            }
+
+            NotificationDTO notification = buildOnEditEmailNotification(session, selectedSchedule, rows);
+            notificationService.sendEmailViaUnified(notification, session.getInstituteId());
+
+            System.out.println("ON_EDIT notification sent for session: " + sessionId + " to " + rows.size() + " participants");
+        } catch (Exception ex) {
+            System.out.println("Error sending ON_EDIT notification for session " + sessionId + ": " + ex.getMessage());
+        }
+    }
+
+    private NotificationDTO buildOnEditEmailNotification(LiveSession session, SessionSchedule schedule, List<Object[]> rows) {
+        ResolvedTemplate template = liveClassTemplateService.resolveTemplate(session.getInstituteId(), NotificationEventType.LIVE_CLASS_ON_EDIT);
+        NotificationDTO dto = new NotificationDTO();
+        dto.setBody(template.body());
+        dto.setSubject(template.subject());
+        dto.setNotificationType("EMAIL");
+        dto.setSource("ADMIN_CORE");
+        dto.setSourceId(session.getId());
+
+        List<NotificationToUserDTO> users = new java.util.ArrayList<>();
+        for (Object[] r : rows) {
+            String userId, fullName, email;
+            if (r.length >= 7) {
+                userId = (String) r[1];
+                fullName = (String) r[3];
+                email = (String) r[5];
+            } else {
+                userId = (String) r[0];
+                fullName = (String) r[1];
+                email = (String) r[3];
+            }
+
+            NotificationToUserDTO u = new NotificationToUserDTO();
+            Map<String, String> placeholders = new java.util.HashMap<>();
+            placeholders.put("NAME", fullName);
+            placeholders.put("SESSION_TITLE", session.getTitle() != null ? session.getTitle() : "Live Class");
+            placeholders.put("ACTION", LiveClassAction.RESCHEDULED.getDisplayName());
+            placeholders.put("THEME_COLOR", getThemeColor(session.getInstituteId()));
+
+            String liveClassUrl = buildLiveClassUrl(session, session.getId(), userId);
+            placeholders.put("LINK", liveClassUrl);
+
+            if (schedule != null) {
+                String allTimezonesTimes = timezoneSettingService.createTimezoneDisplayString(
+                        schedule.getMeetingDate(), schedule.getStartTime(), session.getInstituteId(), session.getTimezone());
+                placeholders.put("ALL_TIMEZONE_TIMES", allTimezonesTimes);
+                placeholders.put("DATE", new SimpleDateFormat("EEEE, MMMM d, yyyy").format(schedule.getMeetingDate()));
+                placeholders.put("TIME", new SimpleDateFormat("h:mm a").format(schedule.getStartTime()));
+            } else {
+                placeholders.put("ALL_TIMEZONE_TIMES", "TBD");
+                placeholders.put("DATE", "TBD");
+                placeholders.put("TIME", "TBD");
+            }
+
+            u.setPlaceholders(placeholders);
+            u.setUserId(userId);
+            u.setChannelId(email);
+            users.add(u);
+        }
+        dto.setUsers(users);
+        return dto;
+    }
+
     public void sendOnCreateNotification(String sessionId, List<SessionSchedule> schedules) {
         try {
             // Get session details
