@@ -1,4 +1,4 @@
-import { getCustomFieldSettingsFromCache } from '@/services/custom-field-settings';
+import { getCustomFieldSettings } from '@/services/custom-field-settings';
 
 /**
  * Interface for invite form custom field
@@ -55,63 +55,13 @@ const generateKeyFromName = (name: string): string => {
  * the invite via `GET /admin-core-service/common/custom-fields/feature-fields`
  * (type=ENROLL_INVITE, typeId=<inviteId>) instead of calling this function.
  */
+/**
+ * Sync variant — returns fallback defaults for initial form mount.
+ * The async variant (below) should be called immediately after to fetch
+ * fresh data from the API and update the form.
+ */
 export const getInviteListCustomFields = (): InviteFormCustomField[] => {
-    try {
-        const settings = getCustomFieldSettingsFromCache();
-        if (!settings) {
-            return getDefaultInviteFields();
-        }
-
-        // Combine fixed (locked seeded) + admin-created custom fields. The
-        // institute owns all of these as DEFAULT_CUSTOM_FIELD mappings, so
-        // pre-selecting all of them is the right starting state.
-        const all = [
-            ...(settings.fixedFields || []),
-            ...(settings.customFields || []),
-            ...(settings.instituteFields || []),
-        ];
-
-        if (all.length === 0) {
-            return getDefaultInviteFields();
-        }
-
-        return all
-            .map((field, index): InviteFormCustomField => {
-                const fieldType = mapFieldType((field.type as string) || 'text');
-                const transformed: InviteFormCustomField = {
-                    id: String(index),
-                    type: fieldType,
-                    name: field.name,
-                    // All fields are removable from a feature instance — the
-                    // admin is choosing which fields to include on this invite.
-                    // Removing a field here does NOT delete the master default;
-                    // it just means this invite won't collect it.
-                    oldKey: false,
-                    isRequired: field.required || false,
-                    key: generateKeyFromName(field.name),
-                    order: field.order ?? index,
-                    _id: field.id,
-                    status: 'ACTIVE',
-                };
-                if (
-                    fieldType === 'dropdown' &&
-                    'options' in field &&
-                    field.options &&
-                    field.options.length > 0
-                ) {
-                    transformed.options = field.options.map((option, optIndex) => ({
-                        id: `${index}_option_${optIndex}`,
-                        value: option,
-                        disabled: true,
-                    }));
-                }
-                return transformed;
-            })
-            .sort((a, b) => a.order - b.order);
-    } catch (error) {
-        console.error('Error reading institute defaults for invite picker:', error);
-        return getDefaultInviteFields();
-    }
+    return getDefaultInviteFields();
 };
 
 /**
@@ -123,7 +73,7 @@ const getDefaultInviteFields = (): InviteFormCustomField[] => {
             id: '0',
             type: 'text',
             name: 'Full Name',
-            oldKey: true,
+            oldKey: false,
             isRequired: true,
             key: 'full_name',
             order: 0,
@@ -133,7 +83,7 @@ const getDefaultInviteFields = (): InviteFormCustomField[] => {
             id: '1',
             type: 'text',
             name: 'Email',
-            oldKey: true,
+            oldKey: false,
             isRequired: true,
             key: 'email',
             order: 1,
@@ -143,7 +93,7 @@ const getDefaultInviteFields = (): InviteFormCustomField[] => {
             id: '2',
             type: 'text',
             name: 'Phone Number',
-            oldKey: true,
+            oldKey: false,
             isRequired: true,
             key: 'phone_number',
             order: 2,
@@ -153,9 +103,73 @@ const getDefaultInviteFields = (): InviteFormCustomField[] => {
 };
 
 /**
+ * Async variant that fetches fresh settings from the API if the cache is
+ * empty (e.g. after a Settings save which invalidates the cache). Use this
+ * in dialog components that mount after a Settings change.
+ */
+const SEEDED_FIELD_KEYS = ['full_name', 'email', 'phone_number'];
+
+function isSeededField(field: { name: string; id: string; canBeDeleted?: boolean }): boolean {
+    if (field.canBeDeleted === false) return true;
+    const key = generateKeyFromName(field.name);
+    return SEEDED_FIELD_KEYS.includes(key);
+}
+
+function transformSettingsField(field: any, index: number): InviteFormCustomField {
+    const fieldType = mapFieldType((field.type as string) || 'text');
+    const seeded = isSeededField(field);
+    const transformed: InviteFormCustomField = {
+        id: String(index),
+        type: fieldType,
+        name: field.name,
+        // Seeded fields (Full Name, Email, Phone Number) are non-deletable
+        // but their required status can be toggled. Admin-created defaults
+        // are fully deletable from the invite.
+        oldKey: seeded,
+        isRequired: field.required || seeded,
+        key: generateKeyFromName(field.name),
+        order: field.order ?? index,
+        _id: field.id,
+        status: 'ACTIVE',
+    };
+    if (fieldType === 'dropdown' && 'options' in field && field.options && field.options.length > 0) {
+        transformed.options = field.options.map((option: string, optIndex: number) => ({
+            id: `${index}_option_${optIndex}`,
+            value: option,
+            disabled: true,
+        }));
+    }
+    return transformed;
+}
+
+/**
+ * Async variant that always fetches fresh from the API. Called via useEffect
+ * in the invite dialog to replace the initial fallback defaults with the
+ * full institute catalog.
+ */
+export const getInviteListCustomFieldsAsync = async (): Promise<InviteFormCustomField[]> => {
+    try {
+        const settings = await getCustomFieldSettings(true);
+        if (!settings) return getDefaultInviteFields();
+
+        const all = [
+            ...(settings.fixedFields || []),
+            ...(settings.customFields || []),
+            ...(settings.instituteFields || []),
+        ];
+        if (all.length === 0) return getDefaultInviteFields();
+
+        return all
+            .map((field, index) => transformSettingsField(field, index))
+            .sort((a, b) => a.order - b.order);
+    } catch {
+        return getDefaultInviteFields();
+    }
+};
+
+/**
  * Refresh custom fields for invite list (call this when custom fields are updated)
  */
 export const refreshInviteListCustomFields = (): InviteFormCustomField[] => {
-    // Clear any cached data if needed
     return getInviteListCustomFields();
 };

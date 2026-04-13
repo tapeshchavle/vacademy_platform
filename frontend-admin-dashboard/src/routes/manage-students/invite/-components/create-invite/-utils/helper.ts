@@ -224,11 +224,13 @@ function safeJsonParse<T = unknown>(str: string, fallback: T): T {
  * Re-transform saved custom fields from backend format to the invite form
  * format used by React Hook Form.
  *
- * All fields are deletable from a feature instance — removing a field from
- * the invite just means this invite won't collect it. The master default
- * field is untouched.
+ * Seeded fields (Full Name, Email, Phone Number) are non-deletable but
+ * their required status can be toggled. Admin-created fields are fully
+ * deletable from the invite.
  */
 export function ReTransformCustomFields(inviteDetails: IndividualInviteLinkDetails) {
+    const SEEDED_KEYS = ['full_name', 'email', 'phone_number'];
+
     return inviteDetails?.institute_custom_fields?.map((field, index) => {
         const config = safeJsonParse<{ coommaSepartedOptions?: string }>(
             field.custom_field.config,
@@ -243,12 +245,15 @@ export function ReTransformCustomFields(inviteDetails: IndividualInviteLinkDetai
               }))
             : undefined;
 
+        const cfKey = (field.custom_field.fieldKey || '').toLowerCase();
+        const isSeeded = SEEDED_KEYS.some((k) => cfKey.startsWith(k));
+
         return {
             id: field.id,
             type: field.type,
             name: field.custom_field.fieldName,
-            oldKey: false,
-            isRequired: field.custom_field.isMandatory,
+            oldKey: isSeeded,
+            isRequired: field.custom_field.isMandatory || isSeeded,
             key: field.custom_field.fieldName
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, '_')
