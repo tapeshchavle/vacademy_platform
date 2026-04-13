@@ -213,7 +213,7 @@ export const CsvUserImporter = ({ onImport, onPaymentInfoDetected }: Props) => {
                             for (const fmt of DATE_FORMATS) {
                                 const parsed = parse(raw, fmt, new Date());
                                 if (isValid(parsed)) {
-                                    paymentDate = parsed.toISOString();
+                                    paymentDate = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
                                     break;
                                 }
                             }

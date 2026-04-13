@@ -82,9 +82,11 @@ export const getInviteListCustomFields = (): InviteFormCustomField[] => {
                     id: String(index),
                     type: fieldType,
                     name: field.name,
-                    // System-locked fields stay marked oldKey: true so the
-                    // dialog hides their delete button.
-                    oldKey: !field.canBeDeleted,
+                    // All fields are removable from a feature instance — the
+                    // admin is choosing which fields to include on this invite.
+                    // Removing a field here does NOT delete the master default;
+                    // it just means this invite won't collect it.
+                    oldKey: false,
                     isRequired: field.required || false,
                     key: generateKeyFromName(field.name),
                     order: field.order ?? index,

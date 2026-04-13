@@ -67,9 +67,9 @@ function getInitialAssessmentCustomFields() {
     if (!settingsFields.length) {
         // Fallback to hardcoded defaults only if settings has nothing
         return [
-            { id: '0', type: 'textfield', name: 'Full Name', oldKey: true, isRequired: true, key: 'full_name', order: 0 },
-            { id: '1', type: 'textfield', name: 'Email', oldKey: true, isRequired: true, key: 'email', order: 1 },
-            { id: '2', type: 'textfield', name: 'Phone Number', oldKey: true, isRequired: true, key: 'phone_number', order: 2 },
+            { id: '0', type: 'textfield', name: 'Full Name', oldKey: false, isRequired: true, key: 'full_name', order: 0 },
+            { id: '1', type: 'textfield', name: 'Email', oldKey: false, isRequired: true, key: 'email', order: 1 },
+            { id: '2', type: 'textfield', name: 'Phone Number', oldKey: false, isRequired: true, key: 'phone_number', order: 2 },
         ];
     }
 
@@ -77,7 +77,7 @@ function getInitialAssessmentCustomFields() {
         id: String(i),
         type: f.type === 'dropdown' ? 'dropdown' : 'textfield',
         name: f.name,
-        oldKey: !f.canBeDeleted,
+        oldKey: false,
         isRequired: f.required,
         key: f.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''),
         order: i,

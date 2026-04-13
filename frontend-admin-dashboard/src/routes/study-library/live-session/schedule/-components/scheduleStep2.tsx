@@ -388,7 +388,7 @@ export default function ScheduleStep2() {
                         id: field.id,
                         label: field.label,
                         required: field.required,
-                        isDefault: field.label === 'Full Name' || field.label === 'Email',
+                        isDefault: false,
                         type: field.type,
                     })) ?? [];
 
@@ -417,7 +417,7 @@ export default function ScheduleStep2() {
                 allFields = settingsFields.map((f) => ({
                     label: f.name,
                     required: f.required,
-                    isDefault: !f.canBeDeleted,
+                    isDefault: false,
                     type: f.type === 'dropdown' ? InputType.DROPDOWN : InputType.TEXT,
                     ...(f.type === 'dropdown' && f.options ? {
                         options: f.options.map((opt) => ({ label: opt, name: opt })),
@@ -425,8 +425,8 @@ export default function ScheduleStep2() {
                 }));
             } else {
                 allFields = [
-                    { label: 'Full Name', required: true, isDefault: true, type: InputType.TEXT },
-                    { label: 'Email', required: true, isDefault: true, type: InputType.TEXT },
+                    { label: 'Full Name', required: true, isDefault: false, type: InputType.TEXT },
+                    { label: 'Email', required: true, isDefault: false, type: InputType.TEXT },
                     { label: 'Mobile Number', required: false, isDefault: false, type: InputType.TEXT },
                     { label: 'State', required: true, isDefault: false, type: InputType.TEXT },
                     { label: 'City/Village', required: true, isDefault: false, type: InputType.TEXT },

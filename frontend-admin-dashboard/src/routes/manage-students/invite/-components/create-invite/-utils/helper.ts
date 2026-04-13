@@ -1,5 +1,4 @@
 import { getInstituteId } from '@/constants/helper';
-import { getCustomFieldSettingsFromCache } from '@/services/custom-field-settings';
 import { InviteLinkFormValues } from '../GenerateInviteLinkSchema';
 import { CustomField } from '../../../-schema/InviteFormSchema';
 import { IndividualInviteLinkDetails } from '@/types/study-library/individual-invite-interface';
@@ -225,18 +224,11 @@ function safeJsonParse<T = unknown>(str: string, fallback: T): T {
  * Re-transform saved custom fields from backend format to the invite form
  * format used by React Hook Form.
  *
- * `oldKey` is determined by cross-referencing the custom field id against
- * the institute's fixed (locked/seeded) fields in the settings cache. If
- * the cache is unavailable, it falls back to matching the field key against
- * the known seeded defaults (full_name, email, phone_number).
+ * All fields are deletable from a feature instance — removing a field from
+ * the invite just means this invite won't collect it. The master default
+ * field is untouched.
  */
 export function ReTransformCustomFields(inviteDetails: IndividualInviteLinkDetails) {
-    const cachedSettings = getCustomFieldSettingsFromCache();
-    const fixedFieldIds = new Set(
-        (cachedSettings?.fixedFields || []).map((f: { id: string }) => f.id)
-    );
-    const SEEDED_KEYS = ['full_name', 'email', 'phone_number'];
-
     return inviteDetails?.institute_custom_fields?.map((field, index) => {
         const config = safeJsonParse<{ coommaSepartedOptions?: string }>(
             field.custom_field.config,
@@ -251,18 +243,12 @@ export function ReTransformCustomFields(inviteDetails: IndividualInviteLinkDetai
               }))
             : undefined;
 
-        const cfId = field.custom_field.id;
-        const cfKey = (field.custom_field.fieldKey || '').toLowerCase();
-        const isLocked =
-            fixedFieldIds.has(cfId) ||
-            SEEDED_KEYS.some((k) => cfKey.startsWith(k));
-
         return {
             id: field.id,
             type: field.type,
             name: field.custom_field.fieldName,
-            oldKey: isLocked,
-            isRequired: field.custom_field.isMandatory || isLocked,
+            oldKey: false,
+            isRequired: field.custom_field.isMandatory,
             key: field.custom_field.fieldName
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, '_')
