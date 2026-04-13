@@ -1347,6 +1347,33 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                 });
             }
 
+            // Filter out DELETED fields: keep only fields that have at least
+            // one ACTIVE mapping (i.e. appear in the usage response). The JSON
+            // blob is a stale snapshot and may contain fields that were
+            // soft-deleted via the cascade-delete dialog.
+            if (usageResponse.data && Array.isArray(usageResponse.data) && Array.isArray(apiData.currentCustomFieldsAndGroups)) {
+                const activeFieldIds = new Set<string>(
+                    usageResponse.data
+                        .filter((item) => item.custom_field?.id)
+                        .map((item) => item.custom_field.id)
+                );
+                apiData.currentCustomFieldsAndGroups = apiData.currentCustomFieldsAndGroups
+                    .filter((f) => activeFieldIds.has(f.customFieldId));
+
+                if (Array.isArray(apiData.allCustomFields)) {
+                    apiData.allCustomFields = apiData.allCustomFields
+                        .filter((id: string) => activeFieldIds.has(id));
+                }
+                if (Array.isArray(apiData.fixedCustomFields)) {
+                    apiData.fixedCustomFields = apiData.fixedCustomFields
+                        .filter((id: string) => activeFieldIds.has(id));
+                }
+                if (Array.isArray(apiData.compulsoryCustomFields)) {
+                    apiData.compulsoryCustomFields = apiData.compulsoryCustomFields
+                        .filter((id: string) => activeFieldIds.has(id));
+                }
+            }
+
             // Store original API data for preservation during save operations
             setOriginalApiData(apiData);
 
