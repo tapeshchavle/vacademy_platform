@@ -213,11 +213,11 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
         let currentWordIndex = 0;
 
         entries.forEach((entry, index) => {
-            const text =
+            const text = (
                 entry.entry_meta?.audio_text ||
                 entry.entry_meta?.text ||
-                entry.entry_meta?.description ||
-                '';
+                (entry.entry_meta?.description as string) ||
+                '') as string;
             // Simple tokenization: remove punctuation, lowercase
             const tokens = text
                 .toLowerCase()
