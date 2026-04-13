@@ -321,7 +321,7 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
     "super_ultra": {
         "script_temperature": 0.6,
         "script_max_tokens": 32000,
-        "html_temperature": 0.7,
+        "html_temperature": 0.82,
         "html_max_tokens": 32000,
         "two_pass_script": True,
         "html_validation": True,
@@ -329,10 +329,13 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "shot_diversity_enforcement": True,
         "segment_context": True,
         "use_director": True,
-        "director_max_tokens": 12000,
-        "per_shot_max_tokens": 24000,
+        "director_max_tokens": 14000,
+        "per_shot_max_tokens": 32000,
         "kinetic_text_shots": True,
         "crossfade_duration": 0.35,
+        "motion_density_enforcement": True,
+        "director_motion_bias": True,
+        "min_animated_elements": 6,
     },
 }
 
@@ -3220,6 +3223,28 @@ class VideoGenerationPipeline:
             audio_duration=audio_duration,
         )
 
+        # Super Ultra: bias the Director toward motion-graphics shot types
+        director_system = DIRECTOR_SYSTEM_PROMPT
+        if self._tier_config.get("director_motion_bias"):
+            director_system = DIRECTOR_SYSTEM_PROMPT + (
+                "\n\n**⚡ SUPER ULTRA MOTION BIAS** (overrides rules 2 and 11):\n"
+                "- At least 50% of shots MUST be motion-graphics types: "
+                "TEXT_DIAGRAM, PROCESS_STEPS, EQUATION_BUILD, DATA_STORY, ANIMATED_ASSET, KINETIC_TEXT.\n"
+                "- Never schedule 2+ consecutive IMAGE_HERO / VIDEO_HERO shots — "
+                "always break them up with a motion-graphics shot.\n"
+                "- KINETIC_TEXT is permitted up to 2 times per video (still never back-to-back). "
+                "Include at least 1 KINETIC_TEXT shot when the video has ≥5 shots — ideal for the hook "
+                "or a high-impact conclusion beat.\n"
+                "- Each shot's `animation_strategy` field MUST describe at least 3 concrete animation "
+                "steps with shot-relative seconds. Example: 'At 0.0s SVG heart draws on (path stroke), "
+                "0.8s label fades in + slides up, 2.4s number counter runs 0→75bpm, 4.1s pulse ring "
+                "expands.' Never write vague strategies like 'fade in text'.\n"
+                "- Each shot's `sync_points` array MUST contain at least 2 entries tied to specific "
+                "narration words from the script.\n"
+                "- Prefer shots that have visible continuous motion throughout — avoid shots where "
+                "the screen is static for >1.5s.\n"
+            )
+
         print("🎬 Running Director stage (shot planning)...")
         max_attempts = 3
         last_error = None
@@ -3227,7 +3252,7 @@ class VideoGenerationPipeline:
             try:
                 raw, usage = self.html_client.chat(
                     messages=[
-                        {"role": "system", "content": DIRECTOR_SYSTEM_PROMPT},
+                        {"role": "system", "content": director_system},
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.5,
@@ -3267,7 +3292,7 @@ class VideoGenerationPipeline:
         valid_types = {
             "IMAGE_HERO", "VIDEO_HERO", "IMAGE_SPLIT", "TEXT_DIAGRAM",
             "LOWER_THIRD", "ANNOTATION_MAP", "DATA_STORY", "PROCESS_STEPS",
-            "EQUATION_BUILD", "ANIMATED_ASSET",
+            "EQUATION_BUILD", "ANIMATED_ASSET", "KINETIC_TEXT",
         }
         for i, shot in enumerate(shots):
             if shot.get("shot_type") not in valid_types:
@@ -3434,6 +3459,36 @@ class VideoGenerationPipeline:
                 width=_w,
                 height=_h,
             )
+
+            # Super Ultra: append motion-density requirement (skipped for KINETIC_TEXT since it's bypassed)
+            if (
+                self._tier_config.get("motion_density_enforcement")
+                and shot_type != "KINETIC_TEXT"
+            ):
+                _min_anim = self._tier_config.get("min_animated_elements", 6)
+                user_prompt = user_prompt + (
+                    "\n\n**⚡ SUPER ULTRA MOTION DENSITY REQUIREMENT** (non-negotiable):\n"
+                    f"- This shot MUST contain AT LEAST {_min_anim} independently animated elements. "
+                    "Count every GSAP tween that targets a distinct DOM node.\n"
+                    "- Stagger entrance animations 0.15–0.45s apart using GSAP `delay:`. "
+                    "No 'everything appears at t=0'. Use the Rel(s) word timings above to pace reveals.\n"
+                    "- At least ONE element must use a showcase animation: SVG path draw-on "
+                    "(strokeDasharray → 0), number counter (gsap.to({innerText: N, snap:{innerText:1}})), "
+                    "scale+rotate entry, splitReveal, or morph.\n"
+                    "- Background must NOT be fully static: subtle floating particles, slow "
+                    "translateX/scale on a background shape, or gradient-shift keyframes. "
+                    "IMAGE_HERO/VIDEO_HERO shots already have Ken Burns — add at least one "
+                    "foreground overlay animation on top.\n"
+                    "- Every text block animates in (fadeIn + y:-20, splitReveal, typewriter, or "
+                    "wipe). Never use `opacity:1` without a corresponding GSAP tween.\n"
+                    "- Include at least 2 micro-interactions: underline wipes on key terms, "
+                    "icon scale bounces, annotation arrows drawing in at narration cues.\n"
+                    "- Tie at least 2 animations to specific words from WORD TIMINGS using the "
+                    "Rel(s) column as GSAP delay. Cite the word in a JS comment.\n"
+                    "- Use `gsap.timeline()` or `gsap.delayedCall()` for sequencing — NEVER setTimeout.\n"
+                    "- Prefer `ease:'power2.out'`, `ease:'back.out(1.4)'`, or `ease:'expo.out'` "
+                    "over linear. Linear = amateur.\n"
+                )
 
             # ── KINETIC_TEXT bypass — skip LLM, build exact word-sync HTML directly ──
             if shot_type == "KINETIC_TEXT" and self._tier_config.get("kinetic_text_shots", False):
