@@ -58,10 +58,12 @@ if (import.meta.env.VITE_ENABLE_SENTRY === 'true') {
         dsn: import.meta.env.VITE_SENTRY_DSN,
         sendDefaultPii: true,
         ignoreErrors: [
-            // Known non-fatal Slate/Yoopta race condition: toDOMNode is called
-            // before React commits the new DOM after setEditorValue or paste.
+            // Known non-fatal Slate/Yoopta race condition: toDOMNode / toDOMPoint
+            // is called before React commits the new DOM after setEditorValue,
+            // paste, or a block-type transform that leaves editor.selection stale.
             // The editor remains fully functional — this is cosmetic noise.
             'Cannot resolve a DOM node from Slate node',
+            'Cannot resolve a DOM point from Slate point',
             // React DOM reconciliation error caused by external DOM mutations
             // (browser extensions, autofill, translation, etc.) — not actionable.
             "Failed to execute 'removeChild' on 'Node'",

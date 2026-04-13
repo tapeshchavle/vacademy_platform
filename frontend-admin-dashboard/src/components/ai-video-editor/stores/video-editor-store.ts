@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-import { Entry, TimelineMeta, getDefaultMeta } from '@/components/ai-video-player/types';
+import {
+    Entry,
+    TimelineMeta,
+    AudioTrack,
+    getDefaultMeta,
+} from '@/components/ai-video-player/types';
 import { AI_SERVICE_BASE_URL } from '@/constants/urls';
 
 export interface InitParams {
@@ -44,6 +49,7 @@ interface HistorySnapshot {
     entries: Entry[];
     entryTransforms: Record<string, EntryTransform>;
     dirtyEntryIds: string[];
+    newEntryIds: string[];
 }
 
 export interface VideoEditorState {
@@ -73,6 +79,11 @@ export interface VideoEditorState {
 
     // Dirty tracking (HTML edits)
     dirtyEntryIds: string[];
+    /** IDs of entries that are brand-new and have never been saved to the backend. */
+    newEntryIds: string[];
+
+    // Extra audio tracks (background music, SFX, etc.)
+    audioTracks: AudioTrack[];
 
     // Per-entry CSS transforms (client-side; baked into HTML on save)
     entryTransforms: Record<string, EntryTransform>;
@@ -91,10 +102,15 @@ export interface VideoEditorState {
     selectEntry: (id: string | null) => void;
     togglePreviewMode: () => void;
     updateEntryHtml: (entryId: string, newHtml: string) => void;
-    /** Phase 4: append a new entry to the local timeline */
+    /** Append a new entry to the local timeline (marks it as new for frame/add on save). */
     addEntry: (entry: Entry) => void;
     /** Delete an entry from the timeline */
     deleteEntry: (entryId: string) => void;
+    // Audio track actions (update local state; callers must also call API)
+    setAudioTracks: (tracks: AudioTrack[]) => void;
+    addAudioTrack: (track: AudioTrack) => void;
+    updateAudioTrack: (trackId: string, patch: Partial<AudioTrack>) => void;
+    removeAudioTrack: (trackId: string) => void;
     updateEntryTransform: (entryId: string, patch: Partial<EntryTransform>) => void;
     resetEntryTransform: (entryId: string) => void;
     undo: () => void;
@@ -107,6 +123,7 @@ function snapshot(s: VideoEditorState): HistorySnapshot {
         entries: s.entries,
         entryTransforms: s.entryTransforms,
         dirtyEntryIds: s.dirtyEntryIds,
+        newEntryIds: s.newEntryIds,
     };
 }
 
@@ -133,6 +150,8 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
     selectedEntryId: null,
     isPreviewMode: false,
     dirtyEntryIds: [],
+    newEntryIds: [],
+    audioTracks: [],
     entryTransforms: {},
     past: [],
     future: [],
@@ -155,6 +174,8 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
             selectedEntryId: null,
             isPreviewMode: false,
             dirtyEntryIds: [],
+            newEntryIds: [],
+            audioTracks: [],
             entryTransforms: {},
             past: [],
             future: [],
@@ -195,7 +216,7 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
                 throw new Error('Unrecognized timeline format');
             }
 
-            set({ entries, meta, isLoading: false });
+            set({ entries, meta, audioTracks: meta.audio_tracks ?? [], isLoading: false });
         } catch (err) {
             set({
                 error: err instanceof Error ? err.message : 'Failed to load timeline',
@@ -228,7 +249,18 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
             dirtyEntryIds: s.dirtyEntryIds.includes(entry.id)
                 ? s.dirtyEntryIds
                 : [...s.dirtyEntryIds, entry.id],
+            // Track as new so saveChanges calls frame/add instead of frame/update
+            newEntryIds: s.newEntryIds.includes(entry.id)
+                ? s.newEntryIds
+                : [...s.newEntryIds, entry.id],
             selectedEntryId: entry.id,
+            // Extend total_duration if the new entry goes beyond it
+            meta:
+                entry.exitTime != null &&
+                s.meta.total_duration != null &&
+                entry.exitTime > s.meta.total_duration
+                    ? { ...s.meta, total_duration: entry.exitTime }
+                    : s.meta,
         }));
     },
 
@@ -241,6 +273,7 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
                 entries: s.entries.filter((e) => e.id !== entryId),
                 selectedEntryId: s.selectedEntryId === entryId ? null : s.selectedEntryId,
                 dirtyEntryIds: s.dirtyEntryIds.filter((id) => id !== entryId),
+                newEntryIds: s.newEntryIds.filter((id) => id !== entryId),
                 entryTransforms: next,
             };
         });
@@ -289,6 +322,7 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
                 entries: prev.entries,
                 entryTransforms: prev.entryTransforms,
                 dirtyEntryIds: prev.dirtyEntryIds,
+                newEntryIds: prev.newEntryIds,
             };
         });
     },
@@ -303,12 +337,22 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
                 entries: next.entries,
                 entryTransforms: next.entryTransforms,
                 dirtyEntryIds: next.dirtyEntryIds,
+                newEntryIds: next.newEntryIds,
             };
         });
     },
 
+    setAudioTracks: (tracks) => set({ audioTracks: tracks }),
+    addAudioTrack: (track) => set((s) => ({ audioTracks: [...s.audioTracks, track] })),
+    updateAudioTrack: (trackId, patch) =>
+        set((s) => ({
+            audioTracks: s.audioTracks.map((t) => (t.id === trackId ? { ...t, ...patch } : t)),
+        })),
+    removeAudioTrack: (trackId) =>
+        set((s) => ({ audioTracks: s.audioTracks.filter((t) => t.id !== trackId) })),
+
     saveChanges: async () => {
-        const { videoId, apiKey, entries, dirtyEntryIds, entryTransforms } = get();
+        const { videoId, apiKey, entries, dirtyEntryIds, newEntryIds, entryTransforms } = get();
 
         // Collect entries that need saving
         const toSave = entries.filter(
@@ -323,22 +367,20 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
 
         try {
             if (!apiKey) {
-                // No API key — nothing persisted; keep dirty state so the user
-                // knows their changes are still unsaved.
                 set({ isSaving: false });
                 throw new Error('No API key configured — changes were not saved to the server.');
             }
 
-            // Send to backend sequentially to avoid S3 concurrent-write race (C26)
+            // Send to backend sequentially to avoid S3 concurrent-write race (C26).
+            // New entries (never persisted) use frame/add; existing use frame/update.
             for (const entry of toSave) {
-                const frameIndex = entries.indexOf(entry);
                 const t = entryTransforms[entry.id];
                 const newHtml =
                     t && !isIdentity(t) ? injectTransformWrapper(entry.html, t) : entry.html;
+                const isNew = newEntryIds.includes(entry.id);
 
-                const res = await fetch(
-                    `${AI_SERVICE_BASE_URL}/external/video/v1/frame/update`,
-                    {
+                if (isNew) {
+                    const res = await fetch(`${AI_SERVICE_BASE_URL}/external/video/v1/frame/add`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -346,14 +388,38 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
                         },
                         body: JSON.stringify({
                             video_id: videoId,
-                            frame_index: frameIndex,
-                            new_html: newHtml,
+                            html: newHtml,
+                            in_time: entry.inTime ?? entry.start ?? null,
+                            exit_time: entry.exitTime ?? entry.end ?? null,
+                            z: entry.z ?? 0,
+                            entry_id: entry.id,
                         }),
+                    });
+                    if (!res.ok) {
+                        const text = await res.text().catch(() => res.statusText);
+                        throw new Error(`Add frame failed: ${text}`);
                     }
-                );
-                if (!res.ok) {
-                    const text = await res.text().catch(() => res.statusText);
-                    throw new Error(`Frame ${frameIndex}: ${text}`);
+                } else {
+                    const frameIndex = entries.indexOf(entry);
+                    const res = await fetch(
+                        `${AI_SERVICE_BASE_URL}/external/video/v1/frame/update`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Institute-Key': apiKey,
+                            },
+                            body: JSON.stringify({
+                                video_id: videoId,
+                                frame_index: frameIndex,
+                                new_html: newHtml,
+                            }),
+                        }
+                    );
+                    if (!res.ok) {
+                        const text = await res.text().catch(() => res.statusText);
+                        throw new Error(`Frame ${frameIndex}: ${text}`);
+                    }
                 }
             }
 
@@ -366,6 +432,7 @@ export const useVideoEditorStore = create<VideoEditorState>((set, get) => ({
                 }),
                 entryTransforms: {},
                 dirtyEntryIds: [],
+                newEntryIds: [], // all new entries are now persisted
                 past: [],
                 future: [],
                 isSaving: false,

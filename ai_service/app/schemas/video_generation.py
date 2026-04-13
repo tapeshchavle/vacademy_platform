@@ -207,6 +207,7 @@ class VideoUrlsResponse(BaseModel):
     updated_at: Optional[str] = Field(None, description="Last time the record was updated (ISO 8601)")
     error_message: Optional[str] = Field(None, description="Error message if generation failed or stalled")
     render_job_id: Optional[str] = Field(None, description="Active render job ID (for tracking render progress)")
+    audio_tracks: Optional[List[Dict[str, Any]]] = Field(None, description="Extra audio tracks from meta.audio_tracks")
 
     class Config:
         json_schema_extra = {
@@ -246,3 +247,70 @@ class UpdateFrameRequest(BaseModel):
     video_id: str = Field(..., description="Video ID")
     frame_index: int = Field(..., description="Index of the frame to update")
     new_html: str = Field(..., description="New HTML content")
+
+
+class AddFrameRequest(BaseModel):
+    """Request for inserting a new frame into the timeline."""
+    video_id: str = Field(..., description="Video ID")
+    html: str = Field(..., description="HTML content for the new frame")
+    # Time-driven fields (optional — omit for user_driven videos)
+    in_time: Optional[float] = Field(None, description="Start time in seconds (time_driven)")
+    exit_time: Optional[float] = Field(None, description="End time in seconds (time_driven)")
+    # Optional explicit ID so the frontend can correlate the response
+    entry_id: Optional[str] = Field(None, description="Client-generated entry ID (optional)")
+    z: Optional[int] = Field(0, description="Z-index layer (0=base, 500+=overlay)")
+
+
+class AddFrameResponse(BaseModel):
+    status: str
+    video_id: str
+    entry_id: str
+    frame_index: int
+    message: str
+
+
+# ── Audio track schemas ──────────────────────────────────────────────────────
+
+class AudioTrackItem(BaseModel):
+    """An extra audio track stored in meta.audio_tracks[]."""
+    id: str = Field(..., description="Unique track ID (e.g. 'track-1')")
+    label: str = Field(..., description="Display label (e.g. 'Background Music')")
+    url: str = Field(..., description="Public S3 URL of the audio file")
+    volume: float = Field(default=1.0, ge=0.0, le=2.0, description="Playback volume multiplier (0–2)")
+    delay: float = Field(default=0.0, ge=0.0, description="Seconds to wait before starting")
+    fade_in: float = Field(default=0.0, ge=0.0, description="Fade-in duration in seconds")
+    fade_out: float = Field(default=0.0, ge=0.0, description="Fade-out duration in seconds")
+
+
+class AddAudioTrackRequest(BaseModel):
+    video_id: str = Field(..., description="Video ID")
+    label: str = Field(..., description="Track display label")
+    url: str = Field(..., description="Public S3 URL of the audio file")
+    volume: float = Field(default=1.0, ge=0.0, le=2.0)
+    delay: float = Field(default=0.0, ge=0.0)
+    fade_in: float = Field(default=0.0, ge=0.0)
+    fade_out: float = Field(default=0.0, ge=0.0)
+    track_id: Optional[str] = Field(None, description="Client-provided track ID (auto-generated if absent)")
+
+
+class UpdateAudioTrackRequest(BaseModel):
+    video_id: str = Field(..., description="Video ID")
+    track_id: str = Field(..., description="Track ID to update")
+    label: Optional[str] = None
+    url: Optional[str] = None
+    volume: Optional[float] = Field(None, ge=0.0, le=2.0)
+    delay: Optional[float] = Field(None, ge=0.0)
+    fade_in: Optional[float] = Field(None, ge=0.0)
+    fade_out: Optional[float] = Field(None, ge=0.0)
+
+
+class DeleteAudioTrackRequest(BaseModel):
+    video_id: str = Field(..., description="Video ID")
+    track_id: str = Field(..., description="Track ID to delete")
+
+
+class AudioTrackResponse(BaseModel):
+    status: str
+    video_id: str
+    track_id: str
+    message: str

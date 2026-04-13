@@ -26,6 +26,20 @@ export type ContentType =
 export type NavigationType = 'time_driven' | 'user_driven' | 'self_contained';
 
 /**
+ * An extra audio track (background music, SFX, etc.)
+ * mixed on top of the narration in both the player and the render pipeline.
+ */
+export interface AudioTrack {
+  id: string;
+  label: string;
+  url: string;
+  volume: number;   // 0.0–2.0
+  delay: number;    // seconds
+  fadeIn: number;   // seconds
+  fadeOut: number;  // seconds
+}
+
+/**
  * Entry/Frame interface matching the time_based_frame.json structure
  */
 export interface Entry {
@@ -89,6 +103,9 @@ export interface TimelineMeta {
   // Audio/timing information
   audio_start_at: number;
   total_duration: number | null;
+
+  // Extra audio tracks (background music, SFX, etc.)
+  audio_tracks?: AudioTrack[];
 
   // Dimensions
   dimensions?: {

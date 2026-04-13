@@ -13,6 +13,7 @@ import {
     PanelLeftClose,
     Monitor,
     ImagePlus,
+    FilePlus2,
     Film,
     Download,
     RotateCcw,
@@ -26,6 +27,8 @@ import { EntryListPanel } from './EntryListPanel';
 import { TimelineScrubber } from './TimelineScrubber';
 import { PropertiesPanel } from './PropertiesPanel';
 import { AddMediaOverlayDialog } from './AddMediaOverlayDialog';
+import { AddShotDialog } from './AddShotDialog';
+import { AudioTracksPanel } from './AudioTracksPanel';
 import { RenderSettingsDialog } from '@/routes/video-api-studio/-components/RenderSettingsDialog';
 import {
     requestVideoRender,
@@ -98,6 +101,7 @@ export function VideoEditorPage(props: VideoEditorPageProps) {
 
     const [entriesPanelOpen, setEntriesPanelOpen] = useState(true);
     const [addMediaOpen, setAddMediaOpen] = useState(false);
+    const [addShotOpen, setAddShotOpen] = useState(false);
     const [renderSettingsOpen, setRenderSettingsOpen] = useState(false);
 
     // Render state
@@ -264,9 +268,7 @@ export function VideoEditorPage(props: VideoEditorPageProps) {
     const handleBack = useCallback(() => {
         // M6: warn about unsaved changes before navigating away
         if (isDirty) {
-            const ok = window.confirm(
-                'You have unsaved changes. Leave without saving?'
-            );
+            const ok = window.confirm('You have unsaved changes. Leave without saving?');
             if (!ok) return;
         }
         navigate({ to: '/video-api-studio' });
@@ -472,6 +474,17 @@ export function VideoEditorPage(props: VideoEditorPageProps) {
                 <Redo2 className="size-3.5" />
             </Button>
 
+            {/* Add new shot */}
+            <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-gray-500 hover:text-gray-900"
+                title="Add new shot"
+                onClick={() => setAddShotOpen(true)}
+            >
+                <FilePlus2 className="size-4" />
+            </Button>
+
             {/* Add media overlay */}
             <Button
                 variant="ghost"
@@ -574,6 +587,7 @@ export function VideoEditorPage(props: VideoEditorPageProps) {
     return (
         <>
             <EditorLayout toolbar={toolbar} entriesPanelOpen={entriesPanelOpen} />
+            <AddShotDialog open={addShotOpen} onClose={() => setAddShotOpen(false)} />
             <AddMediaOverlayDialog open={addMediaOpen} onClose={() => setAddMediaOpen(false)} />
             <RenderSettingsDialog
                 open={renderSettingsOpen}
@@ -615,6 +629,7 @@ function EditorLayout({ toolbar, entriesPanelOpen }: LayoutProps) {
             </div>
 
             <TimelineScrubber />
+            <AudioTracksPanel />
         </div>
     );
 }

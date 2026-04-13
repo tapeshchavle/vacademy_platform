@@ -5,6 +5,112 @@ export interface TrackEntry {
     track: number;
 }
 
+// ── Channel definitions ────────────────────────────────────────────────────
+
+export type ChannelId = 'base' | 'overlay' | 'ui';
+
+export interface Channel {
+    id: ChannelId;
+    label: string;
+    /** Foreground / text colour */
+    color: string;
+    /** Subtle tinted background for the channel section */
+    bgColor: string;
+}
+
+export const CHANNELS: readonly Channel[] = [
+    { id: 'base', label: 'Base', color: '#1d4ed8', bgColor: '#eff6ff' },
+    { id: 'overlay', label: 'Overlay', color: '#6d28d9', bgColor: '#f5f3ff' },
+    { id: 'ui', label: 'UI', color: '#52525b', bgColor: '#f4f4f5' },
+] as const;
+
+/** Map an entry to its channel based on z-index and id convention. */
+export function getChannelId(entry: Entry): ChannelId {
+    if (entry.id.startsWith('branding-')) return 'ui';
+    const z = entry.z ?? 0;
+    if (z >= 9000) return 'ui';
+    if (z >= 500) return 'overlay';
+    return 'base';
+}
+
+export interface ChannelTrackEntry {
+    entry: Entry;
+    channelId: ChannelId;
+    /** Row within this channel only (0-based). */
+    channelTrack: number;
+}
+
+export interface ChannelGroup {
+    channel: Channel;
+    /** Number of track rows used inside this channel. */
+    trackCount: number;
+    entries: ChannelTrackEntry[];
+}
+
+/**
+ * Groups entries by channel (z-index range) and runs the greedy
+ * interval-scheduling algorithm within each channel.
+ * Only returns channels that contain at least one entry.
+ */
+export function assignChannelGroups(entries: Entry[]): ChannelGroup[] {
+    const hasTimings = entries.some((e) => e.inTime !== undefined || e.start !== undefined);
+
+    // Bucket entries per channel
+    const buckets = new Map<ChannelId, Entry[]>();
+    for (const ch of CHANNELS) buckets.set(ch.id, []);
+    for (const entry of entries) buckets.get(getChannelId(entry))!.push(entry);
+
+    const groups: ChannelGroup[] = [];
+
+    for (const channel of CHANNELS) {
+        const bucket = buckets.get(channel.id)!;
+        if (bucket.length === 0) continue;
+
+        let assignments: Array<{ entry: Entry; track: number }>;
+
+        if (!hasTimings) {
+            assignments = bucket.map((entry) => ({ entry, track: 0 }));
+        } else {
+            const sorted = [...bucket].sort((a, b) => {
+                return (a.inTime ?? a.start ?? 0) - (b.inTime ?? b.start ?? 0);
+            });
+            const trackEnds: number[] = [];
+            assignments = [];
+            for (const entry of sorted) {
+                const start = entry.inTime ?? entry.start ?? 0;
+                const end = entry.exitTime ?? entry.end ?? Infinity;
+                let assigned = -1;
+                for (let t = 0; t < trackEnds.length; t++) {
+                    if ((trackEnds[t] ?? 0) <= start) {
+                        assigned = t;
+                        break;
+                    }
+                }
+                if (assigned === -1) {
+                    assigned = trackEnds.length;
+                    trackEnds.push(end);
+                } else {
+                    trackEnds[assigned] = end;
+                }
+                assignments.push({ entry, track: assigned });
+            }
+        }
+
+        const trackCount = Math.max(1, ...assignments.map((a) => a.track + 1));
+        groups.push({
+            channel,
+            trackCount,
+            entries: assignments.map(({ entry, track }) => ({
+                entry,
+                channelId: channel.id,
+                channelTrack: track,
+            })),
+        });
+    }
+
+    return groups;
+}
+
 /**
  * Greedy interval-scheduling algorithm: assigns each entry to the lowest
  * track where no current occupant overlaps with it.

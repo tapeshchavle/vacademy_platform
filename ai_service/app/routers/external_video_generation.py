@@ -24,7 +24,12 @@ from ..schemas.video_generation import (
     VideoUrlsResponse,
     RegenerateFrameRequest,
     RegenerateFrameResponse,
-    UpdateFrameRequest
+    UpdateFrameRequest,
+    AddFrameRequest,
+    AddAudioTrackRequest,
+    UpdateAudioTrackRequest,
+    DeleteAudioTrackRequest,
+    AudioTrackResponse,
 )
 from pydantic import BaseModel, Field
 from ..services.video_generation_service import VideoGenerationService
@@ -412,6 +417,43 @@ async def regenerate_frame_external(
             institute_id=institute_id
         )
         return RegenerateFrameResponse(**result)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/frame/add",
+    summary="Add a new frame to the timeline (External)"
+)
+async def add_frame_external(
+    payload: AddFrameRequest,
+    service: VideoGenerationService = Depends(get_video_service),
+    db: Session = Depends(db_dependency),
+    institute_id: str = Depends(get_institute_from_api_key)
+):
+    """
+    Insert a new HTML frame/entry into the video timeline.
+
+    For time_driven videos: provide in_time and exit_time to control when the shot
+    appears. The frame is inserted in chronological order. If exit_time exceeds the
+    current total_duration, the timeline meta is extended automatically.
+
+    For user_driven videos: omit in_time/exit_time — the frame is appended at the end.
+
+    Authentication: Requires 'X-Institute-Key' header.
+    """
+    try:
+        result = await service.add_video_frame(
+            video_id=payload.video_id,
+            html=payload.html,
+            in_time=payload.in_time,
+            exit_time=payload.exit_time,
+            z=payload.z or 0,
+            entry_id=payload.entry_id,
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -932,3 +974,93 @@ async def list_tts_voices(
                 }
             ],
         }
+
+
+# ---------------------------------------------------------------------------
+# Audio track management
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/audio-track/add",
+    response_model=AudioTrackResponse,
+    summary="Add an extra audio track to the video (External)"
+)
+async def add_audio_track_external(
+    payload: AddAudioTrackRequest,
+    service: VideoGenerationService = Depends(get_video_service),
+    institute_id: str = Depends(get_institute_from_api_key),
+):
+    """
+    Append a new audio track (background music, SFX, etc.) to the video's
+    meta.audio_tracks list.  The track is stored in the timeline JSON on S3.
+    During render it will be mixed with the narration via FFmpeg amix.
+    In the learner player it is played via Web Audio API for perfect sync.
+    """
+    try:
+        result = await service.add_audio_track(
+            video_id=payload.video_id,
+            label=payload.label,
+            url=payload.url,
+            volume=payload.volume,
+            delay=payload.delay,
+            fade_in=payload.fade_in,
+            fade_out=payload.fade_out,
+            track_id=payload.track_id,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch(
+    "/audio-track/update",
+    response_model=AudioTrackResponse,
+    summary="Update an existing audio track (External)"
+)
+async def update_audio_track_external(
+    payload: UpdateAudioTrackRequest,
+    service: VideoGenerationService = Depends(get_video_service),
+    institute_id: str = Depends(get_institute_from_api_key),
+):
+    """Patch one or more fields of an audio track (label, url, volume, delay, fades)."""
+    try:
+        result = await service.update_audio_track(
+            video_id=payload.video_id,
+            track_id=payload.track_id,
+            label=payload.label,
+            url=payload.url,
+            volume=payload.volume,
+            delay=payload.delay,
+            fade_in=payload.fade_in,
+            fade_out=payload.fade_out,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/audio-track/delete",
+    response_model=AudioTrackResponse,
+    summary="Delete an audio track (External)"
+)
+async def delete_audio_track_external(
+    payload: DeleteAudioTrackRequest,
+    service: VideoGenerationService = Depends(get_video_service),
+    institute_id: str = Depends(get_institute_from_api_key),
+):
+    """Remove an audio track from the video's meta.audio_tracks list."""
+    try:
+        result = await service.delete_audio_track(
+            video_id=payload.video_id,
+            track_id=payload.track_id,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

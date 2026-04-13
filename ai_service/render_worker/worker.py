@@ -75,6 +75,7 @@ class RenderWorker:
         caption_bg_color: Optional[str] = None,
         caption_bg_opacity: Optional[int] = None,
         caption_font_size: Optional[int] = None,
+        audio_tracks: Optional[list] = None,
     ) -> str:
         """
         Run the full render pipeline and return the S3 URL of the output MP4.
@@ -117,6 +118,32 @@ class RenderWorker:
             if avatar_video_url:
                 avatar_path = work_dir / "avatar_video.mp4"
                 self._download(avatar_video_url, avatar_path)
+
+            # ── Download extra audio tracks ──
+            # audio_tracks is a list of dicts: {id, label, url, volume, delay, fadeIn, fadeOut}
+            # If not passed explicitly, try to read from timeline meta
+            if audio_tracks is None:
+                try:
+                    timeline_data = json.loads(timeline_path.read_text())
+                    if isinstance(timeline_data, dict):
+                        audio_tracks = timeline_data.get("meta", {}).get("audio_tracks", []) or []
+                    else:
+                        audio_tracks = []
+                except Exception:
+                    audio_tracks = []
+
+            extra_audio_paths: list[Path] = []
+            for idx, track in enumerate(audio_tracks or []):
+                track_url = track.get("url", "")
+                if not track_url:
+                    continue
+                ext = track_url.rsplit(".", 1)[-1].split("?")[0].lower() or "mp3"
+                track_path = work_dir / f"audio_track_{idx}.{ext}"
+                try:
+                    self._download(track_url, track_path)
+                    extra_audio_paths.append(track_path)
+                except Exception as exc:
+                    logger.warning(f"Failed to download audio track {idx} ({track_url}): {exc}")
 
             if on_progress:
                 on_progress(15)
@@ -320,15 +347,73 @@ class RenderWorker:
             logger.info("Assembling video with FFmpeg...")
             # Frames rendered at native resolution (1080p/1920p).
             # Downscale to target resolution if different.
+
+            # Build multi-audio FFmpeg command.
+            # Input 0: frame sequence
+            # Input 1: narration (always present)
+            # Inputs 2..N: extra audio tracks (optional)
+            valid_extra = [
+                (p, (audio_tracks or [])[i])
+                for i, p in enumerate(extra_audio_paths)
+                if p.exists() and i < len(audio_tracks or [])
+            ]
+            narration_idx = 1  # input index for narration.mp3
+
             ffmpeg_cmd = [
                 "ffmpeg", "-y",
                 "-framerate", str(FPS),
                 "-i", str(frames_dir / "frame_%06d.jpg"),
-                "-i", str(audio_path),
-                "-filter_complex",
-                f"[0:v]scale={output_width}:{output_height}:flags=lanczos[scaled];[1:a]adelay={int(audio_delay * 1000)}|{int(audio_delay * 1000)}[delayed_audio]",
+                "-i", str(audio_path),  # narration — always input 1
+            ]
+            for p, _ in valid_extra:
+                ffmpeg_cmd += ["-i", str(p)]
+
+            # Build filter_complex
+            # 1. Scale video
+            # 2. Delay + volume + fade narration
+            # 3. Per extra track: delay + volume + fade
+            # 4. amix all audio streams
+            filter_parts = [f"[0:v]scale={output_width}:{output_height}:flags=lanczos[scaled]"]
+            narration_delay_ms = int(audio_delay * 1000)
+            filter_parts.append(
+                f"[{narration_idx}:a]adelay={narration_delay_ms}|{narration_delay_ms}[nar]"
+            )
+            audio_labels = ["[nar]"]
+
+            for rel_idx, (_, track) in enumerate(valid_extra):
+                abs_idx = rel_idx + 2  # 0=frames, 1=narration, 2+=extra
+                delay_ms = int(float(track.get("delay", 0)) * 1000)
+                volume = float(track.get("volume", 1.0))
+                fade_in = float(track.get("fadeIn", 0))
+                fade_out = float(track.get("fadeOut", 0))
+                label = f"extra{rel_idx}"
+
+                chain = f"[{abs_idx}:a]adelay={delay_ms}|{delay_ms}"
+                if volume != 1.0:
+                    chain += f",volume={volume:.4f}"
+                if fade_in > 0:
+                    chain += f",afade=t=in:st=0:d={fade_in:.3f}"
+                if fade_out > 0:
+                    chain += f",afade=t=out:st={max(0, float(track.get('delay', 0)) + fade_in):.3f}:d={fade_out:.3f}"
+                chain += f"[{label}]"
+                filter_parts.append(chain)
+                audio_labels.append(f"[{label}]")
+
+            if len(audio_labels) == 1:
+                # Single audio stream — no amix needed
+                filter_parts.append(f"{audio_labels[0]}aresample=44100[aout]")
+            else:
+                n = len(audio_labels)
+                filter_parts.append(
+                    f"{''.join(audio_labels)}amix=inputs={n}:duration=longest:normalize=0[aout]"
+                )
+
+            filter_complex = ";".join(filter_parts)
+
+            ffmpeg_cmd += [
+                "-filter_complex", filter_complex,
                 "-map", "[scaled]",
-                "-map", "[delayed_audio]",
+                "-map", "[aout]",
                 "-c:v", "libx264",
                 "-pix_fmt", "yuv420p",
                 "-crf", "23",
@@ -337,6 +422,7 @@ class RenderWorker:
                 "-shortest",
                 str(output_path),
             ]
+            logger.info(f"FFmpeg filter_complex: {filter_complex}")
 
             ffmpeg_result = await loop.run_in_executor(
                 None,

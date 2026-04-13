@@ -35,6 +35,7 @@ import {
   type NavigationController,
 } from "./navigation-controller";
 import { processHtmlContent, fixHtmlContent } from "./html-processor";
+import { useWebAudioMixer } from "./hooks/useWebAudioMixer";
 
 // Re-export types for backward compatibility
 export type { Frame, TimelineMeta, TimelineData, ContentType, NavigationType };
@@ -126,6 +127,14 @@ export const AIVideoPlayer: React.FC<AIVideoPlayerProps> = ({
   useEffect(() => {
     onEntryChangeRef.current = onEntryChange;
   }, [onEntryChange]);
+
+  // Web Audio API mixer for extra tracks (background music, SFX, etc.)
+  useWebAudioMixer({
+    tracks: meta.audio_tracks,
+    audioRef: audioRef as React.RefObject<HTMLAudioElement>,
+    isPlaying,
+    currentTime,
+  });
 
   // Stable navigation callback with re-entrancy guard
   const handleNavChange = useCallback((entry: Frame, index: number) => {

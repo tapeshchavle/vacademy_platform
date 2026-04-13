@@ -177,12 +177,17 @@ class HealHandler(BaseHTTPRequestHandler):
             })
 
         if not check_rate_limit(internal_id):
-            return self._respond(429, {
+            # Return HTTP 200 (not 429) — WebClient.retrieve() treats 4xx as
+            # errors and throws, which would make the backend silently fall
+            # back to "Already up to date". Semantically this IS a recovering
+            # state (a prior call already triggered the rebuild), so 200 is
+            # correct; the status field in the JSON body carries the detail.
+            return self._respond(200, {
                 "status": "RATE_LIMITED",
                 "externalMeetingId": external_id,
                 "internalMeetingId": internal_id,
                 "previousState": state,
-                "message": "Rebuild already triggered recently. Wait 30 minutes between attempts."
+                "message": "Rebuild already triggered recently. Pipeline still processing."
             })
 
         log(f"heal: rebuild externalId={external_id} internalId={internal_id} previousState={state}")

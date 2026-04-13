@@ -1029,7 +1029,7 @@ function ViewLiveSession() {
                                                 className="flex items-center gap-2 rounded-md border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-medium text-orange-700 transition-colors hover:bg-orange-100 disabled:opacity-50"
                                             >
                                                 <CloudDownload className={cn('size-3', isSyncing && 'animate-pulse')} />
-                                                {isSyncing ? 'Syncing...' : 'Sync from BBB'}
+                                                {isSyncing ? 'Syncing...' : 'Sync from Vacademy Meet Platform'}
                                             </button>
                                         )}
                                     </div>

@@ -45,7 +45,7 @@ export interface Entry {
     entry_meta?: {
         text?: string;
         audio_text?: string;
-        [key: string]: any;
+        [key: string]: unknown;
     };
 }
 
@@ -71,11 +71,25 @@ export interface BrandingConfig {
  * MCQ question shown at a specific timestamp during VIDEO playback
  */
 export interface MCQQuestion {
-    time: number;        // Video timestamp (seconds) at which to pause and show the question
-    question: string;    // Question text
-    options: string[];   // Exactly 4 answer options
-    correct: number;     // 0-indexed position of the correct option
+    time: number; // Video timestamp (seconds) at which to pause and show the question
+    question: string; // Question text
+    options: string[]; // Exactly 4 answer options
+    correct: number; // 0-indexed position of the correct option
     explanation: string; // Brief explanation shown after the student answers
+}
+
+/**
+ * An extra audio track (background music, sound effect, etc.)
+ * mixed on top of the narration track in both the player and the render pipeline.
+ */
+export interface AudioTrack {
+    id: string; // e.g. "track-1"
+    label: string; // display name e.g. "Background Music"
+    url: string; // S3 public URL to the audio file
+    volume: number; // 0.0–2.0, default 1.0
+    delay: number; // seconds to wait before starting, default 0
+    fadeIn: number; // fade-in duration in seconds, default 0
+    fadeOut: number; // fade-out duration in seconds, default 0
 }
 
 /**
@@ -93,6 +107,9 @@ export interface TimelineMeta {
     // Audio/timing information
     audio_start_at: number;
     total_duration: number | null;
+
+    // Extra audio tracks (background music, etc.) mixed on top of narration
+    audio_tracks?: AudioTrack[];
 
     // Dimensions
     dimensions?: {

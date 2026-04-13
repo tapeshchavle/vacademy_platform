@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Layers, Type, Sliders, Image, Loader2, Trash2, Wand2, Check, X } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Layers, Type, Sliders, Image, Loader2, Trash2, Wand2, Check, X, Code2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useVideoEditorStore, DEFAULT_TRANSFORM } from './stores/video-editor-store';
 import { regenerateFrame } from '@/routes/video-api-studio/-services/video-generation';
@@ -524,9 +524,113 @@ function MediaTab({ entryId, entryHtml }: MediaTabProps) {
     );
 }
 
+// ── Raw HTML tab ───────────────────────────────────────────────────────────
+
+interface HtmlTabProps {
+    entryId: string;
+    entryHtml: string;
+}
+
+function HtmlTab({ entryId, entryHtml }: HtmlTabProps) {
+    const { updateEntryHtml } = useVideoEditorStore();
+    const [localHtml, setLocalHtml] = useState(entryHtml);
+    const [isDirty, setIsDirty] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Sync when entryHtml changes externally (undo, remake accept, etc.)
+    useEffect(() => {
+        setLocalHtml(entryHtml);
+        setIsDirty(false);
+    }, [entryHtml]);
+
+    const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setLocalHtml(e.target.value);
+        setIsDirty(e.target.value !== entryHtml);
+    }, [entryHtml]);
+
+    const handleApply = useCallback(() => {
+        if (!localHtml.trim()) return;
+        updateEntryHtml(entryId, localHtml);
+        setIsDirty(false);
+    }, [entryId, localHtml, updateEntryHtml]);
+
+    const handleReset = useCallback(() => {
+        setLocalHtml(entryHtml);
+        setIsDirty(false);
+    }, [entryHtml]);
+
+    const sizeKb = (new TextEncoder().encode(localHtml).length / 1024).toFixed(1);
+    const isLarge = parseFloat(sizeKb) > 50;
+
+    return (
+        <div className="flex h-full flex-col">
+            {isLarge && (
+                <div className="flex items-center gap-1.5 border-b border-amber-200 bg-amber-50 px-3 py-1.5">
+                    <AlertTriangle className="size-3 shrink-0 text-amber-500" />
+                    <span className="text-[10px] text-amber-700">Large HTML ({sizeKb} KB) — edit carefully</span>
+                </div>
+            )}
+            <textarea
+                ref={textareaRef}
+                value={localHtml}
+                onChange={handleChange}
+                spellCheck={false}
+                className="flex-1 resize-none border-0 bg-gray-950 p-3 font-mono text-[11px] leading-relaxed text-green-300 focus:outline-none"
+                style={{ minHeight: 240, tabSize: 2 }}
+                onKeyDown={(e) => {
+                    // Tab key inserts 2 spaces instead of moving focus
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        const el = e.currentTarget;
+                        const start = el.selectionStart;
+                        const end = el.selectionEnd;
+                        const next = localHtml.substring(0, start) + '  ' + localHtml.substring(end);
+                        setLocalHtml(next);
+                        setIsDirty(next !== entryHtml);
+                        // Restore cursor after React re-render
+                        requestAnimationFrame(() => {
+                            el.selectionStart = start + 2;
+                            el.selectionEnd = start + 2;
+                        });
+                    }
+                    // Ctrl/Cmd+Enter to apply
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                        e.preventDefault();
+                        handleApply();
+                    }
+                }}
+            />
+            <div className="flex shrink-0 items-center gap-2 border-t border-gray-200 bg-white px-3 py-2">
+                <span className="flex-1 font-mono text-[10px] text-gray-400">{sizeKb} KB</span>
+                {isDirty && (
+                    <>
+                        <button
+                            onClick={handleReset}
+                            className="text-[11px] text-gray-400 hover:text-gray-700"
+                        >
+                            Reset
+                        </button>
+                        <Button
+                            size="sm"
+                            className="h-6 gap-1 bg-indigo-600 px-3 text-[11px] text-white hover:bg-indigo-700"
+                            onClick={handleApply}
+                        >
+                            <Check className="size-3" />
+                            Apply
+                        </Button>
+                    </>
+                )}
+                {!isDirty && (
+                    <span className="text-[10px] text-gray-400">⌘↵ to apply</span>
+                )}
+            </div>
+        </div>
+    );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
-type Tab = 'transform' | 'text' | 'media';
+type Tab = 'transform' | 'text' | 'media' | 'code';
 
 interface PropertiesPanelProps {
     /**
@@ -750,6 +854,7 @@ export function PropertiesPanel({ variant = 'column' }: PropertiesPanelProps) {
                         },
                         { id: 'text', icon: <Type className="size-3" />, label: 'Text' },
                         { id: 'media', icon: <Image className="size-3" />, label: 'Media' },
+                        { id: 'code', icon: <Code2 className="size-3" />, label: 'HTML' },
                     ] as const
                 ).map(({ id, icon, label }) => (
                     <button
@@ -769,7 +874,7 @@ export function PropertiesPanel({ variant = 'column' }: PropertiesPanelProps) {
             </div>
 
             {/* Tab content */}
-            <div className="flex-1 overflow-y-auto">
+            <div className={['flex-1', tab === 'code' ? 'overflow-hidden' : 'overflow-y-auto'].join(' ')}>
                 {tab === 'transform' && (
                     <TransformTab entryId={entryId} canvasW={canvasW} canvasH={canvasH} />
                 )}
@@ -782,6 +887,7 @@ export function PropertiesPanel({ variant = 'column' }: PropertiesPanelProps) {
                     />
                 )}
                 {tab === 'media' && <MediaTab entryId={entryId} entryHtml={entry.html} />}
+                {tab === 'code' && <HtmlTab entryId={entryId} entryHtml={entry.html} />}
             </div>
 
             {/* Footer: HTML size */}

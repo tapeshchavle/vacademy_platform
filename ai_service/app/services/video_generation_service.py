@@ -1510,6 +1510,272 @@ class VideoGenerationService:
             }
 
 
+    async def add_video_frame(
+        self,
+        video_id: str,
+        html: str,
+        in_time: Optional[float],
+        exit_time: Optional[float],
+        z: int = 0,
+        entry_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Insert a new frame/entry into the video timeline and save back to S3.
+
+        For time_driven videos: in_time and exit_time define when the frame appears.
+        For user_driven videos: the frame is appended at the end of the entries array.
+
+        If exit_time exceeds the current meta.total_duration, the meta is updated so
+        the renderer extends the video accordingly.
+
+        Returns the new entry's id and its position in the entries array.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        if in_time is not None and exit_time is not None and in_time >= exit_time:
+            raise ValueError(f"in_time ({in_time}) must be less than exit_time ({exit_time})")
+
+        status = self.get_video_status(video_id)
+        if not status or "timeline" not in status.get("s3_urls", {}):
+            raise ValueError(f"Timeline not found for video {video_id}")
+
+        timeline_url = status["s3_urls"]["timeline"]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = Path(temp_dir) / "time_based_frame.json"
+
+            if not self.s3_service.download_file(timeline_url, file_path):
+                raise RuntimeError("Failed to download timeline file")
+
+            data = json.loads(file_path.read_text(encoding='utf-8'))
+
+            # Handle both timeline formats
+            is_wrapped = isinstance(data, dict) and "entries" in data
+            entries = data["entries"] if is_wrapped else data
+            meta = data.get("meta", {}) if is_wrapped else {}
+
+            # Build the new entry
+            new_id = entry_id or f"shot-{uuid4().hex[:8]}"
+            new_entry: Dict[str, Any] = {"id": new_id, "html": html, "z": z}
+
+            if in_time is not None:
+                new_entry["inTime"] = in_time
+            if exit_time is not None:
+                new_entry["exitTime"] = exit_time
+
+            # Insert sorted by inTime so the timeline stays ordered (time_driven).
+            # For user_driven (no inTime), simply append.
+            if in_time is not None:
+                insert_idx = len(entries)
+                for i, e in enumerate(entries):
+                    e_in = e.get("inTime", e.get("start", float("inf")))
+                    if isinstance(e_in, (int, float)) and e_in > in_time:
+                        insert_idx = i
+                        break
+                entries.insert(insert_idx, new_entry)
+                frame_index = insert_idx
+            else:
+                entries.append(new_entry)
+                frame_index = len(entries) - 1
+
+            # Extend meta.total_duration if the new shot goes beyond it
+            if exit_time is not None and is_wrapped:
+                current_total = meta.get("total_duration") or 0
+                if exit_time > current_total:
+                    meta["total_duration"] = exit_time
+                    data["meta"] = meta
+
+            # Write back
+            if is_wrapped:
+                data["entries"] = entries
+            else:
+                data = entries
+
+            file_path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+
+            # Extract S3 key (same logic as update_video_frame)
+            from ..config import get_settings
+            settings = get_settings()
+            bucket = settings.aws_bucket_name
+
+            if f"/{bucket}/" in timeline_url:
+                key = timeline_url.split(f"/{bucket}/")[-1]
+            elif f"{bucket}.s3" in timeline_url:
+                match = re.search(r'\.com/(.+)$', timeline_url)
+                key = match.group(1) if match else f"ai-videos/{video_id}/timeline/time_based_frame.json"
+            else:
+                key = f"ai-videos/{video_id}/timeline/time_based_frame.json"
+
+            try:
+                self.s3_service.s3_client.upload_file(
+                    str(file_path),
+                    bucket,
+                    key,
+                    ExtraArgs={'ContentType': 'application/json'}
+                )
+            except Exception as e:
+                logger.error(f"Failed to upload updated timeline: {e}")
+                raise RuntimeError(f"Failed to save new frame to S3: {e}")
+
+            return {
+                "status": "success",
+                "video_id": video_id,
+                "entry_id": new_id,
+                "frame_index": frame_index,
+                "message": "Frame added successfully.",
+            }
+
+    # ── Audio track helpers ──────────────────────────────────────────────────
+
+    def _load_timeline(self, video_id: str, temp_dir: str):
+        """Download timeline JSON and return (data, entries, meta, is_wrapped, key)."""
+        import re as _re
+        from ..config import get_settings
+        import logging as _logging
+        logger = _logging.getLogger(__name__)
+
+        status = self.get_video_status(video_id)
+        if not status or "timeline" not in status.get("s3_urls", {}):
+            raise ValueError(f"Timeline not found for video {video_id}")
+
+        timeline_url = status["s3_urls"]["timeline"]
+        file_path = Path(temp_dir) / "time_based_frame.json"
+
+        if not self.s3_service.download_file(timeline_url, file_path):
+            raise RuntimeError("Failed to download timeline file")
+
+        data = json.loads(file_path.read_text(encoding='utf-8'))
+        is_wrapped = isinstance(data, dict) and "entries" in data
+        entries = data["entries"] if is_wrapped else data
+        meta = data.get("meta", {}) if is_wrapped else {}
+
+        settings = get_settings()
+        bucket = settings.aws_bucket_name
+        if f"/{bucket}/" in timeline_url:
+            key = timeline_url.split(f"/{bucket}/")[-1]
+        elif f"{bucket}.s3" in timeline_url:
+            match = _re.search(r'\.com/(.+)$', timeline_url)
+            key = match.group(1) if match else f"ai-videos/{video_id}/timeline/time_based_frame.json"
+        else:
+            key = f"ai-videos/{video_id}/timeline/time_based_frame.json"
+
+        return data, entries, meta, is_wrapped, key, file_path
+
+    def _save_timeline(self, data, file_path: Path, bucket: str, key: str):
+        """Serialize timeline data and upload to S3."""
+        import logging as _logging
+        logger = _logging.getLogger(__name__)
+        file_path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+        try:
+            self.s3_service.s3_client.upload_file(
+                str(file_path), bucket, key,
+                ExtraArgs={'ContentType': 'application/json'}
+            )
+        except Exception as e:
+            logger.error(f"Failed to upload timeline: {e}")
+            raise RuntimeError(f"Failed to save timeline to S3: {e}")
+
+    async def add_audio_track(
+        self,
+        video_id: str,
+        label: str,
+        url: str,
+        volume: float = 1.0,
+        delay: float = 0.0,
+        fade_in: float = 0.0,
+        fade_out: float = 0.0,
+        track_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Insert a new audio track into meta.audio_tracks and save back to S3."""
+        from ..config import get_settings
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data, entries, meta, is_wrapped, key, file_path = self._load_timeline(video_id, temp_dir)
+            settings = get_settings()
+            bucket = settings.aws_bucket_name
+
+            new_id = track_id or f"track-{uuid4().hex[:8]}"
+            new_track = {
+                "id": new_id, "label": label, "url": url,
+                "volume": volume, "delay": delay, "fadeIn": fade_in, "fadeOut": fade_out,
+            }
+
+            if is_wrapped:
+                tracks = meta.get("audio_tracks", [])
+                tracks.append(new_track)
+                meta["audio_tracks"] = tracks
+                data["meta"] = meta
+            else:
+                # Upgrade plain array to wrapped format so we can store meta
+                data = {"entries": entries, "meta": {"audio_tracks": [new_track]}}
+
+            self._save_timeline(data, file_path, bucket, key)
+            return {"status": "success", "video_id": video_id, "track_id": new_id, "message": "Audio track added."}
+
+    async def update_audio_track(
+        self,
+        video_id: str,
+        track_id: str,
+        label: Optional[str] = None,
+        url: Optional[str] = None,
+        volume: Optional[float] = None,
+        delay: Optional[float] = None,
+        fade_in: Optional[float] = None,
+        fade_out: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Update an existing audio track in meta.audio_tracks."""
+        from ..config import get_settings
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data, entries, meta, is_wrapped, key, file_path = self._load_timeline(video_id, temp_dir)
+            settings = get_settings()
+            bucket = settings.aws_bucket_name
+
+            if not is_wrapped:
+                raise ValueError(f"Timeline for {video_id} has no meta section — track not found.")
+
+            tracks = meta.get("audio_tracks", [])
+            track = next((t for t in tracks if t.get("id") == track_id), None)
+            if not track:
+                raise ValueError(f"Audio track '{track_id}' not found in video '{video_id}'")
+
+            if label is not None:
+                track["label"] = label
+            if url is not None:
+                track["url"] = url
+            if volume is not None:
+                track["volume"] = volume
+            if delay is not None:
+                track["delay"] = delay
+            if fade_in is not None:
+                track["fadeIn"] = fade_in
+            if fade_out is not None:
+                track["fadeOut"] = fade_out
+
+            data["meta"] = meta
+            self._save_timeline(data, file_path, bucket, key)
+            return {"status": "success", "video_id": video_id, "track_id": track_id, "message": "Audio track updated."}
+
+    async def delete_audio_track(self, video_id: str, track_id: str) -> Dict[str, Any]:
+        """Remove an audio track from meta.audio_tracks and save back to S3."""
+        from ..config import get_settings
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data, entries, meta, is_wrapped, key, file_path = self._load_timeline(video_id, temp_dir)
+            settings = get_settings()
+            bucket = settings.aws_bucket_name
+
+            if not is_wrapped:
+                raise ValueError(f"Timeline for {video_id} has no meta section — track not found.")
+
+            tracks = meta.get("audio_tracks", [])
+            new_tracks = [t for t in tracks if t.get("id") != track_id]
+            if len(new_tracks) == len(tracks):
+                raise ValueError(f"Audio track '{track_id}' not found in video '{video_id}'")
+
+            meta["audio_tracks"] = new_tracks
+            data["meta"] = meta
+            self._save_timeline(data, file_path, bucket, key)
+            return {"status": "success", "video_id": video_id, "track_id": track_id, "message": "Audio track deleted."}
+
     def get_institute_generations(self, institute_id: str, limit: int = 10) -> list[Dict[str, Any]]:
         """
         Get the last N content generations for an institute.

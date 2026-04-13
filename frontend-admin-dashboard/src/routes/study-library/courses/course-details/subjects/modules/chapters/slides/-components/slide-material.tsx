@@ -143,16 +143,30 @@ export const SlideMaterial = ({
     const { items, activeItem, setActiveItem } = useContentStore();
     const editor = useMemo(() => {
         const ed = createYooptaEditor();
-        // Monkey-patch: wrap Slate's focus to suppress "Cannot resolve a DOM node"
-        // errors that happen when Yoopta internally calls focus/toDOMNode during
-        // paste operations before React has committed the new DOM.
+        // Monkey-patch: wrap Slate's focus to suppress "Cannot resolve a DOM
+        // node/point" errors that happen when Yoopta internally calls
+        // focus/toDOMNode/toDOMPoint during paste or block-type transforms,
+        // before React has committed the new DOM (or while editor.selection
+        // still references the pre-transform tree).
+        const isStaleSlateDomError = (msg: unknown): boolean =>
+            typeof msg === 'string' &&
+            (msg.includes('Cannot resolve a DOM node from Slate node') ||
+                msg.includes('Cannot resolve a DOM point from Slate point'));
         const origFocus = ed.focus?.bind(ed);
         if (origFocus) {
             ed.focus = () => {
                 try {
                     return origFocus();
                 } catch (e: any) {
-                    if (e?.message?.includes?.('Cannot resolve a DOM node from Slate node')) {
+                    if (isStaleSlateDomError(e?.message)) {
+                        // Stale selection — drop it and retry once so the next
+                        // render of the editor isn't stuck pointing at a path
+                        // that no longer exists in the document.
+                        try {
+                            (ed as any).selection = null;
+                        } catch {
+                            /* noop */
+                        }
                         console.warn('[Yoopta] Suppressed DOM resolve error during focus:', e.message);
                         return;
                     }
@@ -162,21 +176,33 @@ export const SlideMaterial = ({
         }
         return ed;
     }, []);
-    // Suppress "Cannot resolve a DOM node from Slate node" errors that bubble
-    // up from the Yoopta vendor bundle during paste operations.  This is a
-    // known Slate race condition where the DOM hasn't updated yet.  The error
-    // is non-fatal — the paste still succeeds — so we swallow it to prevent
-    // Sentry noise and React error-boundary crashes.
+    // Suppress "Cannot resolve a DOM node/point from Slate node/point" errors
+    // that bubble up from the Yoopta vendor bundle during paste or block-type
+    // conversion.  This is a known Slate race condition: editor.selection still
+    // points at the pre-transform tree (e.g. path:[0,1] offset:129) and Slate's
+    // selection-sync effect tries to project it onto a freshly rebuilt DOM.
+    // The error is non-fatal — the editor remains functional — so we swallow
+    // it to prevent Sentry noise and React error-boundary crashes, and reset
+    // editor.selection so the next render starts clean.
     useEffect(() => {
+        const isStaleSlateDomError = (msg: unknown): boolean =>
+            typeof msg === 'string' &&
+            (msg.includes('Cannot resolve a DOM node from Slate node') ||
+                msg.includes('Cannot resolve a DOM point from Slate point'));
         const handler = (event: ErrorEvent): void => {
-            if (event.error?.message?.includes?.('Cannot resolve a DOM node from Slate node')) {
+            if (isStaleSlateDomError(event.error?.message)) {
                 event.preventDefault();
-                console.warn('[Yoopta] Suppressed vendor DOM resolve error during paste');
+                try {
+                    (editor as any).selection = null;
+                } catch {
+                    /* noop */
+                }
+                console.warn('[Yoopta] Suppressed vendor DOM resolve error during paste/transform');
             }
         };
         window.addEventListener('error', handler);
         return () => window.removeEventListener('error', handler);
-    }, []);
+    }, [editor]);
 
     const selectionRef = useRef<HTMLDivElement | null>(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -605,6 +631,17 @@ export const SlideMaterial = ({
         }
 
         editor.setEditorValue(editorContent);
+
+        // Clear any stale selection left over from the previous slide / paste.
+        // setEditorValue replaces the entire Slate tree, but editor.selection
+        // is preserved — a Point like {path:[0,1], offset:129} from the old
+        // tree may not exist in the new one, and Slate's next render will
+        // throw "Cannot resolve a DOM point from Slate point" from toDOMRange.
+        try {
+            (editor as any).selection = null;
+        } catch {
+            /* noop */
+        }
 
         // Check if content is empty - use shared utility
         const isEmpty = checkIsHtmlEmpty(sanitizedDocData);
