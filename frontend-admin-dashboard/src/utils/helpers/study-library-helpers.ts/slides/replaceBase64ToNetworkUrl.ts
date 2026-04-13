@@ -37,15 +37,15 @@ export function useReplaceBase64ImagesWithNetworkUrls() {
                             'margin-left: 0px; display: flex; width: 100%; justify-content: center;'
                         );
 
-                        // Create new image element with proper casing for objectFit
                         const newImg = document.createElement('img');
                         newImg.setAttribute('src', publicUrl || '');
                         newImg.setAttribute('data-meta-align', 'center');
                         newImg.setAttribute('data-meta-depth', '0');
                         newImg.setAttribute('alt', file.name || 'image');
-                        newImg.setAttribute('width', '0');
-                        newImg.setAttribute('height', '0');
-                        newImg.setAttribute('objectFit', 'contain');
+                        newImg.setAttribute(
+                            'style',
+                            'max-width: 100%; height: auto; object-fit: contain;'
+                        );
 
                         // Add image to wrapper
                         wrapperDiv.appendChild(newImg);
