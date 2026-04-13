@@ -30,3 +30,6 @@ dist-ssr
 .env.development
 docker-compose.override.yml
 logs/
+
+# TanStack Router auto-generated
+src/routeTree.gen.ts

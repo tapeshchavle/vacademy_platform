@@ -53,3 +53,6 @@ npm-debug.log*
 
 # Sample SCORM files
 sample_scorm/
+
+# TanStack Router auto-generated
+src/routeTree.gen.ts
