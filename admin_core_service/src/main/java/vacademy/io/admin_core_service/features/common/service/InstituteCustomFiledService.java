@@ -10,6 +10,9 @@ import vacademy.io.admin_core_service.features.common.dto.CustomFieldMappingUsag
 import vacademy.io.admin_core_service.features.common.util.CustomFieldKeyGenerator;
 import vacademy.io.admin_core_service.features.common.dto.InstituteCustomFieldDTO;
 import vacademy.io.admin_core_service.features.common.dto.InstituteCustomFieldDeleteRequestDTO;
+import vacademy.io.admin_core_service.features.enroll_invite.repository.EnrollInviteRepository;
+import vacademy.io.admin_core_service.features.audience.repository.AudienceRepository;
+import vacademy.io.admin_core_service.features.live_session.repository.LiveSessionRepository;
 import vacademy.io.admin_core_service.features.common.entity.CustomFieldValues;
 import vacademy.io.admin_core_service.features.common.enums.CustomFieldTypeEnum;
 import vacademy.io.admin_core_service.features.common.enums.FieldTypeEnum;
@@ -40,6 +43,15 @@ public class InstituteCustomFiledService {
 
     @Autowired
     private CustomFieldValuesRepository customFieldValuesRepository;
+
+    @Autowired
+    private EnrollInviteRepository enrollInviteRepository;
+
+    @Autowired
+    private AudienceRepository audienceRepository;
+
+    @Autowired
+    private LiveSessionRepository liveSessionRepository;
 
     @Transactional
     public void addOrUpdateCustomField(List<InstituteCustomFieldDTO> cfDTOs) {
@@ -185,7 +197,17 @@ public class InstituteCustomFiledService {
             dto.setId(null);
         });
 
-        // 1. Persist (insert / reactivate / update) every incoming mapping.
+        // 1. Snapshot which mappings are currently ACTIVE *before* we upsert,
+        //    so we know what was there before this save. We'll diff against
+        //    this set in step 3.
+        List<InstituteCustomField> existingBeforeUpsert = instituteCustomFieldRepository
+                .findByInstituteIdAndTypeAndTypeIdAndStatusIn(instituteId, type, typeId,
+                        List.of(StatusEnum.ACTIVE.name()));
+        Set<String> existingFieldIdsBefore = existingBeforeUpsert.stream()
+                .map(InstituteCustomField::getCustomFieldId)
+                .collect(Collectors.toSet());
+
+        // 2. Persist (insert / reactivate / update) every incoming mapping.
         List<InstituteCustomFieldDTO> toUpsert = safeIncoming.stream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
@@ -193,14 +215,17 @@ public class InstituteCustomFiledService {
             addOrUpdateCustomField(toUpsert);
         }
 
-        // 2. Soft-delete every existing ACTIVE mapping that is not in the
-        //    incoming set. We compare by customFieldId because that is the
-        //    stable identifier of "which field is on this feature instance".
-        List<InstituteCustomField> existingActive = instituteCustomFieldRepository
-                .findByInstituteIdAndTypeAndTypeIdAndStatusIn(instituteId, type, typeId,
-                        List.of(StatusEnum.ACTIVE.name()));
-
-        if (CollectionUtils.isEmpty(existingActive)) {
+        // 3. Soft-delete mappings that were ACTIVE before step 2 but are NOT
+        //    in the incoming set. We only consider rows that existed *before*
+        //    the upsert — anything created by step 2 (new ad-hoc fields) is
+        //    safe because it wasn't in the pre-upsert snapshot.
+        //
+        //    For the incoming set we build the id list from the DTOs. New
+        //    fields had an empty custom_field.id in the DTO, so after the
+        //    upsert they now have a real id in the DB but not in the DTO.
+        //    That's fine — they weren't in existingFieldIdsBefore either,
+        //    so they won't be considered for deletion.
+        if (existingBeforeUpsert.isEmpty()) {
             return;
         }
 
@@ -209,13 +234,17 @@ public class InstituteCustomFiledService {
                 .filter(StringUtils::hasText)
                 .collect(Collectors.toSet());
 
-        List<InstituteCustomField> toDelete = existingActive.stream()
+        List<InstituteCustomField> toDelete = existingBeforeUpsert.stream()
                 .filter(row -> !incomingFieldIds.contains(row.getCustomFieldId()))
-                .peek(row -> row.setStatus(StatusEnum.DELETED.name()))
                 .collect(Collectors.toList());
 
         if (!toDelete.isEmpty()) {
-            instituteCustomFieldRepository.saveAll(toDelete);
+            // Re-fetch the rows to get their latest state (step 2 may have
+            // reactivated some of them).
+            List<InstituteCustomField> freshRows = instituteCustomFieldRepository
+                    .findAllById(toDelete.stream().map(InstituteCustomField::getId).collect(Collectors.toList()));
+            freshRows.forEach(row -> row.setStatus(StatusEnum.DELETED.name()));
+            instituteCustomFieldRepository.saveAll(freshRows);
         }
     }
 
@@ -279,9 +308,28 @@ public class InstituteCustomFiledService {
                         .mappingId(row.getId())
                         .type(row.getType())
                         .typeId(row.getTypeId())
+                        .typeDisplayName(resolveTypeDisplayName(row.getType(), row.getTypeId()))
                         .status(row.getStatus())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    private String resolveTypeDisplayName(String type, String typeId) {
+        if (!StringUtils.hasText(typeId)) return null;
+        try {
+            if (CustomFieldTypeEnum.ENROLL_INVITE.name().equals(type)) {
+                return enrollInviteRepository.findById(typeId).map(e -> e.getName()).orElse(null);
+            }
+            if (CustomFieldTypeEnum.AUDIENCE_FORM.name().equals(type)) {
+                return audienceRepository.findById(typeId).map(a -> a.getCampaignName()).orElse(null);
+            }
+            if (CustomFieldTypeEnum.SESSION.name().equals(type)) {
+                return liveSessionRepository.findById(typeId).map(s -> s.getTitle()).orElse(null);
+            }
+        } catch (Exception e) {
+            // Silently return null if the parent entity was deleted
+        }
+        return null;
     }
 
     /**

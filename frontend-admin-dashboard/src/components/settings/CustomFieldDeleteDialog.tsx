@@ -227,9 +227,11 @@ export const CustomFieldDeleteDialog: React.FC<CustomFieldDeleteDialogProps> = (
                                         <span className="text-sm text-gray-700">
                                             {usage.type === 'DEFAULT_CUSTOM_FIELD'
                                                 ? 'Institute Default'
-                                                : usage.type_id
-                                                  ? `ID: ${usage.type_id.substring(0, 8)}...`
-                                                  : 'Unknown'}
+                                                : usage.type_display_name
+                                                  ? usage.type_display_name
+                                                  : usage.type_id
+                                                    ? `ID: ${usage.type_id.substring(0, 8)}...`
+                                                    : 'Unknown'}
                                         </span>
                                     </label>
                                 ))}
