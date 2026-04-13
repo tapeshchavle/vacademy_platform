@@ -4,17 +4,21 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import vacademy.io.admin_core_service.features.live_session.entity.SessionSchedule;
 import vacademy.io.admin_core_service.features.live_session.provider.LiveSessionProviderFactory;
 import vacademy.io.admin_core_service.features.live_session.provider.LiveSessionProviderStrategy;
 import vacademy.io.admin_core_service.features.live_session.provider.dto.ProviderMeetingCreateRequestDTO;
 import vacademy.io.admin_core_service.features.live_session.provider.dto.ProviderConnectRequestDTO;
+import vacademy.io.admin_core_service.features.live_session.provider.dto.RecordingSyncResultDTO;
 import vacademy.io.admin_core_service.features.live_session.provider.entity.LiveSessionProviderConfig;
 import vacademy.io.admin_core_service.features.live_session.provider.manager.BbbMeetingManager;
 import vacademy.io.admin_core_service.features.live_session.provider.repository.LiveSessionProviderConfigRepository;
 import vacademy.io.admin_core_service.features.live_session.repository.LiveSessionRepository;
 import vacademy.io.admin_core_service.features.live_session.repository.SessionScheduleRepository;
+import vacademy.io.admin_core_service.features.media_service.service.MediaService;
 import vacademy.io.common.exceptions.VacademyException;
 import vacademy.io.common.meeting.dto.CreateMeetingRequestDTO;
 import vacademy.io.common.meeting.dto.CreateMeetingResponseDTO;
@@ -24,9 +28,18 @@ import vacademy.io.common.meeting.dto.ParticipantJoinLinkDTO;
 import vacademy.io.common.meeting.dto.UserScheduleAvailabilityDTO;
 import vacademy.io.common.meeting.enums.MeetingProvider;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.URI;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Orchestrates all live session provider operations.
@@ -42,6 +55,8 @@ public class LiveSessionProviderService {
     private final LiveSessionProviderConfigRepository configRepository;
     private final SessionScheduleRepository scheduleRepository;
     private final LiveSessionRepository sessionRepository;
+    private final MediaService mediaService;
+    private final WebClient.Builder webClientBuilder;
 
     private static final List<String> ACTIVE = List.of("ACTIVE");
 
@@ -157,22 +172,213 @@ public class LiveSessionProviderService {
     // -----------------------------------------------------------------------
 
     public List<MeetingRecordingDTO> getRecordings(String scheduleId, String instituteId) {
-        SessionSchedule schedule = getScheduleOrThrow(scheduleId);
+        SessionSchedule schedule = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new VacademyException("Schedule not found: " + scheduleId));
+        return enrichUrls(parseExistingRecordings(schedule));
+    }
+
+    // -----------------------------------------------------------------------
+    // Sync recordings from BBB (admin escape hatch)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Fetches recordings directly from BBB for the given schedule, downloads any
+     * that are missing from our DB, uploads them to S3, and persists the fileIds.
+     *
+     * Designed to be resilient: BBB being offline returns status=BBB_OFFLINE with
+     * current DB state. Per-recording failures degrade to status=PARTIAL so other
+     * recordings are still processed.
+     */
+    public RecordingSyncResultDTO syncRecordingsFromBbb(String scheduleId, String instituteId) {
+        // BC-1: Schedule not found
+        SessionSchedule schedule = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new VacademyException("Schedule not found: " + scheduleId));
+
+        // BC-2: No BBB meeting linked
+        if (schedule.getProviderMeetingId() == null || schedule.getProviderMeetingId().isBlank()) {
+            return RecordingSyncResultDTO.ok(getRecordings(scheduleId, instituteId), 0);
+        }
+
+        // Step 1: Ask BBB for recordings (15-second timeout for offline detection)
+        List<MeetingRecordingDTO> bbbRecordings;
+        try {
+            bbbRecordings = ((BbbMeetingManager) providerFactory.getStrategy(
+                    MeetingProvider.BBB_MEETING.name()))
+                    .getRecordings(schedule.getProviderMeetingId(), instituteId, schedule.getBbbServerId());
+        } catch (WebClientRequestException e) {
+            // BC-3: Connection refused / network unreachable
+            log.warn("[Sync] BBB offline (connection error) for scheduleId={}: {}", scheduleId, e.getMessage());
+            return RecordingSyncResultDTO.bbbOffline(getRecordings(scheduleId, instituteId));
+        } catch (Exception e) {
+            // BC-3: Timeout or other BBB error
+            log.warn("[Sync] BBB unreachable for scheduleId={}: {}", scheduleId, e.getMessage());
+            return RecordingSyncResultDTO.bbbOffline(getRecordings(scheduleId, instituteId));
+        }
+
+        // BC-4: BBB has no recordings at all
+        if (bbbRecordings.isEmpty()) {
+            return RecordingSyncResultDTO.ok(getRecordings(scheduleId, instituteId), 0);
+        }
+
+        // Step 2: Load existing DB recordings, collect already-synced recordingIds
+        List<MeetingRecordingDTO> existing = parseExistingRecordings(schedule);
+        Set<String> syncedIds = existing.stream()
+                .filter(r -> r.getFileId() != null && !r.getFileId().isBlank())
+                .map(MeetingRecordingDTO::getRecordingId)
+                .collect(Collectors.toSet());
+
+        List<MeetingRecordingDTO> updated = new ArrayList<>(existing);
+        int newCount = 0;
+        int failCount = 0;
+
+        for (MeetingRecordingDTO bbbRec : bbbRecordings) {
+            // BC-5: Already in DB with fileId — skip (idempotent)
+            if (syncedIds.contains(bbbRec.getRecordingId())) continue;
+
+            // BC-6: No URL from BBB — can't download
+            if (bbbRec.getPlaybackUrl() == null || bbbRec.getPlaybackUrl().isBlank()) {
+                log.warn("[Sync] BBB recording {} has no URL, skipping", bbbRec.getRecordingId());
+                failCount++;
+                continue;
+            }
+
+            try {
+                // Step 3: Download from BBB (BC-7, BC-8: timeout + 4xx/5xx handled inside)
+                byte[] fileBytes = downloadFromUrl(bbbRec.getPlaybackUrl());
+
+                // BC-9: Empty/corrupt download
+                if (fileBytes == null || fileBytes.length == 0) {
+                    log.warn("[Sync] Empty download for recording {}", bbbRec.getRecordingId());
+                    failCount++;
+                    continue;
+                }
+
+                // Step 4: Upload to S3 via MediaService
+                String fileName = schedule.getProviderMeetingId() + "-"
+                        + (bbbRec.getType() != null ? bbbRec.getType() : "recording") + ".mp4";
+                MultipartFile multipartFile = new ByteArrayMultipartFile(fileBytes, fileName, "video/mp4");
+                String fileId = mediaService.uploadFile(multipartFile); // BC-10: upload failure
+
+                // Step 5: Resolve S3 URL and build enriched DTO
+                String s3Url = mediaService.getFilePublicUrlByIdWithoutExpiry(fileId);
+                MeetingRecordingDTO synced = MeetingRecordingDTO.builder()
+                        .recordingId(bbbRec.getRecordingId())
+                        .fileId(fileId)
+                        .type(bbbRec.getType())
+                        .durationSeconds(bbbRec.getDurationSeconds())
+                        .startTime(bbbRec.getStartTime())
+                        .providerMeetingId(bbbRec.getProviderMeetingId())
+                        .downloadUrl(s3Url)
+                        .playbackUrl(s3Url)
+                        .build();
+
+                updated.add(synced);
+                newCount++;
+                log.info("[Sync] Synced recording {} (type={}) for scheduleId={}",
+                        bbbRec.getRecordingId(), bbbRec.getType(), scheduleId);
+
+            } catch (Exception e) {
+                // BC-11: Per-recording failure — log and continue with others
+                log.error("[Sync] Failed to sync recording {} for scheduleId={}: {}",
+                        bbbRec.getRecordingId(), scheduleId, e.getMessage());
+                failCount++;
+            }
+        }
+
+        // Step 6: Persist only if something new was added
+        if (newCount > 0) {
+            try {
+                schedule.setProviderRecordingsJson(objectMapper.writeValueAsString(updated));
+                schedule.setLastRecordingSyncAt(new Date());
+                scheduleRepository.save(schedule);
+            } catch (Exception e) {
+                // BC-12: DB write failure — return in-memory results, log error
+                log.error("[Sync] Failed to persist synced recordings for scheduleId={}: {}",
+                        scheduleId, e.getMessage());
+            }
+        }
+
+        // BC-13: Enrich all URLs before returning
+        List<MeetingRecordingDTO> enriched = enrichUrls(updated);
+
+        if (failCount > 0 && newCount == 0) {
+            return RecordingSyncResultDTO.bbbOffline(enriched); // all failed — treat as offline
+        }
+        if (failCount > 0) {
+            return RecordingSyncResultDTO.partial(enriched, newCount, failCount);
+        }
+        return RecordingSyncResultDTO.ok(enriched, newCount);
+    }
+
+    /** Downloads bytes from a URL with a 10-minute timeout. */
+    private byte[] downloadFromUrl(String url) {
+        return webClientBuilder.build()
+                .get()
+                .uri(URI.create(url))
+                .retrieve()
+                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                        resp -> resp.bodyToMono(String.class)
+                                .map(body -> new VacademyException("BBB download error: " + body)))
+                .bodyToMono(byte[].class)
+                .timeout(Duration.ofMinutes(10))
+                .block();
+    }
+
+    /** Parses provider_recordings_json to a mutable list; returns empty list on null/blank/parse error. */
+    private List<MeetingRecordingDTO> parseExistingRecordings(SessionSchedule schedule) {
         if (schedule.getProviderRecordingsJson() == null || schedule.getProviderRecordingsJson().isBlank()) {
-            return List.of();
+            return new ArrayList<>();
         }
         try {
-            List<MeetingRecordingDTO> all = objectMapper.readValue(
+            return new ArrayList<>(objectMapper.readValue(
                     schedule.getProviderRecordingsJson(),
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, MeetingRecordingDTO.class));
-            // Return only S3-uploaded recordings (those with a fileId set by the post-publish hook).
-            // BBB-native hosted playback URLs (no fileId) are excluded.
-            return all.stream()
-                    .filter(r -> r.getFileId() != null && !r.getFileId().isBlank())
-                    .collect(java.util.stream.Collectors.toList());
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, MeetingRecordingDTO.class)));
         } catch (Exception e) {
-            log.warn("Failed to parse recordings for schedule {}: {}", scheduleId, e.getMessage());
-            return List.of();
+            log.warn("[Sync] Could not parse existing recordings for schedule {}: {}", schedule.getId(), e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    /** Enriches recordings that have a fileId but missing URL. */
+    private List<MeetingRecordingDTO> enrichUrls(List<MeetingRecordingDTO> recordings) {
+        return recordings.stream()
+                .filter(r -> r.getFileId() != null && !r.getFileId().isBlank())
+                .map(r -> {
+                    if (r.getDownloadUrl() == null || r.getDownloadUrl().isBlank()) {
+                        try {
+                            String url = mediaService.getFilePublicUrlByIdWithoutExpiry(r.getFileId());
+                            r.setDownloadUrl(url);
+                            r.setPlaybackUrl(url);
+                        } catch (Exception e) {
+                            log.warn("[Sync] Failed to resolve S3 URL for fileId={}: {}", r.getFileId(), e.getMessage());
+                        }
+                    }
+                    return r;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /** Minimal MultipartFile wrapping a byte array, used for S3 uploads. */
+    private static class ByteArrayMultipartFile implements MultipartFile {
+        private final byte[] content;
+        private final String fileName;
+        private final String contentType;
+
+        ByteArrayMultipartFile(byte[] content, String fileName, String contentType) {
+            this.content = content;
+            this.fileName = fileName;
+            this.contentType = contentType;
+        }
+
+        @Override public String getName() { return fileName; }
+        @Override public String getOriginalFilename() { return fileName; }
+        @Override public String getContentType() { return contentType; }
+        @Override public boolean isEmpty() { return content == null || content.length == 0; }
+        @Override public long getSize() { return content.length; }
+        @Override public byte[] getBytes() { return content; }
+        @Override public InputStream getInputStream() { return new ByteArrayInputStream(content); }
+        @Override public void transferTo(java.io.File dest) throws java.io.IOException {
+            try (var out = new java.io.FileOutputStream(dest)) { out.write(content); }
         }
     }
 

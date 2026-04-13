@@ -550,31 +550,40 @@ public class BbbMeetingManager implements LiveSessionProviderStrategy {
             long startTimeMs = Long.parseLong(getChildText(rec, "startTime", "0"));
             long endTimeMs = Long.parseLong(getChildText(rec, "endTime", "0"));
             long durationSecs = (endTimeMs - startTimeMs) / 1000;
+            String startTimeIso = new Date(startTimeMs).toInstant().toString();
 
-            // Get playback URL — BBB 3.0 structure:
-            // <playback><format><url>...</url></format></playback>
-            String playbackUrl = null;
+            // BBB 3.0 structure: <playback><format><type>...</type><url>...</url></format></playback>
+            // A recording can have multiple formats (presentation, video, webcams, etc).
+            // Emit one MeetingRecordingDTO per format so all are surfaced.
             NodeList playbackNodes = rec.getElementsByTagName("playback");
             if (playbackNodes.getLength() > 0) {
                 Element playback = (Element) playbackNodes.item(0);
                 NodeList formats = playback.getElementsByTagName("format");
-                if (formats.getLength() > 0) {
-                    Element format = (Element) formats.item(0);
-                    String extractedUrl = getChildText(format, "url", "");
-                    if (!extractedUrl.isEmpty()) {
-                        playbackUrl = extractedUrl;
-                    }
-                }
-            }
+                for (int j = 0; j < formats.getLength(); j++) {
+                    Element format = (Element) formats.item(j);
+                    String formatType = getChildText(format, "type", "presentation");
+                    String formatUrl = getChildText(format, "url", "");
+                    if (formatUrl.isEmpty()) continue;
 
-            recordings.add(MeetingRecordingDTO.builder()
-                    .recordingId(recordId)
-                    .playbackUrl(playbackUrl)
-                    .downloadUrl(playbackUrl)
-                    .durationSeconds(durationSecs)
-                    .startTime(new Date(startTimeMs).toInstant().toString())
-                    .providerMeetingId(providerMeetingId)
-                    .build());
+                    recordings.add(MeetingRecordingDTO.builder()
+                            .recordingId(recordId + "-" + formatType)
+                            .playbackUrl(formatUrl)
+                            .downloadUrl(formatUrl)
+                            .durationSeconds(durationSecs)
+                            .startTime(startTimeIso)
+                            .providerMeetingId(providerMeetingId)
+                            .type(formatType)
+                            .build());
+                }
+            } else {
+                // No playback section — still emit a minimal entry so the caller knows this recording exists
+                recordings.add(MeetingRecordingDTO.builder()
+                        .recordingId(recordId)
+                        .durationSeconds(durationSecs)
+                        .startTime(startTimeIso)
+                        .providerMeetingId(providerMeetingId)
+                        .build());
+            }
         }
         return recordings;
     }

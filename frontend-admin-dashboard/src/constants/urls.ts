@@ -395,6 +395,7 @@ export const LIVE_SESSION_REPORT_BY_SESSION_ID = `${BASE_URL}/admin-core-service
 export const ADMIN_MARK_ATTENDANCE = `${BASE_URL}/admin-core-service/live-session/admin-mark-attendance`;
 export const CREATE_PROVIDER_MEETING = `${BASE_URL}/admin-core-service/live-sessions/provider/meeting/create`;
 export const GET_SCHEDULE_RECORDINGS = `${BASE_URL}/admin-core-service/live-sessions/provider/meeting/recordings`;
+export const SYNC_RECORDINGS_FROM_BBB = `${BASE_URL}/admin-core-service/live-sessions/provider/meeting/recordings/sync`;
 
 // export const GET_ALL_FACULTY = `${BASE_URL}/admin-core-service/institute/v1/faculty/faculty/get-all`;
 export const GET_FACULTY_BY_INSTITUTE_CREATORS_ONLY = `${BASE_URL}/admin-core-service/open/institute/v1/faculty/by-institute/only-creator`;

@@ -9,6 +9,7 @@ import vacademy.io.admin_core_service.features.live_session.entity.SessionSchedu
 import vacademy.io.admin_core_service.features.live_session.enums.SessionLog;
 import vacademy.io.admin_core_service.features.live_session.provider.dto.ProviderMeetingCreateRequestDTO;
 import vacademy.io.admin_core_service.features.live_session.provider.dto.ProviderConnectRequestDTO;
+import vacademy.io.admin_core_service.features.live_session.provider.dto.RecordingSyncResultDTO;
 import vacademy.io.admin_core_service.features.live_session.provider.entity.LiveSessionProviderConfig;
 import vacademy.io.admin_core_service.features.live_session.provider.manager.BbbMeetingManager;
 import vacademy.io.admin_core_service.features.live_session.provider.service.BbbServerRouter;
@@ -146,6 +147,20 @@ public class LiveSessionProviderController {
             @RequestParam String scheduleId,
             @RequestParam String instituteId) {
         return ResponseEntity.ok(providerService.getRecordings(scheduleId, instituteId));
+    }
+
+    /**
+     * POST /admin-core/live-session/provider/meeting/recordings/sync
+     * Admin escape hatch: fetches recordings directly from BBB, downloads any
+     * missing, uploads to S3, and persists fileIds.
+     * Returns status=BBB_OFFLINE when BBB is unreachable (it's often down).
+     * Only call this after 2 hours from session start — enforced on the frontend.
+     */
+    @PostMapping("/meeting/recordings/sync")
+    public ResponseEntity<RecordingSyncResultDTO> syncRecordings(
+            @RequestParam String scheduleId,
+            @RequestParam String instituteId) {
+        return ResponseEntity.ok(providerService.syncRecordingsFromBbb(scheduleId, instituteId));
     }
 
     /**

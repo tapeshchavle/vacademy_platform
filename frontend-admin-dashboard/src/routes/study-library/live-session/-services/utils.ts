@@ -10,6 +10,7 @@ import {
     SEARCH_SESSIONS,
     ADMIN_MARK_ATTENDANCE,
     GET_SCHEDULE_RECORDINGS,
+    SYNC_RECORDINGS_FROM_BBB,
 } from '@/constants/urls';
 import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
 
@@ -472,5 +473,24 @@ export const getScheduleRecordings = async (
     const response = await authenticatedAxiosInstance.get(GET_SCHEDULE_RECORDINGS, {
         params: { scheduleId, instituteId },
     });
+    return response.data;
+};
+
+export interface RecordingSyncResult {
+    recordings: MeetingRecording[];
+    /** "OK" | "BBB_OFFLINE" | "PARTIAL" */
+    status: string;
+    message: string;
+}
+
+export const syncRecordingsFromBbb = async (
+    scheduleId: string,
+    instituteId: string
+): Promise<RecordingSyncResult> => {
+    const response = await authenticatedAxiosInstance.post<RecordingSyncResult>(
+        SYNC_RECORDINGS_FROM_BBB,
+        null,
+        { params: { scheduleId, instituteId } }
+    );
     return response.data;
 };

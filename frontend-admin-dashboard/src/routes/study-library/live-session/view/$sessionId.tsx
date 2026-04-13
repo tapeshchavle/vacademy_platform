@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { BASE_URL } from '@/constants/urls';
 import { getPublicUrl } from '@/services/upload_file';
-import { getSessionBySessionId, getLiveSessionReport, getScheduleRecordings } from '../-services/utils';
+import { getSessionBySessionId, getLiveSessionReport, getScheduleRecordings, syncRecordingsFromBbb } from '../-services/utils';
 import type { SessionBySessionIdResponse, LiveSessionReport, MeetingRecording } from '../-services/utils';
 import { AttendanceMarkingTable } from '../-components/AttendanceMarkingTable';
 import {
@@ -27,6 +27,8 @@ import {
     Download,
     Clock,
     RefreshCw,
+    CloudDownload,
+    AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SessionCalendarView } from '../-components/session-calendar-view';
@@ -122,6 +124,7 @@ function ViewLiveSession() {
     const [recordingUrls, setRecordingUrls] = useState<Record<string, string>>({});
     const [refreshedRecordings, setRefreshedRecordings] = useState<Record<string, MeetingRecording[]>>({});
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     useEffect(() => {
         const fetchSessionDetails = async () => {
@@ -347,7 +350,90 @@ function ViewLiveSession() {
         content: 'Presenter View',
         webcams: 'Webcam View',
         full: 'Full Recording',
+        presentation: 'Presentation',
+        video: 'Video',
     };
+
+    // Sync from BBB: only available 2 hours after the earliest past session start time.
+    const canShowSyncButton = useMemo(() => {
+        const pastSessions = groupedSchedules.flatMap((day) =>
+            day.sessions
+                .filter((s) => s.status === 'past')
+                .map((s) => {
+                    try {
+                        const dt = new Date(`${day.date}T${s.time ?? '00:00:00'}`);
+                        return dt;
+                    } catch {
+                        return null;
+                    }
+                })
+                .filter(Boolean) as Date[]
+        );
+        if (pastSessions.length === 0) return false;
+        const earliest = pastSessions.reduce((a, b) => (a < b ? a : b));
+        const twoHoursAfter = new Date(earliest.getTime() + 2 * 60 * 60 * 1000);
+        return new Date() >= twoHoursAfter;
+    }, [groupedSchedules]);
+
+    const handleSyncFromBbb = useCallback(async () => {
+        const instituteId = sessionData?.schedule?.institute_id;
+        if (!instituteId) return;
+        setIsSyncing(true);
+        try {
+            const pastScheduleIds = groupedSchedules.flatMap((day) =>
+                day.sessions.filter((s) => s.status === 'past').map((s) => s.id)
+            );
+            const uniqueIds = [...new Set(pastScheduleIds)];
+            // Collect per-schedule results sequentially to avoid concurrent writes
+            // to shared status/message variables (race condition with Promise.all).
+            const results: Record<string, MeetingRecording[]> = {};
+            let overallStatus = 'OK';
+            let totalNew = 0;
+            let totalFail = 0;
+            let anySucceeded = false;
+
+            await Promise.all(
+                uniqueIds.map(async (scheduleId) => {
+                    try {
+                        const result = await syncRecordingsFromBbb(scheduleId, instituteId);
+                        results[scheduleId] = result.recordings;
+                        anySucceeded = true;
+                        // Escalate severity: BBB_OFFLINE > PARTIAL > OK
+                        if (result.status === 'BBB_OFFLINE') overallStatus = 'BBB_OFFLINE';
+                        else if (result.status === 'PARTIAL' && overallStatus !== 'BBB_OFFLINE')
+                            overallStatus = 'PARTIAL';
+                        // Parse counts from the structured message to aggregate across schedules
+                        const newMatch = result.message.match(/found (\d+) new/);
+                        const failMatch = result.message.match(/(\d+) could not/);
+                        if (newMatch) totalNew += parseInt(newMatch[1]!, 10);
+                        if (failMatch) totalFail += parseInt(failMatch[1]!, 10);
+                    } catch {
+                        // Network/5xx — keep existing recordings for this schedule, don't alter status
+                    }
+                })
+            );
+
+            setRefreshedRecordings((prev) => ({ ...prev, ...results }));
+
+            if (!anySucceeded) {
+                // Every API call threw — network down or all 5xx
+                toast.error('Sync failed. Recordings will appear automatically after the server processes them.');
+            } else if (overallStatus === 'BBB_OFFLINE') {
+                toast.warning('BBB server is currently offline. Recordings will appear once it\'s back online.');
+            } else if (overallStatus === 'PARTIAL') {
+                const msg = `Partially synced — ${totalNew} recording(s) synced, ${totalFail} could not be retrieved.`;
+                toast.warning(msg);
+            } else if (totalNew > 0) {
+                toast.success(`Sync complete — found ${totalNew} new recording(s).`);
+            } else {
+                toast.success('Already up to date.');
+            }
+        } catch {
+            toast.error('Sync failed. Recordings will appear automatically after the server processes them.');
+        } finally {
+            setIsSyncing(false);
+        }
+    }, [sessionData, groupedSchedules]);
 
     const handleRefreshRecordings = useCallback(async () => {
         const instituteId = sessionData?.schedule?.institute_id;
@@ -916,14 +1002,35 @@ function ViewLiveSession() {
                                             Recordings are usually ready 10–20 min after the session ends.
                                         </p>
                                     </div>
-                                    <button
-                                        onClick={handleRefreshRecordings}
-                                        disabled={isRefreshing}
-                                        className="flex items-center gap-2 rounded-md border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 disabled:opacity-50"
-                                    >
-                                        <RefreshCw className={cn('size-3', isRefreshing && 'animate-spin')} />
-                                        {isRefreshing ? 'Checking...' : 'Fetch Recordings'}
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={handleRefreshRecordings}
+                                            disabled={isRefreshing || isSyncing}
+                                            className="flex items-center gap-2 rounded-md border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 disabled:opacity-50"
+                                        >
+                                            <RefreshCw className={cn('size-3', isRefreshing && 'animate-spin')} />
+                                            {isRefreshing ? 'Checking...' : 'Refresh'}
+                                        </button>
+                                        {canShowSyncButton && (
+                                            <button
+                                                onClick={handleSyncFromBbb}
+                                                disabled={isSyncing || isRefreshing}
+                                                className="flex items-center gap-2 rounded-md border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-medium text-orange-700 transition-colors hover:bg-orange-100 disabled:opacity-50"
+                                            >
+                                                <CloudDownload className={cn('size-3', isSyncing && 'animate-pulse')} />
+                                                {isSyncing ? 'Syncing...' : 'Sync from BBB'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    {canShowSyncButton && (
+                                        <div className="flex items-start gap-1.5 rounded-md border border-orange-100 bg-orange-50/60 px-3 py-2 text-left text-xs text-orange-600">
+                                            <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+                                            <span>
+                                                Fetching recordings directly from the meeting server may temporarily
+                                                increase its load. Use only if recordings haven&apos;t appeared after 2 hours.
+                                            </span>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         )}
