@@ -778,7 +778,7 @@ export function QuickAddView({ search }: { search: ChapterSearchParamsForQuickAd
                         prev.map((it) => (it.id === item.id ? { ...it, status: 'done' } : it))
                     );
                 } else if (item.kind === 'EXTERNAL_LINK' && item.url) {
-                    const html = `<html><head></head><body><div><a href='${item.url}' target='_blank' rel='noreferrer noopener'>${item.url}</a></div></body></html>`;
+                    const html = `<html><head></head><body><p><a href='${item.url}' target='_blank' rel='noreferrer noopener'>${item.url}</a></p></body></html>`;
                     const normalized = normalizeHtmlQuotes(html);
                     const id = crypto.randomUUID();
                     const resp: string = await addUpdateDocumentSlide({

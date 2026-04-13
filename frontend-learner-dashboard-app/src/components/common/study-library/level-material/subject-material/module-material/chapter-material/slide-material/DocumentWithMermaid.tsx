@@ -684,6 +684,12 @@ export const DocumentWithMermaid: React.FC<DocumentWithMermaidProps> = ({
                     border-radius: 50%;
                 }
                 
+                .document-with-mermaid img {
+                    width: auto;
+                    height: auto;
+                    max-width: 100%;
+                }
+
                 .document-with-mermaid blockquote {
                     position: relative;
                     padding: 1rem 1.5rem;
