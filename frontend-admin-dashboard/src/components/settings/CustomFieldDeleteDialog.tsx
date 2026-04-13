@@ -124,7 +124,7 @@ export const CustomFieldDeleteDialog: React.FC<CustomFieldDeleteDialogProps> = (
         (acc, usage) => {
             const key = usage.type;
             if (!acc[key]) acc[key] = [];
-            acc[key].push(usage);
+            acc[key]!.push(usage);
             return acc;
         },
         {}
