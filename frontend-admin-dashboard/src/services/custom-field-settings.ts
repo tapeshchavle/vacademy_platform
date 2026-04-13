@@ -1295,10 +1295,14 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                     const fieldId = usageItem.custom_field.id;
                     if (!fieldId) return;
 
+                    // Only merge fields that have a DEFAULT_CUSTOM_FIELD
+                    // mapping. Feature-scoped fields (ENROLL_INVITE,
+                    // AUDIENCE_FORM, SESSION, ASSESSMENT) must NOT leak into
+                    // the settings blob — otherwise saving from Settings
+                    // would create a spurious DEFAULT mapping for them.
+                    if (!usageItem.default) return;
+
                     if (!existingFieldIds.has(fieldId)) {
-                        console.log(
-                            `[DEBUG] Found new field in usage list: ${usageItem.custom_field.fieldName} (${fieldId})`
-                        );
 
                         // Construct a default ApiCustomField
                         // We default to 'text' if type is unknown or missing, though usageItem should have it
@@ -1347,10 +1351,12 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                 });
             }
 
-            // Filter out DELETED fields: keep only fields that have at least
-            // one ACTIVE mapping (i.e. appear in the usage response). The JSON
-            // blob is a stale snapshot and may contain fields that were
-            // soft-deleted via the cascade-delete dialog.
+            // Filter the blob to only include fields that have at least one
+            // ACTIVE mapping of ANY type (DEFAULT, ENROLL_INVITE, etc.).
+            // This removes fields that were fully soft-deleted. Feature-scoped
+            // fields are kept for display (with usage counts) but will NOT
+            // be saved as DEFAULT — the merge guard above (`!usageItem.default`)
+            // and the backend's own logic handle that.
             if (usageResponse.data && Array.isArray(usageResponse.data) && Array.isArray(apiData.currentCustomFieldsAndGroups)) {
                 const activeFieldIds = new Set<string>(
                     usageResponse.data
@@ -1547,13 +1553,11 @@ export const saveCustomFieldSettings = async (
             },
         });
 
-        // Update cache with the saved settings
-        const updatedSettings = {
-            ...settings,
-            lastUpdated: new Date().toISOString(),
-            version: (settings.version || 0) + 1,
-        };
-        setCachedSettings(updatedSettings);
+        // Invalidate the cache so the next read (from any page — invite
+        // dialog, live session step 2, etc.) triggers a fresh API fetch
+        // with the backend-assigned UUIDs. Writing the UI state to cache
+        // here would preserve temp_ IDs that don't match real DB rows.
+        localStorage.removeItem(LOCALSTORAGE_KEY);
 
         return {
             success: true,

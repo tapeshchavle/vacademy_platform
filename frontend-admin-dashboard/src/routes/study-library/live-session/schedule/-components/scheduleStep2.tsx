@@ -382,13 +382,14 @@ export default function ScheduleStep2() {
     useEffect(() => {
         if (isEditState) {
             if (accessType === AccessType.PUBLIC) {
+                const SEEDED_LABELS = ['full name', 'email', 'phone number', 'mobile number'];
                 const fields =
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     sessionDetails?.notifications?.addedFields.map((field: any) => ({
                         id: field.id,
                         label: field.label,
                         required: field.required,
-                        isDefault: false,
+                        isDefault: SEEDED_LABELS.includes((field.label || '').toLowerCase()),
                         type: field.type,
                     })) ?? [];
 
@@ -412,12 +413,13 @@ export default function ScheduleStep2() {
                 ...(settings?.customFields || []),
                 ...(settings?.instituteFields || []),
             ];
+            const SEEDED = ['full name', 'email', 'phone number', 'mobile number'];
             let allFields;
             if (settingsFields.length > 0) {
                 allFields = settingsFields.map((f) => ({
                     label: f.name,
-                    required: f.required,
-                    isDefault: false,
+                    required: f.required || SEEDED.includes(f.name.toLowerCase()),
+                    isDefault: !f.canBeDeleted || SEEDED.includes(f.name.toLowerCase()),
                     type: f.type === 'dropdown' ? InputType.DROPDOWN : InputType.TEXT,
                     ...(f.type === 'dropdown' && f.options ? {
                         options: f.options.map((opt) => ({ label: opt, name: opt })),
@@ -425,9 +427,9 @@ export default function ScheduleStep2() {
                 }));
             } else {
                 allFields = [
-                    { label: 'Full Name', required: true, isDefault: false, type: InputType.TEXT },
-                    { label: 'Email', required: true, isDefault: false, type: InputType.TEXT },
-                    { label: 'Mobile Number', required: false, isDefault: false, type: InputType.TEXT },
+                    { label: 'Full Name', required: true, isDefault: true, type: InputType.TEXT },
+                    { label: 'Email', required: true, isDefault: true, type: InputType.TEXT },
+                    { label: 'Mobile Number', required: false, isDefault: true, type: InputType.TEXT },
                     { label: 'State', required: true, isDefault: false, type: InputType.TEXT },
                     { label: 'City/Village', required: true, isDefault: false, type: InputType.TEXT },
                 ];
@@ -724,27 +726,25 @@ export default function ScheduleStep2() {
                                                             <DotsSixVertical />
                                                         </SortableDragHandle>
                                                     </div>
-                                                    {!field.isDefault && (
-                                                        <div className="flex items-center gap-4">
-                                                            <Controller
-                                                                control={control}
-                                                                name={`fields.${index}.required`}
-                                                                render={({ field }) => (
-                                                                    <label className="flex items-center gap-2">
-                                                                        <span className="text-sm">
-                                                                            Required
-                                                                        </span>
-                                                                        <Switch
-                                                                            checked={field.value}
-                                                                            onCheckedChange={
-                                                                                field.onChange
-                                                                            }
-                                                                        />
-                                                                    </label>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
+                                                    <div className="flex items-center gap-4">
+                                                        <Controller
+                                                            control={control}
+                                                            name={`fields.${index}.required`}
+                                                            render={({ field }) => (
+                                                                <label className="flex items-center gap-2">
+                                                                    <span className="text-sm">
+                                                                        Required
+                                                                    </span>
+                                                                    <Switch
+                                                                        checked={field.value}
+                                                                        onCheckedChange={
+                                                                            field.onChange
+                                                                        }
+                                                                    />
+                                                                </label>
+                                                            )}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </SortableItem>
                                         </SortableItem>

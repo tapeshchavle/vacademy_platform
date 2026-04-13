@@ -145,6 +145,7 @@ export const REGISTER_USER = `${BASE_URL}/auth-service/learner/v1/register`;
 
 export const urlInstituteDetails = `${BASE_URL}/admin-core-service/public/institute/v1/details-non-batches`;
 export const urlCourseDetails = `${BASE_URL}/admin-core-service/open/packages/v2/search`;
+export const urlOpenLevels = `${BASE_URL}/admin-core-service/open/level/v1/get-levels`;
 export const urlPublicCourseDetails = `${BASE_URL}/admin-core-service/learner-packages/v1/search`;
 // export const urlInstructor = `${BASE_URL}/auth-service/public/v1/users-of-status`;
 export const urlInstructor = `${BASE_URL}/admin-core-service/open/institute/v1/faculty/by-institute/only-creator`;

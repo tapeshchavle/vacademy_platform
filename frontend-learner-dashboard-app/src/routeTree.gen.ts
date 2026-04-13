@@ -14,6 +14,7 @@ import { Route as TermsAndConditionsIndexRouteImport } from './routes/terms-and-
 import { Route as SubOrgLearnersIndexRouteImport } from './routes/sub-org-learners/index'
 import { Route as StudyLibraryIndexRouteImport } from './routes/study-library/index'
 import { Route as SignupIndexRouteImport } from './routes/signup/index'
+import { Route as SessionTerminatedIndexRouteImport } from './routes/session-terminated/index'
 import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as ReferralIndexRouteImport } from './routes/referral/index'
 import { Route as PrivacyPolicyIndexRouteImport } from './routes/privacy-policy/index'
@@ -110,6 +111,11 @@ const StudyLibraryIndexRoute = StudyLibraryIndexRouteImport.update({
 const SignupIndexRoute = SignupIndexRouteImport.update({
   id: '/signup/',
   path: '/signup/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SessionTerminatedIndexRoute = SessionTerminatedIndexRouteImport.update({
+  id: '/session-terminated/',
+  path: '/session-terminated/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterIndexRoute = RegisterIndexRouteImport.update({
@@ -533,6 +539,7 @@ export interface FileRoutesByFullPath {
   '/privacy-policy': typeof PrivacyPolicyIndexRoute
   '/referral': typeof ReferralIndexRoute
   '/register': typeof RegisterIndexRoute
+  '/session-terminated': typeof SessionTerminatedIndexRoute
   '/signup': typeof SignupIndexRoute
   '/study-library': typeof StudyLibraryIndexRoute
   '/sub-org-learners': typeof SubOrgLearnersIndexRoute
@@ -611,6 +618,7 @@ export interface FileRoutesByTo {
   '/privacy-policy': typeof PrivacyPolicyIndexRoute
   '/referral': typeof ReferralIndexRoute
   '/register': typeof RegisterIndexRoute
+  '/session-terminated': typeof SessionTerminatedIndexRoute
   '/signup': typeof SignupIndexRoute
   '/study-library': typeof StudyLibraryIndexRoute
   '/sub-org-learners': typeof SubOrgLearnersIndexRoute
@@ -691,6 +699,7 @@ export interface FileRoutesById {
   '/privacy-policy/': typeof PrivacyPolicyIndexRoute
   '/referral/': typeof ReferralIndexRoute
   '/register/': typeof RegisterIndexRoute
+  '/session-terminated/': typeof SessionTerminatedIndexRoute
   '/signup/': typeof SignupIndexRoute
   '/study-library/': typeof StudyLibraryIndexRoute
   '/sub-org-learners/': typeof SubOrgLearnersIndexRoute
@@ -772,6 +781,7 @@ export interface FileRouteTypes {
     | '/privacy-policy'
     | '/referral'
     | '/register'
+    | '/session-terminated'
     | '/signup'
     | '/study-library'
     | '/sub-org-learners'
@@ -850,6 +860,7 @@ export interface FileRouteTypes {
     | '/privacy-policy'
     | '/referral'
     | '/register'
+    | '/session-terminated'
     | '/signup'
     | '/study-library'
     | '/sub-org-learners'
@@ -929,6 +940,7 @@ export interface FileRouteTypes {
     | '/privacy-policy/'
     | '/referral/'
     | '/register/'
+    | '/session-terminated/'
     | '/signup/'
     | '/study-library/'
     | '/sub-org-learners/'
@@ -1009,6 +1021,7 @@ export interface RootRouteChildren {
   PrivacyPolicyIndexRoute: typeof PrivacyPolicyIndexRoute
   ReferralIndexRoute: typeof ReferralIndexRoute
   RegisterIndexRoute: typeof RegisterIndexRoute
+  SessionTerminatedIndexRoute: typeof SessionTerminatedIndexRoute
   SignupIndexRoute: typeof SignupIndexRoute
   StudyLibraryIndexRoute: typeof StudyLibraryIndexRoute
   SubOrgLearnersIndexRoute: typeof SubOrgLearnersIndexRoute
@@ -1096,6 +1109,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/session-terminated/': {
+      id: '/session-terminated/'
+      path: '/session-terminated'
+      fullPath: '/session-terminated'
+      preLoaderRoute: typeof SessionTerminatedIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register/': {
@@ -1644,6 +1664,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyPolicyIndexRoute: PrivacyPolicyIndexRoute,
   ReferralIndexRoute: ReferralIndexRoute,
   RegisterIndexRoute: RegisterIndexRoute,
+  SessionTerminatedIndexRoute: SessionTerminatedIndexRoute,
   SignupIndexRoute: SignupIndexRoute,
   StudyLibraryIndexRoute: StudyLibraryIndexRoute,
   SubOrgLearnersIndexRoute: SubOrgLearnersIndexRoute,
