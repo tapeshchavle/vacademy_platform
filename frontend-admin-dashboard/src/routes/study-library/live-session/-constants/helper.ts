@@ -97,7 +97,7 @@ export interface LiveSessionStep2RequestDTO {
 
 export interface NotificationActionDTO {
     id: string | null;
-    type: 'ON_CREATE' | 'ON_LIVE' | 'BEFORE_LIVE' | 'ATTENDANCE';
+    type: 'ON_CREATE' | 'ON_LIVE' | 'BEFORE_LIVE' | 'ATTENDANCE' | 'ON_EDIT';
     notify_by: NotifyBy;
     time: string | null;
     notify: boolean;
@@ -383,6 +383,16 @@ export function transformFormToDTOStep2(
         addedNotificationActions.push({
             id: null,
             type: 'ON_CREATE',
+            notify_by: notifyByPayload,
+            notify: true,
+            time: null,
+        });
+    }
+
+    if (notifySettings.onEdit) {
+        addedNotificationActions.push({
+            id: null,
+            type: 'ON_EDIT',
             notify_by: notifyByPayload,
             notify: true,
             time: null,

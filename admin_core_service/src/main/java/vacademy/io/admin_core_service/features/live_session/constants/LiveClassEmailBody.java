@@ -65,6 +65,68 @@ public class LiveClassEmailBody {
             </html>
             """;
 
+    public static String Live_Class_Edit_Email_Body="""
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="UTF-8" />
+                <title>Live Class Rescheduled</title>
+              </head>
+              <body style="margin:0; padding:0; background-color:#fdf5f2; font-family: Arial, sans-serif;">
+                <table role="presentation" style="width:100%; border-collapse:collapse; background-color:#fdf5f2; padding:40px 0;">
+                  <tr>
+                    <td align="center">
+                      <table role="presentation" style="width:600px; background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+                        <tr>
+                          <td style="background:{{THEME_COLOR}}; padding:20px; text-align:center; color:#fff;">
+                            <h1 style="margin:0; font-size:24px;">🔄 Live Class {{ACTION}}</h1>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:30px; color:#333;">
+                            <p style="font-size:16px;">Hi <strong>{{NAME}}</strong>,</p>
+
+                            <p style="font-size:16px; line-height:1.6;">
+                              Please note that your live class <strong>{{SESSION_TITLE}}</strong> has been updated. Below are the latest schedule details — kindly take a moment to review them.
+                            </p>
+                            <table role="presentation" style="margin:20px 0; width:100%;">
+                              <tr>
+                                <td style="padding:15px; background:#fff3ec; border:1px solid #ffe0d1; border-radius:6px;">
+                                  <p style="margin:5px 0 0 0; font-size:15px; text-align:center"> {{ALL_TIMEZONE_TIMES}}</p>
+                                </td>
+                              </tr>
+                            </table>
+
+                            <div style="text-align:center; margin:30px 0;">
+                              <a href="{{LINK}}" target="_blank"
+                                 style="display:inline-block; padding:12px 24px; background:{{THEME_COLOR}}; color:#fff;
+                                        font-size:16px; font-weight:bold; text-decoration:none; border-radius:6px;">
+                                Join the Live Class
+                              </a>
+                            </div>
+
+                            <p style="font-size:15px; line-height:1.6;">
+                              We apologise for any inconvenience the change may cause and look forward to seeing you at the new time.
+                            </p>
+                            <p style="font-size:15px; line-height:1.6; margin-top:20px;">
+                              Best regards,<br/>
+                              <strong>Your Team</strong>
+                            </p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="background:#fbeae3; text-align:center; padding:15px; font-size:12px; color:#777;">
+                            © 2025 Your Organization. All rights reserved.
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </body>
+            </html>
+            """;
+
     public static String Live_Class_Delete_Email_Body="""
             <!DOCTYPE html>
             <html>
