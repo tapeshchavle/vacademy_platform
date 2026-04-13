@@ -159,30 +159,43 @@ export function transformApiDataToDummyStructure(data: ApiCourseData[]) {
     return { dummyCourses, dummyBatches };
 }
 
+/**
+ * Normalize the invite form's field type (which may be "textfield") to the
+ * backend's expected values: "text" | "number" | "dropdown".
+ */
+function normalizeFieldType(uiType: string): string {
+    if (uiType === 'textfield') return 'text';
+    if (uiType === 'dropdown' || uiType === 'number') return uiType;
+    return 'text';
+}
+
 function transformCustomFields(customFields: CustomField[], instituteId: string) {
     const toSnakeCase = (str: string | null | undefined) =>
         (str ?? '')
             .trim()
-            .replace(/\s+/g, '_') // Replace spaces with underscores
-            .replace(/([a-z])([A-Z])/g, '$1_$2') // Add underscore between camelCase transitions
+            .replace(/\s+/g, '_')
+            .replace(/([a-z])([A-Z])/g, '$1_$2')
             .toLowerCase();
     return customFields.map((field, index) => {
-        const isDropdown = field.type === 'dropdown';
+        const backendType = normalizeFieldType(field.type);
+        const isDropdown = backendType === 'dropdown';
         const options = isDropdown ? field.options?.map((opt) => opt.value).join(',') : '';
 
         return {
-            // Only set id (mapping ID) if _id (custom field ID) is present, indicating an existing field
-            // For new fields, id should be empty so the backend can create a new mapping
             id: field._id ? (field.id || '') : '',
             institute_id: instituteId,
-            type: field.type,
+            // `type` here is the institute_custom_fields.type (feature type),
+            // NOT the field's data type. The backend's saveInstituteCustomFields
+            // stamps ENROLL_INVITE on every DTO before persisting, so we leave
+            // this empty and let the backend control it.
+            type: '',
             type_id: '',
             custom_field: {
                 guestId: '',
-                id: field._id || '', // Use _id for the custom field ID (custom_field.id)
+                id: field._id || '',
                 fieldKey: toSnakeCase(field.name),
                 fieldName: field.name,
-                fieldType: field.type,
+                fieldType: backendType,
                 defaultValue: '',
                 config: isDropdown ? JSON.stringify({ coommaSepartedOptions: options }) : '',
                 formOrder: index,

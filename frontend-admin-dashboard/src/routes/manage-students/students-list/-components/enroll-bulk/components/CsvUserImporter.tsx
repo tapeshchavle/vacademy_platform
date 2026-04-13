@@ -206,13 +206,16 @@ export const CsvUserImporter = ({ onImport, onPaymentInfoDetected }: Props) => {
                 if (onPaymentInfoDetected && result.data.length > 0) {
                     let paymentDate: string | undefined;
                     let transactionId: string | undefined;
+                    const DATE_FORMATS = ['dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd', 'dd-MM-yyyy'];
                     for (const row of result.data) {
                         if (!paymentDate && row.payment_date?.trim()) {
-                            // Parse dd/MM/yyyy and convert to ISO for backend
                             const raw = row.payment_date.trim();
-                            const parsed = parse(raw, 'dd/MM/yyyy', new Date());
-                            if (isValid(parsed)) {
-                                paymentDate = parsed.toISOString();
+                            for (const fmt of DATE_FORMATS) {
+                                const parsed = parse(raw, fmt, new Date());
+                                if (isValid(parsed)) {
+                                    paymentDate = parsed.toISOString();
+                                    break;
+                                }
                             }
                         }
                         if (!transactionId && row.transaction_id?.trim()) {
