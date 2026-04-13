@@ -3031,6 +3031,7 @@ public interface PackageRepository extends JpaRepository<PackageEntity, String> 
                         AND (:#{#packageTypes == null || #packageTypes.isEmpty()} = true OR p.package_type IN (:packageTypes))
                     AND (:#{#packageSessionStatus == null || #packageSessionStatus.isEmpty()} = true OR ps.status IN (:packageSessionStatus))
                     AND (:#{#levelStatus == null || #levelStatus.isEmpty()} = true OR l.status IN (:levelStatus))
+                    AND (:#{#levelIds == null || #levelIds.isEmpty()} = true OR l.id IN (:levelIds))
                     AND (:name IS NULL OR LOWER(p.package_name) LIKE LOWER(CONCAT('%', :name, '%')))
                     AND (:#{#tags == null || #tags.isEmpty()} = true OR string_to_array(p.comma_separated_tags, ',') && CAST(ARRAY[:tags] AS text[]))
                     AND (:#{#createdByUserId == null || #createdByUserId.isEmpty()} = true OR p.created_by_user_id = :createdByUserId)
@@ -3075,6 +3076,7 @@ public interface PackageRepository extends JpaRepository<PackageEntity, String> 
                     AND (:#{#packageTypes == null || #packageTypes.isEmpty()} = true OR p.package_type IN (:packageTypes))
                 AND (:#{#packageSessionStatus == null || #packageSessionStatus.isEmpty()} = true OR ps.status IN (:packageSessionStatus))
                     AND (:#{#levelStatus == null || #levelStatus.isEmpty()} = true OR l.status IN (:levelStatus))
+                    AND (:#{#levelIds == null || #levelIds.isEmpty()} = true OR l.id IN (:levelIds))
                     AND (:name IS NULL OR LOWER(p.package_name) LIKE LOWER(CONCAT('%', :name, '%')))
                     AND (:#{#tags == null || #tags.isEmpty()} = true OR string_to_array(p.comma_separated_tags, ',') && CAST(ARRAY[:tags] AS text[]))
                     AND (:#{#createdByUserId == null || #createdByUserId.isEmpty()} = true OR p.created_by_user_id = :createdByUserId)
@@ -3100,6 +3102,7 @@ public interface PackageRepository extends JpaRepository<PackageEntity, String> 
             @Param("packageTypes") List<String> packageTypes,
             @Param("packageSessionStatus") List<String> packageSessionStatus,
             @Param("levelStatus") List<String> levelStatus,
+            @Param("levelIds") List<String> levelIds,
             @Param("ratingStatuses") List<String> ratingStatuses,
             @Param("slideStatusList") List<String> slideStatusList,
             @Param("chapterPackageStatusList") List<String> chapterPackageStatusList,

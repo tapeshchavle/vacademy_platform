@@ -255,18 +255,18 @@ public class OpenPackageService {
 
                 Page<PackageDetailV2Projection> learnerPackageDetail;
                 if (StringUtils.hasText(learnerPackageFilterDTO.getSearchByName())) {
-                        // Corrected the argument order and passed null for unused filters
                         learnerPackageDetail = packageRepository.getCatalogPackageDetailV2(
                                         learnerPackageFilterDTO.getSearchByName(),
                                         instituteId,
-                                        null, // facultyIds - not used in searchByName
+                                        learnerPackageFilterDTO.getFacultyIds(),
                                         List.of(StatusEnum.ACTIVE.name()), // facultyPackageSessionStatus
-                                        null, // tags - not used in searchByName
+                                        learnerPackageFilterDTO.getTag(),
                                         List.of(PackageStatusEnum.ACTIVE.name()),
                                         learnerPackageFilterDTO.getPackageTypes(),
                                         List.of(PackageSessionStatusEnum.ACTIVE.name(),
                                                         PackageSessionStatusEnum.HIDDEN.name()),
                                         List.of(LevelStatusEnum.ACTIVE.name()),
+                                        learnerPackageFilterDTO.getLevelIds(),
                                         List.of(StatusEnum.ACTIVE.name()), // ratingStatuses
                                         List.of(SlideStatus.PUBLISHED.name(), SlideStatus.UNSYNC.name()),
                                         List.of(ChapterStatus.ACTIVE.name()),
