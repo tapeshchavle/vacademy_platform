@@ -188,7 +188,7 @@ public class BbbMeetingManager implements LiveSessionProviderStrategy {
         // Keys are snake_case because BbbConfigDTO uses @JsonNaming(SnakeCaseStrategy)
         Map<String, Object> bbbCfg = request.getBbbConfig() != null ? request.getBbbConfig() : Map.of();
         boolean record = boolOrDefault(bbbCfg, "record", true);
-        boolean autoStartRec = boolOrDefault(bbbCfg, "auto_start_recording", false);
+        boolean autoStartRec = boolOrDefault(bbbCfg, "auto_start_recording", true);
         boolean muteOnStart = boolOrDefault(bbbCfg, "mute_on_start", true);
         boolean webcamsOnlyForMod = boolOrDefault(bbbCfg, "webcams_only_for_moderator", false);
         String guestPolicy = bbbCfg.containsKey("guest_policy") ? String.valueOf(bbbCfg.get("guest_policy"))
@@ -567,6 +567,7 @@ public class BbbMeetingManager implements LiveSessionProviderStrategy {
 
                     recordings.add(MeetingRecordingDTO.builder()
                             .recordingId(recordId + "-" + formatType)
+                            .bbbInternalId(recordId)
                             .playbackUrl(formatUrl)
                             .downloadUrl(formatUrl)
                             .durationSeconds(durationSecs)
@@ -579,6 +580,7 @@ public class BbbMeetingManager implements LiveSessionProviderStrategy {
                 // No playback section — still emit a minimal entry so the caller knows this recording exists
                 recordings.add(MeetingRecordingDTO.builder()
                         .recordingId(recordId)
+                        .bbbInternalId(recordId)
                         .durationSeconds(durationSecs)
                         .startTime(startTimeIso)
                         .providerMeetingId(providerMeetingId)

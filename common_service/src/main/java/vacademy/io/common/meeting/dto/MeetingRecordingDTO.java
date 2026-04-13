@@ -25,4 +25,6 @@ public class MeetingRecordingDTO {
     private String fileId;
     /** Recording type: "content" (screen share / camera-as-content), "webcams" (participants), "full" (legacy single) */
     private String type;
+    /** BBB internal meeting ID — used as recordID in BBB deleteRecordings API */
+    private String bbbInternalId;
 }

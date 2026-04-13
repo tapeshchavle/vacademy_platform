@@ -864,6 +864,20 @@ cmd_sync() {
         systemctl enable bbb-fix-ip-on-boot.service 2>/dev/null || true
 REMOTE
 
+    echo "[5/5] Deploying recording hook..."
+    ssh $ssh_opts "root@$ip" bash -s <<'REMOTE'
+        HOOK_DIR="/usr/local/bigbluebutton/core/scripts/post_publish"
+        SRC="/root/post-publish-s3-upload.sh"
+        DEST="$HOOK_DIR/post-publish-s3-upload.sh"
+        if [ -f "$SRC" ]; then
+            cp "$SRC" "$DEST"
+            chmod +x "$DEST"
+            echo "  ✓ post-publish-s3-upload.sh deployed to $DEST"
+        else
+            echo "  SKIP: $SRC not found on server"
+        fi
+REMOTE
+
     echo ""
     echo " [$SERVER_SLUG] Sync complete! Remember to stop to save snapshot."
 }

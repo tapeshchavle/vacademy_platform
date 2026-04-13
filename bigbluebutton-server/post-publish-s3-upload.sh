@@ -710,7 +710,9 @@ ANALYTICS_SCRIPT="/usr/local/bigbluebutton/core/scripts/post_events/post_events_
 if [ -f "$ANALYTICS_SCRIPT" ]; then
     log "Running analytics callback..."
     cd /usr/local/bigbluebutton/core/scripts
-    ruby "$ANALYTICS_SCRIPT" -m "$MEETING_ID" 2>&1 | while read line; do log "[analytics] $line"; done
+    # Must pass INTERNAL_MEETING_ID — the analytics script looks up BBB's internal
+    # file paths (events.xml, raw recordings) by internal ID, not external ID.
+    ruby "$ANALYTICS_SCRIPT" -m "$INTERNAL_MEETING_ID" 2>&1 | while read line; do log "[analytics] $line"; done
     log "Analytics callback complete"
 else
     log "Analytics script not found, skipping"

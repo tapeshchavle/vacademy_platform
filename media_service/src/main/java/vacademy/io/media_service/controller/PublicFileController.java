@@ -26,9 +26,6 @@ public class PublicFileController {
     @Value("${aws.bucket.name}")
     private String bucketName;
 
-    @Value("${aws.s3.public-bucket}")
-    private String publicBucketName;
-
     @PostMapping("/get-signed-url")
     public ResponseEntity<PreSignedUrlResponse> uploadFile(@RequestBody PreSignedUrlRequest preSignedUrlRequest) {
         PreSignedUrlResponse url = fileService.getPublicPreSignedUrl(preSignedUrlRequest.getFileName(),
@@ -42,8 +39,8 @@ public class PublicFileController {
             @RequestParam(required = false) Integer expiryDays,
             @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) throws FileDownloadException {
 
-        // Generate permanent public URL without expiry — file was uploaded to publicBucket
-        String url = fileService.getPublicUrl(fileId, publicBucketName);
+        // Generate permanent public URL without expiry
+        String url = fileService.getPublicUrl(fileId, bucketName);
 
         return ResponseEntity.ok(url);
     }

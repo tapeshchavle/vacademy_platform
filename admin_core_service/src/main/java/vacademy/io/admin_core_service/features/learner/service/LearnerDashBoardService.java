@@ -124,8 +124,14 @@ public class LearnerDashBoardService {
                 askForTnc = true;
             } else if (optStudent.isPresent() && optStudent.get().getTncAccepted() != null && optStudent.get().getTncAccepted()) {
                 tncAcceptedDate = optStudent.get().getTncAcceptedDate();
-                if (optStudent.get().getTncFileId() != null) {
-                    tncFileUrl = mediaService.getFilePublicUrlByIdWithoutExpiry(optStudent.get().getTncFileId());
+                String storedTncFileId = optStudent.get().getTncFileId();
+                if (storedTncFileId != null && !storedTncFileId.isEmpty()) {
+                    // tncFileId may hold either a stored URL (new flow) or a media file id (legacy)
+                    if (storedTncFileId.startsWith("http://") || storedTncFileId.startsWith("https://")) {
+                        tncFileUrl = storedTncFileId;
+                    } else {
+                        tncFileUrl = mediaService.getFilePublicUrlByIdWithoutExpiry(storedTncFileId);
+                    }
                 }
             }
         }
@@ -261,10 +267,14 @@ public class LearnerDashBoardService {
             };
             
             FileDetailsDTO fileDetails = mediaService.uploadFileV2(multipartFile);
-            
+
+            // Store the public URL directly. Media service returns the correct public-bucket URL
+            // in FileDetailsDTO.url at upload time; the get-public-url lookup endpoint is wired
+            // to the wrong bucket for existing consumers, so we bypass it by persisting the URL.
+            String publicSignedUrl = fileDetails.getUrl();
             student.setTncAccepted(true);
             student.setTncAcceptedDate(new Date());
-            student.setTncFileId(fileDetails.getId());
+            student.setTncFileId(publicSignedUrl);
             instituteStudentRepository.save(student);
 
             // Fetch notify_on_sign settings and process notifications
@@ -283,7 +293,7 @@ public class LearnerDashBoardService {
                     String emailStr = (emailsObj != null) ? emailsObj.toString() : "";
                     if (!emailStr.isEmpty()) {
                         String[] emailArr = emailStr.split(",");
-                        String signedDocUrl = mediaService.getFilePublicUrlByIdWithoutExpiry(fileDetails.getId());
+                        String signedDocUrl = publicSignedUrl;
                         for (String email : emailArr) {
                             String emailText = email.trim();
                             if (!emailText.isEmpty()) {

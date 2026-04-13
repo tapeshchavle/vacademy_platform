@@ -13,6 +13,7 @@ import vacademy.io.admin_core_service.features.live_session.provider.LiveSession
 import vacademy.io.admin_core_service.features.live_session.provider.dto.ProviderMeetingCreateRequestDTO;
 import vacademy.io.admin_core_service.features.live_session.provider.dto.ProviderConnectRequestDTO;
 import vacademy.io.admin_core_service.features.live_session.provider.dto.RecordingSyncResultDTO;
+import vacademy.io.admin_core_service.features.live_session.provider.entity.BbbServerPool;
 import vacademy.io.admin_core_service.features.live_session.provider.entity.LiveSessionProviderConfig;
 import vacademy.io.admin_core_service.features.live_session.provider.manager.BbbMeetingManager;
 import vacademy.io.admin_core_service.features.live_session.provider.repository.LiveSessionProviderConfigRepository;
@@ -57,6 +58,7 @@ public class LiveSessionProviderService {
     private final LiveSessionRepository sessionRepository;
     private final MediaService mediaService;
     private final WebClient.Builder webClientBuilder;
+    private final BbbServerRouter bbbServerRouter;
 
     private static final List<String> ACTIVE = List.of("ACTIVE");
 
@@ -215,9 +217,13 @@ public class LiveSessionProviderService {
             return RecordingSyncResultDTO.bbbOffline(getRecordings(scheduleId, instituteId));
         }
 
-        // BC-4: BBB has no recordings at all
+        // BC-4: BBB has no recordings at all.
+        // This can mean one of two things:
+        //   (a) No recording was ever captured (truly empty) — return NOT_FOUND
+        //   (b) Raw files exist on the BBB server but the rap-worker pipeline stalled
+        //       before publishing — ask the heal service to restart the pipeline.
         if (bbbRecordings.isEmpty()) {
-            return RecordingSyncResultDTO.ok(getRecordings(scheduleId, instituteId), 0);
+            return tryHealStalledRecording(schedule, instituteId);
         }
 
         // Step 2: Load existing DB recordings, collect already-synced recordingIds
@@ -308,6 +314,97 @@ public class LiveSessionProviderService {
             return RecordingSyncResultDTO.partial(enriched, newCount, failCount);
         }
         return RecordingSyncResultDTO.ok(enriched, newCount);
+    }
+
+    /**
+     * Called when BBB's getRecordings API returns empty for a meeting we believe
+     * should have a recording. Asks the BBB heal service to check whether raw
+     * files exist on disk and restart the stalled pipeline if so.
+     *
+     * Returns:
+     *   RECOVERING  — pipeline was stalled; rebuild triggered, check back in ~10 min
+     *   NOT_FOUND   — heal service confirmed no raw files exist on the BBB server
+     *   OK          — heal service unreachable OR returned an unexpected state
+     *                 (falls back to the legacy "Already up to date" behavior so
+     *                  an outage of the heal service never breaks the sync endpoint)
+     */
+    private RecordingSyncResultDTO tryHealStalledRecording(SessionSchedule schedule, String instituteId) {
+        String scheduleId = schedule.getId();
+        List<MeetingRecordingDTO> currentDbState = getRecordings(scheduleId, instituteId);
+
+        // If we don't know which server this meeting ran on, we can't reach the heal service
+        if (schedule.getBbbServerId() == null || schedule.getBbbServerId().isBlank()) {
+            return RecordingSyncResultDTO.ok(currentDbState, 0);
+        }
+
+        BbbServerPool server;
+        try {
+            server = bbbServerRouter.getServer(schedule.getBbbServerId());
+        } catch (Exception e) {
+            log.warn("[Heal] Could not resolve BBB server {} for scheduleId={}: {}",
+                    schedule.getBbbServerId(), scheduleId, e.getMessage());
+            return RecordingSyncResultDTO.ok(currentDbState, 0);
+        }
+
+        String healBaseUrl = deriveHealBaseUrl(server.getApiUrl());
+        if (healBaseUrl == null) {
+            log.warn("[Heal] Could not derive heal URL from apiUrl={}", server.getApiUrl());
+            return RecordingSyncResultDTO.ok(currentDbState, 0);
+        }
+
+        String externalId = schedule.getProviderMeetingId();
+        Map<String, Object> healResponse;
+        try {
+            healResponse = webClientBuilder.build()
+                    .post()
+                    .uri(URI.create(healBaseUrl + "/heal?externalMeetingId=" + externalId))
+                    .header("X-BBB-Secret", server.getSecret())
+                    .retrieve()
+                    .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {})
+                    .timeout(Duration.ofSeconds(35))
+                    .block();
+        } catch (Exception e) {
+            log.warn("[Heal] Heal service unreachable at {} for scheduleId={}: {}",
+                    healBaseUrl, scheduleId, e.getMessage());
+            return RecordingSyncResultDTO.ok(currentDbState, 0);
+        }
+
+        if (healResponse == null) {
+            return RecordingSyncResultDTO.ok(currentDbState, 0);
+        }
+
+        String status = String.valueOf(healResponse.getOrDefault("status", ""));
+        String previousState = String.valueOf(healResponse.getOrDefault("previousState", "unknown"));
+
+        log.info("[Heal] scheduleId={} externalId={} healStatus={} previousState={}",
+                scheduleId, externalId, status, previousState);
+
+        switch (status) {
+            case "REBUILD_TRIGGERED":
+            case "RATE_LIMITED":
+                // RATE_LIMITED means a rebuild was already triggered recently — still recovering
+                return RecordingSyncResultDTO.recovering(currentDbState, previousState);
+            case "NOT_FOUND":
+                return RecordingSyncResultDTO.notFound(currentDbState);
+            case "ALREADY_PUBLISHED":
+                // BBB says published but getRecordings returned empty — BBB internal lag.
+                // Return OK so the user retries in a moment.
+                return RecordingSyncResultDTO.ok(currentDbState, 0);
+            default:
+                log.warn("[Heal] Unexpected heal service status '{}' for scheduleId={}", status, scheduleId);
+                return RecordingSyncResultDTO.ok(currentDbState, 0);
+        }
+    }
+
+    /**
+     * Turns a BBB apiUrl like "https://meet.vacademy.io/bigbluebutton/api"
+     * into the heal service base URL "https://meet.vacademy.io/vacademy-heal".
+     */
+    private String deriveHealBaseUrl(String apiUrl) {
+        if (apiUrl == null || apiUrl.isBlank()) return null;
+        int idx = apiUrl.indexOf("/bigbluebutton/api");
+        if (idx < 0) return null;
+        return apiUrl.substring(0, idx) + "/vacademy-heal";
     }
 
     /** Downloads bytes from a URL with a 10-minute timeout. */

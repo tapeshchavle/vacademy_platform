@@ -84,6 +84,13 @@ jobs:
       group: bbb-pool-${{ matrix.slug }}
       cancel-in-progress: false
     steps:
+      - name: Checkout bigbluebutton-server scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            bigbluebutton-server
+          sparse-checkout-cone-mode: false
+
       - name: Check if server already exists
         id: check
         run: |
@@ -337,6 +344,58 @@ jobs:
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$IP \
             "bash /tmp/bbb-fix-ip.sh '${{ matrix.domain }}' '$IP'"
 
+      - name: Sync Vacademy recording hook + heal service
+        if: steps.check.outputs.skip != 'true'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.BBB_SSH_PRIVATE_KEY }}
+          VACADEMY_BACKEND_URL: ${{ vars.VACADEMY_BACKEND_URL }}
+        run: |
+          set -e
+
+          if [ -n "${{ steps.poweron.outputs.server_ip }}" ]; then
+            IP="${{ steps.poweron.outputs.server_ip }}"
+          else
+            IP="${{ steps.create.outputs.server_ip }}"
+          fi
+
+          BACKEND_URL="${VACADEMY_BACKEND_URL:-https://backend-stage.vacademy.io}"
+
+          # SSH key was written in the previous step; reuse it
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=15"
+
+          echo "[${{ matrix.slug }}] Shipping recording hook + heal service files to $IP"
+          ssh $SSH_OPTS root@$IP "mkdir -p /tmp/vacademy-bbb"
+          scp $SSH_OPTS \
+            bigbluebutton-server/post-publish-s3-upload.sh \
+            bigbluebutton-server/install-recording-hook.sh \
+            bigbluebutton-server/bbb-heal-service.py \
+            bigbluebutton-server/bbb-heal-service.service \
+            bigbluebutton-server/bbb-unstall-recordings.sh \
+            bigbluebutton-server/vacademy-heal.nginx \
+            root@$IP:/tmp/vacademy-bbb/
+
+          # Read BBB secret from the running server — no need to store per-server secrets in GitHub
+          echo "[${{ matrix.slug }}] Reading BBB secret from server"
+          BBB_SECRET=$(ssh $SSH_OPTS root@$IP "bbb-conf --secret 2>/dev/null | grep -oP 'Secret:\s+\K\S+' | head -1")
+          if [ -z "$BBB_SECRET" ]; then
+            echo "::error::Could not read BBB secret from ${{ matrix.slug }} — bbb-conf --secret returned nothing"
+            exit 1
+          fi
+
+          echo "[${{ matrix.slug }}] Running install-recording-hook.sh (backend=$BACKEND_URL)"
+          ssh $SSH_OPTS root@$IP \
+            "cd /tmp/vacademy-bbb && bash install-recording-hook.sh '$BACKEND_URL' '$BBB_SECRET'"
+
+          # Smoke-test the heal service
+          echo "[${{ matrix.slug }}] Smoke-testing heal service"
+          ssh $SSH_OPTS root@$IP \
+            "curl -sf -o /dev/null -w '%{http_code}' -H 'X-BBB-Secret: $BBB_SECRET' http://127.0.0.1:9091/health || true"
+
+          echo "[${{ matrix.slug }}] Recording hook + heal service synced successfully"
+
       - name: Summary
         if: steps.check.outputs.skip != 'true'
         run: |
@@ -351,6 +410,7 @@ jobs:
           fi
           echo "- **Type:** ${{ matrix.server_type }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- **DNS:** ${{ matrix.domain }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Recording hook + heal service:** synced from repo" >> "$GITHUB_STEP_SUMMARY"
 
   # ─────────────────────────────────────────────────────────────
   # Stop servers

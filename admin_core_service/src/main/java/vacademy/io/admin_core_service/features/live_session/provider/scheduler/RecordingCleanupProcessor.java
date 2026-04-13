@@ -63,11 +63,26 @@ public class RecordingCleanupProcessor {
 
         for (MeetingRecordingDTO recording : recordings) {
             if (shouldDelete(recording, cutoff)) {
+                String bbbRecordId = resolveBbbRecordId(recording, schedule);
+                if (bbbRecordId == null) {
+                    // No providerMeetingId to look up — cannot resolve, skip
+                    log.warn("[RecordingCleanup] Cannot resolve BBB recordID for recording {} — skipping",
+                            recording.getRecordingId());
+                    toKeep.add(recording);
+                    continue;
+                }
+                if (bbbRecordId.isEmpty()) {
+                    // BBB has no record for this meeting — already gone, just clean DB entry
+                    log.info("[RecordingCleanup] Recording {} already absent from BBB — removing DB entry",
+                            recording.getRecordingId());
+                    deleted++;
+                    continue;
+                }
                 boolean success = bbbMeetingManager.deleteRecording(
-                        recording.getRecordingId(), schedule.getBbbServerId());
+                        bbbRecordId, schedule.getBbbServerId());
                 if (success) {
-                    log.info("[RecordingCleanup] Deleted recording {} (type={}) from BBB for schedule {}",
-                            recording.getRecordingId(), recording.getType(), schedule.getId());
+                    log.info("[RecordingCleanup] Deleted recording {} (bbbId={}, type={}) from BBB for schedule {}",
+                            recording.getRecordingId(), bbbRecordId, recording.getType(), schedule.getId());
                     deleted++;
                 } else {
                     // Keep in DB if BBB deletion failed — will retry next day
@@ -86,6 +101,32 @@ public class RecordingCleanupProcessor {
         }
 
         return deleted;
+    }
+
+    /**
+     * Resolves the BBB recordID needed by the deleteRecordings API.
+     * Returns:
+     *   non-empty string — the BBB recordID to pass to deleteRecordings
+     *   ""  (empty)      — BBB has no recording for this meeting (already gone); caller should just clean DB
+     *   null             — cannot resolve (no providerMeetingId); caller should skip
+     */
+    private String resolveBbbRecordId(MeetingRecordingDTO recording, SessionSchedule schedule) {
+        if (recording.getBbbInternalId() != null && !recording.getBbbInternalId().isBlank()) {
+            return recording.getBbbInternalId();
+        }
+        // Fallback: query BBB live using providerMeetingId
+        String providerMeetingId = recording.getProviderMeetingId();
+        if (providerMeetingId == null || providerMeetingId.isBlank()) {
+            return null;
+        }
+        List<MeetingRecordingDTO> live =
+                bbbMeetingManager.getRecordings(providerMeetingId, null, schedule.getBbbServerId());
+        if (live.isEmpty()) {
+            // BBB has no record — already deleted (e.g. a sibling recording type was deleted first)
+            return "";
+        }
+        // All formats share the same BBB recordID — take the first
+        return live.get(0).getBbbInternalId();
     }
 
     private boolean shouldDelete(MeetingRecordingDTO recording, Instant cutoff) {

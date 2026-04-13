@@ -636,6 +636,7 @@ public class LiveSessionProviderController {
                 .durationSeconds(durationSeconds)
                 .startTime(startTime)
                 .providerMeetingId(meetingId)
+
                 .type(recordingType)
                 .build();
 
