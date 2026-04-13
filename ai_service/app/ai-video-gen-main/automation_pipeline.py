@@ -2790,6 +2790,8 @@ class VideoGenerationPipeline:
 
         # Save for inspection
         (run_dir / "style_guide.json").write_text(json.dumps(style_guide, indent=2))
+        # Store resolved style_guide so _ensure_fonts can use brand-override'd palette
+        self._current_style_guide = style_guide
         print(f"🎨 Using {background_type.upper()} background theme")
         print(f"   Text color: {preset['text']} | SVG stroke: {style_guide['palette']['svg_stroke']} | Annotation: {style_guide['palette']['annotation_color']}")
         return style_guide
@@ -3226,8 +3228,19 @@ class VideoGenerationPipeline:
         # Super Ultra: bias the Director toward motion-graphics shot types
         director_system = DIRECTOR_SYSTEM_PROMPT
         if self._tier_config.get("director_motion_bias"):
+            _is_portrait = _h > _w
+            _target_shot_dur = "2-3.5 seconds" if _is_portrait else "2-4 seconds"
+            _min_shots_hint = (
+                f"For a {int(audio_duration)}s audio, target ~{max(1, int(audio_duration / 3))} shots "
+                f"(roughly one per 2.5-3.5 seconds of narration)."
+            ) if audio_duration > 0 else ""
             director_system = DIRECTOR_SYSTEM_PROMPT + (
-                "\n\n**⚡ SUPER ULTRA MOTION BIAS** (overrides rules 2 and 11):\n"
+                "\n\n**⚡ SUPER ULTRA — REEL PACE + MOTION BIAS** (overrides rules 2, 4, 11):\n"
+                f"- REEL PACE: every shot should be {_target_shot_dur} long. "
+                f"{_min_shots_hint} "
+                "This is short-form social video (Reels/TikTok/Shorts) — shots must feel snappy, "
+                "not like a classroom explainer. Longer shots (max 5s) are only allowed for "
+                "PROCESS_STEPS / EQUATION_BUILD / DATA_STORY where the shot itself has heavy motion.\n"
                 "- At least 50% of shots MUST be motion-graphics types: "
                 "TEXT_DIAGRAM, PROCESS_STEPS, EQUATION_BUILD, DATA_STORY, ANIMATED_ASSET, KINETIC_TEXT.\n"
                 "- Never schedule 2+ consecutive IMAGE_HERO / VIDEO_HERO shots — "
@@ -3237,12 +3250,15 @@ class VideoGenerationPipeline:
                 "or a high-impact conclusion beat.\n"
                 "- Each shot's `animation_strategy` field MUST describe at least 3 concrete animation "
                 "steps with shot-relative seconds. Example: 'At 0.0s SVG heart draws on (path stroke), "
-                "0.8s label fades in + slides up, 2.4s number counter runs 0→75bpm, 4.1s pulse ring "
-                "expands.' Never write vague strategies like 'fade in text'.\n"
+                "0.4s label fades in + slides up, 1.1s number counter runs 0→75bpm, 2.0s pulse ring "
+                "expands.' Never write vague strategies like 'fade in text'. All step timings must "
+                "fit inside the shot duration (so for a 3s shot, last animation starts by 2.5s).\n"
                 "- Each shot's `sync_points` array MUST contain at least 2 entries tied to specific "
                 "narration words from the script.\n"
-                "- Prefer shots that have visible continuous motion throughout — avoid shots where "
-                "the screen is static for >1.5s.\n"
+                "- Prefer shots that have visible continuous motion throughout — the screen should "
+                "NEVER be fully static for more than 0.8s.\n"
+                "- First shot may still be VIDEO_HERO / IMAGE_HERO (cinematic hook) but must be "
+                "≤3 seconds with an animated text overlay appearing by 0.3s.\n"
             )
 
         print("🎬 Running Director stage (shot planning)...")
@@ -3460,34 +3476,61 @@ class VideoGenerationPipeline:
                 height=_h,
             )
 
-            # Super Ultra: append motion-density requirement (skipped for KINETIC_TEXT since it's bypassed)
+            # Super Ultra: append motion-density + reel-pace + brand-palette requirement
+            # (skipped for KINETIC_TEXT since it's bypassed anyway)
             if (
                 self._tier_config.get("motion_density_enforcement")
                 and shot_type != "KINETIC_TEXT"
             ):
                 _min_anim = self._tier_config.get("min_animated_elements", 6)
+                _is_portrait = _h > _w
+                _format_label = "9:16 portrait reel / Shorts / TikTok" if _is_portrait else "16:9"
                 user_prompt = user_prompt + (
-                    "\n\n**⚡ SUPER ULTRA MOTION DENSITY REQUIREMENT** (non-negotiable):\n"
-                    f"- This shot MUST contain AT LEAST {_min_anim} independently animated elements. "
-                    "Count every GSAP tween that targets a distinct DOM node.\n"
-                    "- Stagger entrance animations 0.15–0.45s apart using GSAP `delay:`. "
-                    "No 'everything appears at t=0'. Use the Rel(s) word timings above to pace reveals.\n"
-                    "- At least ONE element must use a showcase animation: SVG path draw-on "
-                    "(strokeDasharray → 0), number counter (gsap.to({innerText: N, snap:{innerText:1}})), "
-                    "scale+rotate entry, splitReveal, or morph.\n"
-                    "- Background must NOT be fully static: subtle floating particles, slow "
-                    "translateX/scale on a background shape, or gradient-shift keyframes. "
-                    "IMAGE_HERO/VIDEO_HERO shots already have Ken Burns — add at least one "
-                    "foreground overlay animation on top.\n"
-                    "- Every text block animates in (fadeIn + y:-20, splitReveal, typewriter, or "
-                    "wipe). Never use `opacity:1` without a corresponding GSAP tween.\n"
-                    "- Include at least 2 micro-interactions: underline wipes on key terms, "
-                    "icon scale bounces, annotation arrows drawing in at narration cues.\n"
+                    "\n\n**⚡ SUPER ULTRA — REEL PACE + MOTION DENSITY + BRAND PALETTE** (non-negotiable):\n"
+                    f"\n🎞️ FORMAT: {_format_label}. This is short-form social video, NOT a classroom "
+                    "explainer. Target shot duration is 2–5s. Animations must feel punchy and snappy.\n"
+                    "\n⚡ REEL-PACE ANIMATION TIMING:\n"
+                    "- Default entrance duration: 0.25–0.4s (NOT 0.8–1.2s). Slow fades kill reel pace.\n"
+                    "- Stagger entrance delays: 0.08–0.25s apart (tight), NOT 0.4–0.8s (loose).\n"
+                    "- Exit animations (when needed): 0.15–0.25s.\n"
+                    "- First meaningful element must appear by 0.2s — no dead-air opens.\n"
+                    "- Use `ease:'power3.out'`, `back.out(1.6)`, `expo.out`. Linear = amateur.\n"
+                    f"\n💥 MOTION DENSITY: This shot MUST contain AT LEAST {_min_anim} independently "
+                    "animated elements (count every GSAP tween targeting a distinct DOM node).\n"
+                    "- At least ONE showcase animation: SVG path draw-on (strokeDasharray → 0), "
+                    "number counter (`gsap.to({innerText: N, snap:{innerText:1}})`), scale+rotate "
+                    "entry, splitReveal, or morph.\n"
+                    "- Background must NOT be fully static — subtle floating particles, slow "
+                    "translateX/scale on a background shape, gradient-shift keyframes, or a "
+                    "looping SVG pulse. Screen should never be still for >0.8s.\n"
+                    "- Include at least 2 micro-interactions tied to narration: underline wipes on "
+                    "key terms, icon scale bounces, annotation arrows drawing in.\n"
                     "- Tie at least 2 animations to specific words from WORD TIMINGS using the "
-                    "Rel(s) column as GSAP delay. Cite the word in a JS comment.\n"
+                    "Rel(s) column as GSAP `delay:`. Cite the word in a JS comment.\n"
                     "- Use `gsap.timeline()` or `gsap.delayedCall()` for sequencing — NEVER setTimeout.\n"
-                    "- Prefer `ease:'power2.out'`, `ease:'back.out(1.4)'`, or `ease:'expo.out'` "
-                    "over linear. Linear = amateur.\n"
+                    "\n📝 TEXT ANIMATION (no plain text allowed — 'caming plane' rule):\n"
+                    "- EVERY text block MUST animate in. Acceptable entrances: splitReveal "
+                    "(word-by-word or letter-by-letter), fadeIn+y:30 with stagger, typewriter "
+                    "(innerText growth), clip-path wipe, or mask reveal.\n"
+                    "- NEVER render text with `opacity:1` static — always animate from opacity:0 "
+                    "with a GSAP tween.\n"
+                    "- Key terms (the ones the narrator emphasises) must have an IMPACT treatment: "
+                    "scale pulse, highlight box drawing in behind them, underline wipe, or color "
+                    "flash. Use at least 1 key-term treatment per shot.\n"
+                    "- For multi-line text, reveal lines sequentially (stagger 0.12–0.2s) — "
+                    "never dump a whole paragraph at once.\n"
+                    "\n🎨 BRAND PALETTE (MANDATORY — institute AI settings must show through):\n"
+                    "- Use CSS variables `var(--brand-primary)`, `var(--brand-accent)`, "
+                    "`var(--brand-text)`, `var(--brand-text-secondary)`, `var(--brand-svg-stroke)`, "
+                    "`var(--brand-svg-fill)`, `var(--brand-annotation)` for ALL colors. These are "
+                    "injected automatically at render time from the institute's style settings.\n"
+                    "- NEVER hardcode hex values for primary/accent/text. You MAY hardcode neutrals "
+                    "(#000, #fff, rgba() overlays) and content-specific colors (red for 'wrong', "
+                    "green for 'correct').\n"
+                    "- Backgrounds, borders, SVG strokes/fills, step numbers, label tags, dividers, "
+                    "and highlight underlines MUST use the brand variables.\n"
+                    "- If a palette value isn't available, fall back inside the var(): "
+                    "`var(--brand-primary, #3b82f6)`.\n"
                 )
 
             # ── KINETIC_TEXT bypass — skip LLM, build exact word-sync HTML directly ──
@@ -4593,14 +4636,22 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
     }
 
     def _ensure_fonts(self, html: str) -> str:
-        # Get colors based on background_type
+        # Get colors based on background_type, preferring brand-override'd palette from style_guide
         bg_type = getattr(self, '_current_background_type', 'white')
         preset = BACKGROUND_PRESETS.get(bg_type, BACKGROUND_PRESETS["white"])
-        
-        text_color = preset["text"]
-        text_secondary = preset["text_secondary"]
-        primary_color = preset["primary"]
-        accent_color = preset["accent"]
+
+        # Brand palette (resolved style_guide) wins over raw preset defaults
+        _sg = getattr(self, '_current_style_guide', None) or {}
+        _palette = _sg.get("palette", {}) if isinstance(_sg, dict) else {}
+
+        text_color = _palette.get("text", preset["text"])
+        text_secondary = _palette.get("text_secondary", preset["text_secondary"])
+        primary_color = _palette.get("primary", preset["primary"])
+        accent_color = _palette.get("accent", preset["accent"])
+        background_color = _palette.get("background", preset.get("background", "#ffffff"))
+        svg_stroke_color = _palette.get("svg_stroke", primary_color)
+        svg_fill_color = _palette.get("svg_fill", primary_color)
+        annotation_color = _palette.get("annotation_color", accent_color)
         
         # Common educational styles (Highlighting, Markers)
         # Build Google Fonts import URL — base fonts + any template-specific additions
@@ -4613,7 +4664,23 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
 
         global_css = f"""<style>
             @import url('{_fonts_url}');
-            
+
+            /* --- BRAND PALETTE (institute AI settings → style_guide → CSS vars) --- */
+            :root {{
+              --brand-primary: {primary_color};
+              --brand-accent: {accent_color};
+              --brand-text: {text_color};
+              --brand-text-secondary: {text_secondary};
+              --brand-bg: {background_color};
+              --brand-svg-stroke: {svg_stroke_color};
+              --brand-svg-fill: {svg_fill_color};
+              --brand-annotation: {annotation_color};
+              /* Legacy aliases so older hardcoded var names still resolve */
+              --primary-color: {primary_color};
+              --accent-color: {accent_color};
+              --text-color: {text_color};
+            }}
+
             /* --- FULL SCREEN CENTER CONTAINER (CRITICAL) --- */
             .full-screen-center {{
               width: 100%;
