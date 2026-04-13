@@ -242,7 +242,7 @@ public interface LiveSessionRepository extends JpaRepository<LiveSession, String
         JOIN live_session_participants lsp ON lsp.session_id = s.id
         WHERE lsp.source_type = 'USER'
           AND lsp.source_id = :userId
-          AND ss.meeting_date >= CURRENT_DATE
+          AND ss.meeting_date >= CURRENT_DATE - INTERVAL '1 day'
           AND s.status IN ('DRAFT', 'LIVE')
           AND ss.status != 'DELETED'
         ORDER BY ss.meeting_date, ss.start_time
@@ -283,7 +283,7 @@ public interface LiveSessionRepository extends JpaRepository<LiveSession, String
             OR
             (:userId IS NOT NULL AND lsp.source_type = 'USER' AND lsp.source_id = :userId)
         )
-        AND ss.meeting_date >= CURRENT_DATE
+        AND ss.meeting_date >= CURRENT_DATE - INTERVAL '1 day'
         AND s.status IN ('DRAFT', 'LIVE')
         AND ss.status != 'DELETED'
         ORDER BY ss.meeting_date, ss.start_time
@@ -327,7 +327,7 @@ public interface LiveSessionRepository extends JpaRepository<LiveSession, String
             OR
             (:userId IS NOT NULL AND lsp.source_type = 'USER' AND lsp.source_id = :userId)
         )
-        AND ss.meeting_date >= COALESCE(CAST(:startDate AS DATE), CURRENT_DATE)
+        AND ss.meeting_date >= COALESCE(CAST(:startDate AS DATE), CURRENT_DATE - INTERVAL '1 day')
         AND (:endDate IS NULL OR ss.meeting_date <= CAST(:endDate AS DATE))
         AND s.status IN ('DRAFT', 'LIVE')
         AND ss.status != 'DELETED'

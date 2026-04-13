@@ -1,4 +1,5 @@
 import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
+import { BASE_URL } from '@/constants/urls';
 
 /**
  * Thin client for the per-mapping custom field endpoints introduced by the
@@ -14,7 +15,7 @@ import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
  *     parent feature, sending the FULL list of fields the admin picked.
  */
 
-const BASE = '/admin-core-service/common/custom-fields';
+const BASE = `${BASE_URL}/admin-core-service/common/custom-fields`;
 
 /** One row from `institute_custom_fields` flattened for the cascade delete UI. */
 export interface CustomFieldMappingUsage {

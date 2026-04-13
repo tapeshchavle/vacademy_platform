@@ -1,5 +1,6 @@
 package vacademy.io.admin_core_service.features.live_session.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.AllArgsConstructor;
@@ -20,8 +21,11 @@ public class LiveSessionListDTO {
     private String backgroundScoreFileId;
     private String sessionStreamingServiceType;
     private String scheduleId;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "UTC")
     private Date meetingDate;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm:ss", timezone = "UTC")
     private Time startTime;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm:ss", timezone = "UTC")
     private Time lastEntryTime;
     private String recurrenceType;
     private String accessLevel;

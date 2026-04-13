@@ -636,12 +636,19 @@ export default function SessionListPage() {
             selectedTab === SessionStatus.PAST
         ) {
             const now = new Date();
+            const normalizeTime = (t: string) => {
+                if (t.includes('T')) {
+                    const afterT = t.split('T')[1] || t;
+                    return afterT.replace(/[+-]\d{2}:\d{2}$|Z$/, '');
+                }
+                return t.replace(/[+-]\d{2}:\d{2}$|Z$/, '');
+            };
+
             filteredSessions = searchResponse.sessions.filter((session) => {
                 const sessionTimezone = session.timezone || 'Asia/Kolkata';
 
-                // Construct session start and end times
-                const sessionStartString = `${session.meeting_date}T${session.start_time}`;
-                const sessionEndString = `${session.meeting_date}T${session.last_entry_time}`;
+                const sessionStartString = `${session.meeting_date}T${normalizeTime(session.start_time)}`;
+                const sessionEndString = `${session.meeting_date}T${normalizeTime(session.last_entry_time)}`;
 
                 const startTime = fromZonedTime(sessionStartString, sessionTimezone);
                 let endTime = fromZonedTime(sessionEndString, sessionTimezone);
