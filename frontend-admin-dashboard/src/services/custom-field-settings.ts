@@ -1351,31 +1351,32 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                 });
             }
 
-            // Filter the blob to only include fields that have an ACTIVE
-            // DEFAULT_CUSTOM_FIELD mapping. This removes:
-            //   - Fields that were soft-deleted via the cascade-delete dialog
-            //   - Feature-scoped fields (ENROLL_INVITE, AUDIENCE_FORM, etc.)
-            //     that leaked into the blob from previous loads
+            // Filter the blob to only include fields that have at least one
+            // ACTIVE mapping of ANY type (DEFAULT, ENROLL_INVITE, etc.).
+            // This removes fields that were fully soft-deleted. Feature-scoped
+            // fields are kept for display (with usage counts) but will NOT
+            // be saved as DEFAULT — the merge guard above (`!usageItem.default`)
+            // and the backend's own logic handle that.
             if (usageResponse.data && Array.isArray(usageResponse.data) && Array.isArray(apiData.currentCustomFieldsAndGroups)) {
-                const activeDefaultFieldIds = new Set<string>(
+                const activeFieldIds = new Set<string>(
                     usageResponse.data
-                        .filter((item) => item.custom_field?.id && item.default)
+                        .filter((item) => item.custom_field?.id)
                         .map((item) => item.custom_field.id)
                 );
                 apiData.currentCustomFieldsAndGroups = apiData.currentCustomFieldsAndGroups
-                    .filter((f) => activeDefaultFieldIds.has(f.customFieldId));
+                    .filter((f) => activeFieldIds.has(f.customFieldId));
 
                 if (Array.isArray(apiData.allCustomFields)) {
                     apiData.allCustomFields = apiData.allCustomFields
-                        .filter((id: string) => activeDefaultFieldIds.has(id));
+                        .filter((id: string) => activeFieldIds.has(id));
                 }
                 if (Array.isArray(apiData.fixedCustomFields)) {
                     apiData.fixedCustomFields = apiData.fixedCustomFields
-                        .filter((id: string) => activeDefaultFieldIds.has(id));
+                        .filter((id: string) => activeFieldIds.has(id));
                 }
                 if (Array.isArray(apiData.compulsoryCustomFields)) {
                     apiData.compulsoryCustomFields = apiData.compulsoryCustomFields
-                        .filter((id: string) => activeDefaultFieldIds.has(id));
+                        .filter((id: string) => activeFieldIds.has(id));
                 }
             }
 
