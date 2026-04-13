@@ -1,10 +1,11 @@
 import { MyButton } from "@/components/design-system/button";
 import { MyInput } from "@/components/design-system/input";
 import { FormControl, FormField, FormItem } from "@/components/ui/form";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
+import { CalendarDays } from "lucide-react";
 import { InstituteBrandingComponent, type InstituteBranding } from "@/components/common/institute-branding";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -44,6 +45,9 @@ import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 import { useNavigate } from "@tanstack/react-router";
 import PhoneInputField from "@/components/design-system/phone-input-field";
 import { useInstituteDetails } from "../live-class/-hooks/useInstituteDetails";
+import axios from "axios";
+import { BASE_URL } from "@/constants/urls";
+import { useTheme } from "@/providers/theme/theme-provider";
 
 const case1 = (serverTime: number, startDate: string) => {
     const registrationStartDate: number = new Date(
@@ -73,18 +77,42 @@ const AssessmentRegistrationForm = () => {
     const [isAlreadyLoggedIn, setIsAlreadyLoggedIn] = useState(false);
     const [userAlreadyRegistered, setUserAlreadyRegistered] = useState(false);
     const { code } = Route.useSearch();
-    const { data: instituteDetails } = useInstituteDetails();
-    
-    const branding: InstituteBranding = {
-        instituteId: instituteDetails?.id || null,
-        instituteName: instituteDetails?.institute_name || null,
-        instituteLogoFileId: instituteDetails?.institute_logo_file_id || null,
-        instituteThemeCode: null,
-        homeIconClickRoute: instituteDetails?.homeIconClickRoute ?? null
-    };
+    const { data: localInstituteDetails } = useInstituteDetails();
     const { data, isLoading } = useSuspenseQuery(
         getOpenTestRegistrationDetails(code)
     );
+
+    const { data: instituteBranding } = useQuery({
+        queryKey: ["instituteBranding", data?.institute_id],
+        queryFn: async () => {
+            const res = await axios.get(
+                `${BASE_URL}/admin-core-service/public/institute/v1/branding/${data.institute_id}`
+            );
+            return res.data as {
+                institute_id: string;
+                institute_name: string;
+                logo_file_id: string | null;
+                institute_theme_code: string | null;
+            };
+        },
+        enabled: !!data?.institute_id,
+    });
+
+    const { setPrimaryColor } = useTheme();
+
+    useEffect(() => {
+        if (instituteBranding?.institute_theme_code) {
+            setPrimaryColor(instituteBranding.institute_theme_code);
+        }
+    }, [instituteBranding?.institute_theme_code, setPrimaryColor]);
+
+    const branding: InstituteBranding = {
+        instituteId: instituteBranding?.institute_id || localInstituteDetails?.id || null,
+        instituteName: instituteBranding?.institute_name || localInstituteDetails?.institute_name || null,
+        instituteLogoFileId: instituteBranding?.logo_file_id || localInstituteDetails?.institute_logo_file_id || null,
+        instituteThemeCode: instituteBranding?.institute_theme_code || null,
+        homeIconClickRoute: localInstituteDetails?.homeIconClickRoute ?? null
+    };
 
     const serverTime = useRef(
         new Date(Date.parse(data.server_time_in_gmt)).getTime()
@@ -128,7 +156,7 @@ const AssessmentRegistrationForm = () => {
     const [timeLeft, setTimeLeft] = useState(
         calculateTimeLeft(
             serverTime.current,
-            convertToLocalDateTime(data.assessment_public_dto.bound_start_time)
+            data.assessment_public_dto.bound_start_time
         )
     );
 
@@ -136,9 +164,7 @@ const AssessmentRegistrationForm = () => {
         useState(
             calculateTimeLeft(
                 serverTime.current,
-                convertToLocalDateTime(
-                    data.assessment_public_dto.registration_open_date
-                )
+                data.assessment_public_dto.registration_open_date
             )
         );
 
@@ -146,9 +172,7 @@ const AssessmentRegistrationForm = () => {
         useState(
             calculateTimeLeft(
                 serverTime.current,
-                convertToLocalDateTime(
-                    data.assessment_public_dto.registration_close_date
-                )
+                data.assessment_public_dto.registration_close_date
             )
         );
 
@@ -335,9 +359,7 @@ const AssessmentRegistrationForm = () => {
             setTimeLeft(
                 calculateTimeLeft(
                     serverTime.current,
-                    convertToLocalDateTime(
-                        data.assessment_public_dto.bound_start_time
-                    )
+                    data.assessment_public_dto.bound_start_time
                 )
             );
         }, 1000);
@@ -350,9 +372,7 @@ const AssessmentRegistrationForm = () => {
             setTimeLeftForRegistrationCase1(
                 calculateTimeLeft(
                     serverTime.current,
-                    convertToLocalDateTime(
-                        data.assessment_public_dto.registration_open_date
-                    )
+                    data.assessment_public_dto.registration_open_date
                 )
             );
         }, 1000);
@@ -365,9 +385,7 @@ const AssessmentRegistrationForm = () => {
             setTimeLeftForRegistrationCase2(
                 calculateTimeLeft(
                     serverTime.current,
-                    convertToLocalDateTime(
-                        data.assessment_public_dto.registration_close_date
-                    )
+                    data.assessment_public_dto.registration_close_date
                 )
             );
         }, 1000);
@@ -419,6 +437,40 @@ const AssessmentRegistrationForm = () => {
 
     if (isLoading) return <DashboardLoader />;
 
+    // Only show "expired" page when the assessment itself is deleted or its end time has truly passed
+    const assessmentEndTime = new Date(
+        Date.parse(data.assessment_public_dto.bound_end_time)
+    ).getTime();
+    const isAssessmentTrulyOver =
+        !!data.assessment_public_dto.bound_end_time &&
+        serverTime.current > assessmentEndTime;
+
+    if (
+        data.assessment_public_dto.status === 'DELETED' ||
+        isAssessmentTrulyOver
+    )
+        return (
+            <AssessmentClosedExpiredComponent
+                isExpired={true}
+                assessmentName={data.assessment_public_dto.assessment_name}
+                externalBranding={branding}
+            />
+        );
+
+    // Registration window has closed but assessment is still live
+    if (
+        !data.can_register &&
+        data.error_message === 'Assessment is closed' &&
+        !isAssessmentTrulyOver
+    )
+        return (
+            <AssessmentClosedExpiredComponent
+                isExpired={false}
+                assessmentName={data.assessment_public_dto.assessment_name}
+                externalBranding={branding}
+            />
+        );
+
     if (
         userAlreadyRegistered &&
         case3Status &&
@@ -431,6 +483,7 @@ const AssessmentRegistrationForm = () => {
             <AssessmentClosedExpiredComponent
                 isExpired={false}
                 assessmentName={data.assessment_public_dto.assessment_name}
+                externalBranding={branding}
             />
         );
 
@@ -446,6 +499,7 @@ const AssessmentRegistrationForm = () => {
             <AssessmentClosedExpiredComponent
                 isExpired={true}
                 assessmentName={data.assessment_public_dto.assessment_name}
+                externalBranding={branding}
             />
         );
 
@@ -462,76 +516,187 @@ const AssessmentRegistrationForm = () => {
             />
         );
 
-    return (
-        <>
-            {case1Status && (
-                <div className="flex justify-center items-center w-full mt-4">
-                    <div className="flex flex-col w-full sm:w-3/4 items-center justify-center gap-6">
-                        <InstituteBrandingComponent branding={branding} size="large" showName={false} />
-                        <h1 className="-mt-12 text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
-                            {data?.assessment_public_dto?.assessment_name}
-                        </h1>
-                        <div className="flex items-center gap-4 text-sm flex-col ">
-                            <span>Registration goes live in</span>
-                            <span className="font-thin">
-                                {timeLeftForRegistrationCase1.hours} hrs :{" "}
-                                {timeLeftForRegistrationCase1.minutes} min :{" "}
-                                {timeLeftForRegistrationCase1.seconds} sec
-                            </span>
+    const renderAssessmentInfoPanel = (
+        showCountdown: boolean,
+        constrained: boolean = true
+    ) => (
+        <div
+            className={`w-full ${
+                constrained ? "max-w-2xl mx-auto px-4 py-6 sm:py-10" : "py-2"
+            }`}
+        >
+            {/* Branding header */}
+            <div className="flex flex-col items-center text-center mb-6">
+                <InstituteBrandingComponent
+                    branding={branding}
+                    size="large"
+                    showName={false}
+                />
+                {branding.instituteName && (
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">
+                        {branding.instituteName}
+                    </p>
+                )}
+                <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight mt-3">
+                    {data?.assessment_public_dto?.assessment_name}
+                </h1>
+            </div>
+
+            {/* Countdown card */}
+            {showCountdown && (
+                <Card className="mb-6 border-0 shadow-md shadow-slate-200/60 overflow-hidden">
+                    <div className="h-1 bg-gradient-to-r from-primary-300 to-primary-500" />
+                    <CardContent className="p-6 text-center">
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">
+                            Registration Goes Live In
+                        </p>
+                        <div className="flex items-center justify-center gap-3">
+                            {[
+                                {
+                                    value: timeLeftForRegistrationCase1.hours,
+                                    label: "Hours",
+                                },
+                                {
+                                    value: timeLeftForRegistrationCase1.minutes,
+                                    label: "Minutes",
+                                },
+                                {
+                                    value: timeLeftForRegistrationCase1.seconds,
+                                    label: "Seconds",
+                                },
+                            ].map((unit, idx) => (
+                                <div
+                                    key={idx}
+                                    className="flex flex-col items-center"
+                                >
+                                    <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 min-w-[64px]">
+                                        <span className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">
+                                            {String(unit.value).padStart(2, "0")}
+                                        </span>
+                                    </div>
+                                    <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mt-1">
+                                        {unit.label}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
-                        <Separator />
-                        <h1 className="text-sm font-thin">
-                            Important Dates - Mark Your Calendar!
-                        </h1>
-                        <div className="text-sm flex flex-col gap-4 px-4">
-                            <div className="flex flex-col">
-                                <h1>Registration Window:</h1>
-                                <span className="font-thin">
-                                    Opens:{" "}
-                                    {convertToLocalDateTime(
-                                        data.assessment_public_dto
-                                            .registration_open_date
-                                    )}
-                                </span>
-                                <span className="font-thin">
-                                    Closes:{" "}
-                                    {convertToLocalDateTime(
-                                        data.assessment_public_dto
-                                            .registration_close_date
-                                    )}
-                                </span>
-                            </div>
-                            <div className="flex flex-col">
-                                <h1>Assessment Live Dates</h1>
-                                <span className="font-thin">
-                                    Starts:{" "}
-                                    {convertToLocalDateTime(
-                                        data.assessment_public_dto
-                                            .bound_start_time
-                                    )}
-                                </span>
-                                <span className="font-thin">
-                                    Ends:{" "}
-                                    {convertToLocalDateTime(
-                                        data.assessment_public_dto
-                                            .bound_end_time
-                                    )}
-                                </span>
-                            </div>
-                            {data.assessment_public_dto.about.content && (
-                                <div className="flex flex-col">
-                                    <h1>About Assessment</h1>
-                                    <span className="font-thin">
-                                        {parseHtmlToString(
-                                            data.assessment_public_dto.about
-                                                .content
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Important Dates */}
+            <Card className="mb-6 border-0 shadow-md shadow-slate-200/60">
+                <CardContent className="p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                        <CalendarDays className="w-4 h-4 text-primary-500" />
+                        <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">
+                            Important Dates
+                        </h2>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                Registration Window
+                            </p>
+                            <div className="space-y-1.5">
+                                <div className="flex items-start gap-1.5">
+                                    <span className="text-xs font-medium text-slate-600">
+                                        Opens:
+                                    </span>
+                                    <span className="text-xs text-slate-700">
+                                        {convertToLocalDateTime(
+                                            data.assessment_public_dto
+                                                .registration_open_date
                                         )}
                                     </span>
                                 </div>
-                            )}
+                                <div className="flex items-start gap-1.5">
+                                    <span className="text-xs font-medium text-slate-600">
+                                        Closes:
+                                    </span>
+                                    <span className="text-xs text-slate-700">
+                                        {convertToLocalDateTime(
+                                            data.assessment_public_dto
+                                                .registration_close_date
+                                        )}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                Assessment Window
+                            </p>
+                            <div className="space-y-1.5">
+                                <div className="flex items-start gap-1.5">
+                                    <span className="text-xs font-medium text-slate-600">
+                                        Starts:
+                                    </span>
+                                    <span className="text-xs text-slate-700">
+                                        {convertToLocalDateTime(
+                                            data.assessment_public_dto
+                                                .bound_start_time
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex items-start gap-1.5">
+                                    <span className="text-xs font-medium text-slate-600">
+                                        Ends:
+                                    </span>
+                                    <span className="text-xs text-slate-700">
+                                        {convertToLocalDateTime(
+                                            data.assessment_public_dto
+                                                .bound_end_time
+                                        )}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </CardContent>
+            </Card>
+
+            {/* About */}
+            {data.assessment_public_dto.about?.content && (
+                <Card className="mb-6 border-0 shadow-md shadow-slate-200/60">
+                    <CardContent className="p-6">
+                        <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-3">
+                            About Assessment
+                        </h2>
+                        <p className="text-sm text-slate-700 leading-relaxed">
+                            {parseHtmlToString(
+                                data.assessment_public_dto.about.content
+                            )}
+                        </p>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Registration Instructions */}
+            {data.assessment_public_dto.registration_instructions?.content && (
+                <Card className="mb-6 border-0 shadow-md shadow-slate-200/60">
+                    <CardContent className="p-6">
+                        <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-3">
+                            Registration Instructions
+                        </h2>
+                        <div
+                            className="text-sm text-slate-700 leading-relaxed prose prose-sm max-w-none prose-img:rounded-lg prose-img:my-3"
+                            dangerouslySetInnerHTML={{
+                                __html: data.assessment_public_dto
+                                    .registration_instructions.content,
+                            }}
+                        />
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="bg-gradient-to-br from-slate-50 via-white to-slate-100">
+            {/* Always show assessment info panel as background when not in active case2 form view */}
+            {!(!userHasAttemptCount && case2Status) && (
+                <>{renderAssessmentInfoPanel(case1Status)}</>
             )}
             {(case2Status ||
                 case3Status ||
@@ -553,93 +718,29 @@ const AssessmentRegistrationForm = () => {
                 <div className="flex w-full items-center justify-center bg-background gap-8 flex-col sm:flex-row">
                     <div className="flex justify-center items-center w-full mt-4">
                         <div className="flex flex-col w-full sm:w-3/4 items-center justify-center gap-6">
-                            <InstituteBrandingComponent branding={branding} size="large" showName={false} />
-                            <h1 className="-mt-12 text-md sm:text-xl whitespace-normal sm:whitespace-nowrap p-4 sm:p-0 text-center">
-                                {data?.assessment_public_dto?.assessment_name}
-                            </h1>
-                            <div className="flex items-center gap-4 text-sm flex-col sm:flex-row">
-                                <MyButton
-                                    type="button"
-                                    buttonType="primary"
-                                    scale="large"
-                                    layoutVariant="default"
-                                    className="block sm:hidden"
-                                    onClick={scrollToForm}
-                                >
-                                    Register Now!
-                                </MyButton>
-                                {(timeLeftForRegistrationCase2.hours > 0 ||
-                                    timeLeftForRegistrationCase2.minutes > 0 ||
-                                    timeLeftForRegistrationCase2.seconds >
-                                        0) && (
-                                    <span className="font-thin">
-                                        {timeLeftForRegistrationCase2.hours} hrs
-                                        : {timeLeftForRegistrationCase2.minutes}{" "}
-                                        min :{" "}
-                                        {timeLeftForRegistrationCase2.seconds}{" "}
-                                        sec
-                                    </span>
-                                )}
-                            </div>
-                            <Separator />
-                            <h1 className="text-sm font-thin">
-                                Important Dates - Mark Your Calendar!
-                            </h1>
-                            <div className="text-sm flex flex-col gap-4 px-4">
-                                <div className="flex flex-col">
-                                    <h1>Registration Window:</h1>
-                                    <span className="font-thin">
-                                        Opens:{" "}
-                                        {convertToLocalDateTime(
-                                            data.assessment_public_dto
-                                                .registration_open_date
-                                        )}
-                                    </span>
-                                    <span className="font-thin">
-                                        Closes:{" "}
-                                        {convertToLocalDateTime(
-                                            data.assessment_public_dto
-                                                .registration_close_date
-                                        )}
-                                    </span>
+                            {renderAssessmentInfoPanel(false, true)}
+                            {(timeLeftForRegistrationCase2.hours > 0 ||
+                                timeLeftForRegistrationCase2.minutes > 0 ||
+                                timeLeftForRegistrationCase2.seconds > 0) && (
+                                <div className="block sm:hidden">
+                                    <MyButton
+                                        type="button"
+                                        buttonType="primary"
+                                        scale="large"
+                                        layoutVariant="default"
+                                        onClick={scrollToForm}
+                                    >
+                                        Register Now!
+                                    </MyButton>
                                 </div>
-                                <div className="flex flex-col">
-                                    <h1>Assessment Live Dates</h1>
-                                    <span className="font-thin">
-                                        Starts:{" "}
-                                        {convertToLocalDateTime(
-                                            data.assessment_public_dto
-                                                .bound_start_time
-                                        )}
-                                    </span>
-                                    <span className="font-thin">
-                                        Ends:{" "}
-                                        {convertToLocalDateTime(
-                                            data.assessment_public_dto
-                                                .bound_end_time
-                                        )}
-                                    </span>
-                                </div>
-                                {data.assessment_public_dto.about.content && (
-                                    <div className="flex flex-col">
-                                        <h1>About Assessment</h1>
-                                        <span className="font-thin">
-                                            {parseHtmlToString(
-                                                data.assessment_public_dto.about
-                                                    .content
-                                            )}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
+                            )}
                         </div>
                     </div>
-                    <Separator className="block sm:hidden mx-4" />
                     <div
                         className="flex justify-center items-center w-full"
                         ref={formRef}
                     >
-                        <div className="flex justify-center items-start w-full  sm:w-3/4 flex-col bg-white rounded-xl p-4 shadow-md mx-4 mb-4">
+                        <div className="flex justify-center items-start w-full sm:w-3/4 flex-col bg-white rounded-xl p-4 shadow-md mx-4 mb-4">
                             <h1>Assessment Registration Form</h1>
                             <span className="text-sm text-neutral-500">
                                 Register for the assessment by completing the
@@ -768,7 +869,7 @@ const AssessmentRegistrationForm = () => {
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 };
 

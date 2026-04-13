@@ -36,6 +36,10 @@ public class Assessment {
     @JoinColumn(name = "instructions_id", referencedColumnName = "id", insertable = true, updatable = true)
     private AssessmentRichTextData instructions;
 
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "registration_instructions_id", referencedColumnName = "id", insertable = true, updatable = true)
+    private AssessmentRichTextData registrationInstructions;
+
     @Column(name = "play_mode", nullable = false)
     private String playMode;
 
@@ -95,6 +99,9 @@ public class Assessment {
 
     @Column(name = "omr_mode")
     private Boolean omrMode;
+
+    @Column(name = "result_type")
+    private String resultType;
 
     @Column(name = "reattempt_count")
     private Integer reattemptCount;

@@ -267,7 +267,7 @@ public class AssessmentParticipantsManager {
         }
 
         if (!ObjectUtils.isEmpty(openTestDetails.getInstructionsHtml())) {
-            assessment.setInstructions(
+            assessment.setRegistrationInstructions(
                     new AssessmentRichTextData(null, TextType.HTML.name(), openTestDetails.getInstructionsHtml()));
             assessmentRepository.save(assessment);
         }

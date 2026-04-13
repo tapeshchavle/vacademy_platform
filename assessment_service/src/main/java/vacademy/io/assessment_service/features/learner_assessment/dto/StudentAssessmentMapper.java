@@ -38,6 +38,8 @@ public class StudentAssessmentMapper {
                 .canIncreaseTime((Boolean) assessment[28])
                 .canAskForReattempt((Boolean) assessment[29])
                 .omrMode((Boolean) assessment[30])
+                .resultType((String) assessment[31])
+                .reportReleaseStatus((String) assessment[32])
                 .build();
 
         return dto;

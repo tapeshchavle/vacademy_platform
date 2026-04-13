@@ -1,0 +1,1 @@
+ALTER TABLE assessment ADD COLUMN result_type VARCHAR(50) DEFAULT 'MANUAL';

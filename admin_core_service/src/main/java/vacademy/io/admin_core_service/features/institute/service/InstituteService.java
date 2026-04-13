@@ -53,6 +53,7 @@ public class InstituteService {
         branding.put("institute_id", institute.getId());
         branding.put("institute_name", institute.getInstituteName());
         branding.put("logo_file_id", institute.getLogoFileId());
+        branding.put("institute_theme_code", institute.getInstituteThemeCode());
         return branding;
     }
 }

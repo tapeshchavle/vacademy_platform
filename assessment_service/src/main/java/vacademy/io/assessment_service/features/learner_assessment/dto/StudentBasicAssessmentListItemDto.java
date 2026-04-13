@@ -46,4 +46,6 @@ public class StudentBasicAssessmentListItemDto {
     private Boolean canIncreaseTime;
     private Boolean canAskForReattempt;
     private Boolean omrMode;
+    private String resultType;
+    private String reportReleaseStatus;
 }

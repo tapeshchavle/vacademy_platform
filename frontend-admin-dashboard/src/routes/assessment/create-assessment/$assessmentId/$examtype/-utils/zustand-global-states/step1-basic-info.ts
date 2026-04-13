@@ -8,6 +8,7 @@ interface BasicInfoState {
     reattemptCount?: string;
     durationDistribution?: string;
     evaluationType?: string;
+    resultType?: string;
     raiseReattemptRequest?: boolean;
     raiseTimeIncreaseRequest?: boolean;
     status?: string;
@@ -33,6 +34,7 @@ const initialState: Omit<BasicInfoState, 'setBasicInfo' | 'getBasicInfo' | 'rese
     reattemptCount: undefined,
     durationDistribution: undefined,
     evaluationType: undefined,
+    resultType: undefined,
     raiseReattemptRequest: undefined,
     raiseTimeIncreaseRequest: undefined,
     status: undefined,

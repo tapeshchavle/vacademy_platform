@@ -41,6 +41,7 @@ export const BasicInfoFormSchema = z.object({
     submissionType: z.string(),
     durationDistribution: z.string(),
     evaluationType: z.string(),
+    resultType: z.string().default('MANUAL'),
     switchSections: z.boolean(),
     raiseReattemptRequest: z.boolean(),
     raiseTimeIncreaseRequest: z.boolean(),

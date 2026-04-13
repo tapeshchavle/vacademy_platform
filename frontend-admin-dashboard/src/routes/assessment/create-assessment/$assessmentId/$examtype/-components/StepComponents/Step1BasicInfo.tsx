@@ -343,6 +343,10 @@ const DurationDistributionField = ({ control, form }: any) => {
                                     control={control}
                                     required
                                 />
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Choose whether time limits apply to the whole test, per
+                                    section, or per question.
+                                </p>
                             </FormControl>
                         </FormItem>
                     )}
@@ -668,6 +672,7 @@ const Step1BasicInfo: React.FC<StepContentProps> = ({
             submissionType: savedData?.submission_type || '',
             durationDistribution: savedData?.duration_distribution || '',
             evaluationType: savedData?.evaluation_type || '',
+            resultType: savedData?.result_type || 'MANUAL',
             switchSections: savedData?.can_switch_section,
             raiseReattemptRequest: savedData?.reattempt_consent,
             raiseTimeIncreaseRequest: savedData?.add_time_consent,
@@ -687,7 +692,13 @@ const Step1BasicInfo: React.FC<StepContentProps> = ({
         <FormProvider {...form}>
             <form>
                 <div className="m-0 flex items-center justify-between p-0">
-                    <h1>Basic Information</h1>
+                    <div>
+                        <h1>Basic Information</h1>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Configure the basic details for your assessment including name,
+                            schedule, evaluation method, and result release preferences.
+                        </p>
+                    </div>
                     <MyButton
                         type="button"
                         scale="large"
@@ -729,31 +740,18 @@ const Step1BasicInfo: React.FC<StepContentProps> = ({
                             />
                         </div>
 
-                        {getStepKey({
-                            assessmentDetails,
-                            currentStep,
-                            key: 'subject_selection',
-                        }) && (
-                            <SelectField
-                                label={getTerminology(ContentTerms.Subjects, SystemTerms.Subjects)}
-                                name="testCreation.subject"
-                                labelStyle="font-thin"
-                                options={SubjectFilterData.map((option, index) => ({
-                                    value: option.name,
-                                    label: convertCapitalToTitleCase(option.name),
-                                    _id: index,
-                                }))}
-                                control={form.control}
-                                className="mt-[8px] w-56 font-thin"
-                                required={
-                                    getStepKey({
-                                        assessmentDetails,
-                                        currentStep,
-                                        key: 'subject_selection',
-                                    }) === 'REQUIRED'
-                                }
-                            />
-                        )}
+                        <SelectField
+                            label={getTerminology(ContentTerms.Subjects, SystemTerms.Subjects)}
+                            name="testCreation.subject"
+                            labelStyle="font-thin"
+                            options={SubjectFilterData.map((option, index) => ({
+                                value: option.name,
+                                label: convertCapitalToTitleCase(option.name),
+                                _id: index,
+                            }))}
+                            control={form.control}
+                            className="mt-[8px] w-56 font-thin"
+                        />
                     </div>
                     <div className="flex flex-col gap-6" id="assessment-instructions">
                         <h1 className="-mb-5 font-thin">{examType === 'SURVEY' ? 'Survey Instructions' : 'Assessment Instructions'}</h1>
@@ -895,66 +893,77 @@ const Step1BasicInfo: React.FC<StepContentProps> = ({
                         />
                     )}
                     <div className="flex flex-col gap-6" id="evaluation-type">
-                        {getStepKey({
-                            assessmentDetails,
-                            currentStep,
-                            key: 'evaluation_type',
-                        }) && (
+                        <div>
                             <SelectField
-                                label="Evaluation Type"
-                                name="evaluationType"
-                                options={
-                                    assessmentDetails[
-                                        currentStep
-                                    ]?.field_options?.evaluation_type?.map(
-                                        (distribution: any, index: number) => ({
-                                            value: distribution.value,
-                                            label: distribution.value,
-                                            _id: index,
-                                        })
-                                    ) || [] // Fallback to an empty array if undefined
-                                }
+                                label="Result & Evaluation Type"
+                                name="resultType"
+                                options={[
+                                    {
+                                        value: 'AUTO_AFTER_SUBMISSION',
+                                        label: 'Auto - Result After Submission',
+                                        _id: 0,
+                                    },
+                                    {
+                                        value: 'AUTO_AFTER_ASSESSMENT_END',
+                                        label: 'Auto - Results After Exam Ends',
+                                        _id: 1,
+                                    },
+                                    {
+                                        value: 'MANUAL',
+                                        label: 'Manual',
+                                        _id: 2,
+                                    },
+                                ]}
                                 control={form.control}
-                                className="w-56 font-thin"
-                                required={
-                                    getStepKey({
-                                        assessmentDetails,
-                                        currentStep,
-                                        key: 'evaluation_type',
-                                    }) === 'REQUIRED'
-                                }
+                                className="w-64 font-thin"
+                                required
                             />
-                        )}
-                        {watch('evaluationType') === 'MANUAL' &&
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {watch('resultType') === 'AUTO_AFTER_SUBMISSION'
+                                    ? 'System grades automatically. Results visible right after student submits.'
+                                    : watch('resultType') === 'AUTO_AFTER_ASSESSMENT_END'
+                                      ? 'System grades automatically. Results visible only after the assessment end time.'
+                                      : watch('resultType') === 'MANUAL'
+                                        ? 'Teacher grades by hand. Results hidden until admin releases them.'
+                                        : 'Choose how this assessment is evaluated and when results are shown.'}
+                            </p>
+                        </div>
+                        {watch('resultType') === 'MANUAL' &&
                             getStepKey({
                                 assessmentDetails,
                                 currentStep,
                                 key: 'submission_type',
                             }) && (
-                                <SelectField
-                                    label="Submission Type"
-                                    name="submissionType"
-                                    options={
-                                        assessmentDetails[
-                                            currentStep
-                                        ]?.field_options?.submission_type?.map(
-                                            (distribution: any, index: number) => ({
-                                                value: distribution.value,
-                                                label: distribution.value,
-                                                _id: index,
-                                            })
-                                        ) || [] // Fallback to an empty array if undefined
-                                    }
-                                    control={form.control}
-                                    className="w-56 font-thin"
-                                    required={
-                                        getStepKey({
-                                            assessmentDetails,
-                                            currentStep,
-                                            key: 'submission_type',
-                                        }) === 'REQUIRED'
-                                    }
-                                />
+                                <div>
+                                    <SelectField
+                                        label="Submission Type"
+                                        name="submissionType"
+                                        options={
+                                            assessmentDetails[
+                                                currentStep
+                                            ]?.field_options?.submission_type?.map(
+                                                (distribution: any, index: number) => ({
+                                                    value: distribution.value,
+                                                    label: distribution.value,
+                                                    _id: index,
+                                                })
+                                            ) || []
+                                        }
+                                        control={form.control}
+                                        className="w-56 font-thin"
+                                        required={
+                                            getStepKey({
+                                                assessmentDetails,
+                                                currentStep,
+                                                key: 'submission_type',
+                                            }) === 'REQUIRED'
+                                        }
+                                    />
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        How students submit their answers (e.g., file upload,
+                                        PDF).
+                                    </p>
+                                </div>
                             )}
                     </div>
 
