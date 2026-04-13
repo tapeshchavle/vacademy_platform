@@ -1,5 +1,6 @@
 package vacademy.io.admin_core_service.features.live_session.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -50,8 +51,11 @@ public class GetSessionDetailsBySessionIdResponseDTO {
 
     private String recurrenceType;
     private String recurrenceKey;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "UTC")
     private Date meetingDate;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm:ss", timezone = "UTC")
     private Time scheduleStartTime;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm:ss", timezone = "UTC")
     private Time scheduleLastEntryTime;
     private String customMeetingLink;
     private String customWaitingRoomMediaId;

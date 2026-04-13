@@ -10,6 +10,7 @@ import { TokenKey } from "@/constants/auth/tokens";
 import {
   isSessionLiveTimezoneAware,
   isSessionUpcomingTimezoneAware,
+  convertSessionTimeToUserTimezone,
 } from "@/utils/timezone";
 
 export interface LiveSessionsParams {
@@ -56,10 +57,13 @@ const fetchLiveAndUpcomingSessions = async (
       isSessionUpcomingTimezoneAware
     );
 
-    // Sort upcoming sessions by date and time
     upcoming_sessions.sort((a, b) => {
-      const dateA = new Date(`${a.meeting_date}T${a.start_time}`);
-      const dateB = new Date(`${b.meeting_date}T${b.start_time}`);
+      const dateA = a.timezone
+        ? convertSessionTimeToUserTimezone(a.meeting_date, a.start_time, a.timezone)
+        : new Date(`${a.meeting_date}T${a.start_time}`);
+      const dateB = b.timezone
+        ? convertSessionTimeToUserTimezone(b.meeting_date, b.start_time, b.timezone)
+        : new Date(`${b.meeting_date}T${b.start_time}`);
       return dateA.getTime() - dateB.getTime();
     });
 
@@ -157,10 +161,13 @@ const fetchLiveAndUpcomingSessionsForMultipleBatches = async (
       ).values()
     );
 
-    // Sort upcoming sessions by date and time
     uniqueUpcomingSessions.sort((a, b) => {
-      const dateA = new Date(`${a.meeting_date}T${a.start_time}`);
-      const dateB = new Date(`${b.meeting_date}T${b.start_time}`);
+      const dateA = a.timezone
+        ? convertSessionTimeToUserTimezone(a.meeting_date, a.start_time, a.timezone)
+        : new Date(`${a.meeting_date}T${a.start_time}`);
+      const dateB = b.timezone
+        ? convertSessionTimeToUserTimezone(b.meeting_date, b.start_time, b.timezone)
+        : new Date(`${b.meeting_date}T${b.start_time}`);
       return dateA.getTime() - dateB.getTime();
     });
 

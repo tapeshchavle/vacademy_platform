@@ -61,16 +61,21 @@ export default function LiveSessionCard({ session, isDraft = false }: LiveSessio
     // Use server time hook for accurate time reference
     const { getUserTimezone } = useServerTime();
 
-    // Simple helper to get session time info using server time utilities
+    const normalizeTime = (t: string) => {
+        if (t.includes('T')) {
+            const afterT = t.split('T')[1] || t;
+            return afterT.replace(/[+-]\d{2}:\d{2}$|Z$/, '');
+        }
+        return t.replace(/[+-]\d{2}:\d{2}$|Z$/, '');
+    };
+
     const getSessionTimeInfo = useCallback(() => {
         const sessionTimezone = session.timezone || 'Asia/Kolkata';
         const userTimezone = getUserTimezone();
 
-        // Create session date-time strings
-        const sessionStartString = `${session.meeting_date}T${session.start_time}`;
-        const sessionEndString = `${session.meeting_date}T${session.last_entry_time}`;
+        const sessionStartString = `${session.meeting_date}T${normalizeTime(session.start_time)}`;
+        const sessionEndString = `${session.meeting_date}T${normalizeTime(session.last_entry_time)}`;
 
-        // Parse session times
         const sessionStartTime = fromZonedTime(sessionStartString, sessionTimezone);
         const sessionEndTime = fromZonedTime(sessionEndString, sessionTimezone);
 
