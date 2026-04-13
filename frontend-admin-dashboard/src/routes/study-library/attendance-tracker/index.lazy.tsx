@@ -2,28 +2,17 @@
 import { createLazyFileRoute } from '@tanstack/react-router';
 import { LayoutContainer } from '@/components/common/layout-container/layout-container';
 import { Helmet } from 'react-helmet';
-import { useState, useEffect, createContext, useContext, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { MyButton } from '@/components/design-system/button';
-import {
-    Eye,
-    ArrowSquareOut,
-    X,
-    Phone,
-    Clock,
-    Key,
-    Copy,
-    GraduationCap,
-    Shield,
-    MapPin,
-    Users,
-    DownloadSimple,
-} from '@phosphor-icons/react';
+import { Eye, ArrowSquareOut, X, DownloadSimple } from '@phosphor-icons/react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useNavHeadingStore } from '@/stores/layout-container/useNavHeadingStore';
-import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from '@/components/ui/sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { StudentSidebar } from '@/routes/manage-students/students-list/-components/students-list/student-side-view/student-side-view';
+import { useStudentSidebar } from '@/routes/manage-students/students-list/-context/selected-student-sidebar-context';
+import type { StudentTable } from '@/types/student-table-types';
 import { Calendar } from '@/components/ui/calendar';
-import { format, subDays, subMonths, subYears, startOfDay } from 'date-fns';
+import { format, subDays, startOfDay } from 'date-fns';
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
 import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import { getStudentAttendanceReport, StudentSchedule } from '../live-session/-services/utils';
@@ -77,509 +66,6 @@ interface AttendanceStudent {
     totalClasses: number;
     attendancePercentage: number;
 }
-
-// Create context for selected student
-interface StudentSidebarContextType {
-    selectedStudent: AttendanceStudent | null;
-    setSelectedStudent: (student: AttendanceStudent | null) => void;
-}
-
-const StudentSidebarContext = createContext<StudentSidebarContextType | undefined>(undefined);
-
-export const useStudentSidebar = () => {
-    const context = useContext(StudentSidebarContext);
-    if (!context) {
-        throw new Error('useStudentSidebar must be used within a StudentSidebarProvider');
-    }
-    return context;
-};
-
-// Student Sidebar Component
-
-// Student Sidebar Component
-const StudentDetailsSidebar = () => {
-    const { state } = useSidebar();
-    const { toggleSidebar } = useSidebar();
-    const { selectedStudent } = useStudentSidebar();
-    const [category, setCategory] = useState('overview');
-
-    useEffect(() => {
-        if (state === 'expanded') {
-            document.body.classList.add('sidebar-open');
-        } else {
-            document.body.classList.remove('sidebar-open');
-        }
-
-        // Cleanup on unmount
-        return () => {
-            document.body.classList.remove('sidebar-open');
-        };
-    }, [state]);
-
-    if (!selectedStudent) return null;
-
-    // Calculate days until expiry (placeholder)
-    const daysUntilExpiry = 118;
-
-    return (
-        <Sidebar side="right">
-            <SidebarContent
-                className={`sidebar-content flex flex-col border-l border-neutral-200 bg-white text-neutral-700`}
-            >
-                <SidebarHeader className="sticky top-0 z-10 border-b border-neutral-100 bg-white/95 shadow-sm backdrop-blur-sm">
-                    <div className="flex flex-col p-4">
-                        {/* Header with close button - enhanced with gradient */}
-                        <div className="mb-4 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="h-6 w-1 animate-pulse rounded-full bg-gradient-to-b from-primary-500 to-primary-400"></div>
-                                <h2 className="bg-gradient-to-r from-neutral-800 to-neutral-600 bg-clip-text text-lg font-semibold text-transparent">
-                                    Student Profile
-                                </h2>
-                            </div>
-                            <button
-                                onClick={toggleSidebar}
-                                className="group rounded-xl p-2 transition-all duration-300 hover:scale-105 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 active:scale-95"
-                            >
-                                <X className="size-5 text-neutral-500 transition-colors duration-200 group-hover:text-red-500" />
-                            </button>
-                        </div>
-
-                        {/* Enhanced tab navigation with modern design */}
-                        <div className="relative flex gap-1 rounded-xl bg-gradient-to-r from-neutral-50 to-neutral-100 p-1.5 shadow-inner">
-                            {/* Animated background indicator */}
-                            <div
-                                className={`absolute inset-y-1.5 rounded-lg bg-white shadow-lg transition-all duration-300 ease-out ${category === 'overview'
-                                        ? 'left-1.5 w-[calc(33.333%-0.5rem)]'
-                                        : category === 'learningProgress'
-                                            ? 'left-[calc(33.333%+0.167rem)] w-[calc(33.333%-0.333rem)]'
-                                            : 'left-[calc(66.666%+0.833rem)] w-[calc(33.333%-0.5rem)]'
-                                    }`}
-                            ></div>
-
-                            <button
-                                className={`group relative z-10 flex-1 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${category === 'overview'
-                                        ? 'scale-105 text-primary-500'
-                                        : 'text-neutral-600 hover:scale-100 hover:text-neutral-800'
-                                    }`}
-                                onClick={() => setCategory('overview')}
-                            >
-                                <span className="relative">
-                                    Overview
-                                    {category === 'overview' && (
-                                        <div className="absolute -bottom-1 left-1/2 size-1 -translate-x-1/2 animate-bounce rounded-full bg-primary-500"></div>
-                                    )}
-                                </span>
-                            </button>
-
-                            <button
-                                className={`group relative z-10 flex-1 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${category === 'learningProgress'
-                                        ? 'scale-105 text-primary-500'
-                                        : 'text-neutral-600 hover:scale-100 hover:text-neutral-800'
-                                    }`}
-                                onClick={() => setCategory('learningProgress')}
-                            >
-                                <span className="relative">
-                                    Progress
-                                    {category === 'learningProgress' && (
-                                        <div className="absolute -bottom-1 left-1/2 size-1 -translate-x-1/2 animate-bounce rounded-full bg-primary-500"></div>
-                                    )}
-                                </span>
-                            </button>
-                            <button
-                                className={`group relative z-10 flex-1 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${category === 'testRecord'
-                                        ? 'scale-105 text-primary-500'
-                                        : 'text-neutral-600 hover:scale-100 hover:text-neutral-800'
-                                    }`}
-                                onClick={() => setCategory('testRecord')}
-                            >
-                                <span className="relative">
-                                    Tests
-                                    {category === 'testRecord' && (
-                                        <div className="absolute -bottom-1 left-1/2 size-1 -translate-x-1/2 animate-bounce rounded-full bg-primary-500"></div>
-                                    )}
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                </SidebarHeader>
-
-                <div className="flex-1 overflow-y-auto p-4">
-                    {/* Enhanced student profile header with animations */}
-                    <div className="relative mb-4 overflow-hidden rounded-xl border border-neutral-100 bg-gradient-to-r from-neutral-50/50 to-primary-50/30 p-4">
-                        {/* Animated background pattern */}
-                        <div className="absolute inset-0 opacity-5">
-                            <div className="absolute right-0 top-0 size-32 -translate-y-16 translate-x-16 animate-pulse rounded-full bg-primary-500"></div>
-                            <div className="absolute bottom-0 left-0 size-24 -translate-x-12 translate-y-12 animate-pulse rounded-full bg-primary-300 delay-1000"></div>
-                        </div>
-
-                        <div className="group relative flex items-center gap-4">
-                            <div className="relative">
-                                {/* Enhanced profile image with ring animation */}
-                                <div className="relative flex size-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-neutral-100 to-neutral-200 transition-transform duration-300 group-hover:scale-105">
-                                    {/* Animated ring */}
-                                    <div className="absolute inset-0 rounded-full ring-2 ring-primary-500/20 ring-offset-2 ring-offset-white transition-all duration-300 group-hover:ring-primary-500/40"></div>
-                                    <div className="flex size-full items-center justify-center bg-neutral-100 text-2xl font-bold text-primary-600">
-                                        {selectedStudent.name
-                                            .split(' ')
-                                            .map((n) => n[0])
-                                            .join('')}
-                                    </div>
-                                </div>
-
-                                {/* Online status indicator */}
-                                <div className="absolute -bottom-1 -right-1 size-4 animate-pulse rounded-full border-2 border-white bg-green-500 shadow-lg">
-                                    <div className="absolute inset-0 animate-ping rounded-full bg-green-400"></div>
-                                </div>
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                                <h3 className="truncate font-semibold text-neutral-800 transition-colors duration-300 group-hover:text-primary-500">
-                                    {selectedStudent.name}
-                                </h3>
-                                <div className="mt-1 flex items-center gap-2">
-                                    <div className="transition-all duration-300 group-hover:scale-105">
-                                        <div className="flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-3 py-1">
-                                            <div className="size-2 rounded-full bg-green-500"></div>
-                                            <span className="text-xs font-medium uppercase text-green-700">
-                                                ACTIVE
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-1">
-                                        <div className="size-1.5 animate-bounce rounded-full bg-primary-400"></div>
-                                        <div className="size-1.5 animate-bounce rounded-full bg-primary-400 delay-75"></div>
-                                        <div className="size-1.5 animate-bounce rounded-full bg-primary-400 delay-150"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Main content based on selected category */}
-                    {category === 'overview' && (
-                        <div className="animate-fadeIn flex flex-col gap-3 text-neutral-600">
-                            {/* Edit Button */}
-                            <div className="flex justify-center">
-                                <button className="flex items-center gap-2 rounded-md border border-neutral-200 bg-white px-6 py-2 font-medium text-neutral-700 hover:bg-neutral-50">
-                                    <span className="text-primary-500">✏️</span>
-                                    Edit Details
-                                </button>
-                            </div>
-
-                            {/* Session Expiry Card */}
-                            <div className="rounded-lg border border-neutral-200/50 bg-gradient-to-br from-white to-neutral-50/30 p-3 transition-all duration-200 hover:border-primary-200/50 hover:shadow-md">
-                                <div className="mb-2 flex items-center gap-2.5">
-                                    <div className="rounded-md bg-gradient-to-br from-primary-50 to-primary-100 p-1.5">
-                                        <Clock className="size-4 text-primary-600" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="mb-0.5 text-xs font-medium text-neutral-700">
-                                            Session Expiry
-                                        </h4>
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-base font-bold text-primary-600">
-                                                {daysUntilExpiry}
-                                            </span>
-                                            <span className="text-xs text-neutral-500">days</span>
-                                        </div>
-                                    </div>
-                                    <svg
-                                        width="16"
-                                        height="16"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        className="text-primary-500"
-                                    >
-                                        <path d="M7 17l9.2-9.2M17 17V7H7" />
-                                    </svg>
-                                </div>
-                                <div className="relative mt-2">
-                                    <div className="h-2 w-3/5 rounded-full bg-primary-500"></div>
-                                    <div className="mt-1 text-center text-[10px] leading-tight text-neutral-500">
-                                        Renewal due soon
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Account Credentials */}
-                            <div className="rounded-lg border border-neutral-200/50 bg-gradient-to-br from-white to-neutral-50/30 p-3 transition-all duration-200 hover:border-primary-200/50 hover:shadow-md">
-                                <div className="mb-2 flex items-center justify-between">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="rounded-md bg-gradient-to-br from-neutral-50 to-neutral-100 p-1.5">
-                                            <Key className="size-4 text-neutral-600" />
-                                        </div>
-                                        <h4 className="text-xs font-medium text-neutral-700">
-                                            Account Credentials
-                                        </h4>
-                                    </div>
-                                    <button className="flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50">
-                                        <Shield className="size-3" />
-                                        Share
-                                    </button>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Username: {selectedStudent.username}
-                                            </p>
-                                        </div>
-                                        <button className="text-neutral-400 hover:text-neutral-600">
-                                            <Copy className="size-3.5" />
-                                        </button>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Password: 123456
-                                            </p>
-                                        </div>
-                                        <button className="text-neutral-400 hover:text-neutral-600">
-                                            <Copy className="size-3.5" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* General Details */}
-                            <div className="rounded-lg border border-neutral-200/50 bg-gradient-to-br from-white to-neutral-50/30 p-3 transition-all duration-200 hover:border-primary-200/50 hover:shadow-md">
-                                <div className="mb-2 flex items-center gap-2.5">
-                                    <div className="rounded-md bg-gradient-to-br from-primary-50 to-primary-100 p-1.5">
-                                        <GraduationCap className="size-4 text-primary-600" />
-                                    </div>
-                                    <h4 className="text-xs font-medium text-neutral-700">
-                                        General Details
-                                    </h4>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Course: {selectedStudent.batch.split(' ')[0]}
-                                            </p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Level: 12th standard
-                                            </p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Session: 2025-2026
-                                            </p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Enrollment No: 368053
-                                            </p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">Gender: MALE</p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">School: N/A</p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Contact Information */}
-                            <div className="rounded-lg border border-neutral-200/50 bg-gradient-to-br from-white to-neutral-50/30 p-3 transition-all duration-200 hover:border-primary-200/50 hover:shadow-md">
-                                <div className="mb-2 flex items-center gap-2.5">
-                                    <div className="rounded-md bg-gradient-to-br from-green-50 to-green-100 p-1.5">
-                                        <Phone className="size-4 text-green-600" />
-                                    </div>
-                                    <h4 className="text-xs font-medium text-neutral-700">
-                                        Contact Information
-                                    </h4>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Mobile No.: 919968858268
-                                            </p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Email Id: {selectedStudent.email}
-                                            </p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Location Details */}
-                            <div className="rounded-lg border border-neutral-200/50 bg-gradient-to-br from-white to-neutral-50/30 p-3 transition-all duration-200 hover:border-primary-200/50 hover:shadow-md">
-                                <div className="mb-2 flex items-center gap-2.5">
-                                    <div className="rounded-md bg-gradient-to-br from-orange-50 to-orange-100 p-1.5">
-                                        <MapPin className="size-4 text-orange-600" />
-                                    </div>
-                                    <h4 className="text-xs font-medium text-neutral-700">
-                                        Location Details
-                                    </h4>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">State: N/A</p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">City: N/A</p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Parent/Guardian's Details */}
-                            <div className="rounded-lg border border-neutral-200/50 bg-gradient-to-br from-white to-neutral-50/30 p-3 transition-all duration-200 hover:border-primary-200/50 hover:shadow-md">
-                                <div className="mb-2 flex items-center gap-2.5">
-                                    <div className="rounded-md bg-gradient-to-br from-purple-50 to-purple-100 p-1.5">
-                                        <Users className="size-4 text-purple-600" />
-                                    </div>
-                                    <h4 className="text-xs font-medium text-neutral-700">
-                                        Parent/Guardian&lsquo;s Details
-                                    </h4>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Father/Male Guardian&lsquo;s Name: N/A
-                                            </p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Mother/Male Guardian&lsquo;s Name: N/A
-                                            </p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Mobile No.: N/A
-                                            </p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between rounded-md p-1.5 hover:bg-neutral-50">
-                                        <div className="flex items-center gap-2">
-                                            <div className="size-1.5 rounded-full bg-neutral-300"></div>
-                                            <p className="text-xs text-neutral-600">
-                                                Email Id: N/A
-                                            </p>
-                                        </div>
-                                        <div className="text-neutral-400">
-                                            <Copy className="size-3.5" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {category === 'learningProgress' && (
-                        <div className="flex h-40 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-center">
-                            <div className="text-neutral-500">
-                                <p className="mb-2 text-lg font-medium">Learning Progress</p>
-                                <p className="text-sm">
-                                    Student progress information will be displayed here
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    {category === 'testRecord' && (
-                        <div className="flex h-40 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-center">
-                            <div className="text-neutral-500">
-                                <p className="mb-2 text-lg font-medium">Test Records</p>
-                                <p className="text-sm">
-                                    Student test records will be displayed here
-                                </p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </SidebarContent>
-        </Sidebar>
-    );
-};
 
 // runtime generated from API. fallback empty.
 const classAttendanceData: ClassAttendanceData = {};
@@ -721,6 +207,14 @@ const AttendanceModal = ({
 };
 
 function RouteComponent() {
+    return (
+        <LayoutContainer>
+            <AttendanceTrackerContent />
+        </LayoutContainer>
+    );
+}
+
+function AttendanceTrackerContent() {
     const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 7));
     const [endDate, setEndDate] = useState<Date | undefined>(new Date());
     const [searchQuery, setSearchQuery] = useState('');
@@ -743,8 +237,10 @@ function RouteComponent() {
         direction: 'asc',
     });
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedStudent, setSelectedStudent] = useState<AttendanceStudent | null>(null);
+    const [selectedAttendanceStudent, setSelectedAttendanceStudent] =
+        useState<AttendanceStudent | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const { setSelectedStudent: setSidebarStudent } = useStudentSidebar();
 
     // Extract batch options for dropdown
     const batchOptions = useMemo(() => {
@@ -760,18 +256,22 @@ function RouteComponent() {
         return [{ label: 'All Batches', value: null }, ...extractedBatches];
     }, [batches]);
 
-    // Reset batch selection when session changes
+    // Reset batch selection when session changes, and re-enable the one-shot auto-select below
+    const hasAutoSelectedBatchRef = useRef(false);
     useEffect(() => {
         setSelectedBatchId(null);
+        hasAutoSelectedBatchRef.current = false;
     }, [currentSession.id]);
 
-    // Set the first batch as default when batches are loaded
+    // Set the first batch as default once per session load — never override an explicit
+    // "All Batches" (null) selection the user makes afterwards.
     useEffect(() => {
+        if (hasAutoSelectedBatchRef.current) return;
         if (batchOptions.length > 1 && selectedBatchId === null) {
-            // Set the first actual batch (skip "All Batches" option)
             const firstBatch = batchOptions[1];
             if (firstBatch && firstBatch.value) {
                 setSelectedBatchId(firstBatch.value);
+                hasAutoSelectedBatchRef.current = true;
             }
         }
     }, [batchOptions, selectedBatchId]);
@@ -902,16 +402,59 @@ function RouteComponent() {
         setAttendanceFilter('All');
     };
 
-    // Function to handle View More click
+    // Function to handle View More click (attendance details modal)
     const handleViewMoreClick = (student: AttendanceStudent) => {
-        setSelectedStudent(student);
-        setIsModalOpen(true); // Open modal for attendance view
+        setSelectedAttendanceStudent(student);
+        setIsModalOpen(true);
     };
 
-    // Function to handle student details view (eye icon in first column)
+    // Function to handle student details view (eye icon in first column).
+    // Populates the shared StudentSidebar context with a minimal StudentTable —
+    // sub-components (StudentOverview etc.) refetch full details by user_id.
     const handleViewDetailsClick = (student: AttendanceStudent) => {
-        setSelectedStudent(student);
-        setIsSidebarOpen(true); // Open sidebar for detailed profile
+        const minimalStudent: StudentTable = {
+            id: student.id,
+            user_id: student.id,
+            username: student.username || null,
+            email: student.email,
+            full_name: student.name,
+            mobile_number: student.mobileNumber,
+            institute_enrollment_id: student.username || '',
+            institute_enrollment_number: student.username || '',
+            package_session_id: selectedBatchId || '',
+            status: 'ACTIVE',
+            face_file_id: null,
+            address_line: '',
+            attendance_percent: student.attendancePercentage,
+            referral_count: 0,
+            region: null,
+            city: '',
+            pin_code: '',
+            date_of_birth: '',
+            gender: '',
+            fathers_name: '',
+            mothers_name: '',
+            father_mobile_number: '',
+            father_email: '',
+            mother_mobile_number: '',
+            mother_email: '',
+            linked_institute_name: null,
+            created_at: '',
+            updated_at: '',
+            session_expiry_days: 0,
+            institute_id: '',
+            expiry_date: 0,
+            parents_email: '',
+            parents_mobile_number: '',
+            parents_to_mother_email: '',
+            parents_to_mother_mobile_number: '',
+            destination_package_session_id: '',
+            enroll_invite_id: '',
+            payment_status: '',
+            custom_fields: {},
+        };
+        setSidebarStudent(minimalStudent);
+        setIsSidebarOpen(true);
     };
 
     // Pagination helpers - with server-side pagination
@@ -1025,8 +568,7 @@ function RouteComponent() {
     };
 
     return (
-        <StudentSidebarContext.Provider value={{ selectedStudent, setSelectedStudent }}>
-            <LayoutContainer>
+        <>
                 <Helmet>
                     <title>Live Class Attendance</title>
                     <meta
@@ -1066,30 +608,29 @@ function RouteComponent() {
                     </div>
 
                     <div className="rounded-lg border border-neutral-200 bg-white p-4">
-                        <div className="mb-4 flex flex-wrap items-center gap-3">
-                            <MyDropdown
-                                currentValue={currentSession}
-                                dropdownList={sessionList}
-                                placeholder="Select Session"
-                                handleChange={handleSessionChange}
-                            />
-                            <div className="relative min-w-[240px] flex-1">
-                                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                    <Search />
+                        <div className="mb-4 flex flex-col gap-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <div className="w-full [&>*]:w-full">
+                                    <MyDropdown
+                                        currentValue={currentSession}
+                                        dropdownList={sessionList}
+                                        placeholder="Select Session"
+                                        handleChange={handleSessionChange}
+                                    />
                                 </div>
-                                <Input
-                                    type="text"
-                                    placeholder="Search students..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="h-9 w-full rounded-md border border-neutral-300 bg-white py-2 pl-10 pr-3 text-sm text-neutral-900 placeholder:text-neutral-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                />
-                            </div>
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                {/* Date Range */}
+                                <div className="relative w-full">
+                                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <Search className="size-4 text-neutral-500" />
+                                    </div>
+                                    <Input
+                                        type="text"
+                                        placeholder="Search students..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="h-9 w-full rounded-md border border-neutral-300 bg-white py-2 pl-10 pr-3 text-sm text-neutral-900 placeholder:text-neutral-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                    />
+                                </div>
                                 <RangeDateFilter range={dateRange} onChange={setDateRange} />
-
-                                {/* Batch */}
                                 <BatchDropdown
                                     label={getTerminology(ContentTerms.Batch, SystemTerms.Batch)}
                                     value={selectedBatchLabel}
@@ -1104,14 +645,16 @@ function RouteComponent() {
                                 selectedBatchId ||
                                 selectedLiveSessions.length > 0 ||
                                 attendanceFilter !== 'All') && (
+                                <div className="flex justify-end">
                                     <button
                                         onClick={clearFilters}
-                                        className="ml-auto inline-flex h-9 items-center justify-center gap-1 rounded-md bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200"
+                                        className="inline-flex h-9 items-center justify-center gap-1 rounded-md bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200"
                                     >
-                                        <X />
+                                        <X className="size-4" />
                                         Clear Filters
                                     </button>
-                                )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Students Count */}
@@ -1145,11 +688,11 @@ function RouteComponent() {
                     <div className="overflow-hidden rounded-lg border border-neutral-200">
                         {/* Table */}
                         <div className="w-full overflow-x-auto">
-                            <div className="max-h-[400px] overflow-y-auto">
+                            <div className="max-h-[640px] overflow-y-auto">
                                 <table className="w-full min-w-[800px] table-auto border-collapse">
-                                    <thead>
-                                        <tr className="relative overflow-visible border-b border-neutral-200 bg-primary-100 text-left text-sm font-medium text-neutral-600">
-                                            <th className="w-[40px] px-4 py-6">
+                                    <thead className="sticky top-0 z-10 bg-primary-100">
+                                        <tr className="border-b border-neutral-200 text-left text-sm font-medium text-neutral-600">
+                                            <th className="sticky top-0 z-10 w-[40px] bg-primary-100 px-4 py-4">
                                                 <Checkbox
                                                     checked={allRowsSelected}
                                                     onCheckedChange={(val) =>
@@ -1158,8 +701,10 @@ function RouteComponent() {
                                                     className="border-neutral-400 bg-white text-neutral-600 data-[state=checked]:bg-primary-500 data-[state=checked]:text-white"
                                                 />
                                             </th>
-                                            <th className="w-[60px] px-4 py-6">Details</th>
-                                            <th className="select-none px-4 py-6">
+                                            <th className="sticky top-0 z-10 w-[60px] bg-primary-100 px-4 py-4">
+                                                Details
+                                            </th>
+                                            <th className="sticky top-0 z-10 select-none bg-primary-100 px-4 py-4">
                                                 <MyDropdown
                                                     dropdownList={['ASC', 'DESC']}
                                                     onSelect={(val) =>
@@ -1180,11 +725,22 @@ function RouteComponent() {
                                                     </button>
                                                 </MyDropdown>
                                             </th>
-                                            <th className="px-4 py-6">Username</th>
-                                            <th className="px-4 py-6">{getTerminology(ContentTerms.Batch, SystemTerms.Batch)}</th>
-                                            <th className="px-4 py-6">Mobile Number</th>
-                                            <th className="px-4 py-6">Email</th>
-                                            <th className="px-4 py-6">
+                                            <th className="sticky top-0 z-10 bg-primary-100 px-4 py-4">
+                                                Username
+                                            </th>
+                                            <th className="sticky top-0 z-10 bg-primary-100 px-4 py-4">
+                                                {getTerminology(
+                                                    ContentTerms.Batch,
+                                                    SystemTerms.Batch
+                                                )}
+                                            </th>
+                                            <th className="sticky top-0 z-10 bg-primary-100 px-4 py-4">
+                                                Mobile Number
+                                            </th>
+                                            <th className="sticky top-0 z-10 bg-primary-100 px-4 py-4">
+                                                Email
+                                            </th>
+                                            <th className="sticky top-0 z-10 bg-primary-100 px-4 py-4">
                                                 Live Classes and Attendance
                                             </th>
                                         </tr>
@@ -1257,7 +813,7 @@ function RouteComponent() {
                                                     key={student.id}
                                                     className="border-b border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50"
                                                 >
-                                                    <td className="p-4">
+                                                    <td className="px-4 py-3">
                                                         <Checkbox
                                                             checked={!!rowSelections[student.id]}
                                                             onCheckedChange={(val) =>
@@ -1269,7 +825,7 @@ function RouteComponent() {
                                                             className="flex size-4 items-center justify-center border-neutral-400 text-neutral-600 shadow-none data-[state=checked]:bg-primary-500 data-[state=checked]:text-white"
                                                         />
                                                     </td>
-                                                    <td className="p-4">
+                                                    <td className="px-4 py-3">
                                                         <button
                                                             className="text-neutral-500 hover:text-primary-500"
                                                             onClick={() =>
@@ -1279,12 +835,12 @@ function RouteComponent() {
                                                             <ArrowSquareOut size={20} />
                                                         </button>
                                                     </td>
-                                                    <td className="p-4">{student.name}</td>
-                                                    <td className="p-4">{student.username}</td>
-                                                    <td className="p-4">{student.batch}</td>
-                                                    <td className="p-4">{student.mobileNumber}</td>
-                                                    <td className="p-4">{student.email}</td>
-                                                    <td className="p-4">
+                                                    <td className="px-4 py-3">{student.name}</td>
+                                                    <td className="px-4 py-3">{student.username}</td>
+                                                    <td className="px-4 py-3">{student.batch}</td>
+                                                    <td className="px-4 py-3">{student.mobileNumber}</td>
+                                                    <td className="px-4 py-3">{student.email}</td>
+                                                    <td className="px-4 py-3">
                                                         <div className="flex flex-col">
                                                             <span>
                                                                 {student.attendedClasses}/
@@ -1426,27 +982,26 @@ function RouteComponent() {
                     </div>
                 </div>
 
-                {/* Attendance Modal - Keep for backwards compatibility */}
+                {/* Attendance details modal — sessions list for a single student */}
                 <AttendanceModal
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
-                    student={selectedStudent}
+                    student={selectedAttendanceStudent}
                     batchId={selectedBatchId || ''}
                     startDate={startDate}
                     endDate={endDate}
                 />
 
-                {/* Student Details Sidebar with SidebarProvider */}
+                {/* Shared StudentSidebar reused from manage-students/students-list */}
                 <SidebarProvider
                     style={{ ['--sidebar-width' as string]: '565px' }}
                     defaultOpen={false}
                     open={isSidebarOpen}
                     onOpenChange={setIsSidebarOpen}
                 >
-                    <StudentDetailsSidebar />
+                    <StudentSidebar isStudentList />
                 </SidebarProvider>
-            </LayoutContainer>
-        </StudentSidebarContext.Provider>
+        </>
     );
 }
 
@@ -1455,70 +1010,100 @@ interface RangeDateFilterProps {
     onChange: (r: { from?: Date; to?: Date }) => void;
 }
 
+type DatePresetKey = '7' | '15' | '30' | 'custom';
+
 function RangeDateFilter({ range, onChange }: RangeDateFilterProps) {
     const { from, to } = range;
+
+    const activePreset: DatePresetKey = useMemo(() => {
+        if (!from || !to) return 'custom';
+        const today = startOfDay(new Date());
+        const toDay = startOfDay(to);
+        if (toDay.getTime() !== today.getTime()) return 'custom';
+        const diffDays = Math.round(
+            (today.getTime() - startOfDay(from).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (diffDays === 7) return '7';
+        if (diffDays === 15) return '15';
+        if (diffDays === 30) return '30';
+        return 'custom';
+    }, [from, to]);
+
+    const applyPreset = (days: number) => {
+        onChange({ from: startOfDay(subDays(new Date(), days)), to: new Date() });
+    };
+
+    const presets: Array<{ key: DatePresetKey; label: string; days: number }> = [
+        { key: '7', label: 'Last 7 days', days: 7 },
+        { key: '15', label: 'Last 15 days', days: 15 },
+        { key: '30', label: 'Last 30 days', days: 30 },
+    ];
+
     return (
         <div className="w-full">
             <Popover>
                 <PopoverTrigger asChild>
                     <button
-                        className={`flex h-9 w-full items-center justify-between rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm ${from || to ? 'text-neutral-900' : 'text-neutral-500'
-                            } focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500`}
+                        className={`flex h-9 w-full items-center justify-between rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm ${
+                            from || to ? 'text-neutral-900' : 'text-neutral-500'
+                        } focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500`}
                     >
-                        {from && to ? (
-                            <>
-                                {format(from, 'dd/MM/yy')} - {format(to, 'dd/MM/yy')}
-                            </>
-                        ) : from ? (
-                            <>From {format(from, 'dd/MM/yy')}</>
-                        ) : (
-                            <>Select date range</>
-                        )}
-                        <CalendarIcon className="ml-2 size-4 text-neutral-500" />
+                        <span className="truncate">
+                            {from && to ? (
+                                <>
+                                    {format(from, 'dd/MM/yy')} - {format(to, 'dd/MM/yy')}
+                                </>
+                            ) : from ? (
+                                <>From {format(from, 'dd/MM/yy')}</>
+                            ) : (
+                                <>Date range</>
+                            )}
+                        </span>
+                        <CalendarIcon className="ml-2 size-4 shrink-0 text-neutral-500" />
                     </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-3" align="start">
-                    <div className="flex gap-3">
-                        <Calendar
-                            mode="range"
-                            selected={range as DateRange}
-                            onSelect={(sel: { from?: Date; to?: Date } | undefined) =>
-                                onChange(sel || {})
-                            }
-                            className="border-r border-neutral-100 pr-3"
-                        />
-                        {/* Quick presets */}
-                        <div className="flex flex-col gap-2 pt-1">
-                            <h4 className="mb-1 text-xs font-medium text-neutral-500">
-                                Quick Select
+                <PopoverContent className="w-auto max-w-[95vw] p-3" align="start">
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <div className="flex flex-col gap-2 sm:w-40">
+                            <h4 className="text-xs font-medium text-neutral-500">Quick Select</h4>
+                            {presets.map((preset) => {
+                                const isActive = activePreset === preset.key;
+                                return (
+                                    <button
+                                        key={preset.key}
+                                        onClick={() => applyPreset(preset.days)}
+                                        className={`w-full rounded-md border px-3 py-1.5 text-left text-xs transition ${
+                                            isActive
+                                                ? 'border-primary-300 bg-primary-50 font-medium text-primary-600'
+                                                : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50'
+                                        }`}
+                                    >
+                                        {preset.label}
+                                    </button>
+                                );
+                            })}
+                            <button
+                                onClick={() => onChange({})}
+                                className={`w-full rounded-md border px-3 py-1.5 text-left text-xs transition ${
+                                    activePreset === 'custom' && (from || to)
+                                        ? 'border-primary-300 bg-primary-50 font-medium text-primary-600'
+                                        : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50'
+                                }`}
+                            >
+                                Custom range
+                            </button>
+                        </div>
+                        <div className="sm:border-l sm:border-neutral-100 sm:pl-3">
+                            <h4 className="mb-2 text-xs font-medium text-neutral-500">
+                                Pick custom range
                             </h4>
-                            {[
-                                { label: 'Past Day', from: startOfDay(subDays(new Date(), 1)) },
-                                {
-                                    label: 'Past Week',
-                                    from: startOfDay(subDays(new Date(), 7)),
-                                },
-                                {
-                                    label: 'Past Month',
-                                    from: startOfDay(subMonths(new Date(), 1)),
-                                },
-                                {
-                                    label: 'Past 6 Months',
-                                    from: startOfDay(subMonths(new Date(), 6)),
-                                },
-                                {
-                                    label: 'Past Year',
-                                    from: startOfDay(subYears(new Date(), 1)),
-                                },
-                            ].map((preset) => (
-                                <button
-                                    key={preset.label}
-                                    onClick={() => onChange({ from: preset.from, to: new Date() })}
-                                    className="w-full rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-left text-xs hover:border-neutral-300 hover:bg-neutral-50"
-                                >
-                                    {preset.label}
-                                </button>
-                            ))}
+                            <Calendar
+                                mode="range"
+                                selected={range as DateRange}
+                                onSelect={(sel: { from?: Date; to?: Date } | undefined) =>
+                                    onChange(sel || {})
+                                }
+                            />
                         </div>
                     </div>
                 </PopoverContent>
