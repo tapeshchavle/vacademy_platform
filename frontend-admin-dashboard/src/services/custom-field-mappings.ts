@@ -25,6 +25,8 @@ export interface CustomFieldMappingUsage {
     type: string;
     /** Parent feature instance id (null for DEFAULT_CUSTOM_FIELD). */
     type_id: string | null;
+    /** Human-readable name of the parent (invite name, campaign name, session title). Null for DEFAULT. */
+    type_display_name: string | null;
     /** Always 'ACTIVE' here, kept for forward-compatibility. */
     status: string;
 }

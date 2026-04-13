@@ -34,6 +34,13 @@ public class CustomFieldMappingUsageDTO {
      */
     private String typeId;
 
+    /**
+     * Human-readable name of the parent feature instance — e.g. the invite
+     * name, audience campaign name, live session title. Null for
+     * DEFAULT_CUSTOM_FIELD. Resolved at read time; not stored.
+     */
+    private String typeDisplayName;
+
     /** Status of the mapping (always ACTIVE here, but kept for future use). */
     private String status;
 }
