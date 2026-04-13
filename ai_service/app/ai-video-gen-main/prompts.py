@@ -615,8 +615,8 @@ HTML_GENERATION_SYSTEM_PROMPT_ADVANCED = (
     "</div>\n"
     "<script>\n"
     "animateSVG('anno-svg', 80);\n"
-    "setTimeout(() => fadeIn('#l1', 0.4, 0), 900);\n"
-    "setTimeout(() => fadeIn('#l2', 0.4, 0), 1600);\n"
+    "gsap.to('#l1', {opacity:1, duration:0.4, delay:0.9});\n"
+    "gsap.to('#l2', {opacity:1, duration:0.4, delay:1.6});\n"
     "</script>\n"
     "```\n\n"
 
@@ -694,11 +694,11 @@ HTML_GENERATION_SYSTEM_PROMPT_ADVANCED = (
     "</div>\n"
     "<script>\n"
     "fadeIn('#ps-1', 0.5, 0);\n"
-    "setTimeout(() => animateSVG('pc-1', 35), 1800);\n"
-    "setTimeout(() => fadeIn('#ps-2', 0.5, 0), 2600);\n"
-    "setTimeout(() => animateSVG('pc-2', 35), 4400);\n"
-    "setTimeout(() => fadeIn('#ps-3', 0.5, 0), 5200);\n"
-    "setTimeout(() => annotate('#ps-3 .node-title', {type:'box', color:'#10b981', strokeWidth:2}), 6000);\n"
+    "gsap.delayedCall(1.8, () => animateSVG('pc-1', 35));\n"
+    "gsap.to('#ps-2', {opacity:1, duration:0.5, delay:2.6});\n"
+    "gsap.delayedCall(4.4, () => animateSVG('pc-2', 35));\n"
+    "gsap.to('#ps-3', {opacity:1, duration:0.5, delay:5.2});\n"
+    "gsap.delayedCall(6.0, () => annotate('#ps-3 .node-title', {type:'box', color:'#10b981', strokeWidth:2}));\n"
     "</script>\n"
     "```\n"
     "Use 3-5 steps per shot. For more steps, split into two shots. Adjust timing using word timestamps.\n\n"
@@ -722,14 +722,14 @@ HTML_GENERATION_SYSTEM_PROMPT_ADVANCED = (
     "<script>\n"
     "fadeIn('#eq-ctx', 0.5, 0);\n"
     "// Reveal each term in sequence — adjust delays to match word timings\n"
-    "setTimeout(() => fadeIn('#eq-0', 0.4, 0), 1200);\n"
-    "setTimeout(() => fadeIn('#eq-1', 0.3, 0), 2000);\n"
-    "setTimeout(() => fadeIn('#eq-2', 0.4, 0), 2800);\n"
-    "setTimeout(() => fadeIn('#eq-3', 0.4, 0), 3600);\n"
-    "setTimeout(() => fadeIn('#eq-note', 0.5, 0), 4800);\n"
+    "gsap.to('#eq-0', {opacity:1, duration:0.4, delay:1.2});\n"
+    "gsap.to('#eq-1', {opacity:1, duration:0.3, delay:2.0});\n"
+    "gsap.to('#eq-2', {opacity:1, duration:0.4, delay:2.8});\n"
+    "gsap.to('#eq-3', {opacity:1, duration:0.4, delay:3.6});\n"
+    "gsap.to('#eq-note', {opacity:1, duration:0.5, delay:4.8});\n"
     "// Annotate key terms after all visible\n"
-    "setTimeout(() => annotate('#eq-0', {type:'circle', color:'#dc2626', strokeWidth:3, duration:700}), 5200);\n"
-    "setTimeout(() => annotate('#eq-3', {type:'box', color:'#2563eb', duration:600}), 6000);\n"
+    "gsap.delayedCall(5.2, () => annotate('#eq-0', {type:'circle', color:'#dc2626', strokeWidth:3, duration:700}));\n"
+    "gsap.delayedCall(6.0, () => annotate('#eq-3', {type:'box', color:'#2563eb', duration:600}));\n"
     "</script>\n"
     "```\n"
     "Add `.eq-term` class to main variables, `.eq-sep` to operators/equals signs. Each term is its own `<span>`.\n\n"
@@ -1005,7 +1005,7 @@ HTML_GENERATION_SYSTEM_PROMPT_ADVANCED = (
     "// Animate: show wrong first, then right\n"
     "fadeIn('.wrong-box', 0.5, 0);\n"
     "fadeIn('.right-box', 0.5, 1.5);\n"
-    "setTimeout(() => annotate('.wrong-box .wr-text', {type: 'strike-through', color: '#ef4444'}), 800);\n"
+    "gsap.delayedCall(0.8, () => annotate('.wrong-box .wr-text', {type: 'strike-through', color: '#ef4444'}));\n"
     "</script>\n"
     "```\n\n"
     
@@ -1046,12 +1046,8 @@ HTML_GENERATION_SYSTEM_PROMPT_ADVANCED = (
     "animateSVG('api-diagram', 120);\n"
     "\n"
     "// Annotate key terms after diagram is drawn\n"
-    "setTimeout(() => {\n"
-    "  annotate('#api-term', {type: 'underline', color: '#dc2626', duration: 600});\n"
-    "}, 1500);\n"
-    "setTimeout(() => {\n"
-    "  annotate('#talk-term', {type: 'highlight', color: '#fef08a', duration: 600});\n"
-    "}, 2000);\n"
+    "gsap.delayedCall(1.5, () => annotate('#api-term', {type: 'underline', color: '#dc2626', duration: 600}));\n"
+    "gsap.delayedCall(2.0, () => annotate('#talk-term', {type: 'highlight', color: '#fef08a', duration: 600}));\n"
     "</script>\n"
     "```\n\n"
     
@@ -1062,7 +1058,7 @@ HTML_GENERATION_SYSTEM_PROMPT_ADVANCED = (
     "3. Annotate the key term being spoken (sync to word timing)\n"
     "4. Add the next layer of detail (delay: 5-7s)\n"
     "Each reveal should ADD to what's on screen, NOT replace it.\n"
-    "Use setTimeout with word timings to sync reveals to narration.\n\n"
+    "Use GSAP `delay:` or `gsap.delayedCall()` with word timings to sync reveals to narration. Never use setTimeout.\n\n"
     
     "**📚 DUAL CODING PRINCIPLE (MANDATORY)**:\n"
     "Every shot that introduces a new concept MUST include BOTH:\n"
@@ -1321,12 +1317,8 @@ Gradient: `gradient-bottom` (default), `gradient-top`, `gradient-full`, `gradien
 </div>
 <script>
 fadeIn('#main-text', 0.5, 0);
-setTimeout(() => {{
-  annotate('#key-term', {{type: 'underline', color: '{annotation_color}', duration: 600}});
-}}, 800);
-setTimeout(() => {{
-  animateSVG('diagram', 100);
-}}, 1500);
+gsap.delayedCall(0.8, () => annotate('#key-term', {{type: 'underline', color: '{annotation_color}', duration: 600}}));
+gsap.delayedCall(1.5, () => animateSVG('diagram', 100));
 </script>
 ```
 
@@ -1389,12 +1381,12 @@ You have been given EXACT word timings above. Use them to sync animations with t
 **HOW TO USE WORD TIMINGS**:
 1. Find the key word/phrase you want to animate with (e.g., "mitochondria" at 34.86s)
 2. Calculate the delay from the SHOT START time (given as {start:.2f}s)
-3. Use that delay in your setTimeout or animation delay
+3. Use that delay as a GSAP `delay:` value (seconds) or `gsap.delayedCall()` — NEVER use setTimeout
 
 **EXAMPLE**: If shot starts at 30.0s and you want to show an icon when narrator says "mitochondria" (at 34.86s):
 ```javascript
 // Delay = word_time - shot_start = 34.86 - 30.0 = 4.86 seconds
-setTimeout(() => fadeIn('#mitochondria-icon', 0.5, 0), 4860);  // 4.86s in milliseconds
+gsap.to('#mitochondria-icon', {{opacity:1, duration:0.5, delay:4.86}});  // delay in SECONDS
 ```
 
 **PATTERN FOR SYNCED ANIMATIONS**:
@@ -1405,17 +1397,17 @@ fadeIn('#title', 0.5, 0);
 
 // Show diagram when narrator mentions it (use word timing!)
 // If "diagram" is spoken at 35.2s and shot starts at 30.0s: delay = 5.2s
-setTimeout(() => animateSVG('diagram', 100), 5200);
+gsap.delayedCall(5.2, () => animateSVG('diagram', 100));
 
 // Annotate key term when it's spoken
 // If "energy" is at 37.5s and shot starts at 30.0s: delay = 7.5s
-setTimeout(() => annotate('#energy-term', {{type: 'underline', color: '{annotation_color}'}}), 7500);
+gsap.delayedCall(7.5, () => annotate('#energy-term', {{type: 'underline', color: '{annotation_color}'}}));
 </script>
 ```
 
 **TIMING RULES**:
 - Main title/text: Show at delay 0 (immediately when shot starts)
-- Supporting elements: Sync to word timings using the formula: `delay_ms = (word_time - shot_start) * 1000`
+- Supporting elements: Sync to word timings using the formula: `delay_s = word_time - shot_start` (GSAP delay in seconds)
 - Annotations: Trigger slightly BEFORE the word is spoken (subtract 0.3s) so they're visible when heard
 - NEVER use delays longer than (shot_end - shot_start) seconds
 
@@ -1491,7 +1483,7 @@ Text: `color: {text_color}` | SVG stroke: `{svg_stroke}` | SVG fill: `{svg_fill}
 
 **CRITICAL**:
 - EVERY element with `style="opacity:0"` MUST have a `<script>` block that animates it visible
-- Use the WORD TIMINGS above to sync animation delays: `delay_ms = (word_time - {start_time:.2f}) * 1000`
+- Use the Rel(s) column from WORD TIMINGS directly as GSAP `delay:` in seconds. NEVER use setTimeout.
 - Show elements BEFORE they're mentioned (early by 0.3s) rather than after
 
 {safe_area}

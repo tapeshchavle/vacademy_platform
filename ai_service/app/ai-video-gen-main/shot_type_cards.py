@@ -28,6 +28,8 @@ CORE_PREAMBLE = (
     "- **NO APP-LIKE CARDS** - Don't make things look like mobile app UI or web dashboards.\n"
     "- **NO FANCY TEXT ANIMATIONS** - Text should appear simply (fadeIn/popIn). No flying/bouncing/spinning.\n"
     "- **ANIMATE CONCEPTS, NOT LAYOUTS** - Use animations to EXPLAIN (draw arrows, build diagrams, show flow).\n"
+    "- **NO setTimeout** — The renderer seeks gsap.globalTimeline frame-by-frame; only GSAP `delay:` works. "
+    "Use `gsap.to('#el', {opacity:1, duration:0.5, delay:1.4})` or `gsap.delayedCall(1.4, fn)` instead.\n"
     "- **CLEAN & MINIMAL** - Like a whiteboard or documentary, not a website.\n\n"
 
     "**PLATFORM CAPABILITIES**:\n"
@@ -63,7 +65,9 @@ ANIMATION_TOOLS = (
     "6. **KaTeX** - Math: `$$ E=mc^2 $$`\n"
     "7. **Mermaid** - Flowcharts: `<div class='mermaid'>graph TD; A-->B;</div>`\n"
     "8. **Iconify** - 275k+ icons: `<iconify-icon icon='mdi:name' width='48'></iconify-icon>`\n"
-    "9. **splitReveal** - Cinematic text entrance: `splitReveal('#title', {type:'chars', stagger:0.03});`\n\n"
+    "9. **splitReveal** - Cinematic text entrance: `splitReveal('#title', {type:'chars', stagger:0.03});`\n"
+    "10. **gsap.delayedCall** — seekable timed callback: `gsap.delayedCall(2.5, () => annotate('#el', {type:'underline'}));` "
+    "Use instead of setTimeout — it lives on the GSAP globalTimeline.\n\n"
 
     "**TEXT APPEARANCE PATTERN (how text shows up in learning videos)**:\n"
     "```javascript\n"
@@ -141,7 +145,8 @@ DO_NOT_RULES = (
     "- Card-heavy layouts that look like apps\n"
     "- Fancy entrance animations for text (no flying/bouncing/spinning)\n"
     "- Gradient backgrounds on cards or containers (only on image overlays)\n"
-    "- Rounded card grids that look like mobile UI\n\n"
+    "- Rounded card grids that look like mobile UI\n"
+    "- **setTimeout for animations** — use GSAP `delay:` or `gsap.delayedCall()` instead. setTimeout never fires in the renderer.\n\n"
 )
 
 

@@ -67,7 +67,7 @@ class VideoGenerationRequest(BaseModel):
     )
     quality_tier: str = Field(
         default="ultra",
-        description="Quality tier: 'free', 'standard', 'premium', 'ultra'. Controls two-pass script review, HTML validation, image prompt enhancement, and other quality features."
+        description="Quality tier: 'free', 'standard', 'premium', 'ultra', 'super_ultra'. Controls two-pass script review, HTML validation, image prompt enhancement, crossfade transitions, kinetic text shots, and other quality features."
     )
     voice_gender: str = Field(
         default="female",

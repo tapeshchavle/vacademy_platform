@@ -1325,6 +1325,7 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                 host.style.width = clampedW + 'px';
                 host.style.height = clampedH + 'px';
                 if (typeof e.z !== 'undefined') host.style.zIndex = String(e.z);
+                if (typeof e.opacity !== 'undefined') host.style.opacity = String(e.opacity);
                 // Store timing for video sync
                 if (typeof e.inTime !== 'undefined') host.dataset.inTime = String(e.inTime);
               }
@@ -1739,6 +1740,7 @@ def _load_video_options(options_path: Path) -> Dict[str, Any]:
         "phoneme_map_path": data.get("phoneme_map_path"),
         "alignment_json_path": data.get("alignment_json_path"),
         "character_pose": data.get("character_pose"),
+        "crossfade_duration": float(data.get("crossfade_duration", 0.0)),
     }
 
 
@@ -1767,22 +1769,43 @@ def _load_caption_settings(settings_path: Path) -> Dict[str, Any]:
     }
 
 
-def _active_entries_at(timeline: List[Dict[str, Any]], t: float) -> List[Dict[str, Any]]:
+def _active_entries_at(
+    timeline: List[Dict[str, Any]],
+    t: float,
+    crossfade: float = 0.0,
+) -> List[Dict[str, Any]]:
     active: List[Dict[str, Any]] = []
     for item in timeline:
-        if item["inTime"] <= t < item["exitTime"]:
-            entry = {
-                "id": item["id"],
-                "x": item["x"],
-                "y": item["y"],
-                "w": item["w"],
-                "h": item["h"],
-                "html": item["html"],
-                "inTime": item["inTime"],
-            }
-            if "z" in item:
-                entry["z"] = item["z"]
-            active.append(entry)
+        item_id: str = item["id"]
+        in_t: float = item["inTime"]
+        ex_t: float = item["exitTime"]
+        is_branding = item_id.startswith("branding-")
+        cf = 0.0 if is_branding else crossfade
+
+        if t < in_t - cf or t >= ex_t + cf:
+            continue
+
+        entry = {
+            "id": item_id,
+            "x": item["x"],
+            "y": item["y"],
+            "w": item["w"],
+            "h": item["h"],
+            "html": item["html"],
+            "inTime": in_t,
+        }
+        if "z" in item:
+            entry["z"] = item["z"]
+
+        if cf > 0.0:
+            if t < in_t:
+                entry["opacity"] = max(0.0, min(1.0, (t - (in_t - cf)) / cf))
+            elif t >= ex_t:
+                entry["opacity"] = max(0.0, min(1.0, (ex_t + cf - t) / cf))
+            else:
+                entry["opacity"] = 1.0
+
+        active.append(entry)
     return active
 
 
@@ -2374,10 +2397,11 @@ def render_video_from_json(
         print(f"DEBUG: Rendering frame range [{_render_start}, {_render_end}) of {total_frames} total")
 
         _prev_active_ids = set()
+        _crossfade_duration: float = float(opts.get("crossfade_duration", 0.0))
 
         for frame_index in range(_render_start, _render_end):
             t = frame_index / float(fps)
-            active = _active_entries_at(timeline, t)
+            active = _active_entries_at(timeline, t, crossfade=_crossfade_duration)
             # Add branding if enabled
             if show_branding and branding_entry:
                 active.append(branding_entry)

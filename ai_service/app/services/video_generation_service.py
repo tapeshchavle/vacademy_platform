@@ -599,7 +599,7 @@ class VideoGenerationService:
             percentage = 5 + int((stage_idx - start_stage_idx) * percentage_per_stage)
             
             # Descriptive message: for HTML stage with Director enabled, show "Planning shots..."
-            if stage_pipeline_name == "html" and quality_tier in ("premium", "ultra"):
+            if stage_pipeline_name == "html" and quality_tier in ("premium", "ultra", "super_ultra"):
                 _stage_message = "Planning shots & creating visuals..."
             else:
                 _stage_message = f"Processing stage: {stage_pipeline_name.upper()}"

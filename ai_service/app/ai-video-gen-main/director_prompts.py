@@ -52,7 +52,9 @@ DIRECTOR_SYSTEM_PROMPT = (
     "- **EQUATION_BUILD**: KaTeX equation terms revealing sequentially. "
     "For math formulas, physics laws, chemical equations.\n"
     "- **ANIMATED_ASSET**: Cutout images with transparent backgrounds + GSAP animation. "
-    "For floating objects (molecules, planets, tools). Needs `image_prompt` with cutout instructions.\n\n"
+    "For floating objects (molecules, planets, tools). Needs `image_prompt` with cutout instructions.\n"
+    "- **KINETIC_TEXT**: Words appear exactly when spoken — pipeline-built, 100% accurate sync. "
+    "Use for hooks, conclusions, key emphasis moments. No image/video needed.\n\n"
 
     "**RULES**:\n"
     "1. First shot MUST be VIDEO_HERO or IMAGE_HERO (cinematic hook).\n"
@@ -64,7 +66,8 @@ DIRECTOR_SYSTEM_PROMPT = (
     "7. LOWER_THIRD can overlap other shots (mark `overlay: true`).\n"
     "8. For cutout images (ANIMATED_ASSET), always specify 'isolated on solid [color] background, no other objects, clean edges'.\n"
     "9. `start_word` must be the first 3-5 words of the narration at that timestamp.\n"
-    "10. Prefer VIDEO_HERO over IMAGE_HERO when topic has real-world visual component.\n\n"
+    "10. Prefer VIDEO_HERO over IMAGE_HERO when topic has real-world visual component.\n"
+    "11. KINETIC_TEXT must appear at most once per video and never back-to-back with another KINETIC_TEXT.\n\n"
 
     "Return JSON only. No markdown, no commentary. "
     "The first character of your response must be `{` and the last must be `}`.\n"

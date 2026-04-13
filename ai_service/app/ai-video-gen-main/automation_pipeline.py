@@ -301,6 +301,7 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "use_director": True,
         "director_max_tokens": 8000,
         "per_shot_max_tokens": 16000,
+        "crossfade_duration": 0.35,
     },
     "ultra": {
         "script_temperature": 0.6,
@@ -315,6 +316,23 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "use_director": True,
         "director_max_tokens": 12000,
         "per_shot_max_tokens": 24000,
+        "crossfade_duration": 0.35,
+    },
+    "super_ultra": {
+        "script_temperature": 0.6,
+        "script_max_tokens": 32000,
+        "html_temperature": 0.7,
+        "html_max_tokens": 32000,
+        "two_pass_script": True,
+        "html_validation": True,
+        "image_prompt_enhancement": True,
+        "shot_diversity_enforcement": True,
+        "segment_context": True,
+        "use_director": True,
+        "director_max_tokens": 12000,
+        "per_shot_max_tokens": 24000,
+        "kinetic_text_shots": True,
+        "crossfade_duration": 0.35,
     },
 }
 
@@ -3344,16 +3362,30 @@ class VideoGenerationPipeline:
 
             # Filter word timings to this shot's time range
             shot_words = [w for w in words if start_time <= float(w.get("start", 0)) < end_time]
-            word_lines = ["Time(s)  | Word", "---------|--------"]
+            word_lines = ["Rel(s)  | Abs(s)  | Word", "--------|---------|--------"]
             for w in shot_words[:30]:  # Limit to 30 words
-                word_lines.append(f"{float(w['start']):>7.2f}  | {w.get('word', '')}")
+                abs_t = float(w["start"])
+                rel_t = round(abs_t - start_time, 3)
+                word_lines.append(f"{rel_t:>6.2f}  | {abs_t:>7.2f}  | {w.get('word', '')}")
             word_timings = "\n".join(word_lines)
 
-            # Sync points from Director
+            # Sync points from Director — formatted as ready-to-copy GSAP scaffold
             sync_lines = []
             for sp in shot.get("sync_points", []):
-                sync_lines.append(f"- At {sp.get('time', 0):.2f}s: {sp.get('action', '')}")
-            sync_points_str = "\n".join(sync_lines) if sync_lines else "(none specified)"
+                abs_time = float(sp.get("time", 0))
+                rel_delay = round(max(0.0, abs_time - start_time), 3)
+                action = sp.get("action", "")
+                word = sp.get("word", "")
+                word_label = f'"{word}" @ ' if word else ""
+                sync_lines.append(
+                    f"// {word_label}abs={abs_time:.2f}s → gsap delay={rel_delay:.2f}s\n"
+                    f"gsap.to('#YOUR_ELEMENT', {{opacity:1, duration:0.4, delay:{rel_delay:.2f}, "
+                    f"ease:\"power2.out\"}});  // {action}"
+                )
+            sync_points_str = (
+                "SYNC POINTS — copy these delays (shot-relative seconds). Replace #YOUR_ELEMENT with real IDs:\n"
+                + "\n".join(sync_lines)
+            ) if sync_lines else "(none specified)"
 
             # Continuity context
             prev_desc = ""
@@ -3402,6 +3434,34 @@ class VideoGenerationPipeline:
                 width=_w,
                 height=_h,
             )
+
+            # ── KINETIC_TEXT bypass — skip LLM, build exact word-sync HTML directly ──
+            if shot_type == "KINETIC_TEXT" and self._tier_config.get("kinetic_text_shots", False):
+                kinetic_html = self._build_kinetic_text_html(
+                    words_in_shot=shot_words,
+                    start_time=start_time,
+                    palette=palette,
+                    bg_type=background_type,
+                )
+                kinetic_html = self._ensure_fonts(kinetic_html)
+                entry = {
+                    "start": start_time,
+                    "end": end_time,
+                    "htmlStartX": 0, "htmlStartY": 0,
+                    "htmlEndX": _w, "htmlEndY": _h,
+                    "html": kinetic_html,
+                    "id": f"shot-{shot_idx}",
+                    "index": shot_idx,
+                    "z": shot.get("z", 10),
+                }
+                print(f"   ✅ Shot {shot_idx + 1} KINETIC_TEXT built ({len(shot_words)} words, no LLM)")
+                if on_segment_done:
+                    try:
+                        on_segment_done([entry])
+                    except Exception:
+                        pass
+                return [entry], {}
+            # ── end KINETIC_TEXT bypass ──
 
             # LLM call with retry
             max_attempts = 3
@@ -3999,6 +4059,50 @@ class VideoGenerationPipeline:
                 }
             ]
         }
+
+    @staticmethod
+    def _build_kinetic_text_html(
+        words_in_shot: List[Dict[str, Any]],
+        start_time: float,
+        palette: Dict[str, Any],
+        bg_type: str,
+    ) -> str:
+        """100% accurate word-sync kinetic typography. Bypasses LLM entirely.
+
+        Each word fades/slides in at its exact Whisper-aligned timestamp.
+        Called when shot_type == 'KINETIC_TEXT' in super_ultra tier.
+        """
+        text_color = palette.get("text", "#ffffff")
+        bg_css = "background:#000000" if bg_type == "black" else "background:#ffffff"
+        spans: List[str] = []
+        triggers: List[str] = []
+        for i, w in enumerate(words_in_shot):
+            word = str(w.get("word", "")).strip()
+            if not word:
+                continue
+            delay = round(max(0.0, float(w["start"]) - start_time), 3)
+            spans.append(
+                f'<span id="kw{i}" style="opacity:0;display:inline-block;margin:0 6px">{word}</span>'
+            )
+            triggers.append(
+                f'gsap.fromTo("#kw{i}", {{opacity:0,y:20}}, '
+                f'{{opacity:1,y:0,duration:0.2,delay:{delay},ease:"power2.out"}});'
+            )
+        if not spans:
+            return f'<div style="width:100%;height:100%;{bg_css}"></div>'
+        spans_html = "".join(spans)
+        triggers_js = "\n".join(triggers)
+        return (
+            f'<div style="width:100%;height:100%;display:flex;align-items:center;'
+            f'justify-content:center;{bg_css};padding:80px">'
+            f'<div style="font-size:3.4rem;font-family:\'Montserrat\',sans-serif;'
+            f'font-weight:700;line-height:1.9;text-align:center;'
+            f'color:{text_color};max-width:1400px">'
+            f'{spans_html}'
+            f'</div>'
+            f'</div>'
+            f'<script>\n{triggers_js}\n</script>'
+        )
 
     @staticmethod
     def _sanitize_html_content(html: str) -> str:
@@ -5974,6 +6078,15 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
                 audio_delay = float(intro_config.get("duration_seconds", 0.0))
                 print(f"   🎵 Audio will start at {audio_delay}s (from branding config)")
         
+        _video_options_path = str(DEFAULT_VIDEO_OPTIONS)
+        crossfade_duration = self._tier_config.get("crossfade_duration", 0.0)
+        if crossfade_duration > 0.0:
+            _base_opts = json.loads(Path(DEFAULT_VIDEO_OPTIONS).read_text())
+            _base_opts["crossfade_duration"] = crossfade_duration
+            _patched_opts_path = run_dir / "video_options_patched.json"
+            _patched_opts_path.write_text(json.dumps(_base_opts))
+            _video_options_path = str(_patched_opts_path)
+
         cmd = [
             sys.executable,
             str(GENERATE_VIDEO_SCRIPT),
@@ -5981,7 +6094,7 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
             str(timeline_path),
             str(output_video),
             "--video-options",
-            str(DEFAULT_VIDEO_OPTIONS),
+            _video_options_path,
             "--captions-words",
             str(words_json_path),
             "--captions-settings",

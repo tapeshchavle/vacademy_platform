@@ -137,7 +137,7 @@ export const CONTENT_TYPES = [
 ] as const;
 
 export type VideoOrientation = 'landscape' | 'portrait';
-export type QualityTier = 'free' | 'standard' | 'premium' | 'ultra';
+export type QualityTier = 'free' | 'standard' | 'premium' | 'ultra' | 'super_ultra';
 
 export interface ReferenceFile {
     url: string;
@@ -189,6 +189,12 @@ export const QUALITY_TIERS: Array<{
         label: 'Ultra',
         description: 'Best quality — all enhancements enabled',
         badge: 'Default',
+    },
+    {
+        value: 'super_ultra',
+        label: 'Super Ultra',
+        description: 'Crossfade transitions + kinetic text shots with frame-perfect word sync',
+        badge: 'New',
     },
 ];
 
