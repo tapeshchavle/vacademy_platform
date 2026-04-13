@@ -90,7 +90,7 @@ public class InstituteStudentRepositoryImpl implements InstituteStudentRepositor
             LEFT JOIN custom_field_values cfv
                 ON cfv.custom_field_id = cf.id
                 AND (
-                    (cfv.source_type = 'STUDENT_SESSION_INSTITUTE_GROUP_MAPPING' AND cfv.source_id = ssigm.id)
+                    (cfv.source_type IN ('STUDENT_SESSION_INSTITUTE_GROUP_MAPPING', 'STUDENT_SESSION_MAPPING') AND cfv.source_id = ssigm.id)
                     OR (cfv.source_type = 'USER' AND cfv.source_id = ssigm.user_id)
                 )
             LEFT JOIN user_plan up

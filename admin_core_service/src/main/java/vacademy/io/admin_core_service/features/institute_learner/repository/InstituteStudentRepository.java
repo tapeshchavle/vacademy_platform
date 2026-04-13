@@ -281,7 +281,7 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
       LEFT JOIN custom_fields cf
           ON cf.id = icf.custom_field_id
       LEFT JOIN custom_field_values cfv
-          ON cfv.source_type = 'STUDENT_SESSION_INSTITUTE_GROUP_MAPPING'
+          ON cfv.source_type IN ('STUDENT_SESSION_INSTITUTE_GROUP_MAPPING', 'STUDENT_SESSION_MAPPING')
           AND cfv.source_id = ssigm.id
           AND cfv.custom_field_id = cf.id
       LEFT JOIN user_plan up
@@ -450,7 +450,7 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
       LEFT JOIN custom_fields cf
           ON cf.id = icf.custom_field_id
       LEFT JOIN custom_field_values cfv
-          ON cfv.source_type = 'STUDENT_SESSION_INSTITUTE_GROUP_MAPPING'
+          ON cfv.source_type IN ('STUDENT_SESSION_INSTITUTE_GROUP_MAPPING', 'STUDENT_SESSION_MAPPING')
           AND cfv.source_id = ssigm.id
           AND cfv.custom_field_id = cf.id
       LEFT JOIN user_plan up
@@ -757,7 +757,7 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
       LEFT JOIN custom_field_values cfv
           ON cfv.custom_field_id = cf.id
           AND (
-              (cfv.source_type = 'STUDENT_SESSION_INSTITUTE_GROUP_MAPPING' AND cfv.source_id = ssigm.id)
+              (cfv.source_type IN ('STUDENT_SESSION_INSTITUTE_GROUP_MAPPING', 'STUDENT_SESSION_MAPPING') AND cfv.source_id = ssigm.id)
               OR (cfv.source_type = 'USER' AND cfv.source_id = ssigm.user_id)
           )
       LEFT JOIN user_plan up
@@ -944,7 +944,7 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
       LEFT JOIN custom_field_values cfv
           ON cfv.custom_field_id = cf.id
           AND (
-              (cfv.source_type = 'STUDENT_SESSION_INSTITUTE_GROUP_MAPPING' AND cfv.source_id = ssigm.id)
+              (cfv.source_type IN ('STUDENT_SESSION_INSTITUTE_GROUP_MAPPING', 'STUDENT_SESSION_MAPPING') AND cfv.source_id = ssigm.id)
               OR (cfv.source_type = 'USER' AND cfv.source_id = ssigm.user_id)
           )
       LEFT JOIN user_plan up
@@ -972,7 +972,7 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
               SELECT 1
               FROM custom_field_values cfv_inner
               WHERE (
-                  (cfv_inner.source_type = 'STUDENT_SESSION_INSTITUTE_GROUP_MAPPING' AND cfv_inner.source_id = ssigm.id)
+                  (cfv_inner.source_type IN ('STUDENT_SESSION_INSTITUTE_GROUP_MAPPING', 'STUDENT_SESSION_MAPPING') AND cfv_inner.source_id = ssigm.id)
                   OR (cfv_inner.source_type = 'USER' AND cfv_inner.source_id = ssigm.user_id)
               )
                 AND cfv_inner.value IS NOT NULL
@@ -1044,7 +1044,7 @@ public interface InstituteStudentRepository extends CrudRepository<Student, Stri
               SELECT 1
               FROM custom_field_values cfv_inner
               WHERE (
-                  (cfv_inner.source_type = 'STUDENT_SESSION_INSTITUTE_GROUP_MAPPING' AND cfv_inner.source_id = ssigm.id)
+                  (cfv_inner.source_type IN ('STUDENT_SESSION_INSTITUTE_GROUP_MAPPING', 'STUDENT_SESSION_MAPPING') AND cfv_inner.source_id = ssigm.id)
                   OR (cfv_inner.source_type = 'USER' AND cfv_inner.source_id = ssigm.user_id)
               )
                 AND cfv_inner.value IS NOT NULL
