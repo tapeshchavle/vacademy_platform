@@ -555,7 +555,7 @@ public class AdmissionService {
                     ? request.getMobileNumber()
                     : "stud_" + UUID.randomUUID().toString().replace("-", "").substring(0, 10);
             childRequest.setUsername(childUsername);
-            childRequest.setEmail("child_" + UUID.randomUUID().toString().substring(0, 8) + "@vacademy.io");
+            childRequest.setEmail("child_" + UUID.randomUUID().toString().substring(0, 8) + "@vacademy.com");
             childRequest.setRoles(java.util.List.of("STUDENT"));
             childRequest.setLinkedParentId(parentUser.getId());
 

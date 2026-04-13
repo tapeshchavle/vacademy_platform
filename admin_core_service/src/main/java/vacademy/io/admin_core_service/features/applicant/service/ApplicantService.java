@@ -1369,7 +1369,7 @@ public class ApplicantService {
                                 .build();
 
                 // Generate dummy email for child if not provided
-                String dummyEmail = "child_" + System.currentTimeMillis() + "@vacademy.io";
+                String dummyEmail = "child_" + System.currentTimeMillis() + "@vacademy.com";
                 childDTO.setEmail(dummyEmail);
 
                 // Handle date of birth
