@@ -114,6 +114,7 @@ export default function ScheduleStep2() {
             );
             const defaultNotifySettings = {
                 onCreate: false,
+                onEdit: false,
                 beforeLive: false,
                 beforeLiveTime: [] as { time: string }[],
                 onLive: false,
@@ -237,6 +238,7 @@ export default function ScheduleStep2() {
             },
             notifySettings: {
                 onCreate: false,
+                onEdit: false,
                 beforeLive: false,
                 beforeLiveTime: [],
                 onLive: true,
@@ -266,6 +268,7 @@ export default function ScheduleStep2() {
         // Set notification settings
         const defaultNotifySettings = {
             onCreate: false,
+            onEdit: false,
             beforeLive: false,
             beforeLiveTime: [] as { time: string }[],
             onLive: false,
@@ -970,6 +973,30 @@ export default function ScheduleStep2() {
                                     </FormItem>
                                 )}
                             />
+
+                            {isEditState && (
+                                <FormField
+                                    control={control}
+                                    name={`notifySettings.onEdit`}
+                                    render={({ field }) => (
+                                        <FormItem className="flex items-end gap-2">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value ?? false}
+                                                    onCheckedChange={field.onChange}
+                                                    className={`size-5 rounded-sm border-2 shadow-none ${field.value
+                                                        ? 'border-none bg-primary-500 text-white'
+                                                        : ''
+                                                        }`}
+                                                />
+                                            </FormControl>
+                                            <FormLabel className="!mb-[3px] font-thin">
+                                                Send Reschedule/Edit Email
+                                            </FormLabel>
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
 
                             <div>
                                 <div className="text-sm font-medium">Notify Before</div>
