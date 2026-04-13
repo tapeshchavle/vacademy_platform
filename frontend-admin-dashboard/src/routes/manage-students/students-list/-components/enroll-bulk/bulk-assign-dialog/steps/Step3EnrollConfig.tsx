@@ -219,7 +219,12 @@ export const Step3EnrollConfig = ({
                                     onSelect={(date) => {
                                         onOptionsChange({
                                             ...options,
-                                            paymentDate: date ? date.toISOString() : '',
+                                            // Send date-only string (YYYY-MM-DD) to avoid
+                                            // timezone shift — toISOString() converts local
+                                            // midnight to UTC which can roll back one day.
+                                            paymentDate: date
+                                                ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+                                                : '',
                                         });
                                     }}
                                     disabled={(date) => date > new Date()}
