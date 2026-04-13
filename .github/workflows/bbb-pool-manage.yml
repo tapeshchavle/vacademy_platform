@@ -373,7 +373,6 @@ jobs:
             bigbluebutton-server/install-recording-hook.sh \
             bigbluebutton-server/bbb-heal-service.py \
             bigbluebutton-server/bbb-heal-service.service \
-            bigbluebutton-server/bbb-unstall-recordings.sh \
             bigbluebutton-server/vacademy-heal.nginx \
             root@$IP:/tmp/vacademy-bbb/
 

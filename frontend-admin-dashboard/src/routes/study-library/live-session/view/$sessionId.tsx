@@ -391,6 +391,8 @@ function ViewLiveSession() {
             let totalNew = 0;
             let totalFail = 0;
             let anySucceeded = false;
+            let anyRecovering = false;
+            let anyNotFound = false;
 
             await Promise.all(
                 uniqueIds.map(async (scheduleId) => {
@@ -398,10 +400,12 @@ function ViewLiveSession() {
                         const result = await syncRecordingsFromBbb(scheduleId, instituteId);
                         results[scheduleId] = result.recordings;
                         anySucceeded = true;
-                        // Escalate severity: BBB_OFFLINE > PARTIAL > OK
+                        // Severity ladder: BBB_OFFLINE > PARTIAL > RECOVERING > NOT_FOUND > OK
                         if (result.status === 'BBB_OFFLINE') overallStatus = 'BBB_OFFLINE';
                         else if (result.status === 'PARTIAL' && overallStatus !== 'BBB_OFFLINE')
                             overallStatus = 'PARTIAL';
+                        if (result.status === 'RECOVERING') anyRecovering = true;
+                        if (result.status === 'NOT_FOUND') anyNotFound = true;
                         // Parse counts from the structured message to aggregate across schedules
                         const newMatch = result.message.match(/found (\d+) new/);
                         const failMatch = result.message.match(/(\d+) could not/);
@@ -423,8 +427,15 @@ function ViewLiveSession() {
             } else if (overallStatus === 'PARTIAL') {
                 const msg = `Partially synced — ${totalNew} recording(s) synced, ${totalFail} could not be retrieved.`;
                 toast.warning(msg);
+            } else if (anyRecovering) {
+                toast.info(
+                    'Recording is being rebuilt on the meeting server. It should appear in about 10 minutes — click Refresh to check.',
+                    { duration: 8000 }
+                );
             } else if (totalNew > 0) {
                 toast.success(`Sync complete — found ${totalNew} new recording(s).`);
+            } else if (anyNotFound) {
+                toast.warning('No recording was captured for this session.');
             } else {
                 toast.success('Already up to date.');
             }

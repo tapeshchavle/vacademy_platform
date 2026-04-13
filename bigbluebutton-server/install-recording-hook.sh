@@ -36,10 +36,10 @@ echo ""
 
 # ── 1. Install ffmpeg if not present ─────────────────────────
 if ! command -v ffmpeg &>/dev/null; then
-    echo "[1/5] Installing ffmpeg..."
+    echo "[1/8] Installing ffmpeg..."
     apt-get update -qq && apt-get install -y -qq ffmpeg
 else
-    echo "[1/5] ffmpeg already installed ✓"
+    echo "[1/8] ffmpeg already installed ✓"
 fi
 
 # ── 2. Configure BBB to retain raw recordings ────────────────
@@ -47,7 +47,7 @@ fi
 # need to extract the presenter-only video. By default BBB deletes
 # raw files after publishing — this keeps them.
 BBB_YML="/usr/local/bigbluebutton/core/scripts/bigbluebutton.yml"
-echo "[2/5] Configuring BBB to retain raw recordings..."
+echo "[2/8] Configuring BBB to retain raw recordings..."
 if [ -f "$BBB_YML" ]; then
     if grep -q "^delete_raw_after_publish:" "$BBB_YML"; then
         # Update existing setting
@@ -71,7 +71,7 @@ else
 fi
 
 # ── 3. Create configuration file ─────────────────────────────
-echo "[3/5] Writing config to $CONF_FILE..."
+echo "[3/8] Writing config to $CONF_FILE..."
 cat > "$CONF_FILE" <<EOF
 # Vacademy BBB Recording Upload Configuration
 # Generated on $(date)
@@ -87,7 +87,7 @@ chmod 644 "$CONF_FILE"
 echo "  Config written (permissions: 644 — readable by bigbluebutton rap worker)"
 
 # ── 4. Install the post-publish script ────────────────────────
-echo "[4/9] Installing post-publish hook..."
+echo "[4/8] Installing post-publish hook..."
 
 # Ensure hook directory exists
 mkdir -p "$HOOK_DIR"
@@ -128,7 +128,7 @@ chmod +x "$RUBY_WRAPPER"
 echo "  Ruby wrapper: $RUBY_WRAPPER"
 
 # ── 5. Create log file ───────────────────────────────────────
-echo "[5/9] Setting up logging..."
+echo "[5/8] Setting up logging..."
 LOG_FILE="/var/log/bigbluebutton/vacademy-recording-upload.log"
 touch "$LOG_FILE"
 chown bigbluebutton:bigbluebutton "$LOG_FILE" 2>/dev/null || true
@@ -139,7 +139,7 @@ echo "  Upload log:  $LOG_FILE"
 echo "  Heal log:    $HEAL_LOG"
 
 # ── 6. Install BBB heal service ──────────────────────────────
-echo "[6/9] Installing BBB heal service (on-demand pipeline recovery)..."
+echo "[6/8] Installing BBB heal service (on-demand pipeline recovery)..."
 HEAL_PY_SOURCE="$SCRIPT_DIR/bbb-heal-service.py"
 HEAL_PY_DEST="/usr/local/bin/bbb-heal-service.py"
 HEAL_UNIT_SOURCE="$SCRIPT_DIR/bbb-heal-service.service"
@@ -164,7 +164,7 @@ else
 fi
 
 # ── 7. Install nginx snippet for heal service ────────────────
-echo "[7/9] Installing nginx snippet for heal service..."
+echo "[7/8] Installing nginx snippet for heal service..."
 NGINX_SNIPPET_SOURCE="$SCRIPT_DIR/vacademy-heal.nginx"
 NGINX_SNIPPET_DEST="/etc/bigbluebutton/nginx/vacademy-heal.nginx"
 
@@ -181,25 +181,13 @@ else
     echo "  WARN: /etc/bigbluebutton/nginx not found — BBB nginx layout unusual, manual install required"
 fi
 
-# ── 8. Install stalled-recording cron (hourly safety net) ────
-echo "[8/9] Installing stalled-recording safety cron (hourly)..."
-UNSTALL_SOURCE="$SCRIPT_DIR/bbb-unstall-recordings.sh"
-UNSTALL_DEST="/etc/cron.hourly/bbb-unstall-recordings"
+# ── 8. Install daily cleanup cron (recordings older than 14 days) ───
+# Ensure any previous stalled-recording hourly cron is removed — we no longer
+# auto-rebuild stalled recordings; healing is on-demand via the heal service.
+rm -f /etc/cron.hourly/bbb-unstall-recordings 2>/dev/null || true
 
-if [ -f "$UNSTALL_SOURCE" ]; then
-    cp "$UNSTALL_SOURCE" "$UNSTALL_DEST"
-    chmod +x "$UNSTALL_DEST"
-    # cron.hourly requires no dot in filename — verify
-    if [ -f "$UNSTALL_DEST" ]; then
-        echo "  Hourly safety cron installed: $UNSTALL_DEST"
-    fi
-else
-    echo "  WARN: $UNSTALL_SOURCE not found, skipping"
-fi
-
-# ── 9. Install daily cleanup cron (recordings older than 14 days) ───
-echo "[9/9] Installing cleanup cron job (recordings older than 14 days)..."
-CRON_JOB="0 3 * * * find /var/bigbluebutton/published/presentation/ -maxdepth 1 -mindepth 1 -type d -mtime +14 -exec rm -rf {} + ; find /var/bigbluebutton/recording/raw/ -maxdepth 1 -mindepth 1 -type d -mtime +14 -exec rm -rf {} +"
+echo "[8/8] Installing cleanup cron job (recordings older than 14 days)..."
+CRON_JOB="0 3 * * * find /var/bigbluebutton/published/presentation/ -maxdepth 1 -mindepth 1 -type d -mtime +14 -exec rm -rf {} + ; find /var/bigbluebutton/recording/raw/ -maxdepth 1 -mindepth 1 -type d -mtime +14 -exec rm -rf {} + ; find /var/bigbluebutton/recording/status/sanity/ -name '*.done' -mtime +14 -delete ; find /var/bigbluebutton/recording/status/archived/ -name '*.done' -mtime +14 -delete ; find /var/bigbluebutton/recording/status/recorded/ -name '*.done' -mtime +14 -delete ; find /var/bigbluebutton/recording/status/processed/ -name '*.done' -mtime +14 -delete ; find /var/bigbluebutton/recording/status/published/ -name '*.done' -mtime +14 -delete"
 CRON_MARKER="# vacademy-bbb-cleanup"
 
 # Remove any previous version of this cron entry, then add fresh
@@ -219,7 +207,6 @@ echo "Deployed components:"
 echo "  - Post-publish hook  → $HOOK_SCRIPT"
 echo "  - Heal service       → $HEAL_PY_DEST (systemd: bbb-heal-service)"
 echo "  - Nginx proxy        → /vacademy-heal/ → 127.0.0.1:9091"
-echo "  - Hourly safety cron → $UNSTALL_DEST"
 echo "  - Daily 14d cleanup  → crontab (03:00)"
 echo ""
 echo "To test:"
@@ -234,8 +221,7 @@ echo "    'https://$(hostname -f 2>/dev/null || echo '<host>')/vacademy-heal/hea
 echo ""
 echo "To uninstall:"
 echo "  systemctl disable --now bbb-heal-service"
-echo "  rm $HOOK_SCRIPT $RUBY_WRAPPER $HEAL_PY_DEST $HEAL_UNIT_DEST $NGINX_SNIPPET_DEST"
-echo "  rm $UNSTALL_DEST $CONF_FILE"
+echo "  rm $HOOK_SCRIPT $RUBY_WRAPPER $HEAL_PY_DEST $HEAL_UNIT_DEST $NGINX_SNIPPET_DEST $CONF_FILE"
 echo "  crontab -l | grep -v 'vacademy-bbb-cleanup' | crontab -"
 echo "  systemctl daemon-reload && systemctl reload nginx"
 echo ""
