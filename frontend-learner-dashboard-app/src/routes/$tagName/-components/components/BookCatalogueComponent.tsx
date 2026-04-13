@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "@tanstack/react-router";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getPublicUrlWithoutLogin } from "@/services/upload_file";
-import { urlCourseDetails } from "@/constants/urls";
-import axios from "axios";
+import {
+  fetchBookCataloguePage,
+  BookCatalogueItem,
+} from "../../-services/book-catalogue-service";
+import {
+  getOpenLevels,
+  buildLevelNameToIdMap,
+  LevelNameToIdMap,
+} from "../../-services/level-service";
 import { Button } from "@/components/ui/button";
 import {
   Search,
@@ -119,7 +127,6 @@ export const BookCatalogueComponent: React.FC<BookCatalogueProps> = ({
   tagName,
   globalSettings,
 }) => {
-  console.log("tagname is :", tagName);
   const navigate = useNavigate();
   const location = useLocation();
   const { addItem, getItemByEnrollInviteId, updateQuantity, getCartMode, syncCart } =
@@ -163,14 +170,18 @@ export const BookCatalogueComponent: React.FC<BookCatalogueProps> = ({
     };
   }, [cartMode, syncCart]);
 
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<{ min?: number; max?: number } | null>(null);
   const [togle, settogle] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Debounce search term -> query key so every keystroke doesn't spawn a request
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearchTerm(searchTerm.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [searchTerm]);
 
   // Auto-focus when search bar opens
   useEffect(() => {
@@ -202,12 +213,6 @@ export const BookCatalogueComponent: React.FC<BookCatalogueProps> = ({
       window.removeEventListener('toggleSearchBar', handleToggleSearchBar as EventListener);
     };
   }, []);
-
-  // Infinite scroll state
-  const [displayedCount, setDisplayedCount] = useState(20); // Initial load
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  const ITEMS_PER_LOAD = 20; // Load 20 items at a time
 
   // --- SEARCH SYNC WITH HEADER & OTHER TABS ---
   // We listen for:
@@ -256,183 +261,115 @@ export const BookCatalogueComponent: React.FC<BookCatalogueProps> = ({
   const genreConfig = useMemo(() => filtersConfig?.find((f) => f.id === "tag"), [filtersConfig]);
   const genres = genreConfig?.options || [];
 
-  // Fetch Logic
-  useEffect(() => {
-    const fetchCourses = async () => {
-      setIsLoading(true);
-      try {
-        const response = await axios.post(
-          urlCourseDetails,
-          {
-            status: [],
-            level_ids: [],
-            faculty_ids: [],
-            search_by_name: "",
-            tag: [],
-            min_percentage_completed: 0,
-            max_percentage_completed: 0,
-          },
-          {
-            params: { instituteId: instituteId, page: 0, size: 50, sort: "createdAt,desc" },
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+  // Resolve level_name ("buy" / "rent") -> level_id via the open levels endpoint.
+  // Cached long-term; levels rarely change and this is shared across mode toggles.
+  const { data: levelIdMap } = useQuery<LevelNameToIdMap>({
+    queryKey: ["open-levels", instituteId],
+    queryFn: async () => buildLevelNameToIdMap(await getOpenLevels(instituteId)),
+    enabled: !!instituteId,
+    staleTime: 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
+  });
 
-        const transformed = (response.data?.content || []).map((c: any) => {
-          const htmlContent = c.course_html_description_html || "";
-          const textContent = htmlContent
-            .replace(/<[^>]*>/g, "")
-            .replace(/&nbsp;/g, " ")
-            .replace(/&amp;/g, "&")
-            .replace(/&lt;/g, "<")
-            .replace(/&gt;/g, ">")
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .trim()
-            .toLowerCase();
+  const currentLevelId = levelIdMap?.[cartMode];
+  const PAGE_SIZE = 30;
 
-          return {
-            id: c.id || c.packageId,
-            title: c.package_name || "Untitled Book",
-            description: textContent,
-            dataset: c,
-            thumbnail: c.course_banner_media_id || "/api/placeholder/300/400",
-            price: c.min_plan_actual_price || 0,
-            type: c.package_type || "Book",
-            level: c.level_name || "General",
-            instructor: c.instructors?.[0]?.full_name,
-            duration: c.estimated_duration,
-            rating: c.rating || 0,
-            packageSessionId: c.package_session_id,
-            enrollInviteId: c.enroll_invite_id,
-            comma_separeted_tags: c.comma_separeted_tags,
-            package_name: (c.package_name || "").toLowerCase(),
-            course_html_description_html: c.course_html_description_html,
-            textContent: textContent,
-            authorName: (c.instructors?.[0]?.full_name || c.instructor || "").toLowerCase(),
-            ...c,
-            // Must be AFTER ...c spread to avoid being overwritten
-            available_slots: c.availableSlots !== undefined ? c.availableSlots : c.available_slots,
-          } as Course;
-        });
+  // Paginated, server-filtered catalogue fetch.
+  // Different (mode, search, genres) -> different cache entry, so mode toggles hit cache once warmed.
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isFetchingNextPage,
+    isLoading,
+  } = useInfiniteQuery({
+    queryKey: [
+      "book-catalogue",
+      instituteId,
+      currentLevelId ?? null,
+      debouncedSearchTerm,
+      [...selectedGenres].sort(),
+    ],
+    queryFn: ({ pageParam }) =>
+      fetchBookCataloguePage({
+        instituteId,
+        levelIds: currentLevelId ? [currentLevelId] : [],
+        searchByName: debouncedSearchTerm,
+        tags: selectedGenres,
+        page: pageParam as number,
+        size: PAGE_SIZE,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => (lastPage.last ? undefined : lastPage.number + 1),
+    enabled: !!instituteId && !!currentLevelId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  });
 
-        // Debug: log first item to check available_slots and tagName
-        if (transformed.length > 0) {
-          console.log("[Stock Debug] tagName:", tagName);
-          console.log("[Stock Debug] First book available_slots:", transformed[0].available_slots, "| raw availableSlots:", transformed[0].dataset?.availableSlots, "| raw available_slots:", transformed[0].dataset?.available_slots);
-        }
+  // Flatten pages -> rendered Course[]. Dedup by id in case of race / refetch overlap.
+  const displayedCourses: Course[] = useMemo(() => {
+    const raw: BookCatalogueItem[] = data?.pages.flatMap((p) => p.content) ?? [];
+    const seen = new Set<string>();
+    const result: Course[] = [];
+    for (const c of raw) {
+      const htmlContent = c.course_html_description_html || "";
+      const textContent = htmlContent
+        .replace(/<[^>]*>/g, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .trim()
+        .toLowerCase();
 
-        // Filter out duplicates based on ID
-        const uniqueCourses = Array.from(
-          new Map<string, Course>(
-            transformed.map((item: Course) => [item.id, item] as [string, Course])
-          ).values()
-        );
-
-        setCourses(uniqueCourses);
-      } catch (e) {
-        console.error("Error fetching books", e);
-        setCourses([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    if (instituteId) fetchCourses();
-  }, [instituteId]);
-
-  // Optimized Filtering Logic using useMemo for faster performance
-  // Only searches in package_name and textContent (pre-processed from course_html_description_html)
-  const filteredCourses = useMemo(() => {
-    let result = [...courses];
-
-    // Filter by package_type: Only show items with package_type === "COURSE"
-    result = result.filter((c) => {
-      const packageType = c.package_type || c.type || "";
-      return packageType === "COURSE";
-    });
-
-    // Filter by level (Buy/Rent) based on cartMode
-    result = result.filter((c) => {
-      const levelName = (c.level_name || c.level || "").toLowerCase();
-      return levelName === cartMode;
-    });
-
-    // Fast search: Search in package_name, author/instructor name, and textContent (pre-processed)
-    if (searchTerm && searchTerm.trim()) {
-      const searchLower = searchTerm.trim().toLowerCase();
-      result = result.filter((c) => {
-        // Search strictly in package_name and course_html_description_html (via textContent)
-        // Ensure case-insensitivity because 'package_name' might be mixed case from API
-        const packageName = (c.package_name || "").toLowerCase();
-        // textContent is already lowercased during transformation
-        const htmlDescription = c.textContent || "";
-
-        return packageName.includes(searchLower) || htmlDescription.includes(searchLower);
-      });
+      const course: Course = {
+        ...c,
+        title: c.package_name || "Untitled Book",
+        description: textContent,
+        thumbnail: c.course_banner_media_id || "/api/placeholder/300/400",
+        price: c.min_plan_actual_price || 0,
+        type: c.package_type || "Book",
+        level: c.level_name || "General",
+        instructor: c.instructors?.[0]?.full_name || "",
+        duration: c.estimated_duration || "",
+        rating: c.rating || 0,
+        packageSessionId: c.package_session_id,
+        enrollInviteId: c.enroll_invite_id,
+        package_name: (c.package_name || "").toLowerCase(),
+        textContent,
+        available_slots: c.availableSlots !== undefined ? c.availableSlots : c.available_slots,
+      };
+      if (!course.id || seen.has(course.id)) continue;
+      seen.add(course.id);
+      result.push(course);
     }
-
-    // Genre filter
-    if (selectedGenres.length > 0) {
-      result = result.filter((c) => {
-        if (!c.comma_separeted_tags) return false;
-
-        // Split, trim, lowercase, and remove empty tags from the book's tags
-        const bookTags = c.comma_separeted_tags
-          .split(",")
-          .map((t: string) => t.trim().toLowerCase())
-          .filter((t: string) => t.length > 0);
-
-        // Check if any selected genre (normalized) exists in the book's tags
-        return selectedGenres.some((g) => bookTags.includes(g.trim().toLowerCase()));
-      });
-    }
-
-    // Price filter
-
     return result;
-  }, [courses, searchTerm, selectedGenres, cartMode]);
+  }, [data]);
 
-  // Reset displayed count when filters change
+  const totalBooks = data?.pages[0]?.totalElements ?? 0;
+
+  // Skeleton should stay up while either levels or the first page are still loading.
+  const isInitialLoading = isLoading || (!!instituteId && !levelIdMap);
+
+  // IntersectionObserver drives server-side pagination via fetchNextPage.
   useEffect(() => {
-    setDisplayedCount(20);
-  }, [searchTerm, selectedGenres, priceRange]);
-
-  // Calculate displayed courses for infinite scroll
-  const displayedCourses = filteredCourses.slice(0, displayedCount);
-  const hasMore = displayedCount < filteredCourses.length;
-
-  // Intersection Observer for infinite scroll
-  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
     const observer = new IntersectionObserver(
       (entries) => {
         const target = entries[0];
-        if (target.isIntersecting && hasMore && !isLoadingMore) {
-          setIsLoadingMore(true);
-          // Simulate loading delay for better UX
-          setTimeout(() => {
-            setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_LOAD, filteredCourses.length));
-            setIsLoadingMore(false);
-          }, 300);
+        if (target.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
         }
       },
-      {
-        root: null,
-        rootMargin: '200px', // Start loading 200px before reaching the bottom
-        threshold: 0.1,
-      }
+      { root: null, rootMargin: "300px", threshold: 0.1 }
     );
-
-    const currentRef = loadMoreRef.current;
-    if (currentRef) {
-      observer.observe(currentRef);
-    }
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, [hasMore, isLoadingMore, filteredCourses.length, ITEMS_PER_LOAD]);
+    observer.observe(sentinel);
+    return () => observer.unobserve(sentinel);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, displayedCourses.length]);
 
   const toggleGenre = (genre: string) => {
     setSelectedGenres((prev) => (prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]));
@@ -576,13 +513,13 @@ export const BookCatalogueComponent: React.FC<BookCatalogueProps> = ({
 
       {/* 3. Book Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-        {isLoading ? (
+        {isInitialLoading ? (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
             {[...Array(10)].map((_, i) => (
               <div key={i} className="aspect-[9/16] bg-gray-200 rounded-2xl animate-pulse" />
             ))}
           </div>
-        ) : filteredCourses.length === 0 ? (
+        ) : displayedCourses.length === 0 ? (
           <div className="text-gray-400 text-xl font-medium mb-4">No books found matching your criteria.</div>
         ) : (
           <>
@@ -812,7 +749,7 @@ export const BookCatalogueComponent: React.FC<BookCatalogueProps> = ({
 
             {/* Infinite Scroll Loading Indicator */}
             <div ref={loadMoreRef} className="mt-8 flex justify-center items-center min-h-[100px]">
-              {isLoadingMore && (
+              {isFetchingNextPage && (
                 <div className="flex flex-col items-center gap-3">
                   <div className="flex gap-2">
                     <div className="w-3 h-3 bg-primary-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -822,10 +759,10 @@ export const BookCatalogueComponent: React.FC<BookCatalogueProps> = ({
                   <p className="text-sm text-gray-500 font-medium">Loading more books...</p>
                 </div>
               )}
-              {!hasMore && filteredCourses.length > 20 && (
+              {!hasNextPage && !isFetching && displayedCourses.length > PAGE_SIZE && (
                 <div className="text-center py-8">
                   <p className="text-gray-500 font-medium">You've reached the end of the catalogue</p>
-                  <p className="text-sm text-gray-400 mt-1">Showing all {filteredCourses.length} books</p>
+                  <p className="text-sm text-gray-400 mt-1">Showing all {totalBooks} books</p>
                 </div>
               )}
             </div>
