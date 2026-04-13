@@ -26,7 +26,7 @@ import { ReferralProgramDialog } from './ReferralProgramDialog';
 import InstituteBrandingCard from './-components/InstituteBrandingCard';
 import CoursePreviewCard from './-components/CoursePreviewCard';
 import PaymentPlanCard from './-components/PaymentPlanCard';
-import { getInviteListCustomFields } from '../../-utils/getInviteListCustomFields';
+import { getInviteListCustomFields, getInviteListCustomFieldsAsync } from '../../-utils/getInviteListCustomFields';
 import PlanReferralMappingCard from './-components/PlanReferralMappingCard';
 import { PlanReferralConfigDialog } from './PlanReferralConfigDialog';
 import RestrictSameBatch from './-components/RestrictSameBatch';
@@ -158,6 +158,18 @@ const GenerateInviteLinkDialog = ({
         name: 'custom_fields',
     });
     const customFields = getValues('custom_fields');
+
+    // On mount (create mode only): fetch fresh custom field defaults from the
+    // API in case the cache was invalidated by a recent Settings save.
+    useEffect(() => {
+        if (!isEditInviteLink) {
+            getInviteListCustomFieldsAsync().then((fields) => {
+                if (fields && fields.length > 0) {
+                    setValue('custom_fields', fields);
+                }
+            });
+        }
+    }, []);
 
     const { instituteDetails, getPackageSessionId } = useInstituteDetailsStore();
     const allTags = instituteDetails?.tags || [];

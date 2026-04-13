@@ -64,25 +64,30 @@ function getInitialAssessmentCustomFields() {
         ...(settings?.customFields || []),
         ...(settings?.instituteFields || []),
     ];
+    const SEEDED_KEYS = ['full_name', 'email', 'phone_number'];
+
     if (!settingsFields.length) {
-        // Fallback to hardcoded defaults only if settings has nothing
         return [
-            { id: '0', type: 'textfield', name: 'Full Name', oldKey: false, isRequired: true, key: 'full_name', order: 0 },
-            { id: '1', type: 'textfield', name: 'Email', oldKey: false, isRequired: true, key: 'email', order: 1 },
-            { id: '2', type: 'textfield', name: 'Phone Number', oldKey: false, isRequired: true, key: 'phone_number', order: 2 },
+            { id: '0', type: 'textfield', name: 'Full Name', oldKey: true, isRequired: true, key: 'full_name', order: 0 },
+            { id: '1', type: 'textfield', name: 'Email', oldKey: true, isRequired: true, key: 'email', order: 1 },
+            { id: '2', type: 'textfield', name: 'Phone Number', oldKey: true, isRequired: true, key: 'phone_number', order: 2 },
         ];
     }
 
-    return settingsFields.map((f, i) => ({
-        id: String(i),
-        type: f.type === 'dropdown' ? 'dropdown' : 'textfield',
-        name: f.name,
-        oldKey: false,
-        isRequired: f.required,
-        key: f.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''),
-        order: i,
-        ...(f.type === 'dropdown' && f.options ? { options: f.options.map((opt, oi) => ({ id: `${i}_opt_${oi}`, value: opt })) } : {}),
-    }));
+    return settingsFields.map((f, i) => {
+        const key = f.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        const isSeeded = !f.canBeDeleted || SEEDED_KEYS.includes(key);
+        return {
+            id: String(i),
+            type: f.type === 'dropdown' ? 'dropdown' : 'textfield',
+            name: f.name,
+            oldKey: isSeeded,
+            isRequired: f.required || isSeeded,
+            key,
+            order: i,
+            ...(f.type === 'dropdown' && f.options ? { options: f.options.map((opt, oi) => ({ id: `${i}_opt_${oi}`, value: opt })) } : {}),
+        };
+    });
 }
 
 const Step3AddingParticipants: React.FC<StepContentProps> = ({

@@ -1295,10 +1295,14 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                     const fieldId = usageItem.custom_field.id;
                     if (!fieldId) return;
 
+                    // Only merge fields that have a DEFAULT_CUSTOM_FIELD
+                    // mapping. Feature-scoped fields (ENROLL_INVITE,
+                    // AUDIENCE_FORM, SESSION, ASSESSMENT) must NOT leak into
+                    // the settings blob — otherwise saving from Settings
+                    // would create a spurious DEFAULT mapping for them.
+                    if (!usageItem.default) return;
+
                     if (!existingFieldIds.has(fieldId)) {
-                        console.log(
-                            `[DEBUG] Found new field in usage list: ${usageItem.custom_field.fieldName} (${fieldId})`
-                        );
 
                         // Construct a default ApiCustomField
                         // We default to 'text' if type is unknown or missing, though usageItem should have it
@@ -1347,30 +1351,31 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                 });
             }
 
-            // Filter out DELETED fields: keep only fields that have at least
-            // one ACTIVE mapping (i.e. appear in the usage response). The JSON
-            // blob is a stale snapshot and may contain fields that were
-            // soft-deleted via the cascade-delete dialog.
+            // Filter the blob to only include fields that have an ACTIVE
+            // DEFAULT_CUSTOM_FIELD mapping. This removes:
+            //   - Fields that were soft-deleted via the cascade-delete dialog
+            //   - Feature-scoped fields (ENROLL_INVITE, AUDIENCE_FORM, etc.)
+            //     that leaked into the blob from previous loads
             if (usageResponse.data && Array.isArray(usageResponse.data) && Array.isArray(apiData.currentCustomFieldsAndGroups)) {
-                const activeFieldIds = new Set<string>(
+                const activeDefaultFieldIds = new Set<string>(
                     usageResponse.data
-                        .filter((item) => item.custom_field?.id)
+                        .filter((item) => item.custom_field?.id && item.default)
                         .map((item) => item.custom_field.id)
                 );
                 apiData.currentCustomFieldsAndGroups = apiData.currentCustomFieldsAndGroups
-                    .filter((f) => activeFieldIds.has(f.customFieldId));
+                    .filter((f) => activeDefaultFieldIds.has(f.customFieldId));
 
                 if (Array.isArray(apiData.allCustomFields)) {
                     apiData.allCustomFields = apiData.allCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
+                        .filter((id: string) => activeDefaultFieldIds.has(id));
                 }
                 if (Array.isArray(apiData.fixedCustomFields)) {
                     apiData.fixedCustomFields = apiData.fixedCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
+                        .filter((id: string) => activeDefaultFieldIds.has(id));
                 }
                 if (Array.isArray(apiData.compulsoryCustomFields)) {
                     apiData.compulsoryCustomFields = apiData.compulsoryCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
+                        .filter((id: string) => activeDefaultFieldIds.has(id));
                 }
             }
 
@@ -1547,13 +1552,11 @@ export const saveCustomFieldSettings = async (
             },
         });
 
-        // Update cache with the saved settings
-        const updatedSettings = {
-            ...settings,
-            lastUpdated: new Date().toISOString(),
-            version: (settings.version || 0) + 1,
-        };
-        setCachedSettings(updatedSettings);
+        // Invalidate the cache so the next read (from any page — invite
+        // dialog, live session step 2, etc.) triggers a fresh API fetch
+        // with the backend-assigned UUIDs. Writing the UI state to cache
+        // here would preserve temp_ IDs that don't match real DB rows.
+        localStorage.removeItem(LOCALSTORAGE_KEY);
 
         return {
             success: true,
