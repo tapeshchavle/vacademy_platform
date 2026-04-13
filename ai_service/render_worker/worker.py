@@ -132,16 +132,19 @@ class RenderWorker:
                 except Exception:
                     audio_tracks = []
 
-            extra_audio_paths: list[Path] = []
+            # Each entry is (path, track_metadata) to keep indices aligned
+            extra_audio_items: list[tuple[Path, dict]] = []
             for idx, track in enumerate(audio_tracks or []):
                 track_url = track.get("url", "")
                 if not track_url:
                     continue
                 ext = track_url.rsplit(".", 1)[-1].split("?")[0].lower() or "mp3"
+                if len(ext) > 10:  # bad parse — fallback
+                    ext = "mp3"
                 track_path = work_dir / f"audio_track_{idx}.{ext}"
                 try:
                     self._download(track_url, track_path)
-                    extra_audio_paths.append(track_path)
+                    extra_audio_items.append((track_path, track))
                 except Exception as exc:
                     logger.warning(f"Failed to download audio track {idx} ({track_url}): {exc}")
 
@@ -352,11 +355,8 @@ class RenderWorker:
             # Input 0: frame sequence
             # Input 1: narration (always present)
             # Inputs 2..N: extra audio tracks (optional)
-            valid_extra = [
-                (p, (audio_tracks or [])[i])
-                for i, p in enumerate(extra_audio_paths)
-                if p.exists() and i < len(audio_tracks or [])
-            ]
+            # extra_audio_items is list[(Path, track_dict)] — indices already aligned
+            valid_extra = [(p, t) for p, t in extra_audio_items if p.exists()]
             narration_idx = 1  # input index for narration.mp3
 
             ffmpeg_cmd = [
@@ -393,8 +393,9 @@ class RenderWorker:
                     chain += f",volume={volume:.4f}"
                 if fade_in > 0:
                     chain += f",afade=t=in:st=0:d={fade_in:.3f}"
+                # fade_out: reverse→fade_in→reverse trick avoids needing audio duration
                 if fade_out > 0:
-                    chain += f",afade=t=out:st={max(0, float(track.get('delay', 0)) + fade_in):.3f}:d={fade_out:.3f}"
+                    chain += f",areverse,afade=t=in:d={fade_out:.3f},areverse"
                 chain += f"[{label}]"
                 filter_parts.append(chain)
                 audio_labels.append(f"[{label}]")

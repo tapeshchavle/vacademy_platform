@@ -1,18 +1,22 @@
 /**
  * AudioTracksPanel — manages extra audio tracks for the AI video editor.
  *
- * Shows a compact list below the timeline scrubber:
- *   [Track 1] ━━━━━━━━━━━━━━━━━━  vol 80%  delay 0s  fade 0s/0s  [✎] [🗑]
- *
- * Clicking ✎ expands an inline edit row for all controls.
- * The "+" button opens a small form to add a new track (URL + label).
- *
- * All mutations hit the backend via audio-track-api helpers, then update
- * the local Zustand store so the learner preview and waveform stay in sync.
+ * Tracks are uploaded via the existing useFileUpload hook (S3), not pasted URLs.
+ * Each track shows: label, volume, delay, fade controls.
+ * The "+" button lets the user pick an audio file, uploads it, then saves the track.
  */
 
-import { useState, useCallback } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, Music2, Loader2 } from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
+import {
+    Plus,
+    Trash2,
+    ChevronDown,
+    ChevronUp,
+    Music2,
+    Loader2,
+    Upload,
+    FileAudio,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AudioTrack } from '@/components/ai-video-player/types';
 import { useVideoEditorStore } from './stores/video-editor-store';
@@ -21,14 +25,16 @@ import {
     apiUpdateAudioTrack,
     apiDeleteAudioTrack,
 } from './utils/audio-track-api';
+import { useFileUpload } from '@/hooks/use-file-upload';
+import { getUserId } from '@/utils/userDetails';
 import { toast } from 'sonner';
 
-// ── Track colour palette (cycles through these for visual distinction) ──────
 const TRACK_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#14b8a6'];
-
 function trackColor(idx: number): string {
     return TRACK_COLORS[idx % TRACK_COLORS.length]!;
 }
+
+const ACCEPTED_AUDIO = 'audio/mpeg,audio/wav,audio/ogg,audio/aac,audio/mp4,audio/webm,audio/*';
 
 // ── Inline editable row ──────────────────────────────────────────────────────
 interface EditRowProps {
@@ -36,7 +42,7 @@ interface EditRowProps {
     colorHex: string;
     onClose: () => void;
     onDelete: () => Promise<void>;
-    onSave: (patch: Partial<Omit<AudioTrack, 'id'>>) => Promise<void>;
+    onSave: (patch: Partial<Omit<AudioTrack, 'id'>>) => Promise<boolean>;
 }
 
 function EditRow({ track, colorHex, onClose, onDelete, onSave }: EditRowProps) {
@@ -48,12 +54,51 @@ function EditRow({ track, colorHex, onClose, onDelete, onSave }: EditRowProps) {
     const [fadeOut, setFadeOut] = useState(track.fadeOut);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [uploading, setUploading] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { uploadFile, getPublicUrl } = useFileUpload();
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+            const fileId = await uploadFile({
+                file,
+                setIsUploading: () => {},
+                userId: getUserId(),
+                source: 'VIDEO_EDITOR_AUDIO',
+                sourceId: 'ADMIN',
+                publicUrl: true,
+            });
+            if (fileId) {
+                const publicUrl = await getPublicUrl(fileId as string);
+                if (publicUrl) {
+                    setUrl(publicUrl);
+                    // Auto-set label from filename if label is still default
+                    if (!label || label === track.label) {
+                        setLabel(file.name.replace(/\.[^.]+$/, ''));
+                    }
+                    toast.success('Audio uploaded');
+                } else {
+                    toast.error('Upload succeeded but failed to get URL');
+                }
+            } else {
+                toast.error('Upload failed');
+            }
+        } catch {
+            toast.error('Upload failed');
+        }
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
 
     const handleSave = async () => {
         setSaving(true);
-        await onSave({ label, url, volume, delay, fadeIn, fadeOut });
+        const ok = await onSave({ label, url, volume, delay, fadeIn, fadeOut });
         setSaving(false);
-        onClose();
+        if (ok) onClose();
     };
 
     const handleDelete = async () => {
@@ -62,32 +107,61 @@ function EditRow({ track, colorHex, onClose, onDelete, onSave }: EditRowProps) {
         setDeleting(false);
     };
 
+    // Extract filename from URL for display
+    const fileName = url
+        ? decodeURIComponent(url.split('/').pop()?.split('?')[0] || '').slice(0, 30)
+        : '';
+
     return (
         <div
             className="space-y-2.5 rounded-md border p-3"
             style={{ borderColor: `${colorHex}40`, background: `${colorHex}08` }}
         >
-            {/* Label + URL */}
-            <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-0.5">
-                    <label className="text-[10px] font-medium text-gray-500">Label</label>
+            {/* Label */}
+            <div className="space-y-0.5">
+                <label className="text-[10px] font-medium text-gray-500">Label</label>
+                <input
+                    type="text"
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    className="w-full rounded border border-gray-200 px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none"
+                    placeholder="Background Music"
+                />
+            </div>
+
+            {/* Audio file upload / replace */}
+            <div className="space-y-0.5">
+                <label className="text-[10px] font-medium text-gray-500">Audio File</label>
+                <div className="flex items-center gap-2">
+                    {url && (
+                        <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded bg-gray-50 px-2 py-1">
+                            <FileAudio className="size-3 shrink-0 text-indigo-500" />
+                            <span className="min-w-0 truncate text-[10px] text-gray-600">
+                                {fileName}
+                            </span>
+                        </div>
+                    )}
                     <input
-                        type="text"
-                        value={label}
-                        onChange={(e) => setLabel(e.target.value)}
-                        className="w-full rounded border border-gray-200 px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none"
-                        placeholder="Background Music"
+                        ref={fileInputRef}
+                        type="file"
+                        accept={ACCEPTED_AUDIO}
+                        onChange={handleFileChange}
+                        className="hidden"
                     />
-                </div>
-                <div className="space-y-0.5">
-                    <label className="text-[10px] font-medium text-gray-500">Audio URL</label>
-                    <input
-                        type="url"
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        className="w-full rounded border border-gray-200 px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none"
-                        placeholder="https://…"
-                    />
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="h-7 shrink-0 gap-1 px-2 text-[10px]"
+                    >
+                        {uploading ? (
+                            <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                            <Upload className="size-3" />
+                        )}
+                        {url ? 'Replace' : 'Upload'}
+                    </Button>
                 </div>
             </div>
 
@@ -186,7 +260,7 @@ function EditRow({ track, colorHex, onClose, onDelete, onSave }: EditRowProps) {
     );
 }
 
-// ── Add-track form ───────────────────────────────────────────────────────────
+// ── Add-track form (upload-based) ────────────────────────────────────────────
 interface AddFormProps {
     onAdd: (label: string, url: string) => Promise<void>;
     onCancel: () => void;
@@ -195,7 +269,43 @@ interface AddFormProps {
 function AddForm({ onAdd, onCancel }: AddFormProps) {
     const [label, setLabel] = useState('');
     const [url, setUrl] = useState('');
+    const [uploading, setUploading] = useState(false);
     const [adding, setAdding] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { uploadFile, getPublicUrl } = useFileUpload();
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+            const fileId = await uploadFile({
+                file,
+                setIsUploading: () => {},
+                userId: getUserId(),
+                source: 'VIDEO_EDITOR_AUDIO',
+                sourceId: 'ADMIN',
+                publicUrl: true,
+            });
+            if (fileId) {
+                const publicUrl = await getPublicUrl(fileId as string);
+                if (publicUrl) {
+                    setUrl(publicUrl);
+                    if (!label) setLabel(file.name.replace(/\.[^.]+$/, ''));
+                    toast.success('Audio uploaded');
+                } else {
+                    toast.error('Upload succeeded but failed to get URL');
+                }
+            } else {
+                toast.error('Upload failed');
+            }
+        } catch {
+            toast.error('Upload failed');
+        }
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
 
     const handleAdd = async () => {
         if (!url) return;
@@ -204,9 +314,15 @@ function AddForm({ onAdd, onCancel }: AddFormProps) {
         setAdding(false);
     };
 
+    const fileName = url
+        ? decodeURIComponent(url.split('/').pop()?.split('?')[0] || '').slice(0, 40)
+        : '';
+
     return (
         <div className="space-y-2 rounded-md border border-indigo-200 bg-indigo-50 p-3">
             <p className="text-[11px] font-medium text-indigo-700">New audio track</p>
+
+            {/* Label */}
             <input
                 type="text"
                 value={label}
@@ -214,13 +330,61 @@ function AddForm({ onAdd, onCancel }: AddFormProps) {
                 placeholder="Label (e.g. Background Music)"
                 className="w-full rounded border border-indigo-200 bg-white px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none"
             />
+
+            {/* Upload area */}
             <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="Audio file URL (S3 public URL)"
-                className="w-full rounded border border-indigo-200 bg-white px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none"
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_AUDIO}
+                onChange={handleFileChange}
+                className="hidden"
             />
+
+            {url ? (
+                <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded bg-white px-2 py-1.5">
+                        <FileAudio className="size-3.5 shrink-0 text-indigo-500" />
+                        <span className="min-w-0 truncate text-[11px] text-gray-700">
+                            {fileName}
+                        </span>
+                    </div>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="h-7 shrink-0 gap-1 px-2 text-[10px]"
+                    >
+                        {uploading ? (
+                            <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                            <Upload className="size-3" />
+                        )}
+                        Replace
+                    </Button>
+                </div>
+            ) : (
+                <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-indigo-300 bg-white py-3 text-[11px] text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 disabled:opacity-50"
+                >
+                    {uploading ? (
+                        <>
+                            <Loader2 className="size-4 animate-spin" />
+                            Uploading...
+                        </>
+                    ) : (
+                        <>
+                            <Upload className="size-4" />
+                            Choose audio file (MP3, WAV, OGG, AAC)
+                        </>
+                    )}
+                </button>
+            )}
+
+            {/* Actions */}
             <div className="flex gap-2">
                 <Button
                     size="sm"
@@ -273,7 +437,6 @@ export function AudioTracksPanel() {
                 toast.error(`Failed to add track: ${result.error}`);
                 return;
             }
-            // Use the backend-assigned ID
             addAudioTrack({ ...newTrack, id: result.data.track_id });
             setShowAddForm(false);
             toast.success('Audio track added');
@@ -282,18 +445,19 @@ export function AudioTracksPanel() {
     );
 
     const handleSave = useCallback(
-        async (trackId: string, patch: Partial<Omit<AudioTrack, 'id'>>) => {
+        async (trackId: string, patch: Partial<Omit<AudioTrack, 'id'>>): Promise<boolean> => {
             if (!apiKey) {
                 toast.error('No API key — cannot save track.');
-                return;
+                return false;
             }
             const result = await apiUpdateAudioTrack(videoId, apiKey, trackId, patch);
             if (!result.ok) {
                 toast.error(`Failed to update track: ${result.error}`);
-                return;
+                return false;
             }
             updateAudioTrack(trackId, patch);
             toast.success('Track updated');
+            return true;
         },
         [videoId, apiKey, updateAudioTrack]
     );
@@ -362,21 +526,17 @@ export function AudioTracksPanel() {
                                 className="flex items-center gap-2 rounded border px-2.5 py-1.5"
                                 style={{ borderColor: `${color}30` }}
                             >
-                                {/* Colour dot */}
                                 <div
                                     className="size-2 shrink-0 rounded-full"
                                     style={{ background: color }}
                                 />
-                                {/* Label */}
                                 <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-gray-700">
                                     {track.label}
                                 </span>
-                                {/* Compact stats */}
                                 <span className="shrink-0 font-mono text-[10px] text-gray-400">
                                     {Math.round(track.volume * 100)}%
                                     {track.delay > 0 && ` +${track.delay}s`}
                                 </span>
-                                {/* Edit button */}
                                 <button
                                     onClick={() => setEditingId(track.id)}
                                     className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"

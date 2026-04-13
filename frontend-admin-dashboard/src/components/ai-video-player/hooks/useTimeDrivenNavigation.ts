@@ -6,6 +6,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Entry, TimelineMeta } from '../types';
 
+/** Suppress AbortError from play() — harmless race when pause() interrupts a pending play. */
+const swallowAbort = (err: unknown) => {
+    if (err instanceof DOMException && err.name === 'AbortError') return;
+    console.error(err);
+};
+
 interface UseTimeDrivenNavigationProps {
     entries: Entry[];
     meta: TimelineMeta;
@@ -62,7 +68,7 @@ export function useTimeDrivenNavigation({
             // Start audio
             if (audioRef.current) {
                 audioRef.current.currentTime = 0;
-                audioRef.current.play().catch(console.error);
+                audioRef.current.play().catch(swallowAbort);
                 audioStartedRef.current = true;
             }
             setCurrentTime(newTime);
@@ -80,7 +86,7 @@ export function useTimeDrivenNavigation({
             if (audioRef.current) {
                 const audioTime = currentTime - meta.audio_start_at;
                 audioRef.current.currentTime = Math.max(0, audioTime);
-                audioRef.current.play().catch(console.error);
+                audioRef.current.play().catch(swallowAbort);
                 audioStartedRef.current = true;
             }
         } else {
@@ -113,7 +119,7 @@ export function useTimeDrivenNavigation({
                     audioRef.current.currentTime = audioTime;
                     audioStartedRef.current = true;
                     if (isPlaying) {
-                        audioRef.current.play().catch(console.error);
+                        audioRef.current.play().catch(swallowAbort);
                     }
                 }
                 if (animationFrameRef.current) {

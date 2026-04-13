@@ -83,6 +83,15 @@ class ScaleCalculator {
 }
 
 /**
+ * Suppress AbortError from play() — harmless race when pause() interrupts a pending play.
+ * Other errors are still logged.
+ */
+const swallowAbort = (err: unknown) => {
+    if (err instanceof DOMException && err.name === 'AbortError') return;
+    console.error(err);
+};
+
+/**
  * Format time in seconds to MM:SS
  */
 const formatTime = (seconds: number): string => {
@@ -213,8 +222,7 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
         let currentWordIndex = 0;
 
         entries.forEach((entry, index) => {
-            const text = (
-                entry.entry_meta?.audio_text ||
+            const text = (entry.entry_meta?.audio_text ||
                 entry.entry_meta?.text ||
                 (entry.entry_meta?.description as string) ||
                 '') as string;
@@ -287,7 +295,7 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
 
             // NOTE: We need to handle stopping at range.end manually in onTimeUpdate
 
-            audioRef.current.play().catch(console.error);
+            audioRef.current.play().catch(swallowAbort);
             setIsPlaying(true);
             // We use the audioStartedRef to indicate we are in a valid playback state
             audioStartedRef.current = true;
@@ -447,7 +455,7 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
                         if (!isPlayingRef.current) {
                             const seekTime = Math.max(0, range.start);
                             audioRef.current!.currentTime = seekTime;
-                            audioRef.current!.play().catch(console.error);
+                            audioRef.current!.play().catch(swallowAbort);
                             setIsPlaying(true);
                             audioStartedRef.current = true;
                         }
@@ -491,7 +499,7 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
         if (newTime >= meta.audio_start_at && !audioStartedRef.current) {
             if (audioRef.current) {
                 audioRef.current.currentTime = 0;
-                audioRef.current.play().catch(console.error);
+                audioRef.current.play().catch(swallowAbort);
                 audioStartedRef.current = true;
             }
             setCurrentTime(newTime);
@@ -520,7 +528,7 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
                 setIsPlaying(true);
                 isPlayingRef.current = true;
                 if (audioStartedRef.current && audioRef.current) {
-                    audioRef.current.play().catch(console.error);
+                    audioRef.current.play().catch(swallowAbort);
                 }
             }
         } else {
@@ -530,7 +538,7 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
                 if (audioRef.current) {
                     const audioTime = currentTime - meta.audio_start_at;
                     audioRef.current.currentTime = Math.max(0, audioTime);
-                    audioRef.current.play().catch(console.error);
+                    audioRef.current.play().catch(swallowAbort);
                     if (avatarRef.current) avatarRef.current.play().catch(() => {});
                     audioStartedRef.current = true;
                 }
@@ -705,7 +713,7 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
                     audioRef.current.currentTime = audioTime;
                     audioStartedRef.current = true;
                     if (isPlaying) {
-                        audioRef.current.play().catch(console.error);
+                        audioRef.current.play().catch(swallowAbort);
                     }
                 }
                 if (animationFrameRef.current) {
@@ -1146,7 +1154,7 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
         setSelectedAnswer(null);
         // Resume audio from current position
         if (audioRef.current && audioStartedRef.current) {
-            audioRef.current.play().catch(console.error);
+            audioRef.current.play().catch(swallowAbort);
             if (avatarRef.current) avatarRef.current.play().catch(() => {});
         }
         isPlayingRef.current = true;
@@ -1790,7 +1798,7 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
                                                     chapter.time - meta.audio_start_at;
                                                 audioStartedRef.current = true;
                                                 if (isPlaying)
-                                                    audioRef.current.play().catch(console.error);
+                                                    audioRef.current.play().catch(swallowAbort);
                                             }
                                             setIsChaptersOpen(false);
                                         }}
@@ -1929,7 +1937,7 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
                                                 item.time - meta.audio_start_at;
                                             audioStartedRef.current = true;
                                             if (isPlaying)
-                                                audioRef.current.play().catch(console.error);
+                                                audioRef.current.play().catch(swallowAbort);
                                         }
                                     }}
                                     style={{

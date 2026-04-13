@@ -1,9 +1,6 @@
 /**
  * useWebAudioMixer — plays extra audio tracks in perfect sync with the narration.
- *
  * Same implementation as the admin dashboard version.
- * The narration <audio> element is the sync master; this hook schedules
- * extra tracks via Web Audio API so they stay perfectly in sync.
  */
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -37,12 +34,12 @@ export function useWebAudioMixer({
     const trackStatesRef = useRef<TrackState[]>([]);
     const activeNodesRef = useRef<ActiveNode[]>([]);
 
-    function getCtx(): AudioContext {
+    const getCtx = useCallback((): AudioContext => {
         if (!ctxRef.current || ctxRef.current.state === 'closed') {
             ctxRef.current = new AudioContext();
         }
         return ctxRef.current;
-    }
+    }, []);
 
     const stopAll = useCallback(() => {
         for (const node of activeNodesRef.current) {
@@ -55,6 +52,7 @@ export function useWebAudioMixer({
 
     useEffect(() => {
         if (!tracks || tracks.length === 0) {
+            stopAll();
             trackStatesRef.current = [];
             return;
         }
@@ -78,9 +76,9 @@ export function useWebAudioMixer({
             if (!cancelled) trackStatesRef.current = results;
         };
         load();
-        return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [JSON.stringify(tracks?.map((t) => t.url))]);
+        return () => { cancelled = true; stopAll(); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [JSON.stringify(tracks?.map((t) => t.url)), getCtx, stopAll]);
 
     const startTracks = useCallback((narTime: number) => {
         if (trackStatesRef.current.length === 0) return;
@@ -89,38 +87,41 @@ export function useWebAudioMixer({
         stopAll();
 
         for (const { buffer, track } of trackStatesRef.current) {
+            const trackDelay = track.delay ?? 0;
+            const trackOffset = Math.max(0, narTime - trackDelay);
+
+            // Skip tracks that have already finished
+            if (trackOffset >= buffer.duration) continue;
+
+            const acStartTime = ctx.currentTime + Math.max(0, trackDelay - narTime);
             const gainNode = ctx.createGain();
             gainNode.connect(ctx.destination);
             const source = ctx.createBufferSource();
             source.buffer = buffer;
             source.connect(gainNode);
 
-            const trackDelay = track.delay ?? 0;
-            const trackOffset = Math.max(0, narTime - trackDelay);
-            const acStartTime = ctx.currentTime + Math.max(0, trackDelay - narTime);
             const targetVol = track.volume ?? 1;
             const fadeInDur = track.fadeIn ?? 0;
-
             gainNode.gain.setValueAtTime(0.0001, acStartTime);
-            if (fadeInDur > 0) {
-                gainNode.gain.linearRampToValueAtTime(targetVol, acStartTime + fadeInDur);
+            if (fadeInDur > 0 && trackOffset < fadeInDur) {
+                const remaining = fadeInDur - trackOffset;
+                gainNode.gain.linearRampToValueAtTime(targetVol, acStartTime + remaining);
             } else {
                 gainNode.gain.setValueAtTime(targetVol, acStartTime);
             }
 
             const fadeOutDur = track.fadeOut ?? 0;
-            if (fadeOutDur > 0 && buffer.duration > fadeOutDur) {
-                const fadeOutStart = acStartTime + (buffer.duration - trackOffset - fadeOutDur);
-                if (fadeOutStart > ctx.currentTime) {
-                    gainNode.gain.setValueAtTime(targetVol, fadeOutStart);
-                    gainNode.gain.linearRampToValueAtTime(0, fadeOutStart + fadeOutDur);
-                }
+            const remainingPlayback = buffer.duration - trackOffset;
+            if (fadeOutDur > 0 && remainingPlayback > fadeOutDur) {
+                const fadeOutStart = acStartTime + (remainingPlayback - fadeOutDur);
+                gainNode.gain.setValueAtTime(targetVol, fadeOutStart);
+                gainNode.gain.linearRampToValueAtTime(0, fadeOutStart + fadeOutDur);
             }
 
             source.start(acStartTime, trackOffset);
             activeNodesRef.current.push({ source, gain: gainNode, trackId: track.id });
         }
-    }, [stopAll]);
+    }, [getCtx, stopAll]);
 
     const prevIsPlayingRef = useRef(false);
     useEffect(() => {
@@ -132,8 +133,7 @@ export function useWebAudioMixer({
         } else if (!nowPlaying && wasPlaying) {
             if (ctxRef.current?.state === 'running') ctxRef.current.suspend();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isPlaying]);
+    }, [isPlaying, audioRef, currentTime, startTracks]);
 
     const prevCurrentTimeRef = useRef<number>(-1);
     useEffect(() => {
@@ -143,8 +143,7 @@ export function useWebAudioMixer({
         if (prev >= 0 && Math.abs(currentTime - prev) > 1.5) {
             startTracks(audioRef.current?.currentTime ?? currentTime);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentTime]);
+    }, [currentTime, isPlaying, audioRef, startTracks]);
 
     useEffect(() => {
         return () => {

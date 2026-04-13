@@ -12,10 +12,6 @@
  *
  * The narration <audio> element is NOT routed through this context —
  * it plays normally so browser controls and captions work as expected.
- *
- * Usage:
- *   const mixer = useWebAudioMixer({ tracks: meta.audio_tracks, audioRef });
- *   // mixer.ready — true once all buffers are decoded
  */
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -52,16 +48,14 @@ export function useWebAudioMixer({
     const ctxRef = useRef<AudioContext | null>(null);
     const trackStatesRef = useRef<TrackState[]>([]);
     const activeNodesRef = useRef<ActiveNode[]>([]);
-    const playStartAcTimeRef = useRef<number>(0); // AudioContext time when playback started
-    const playStartNarTimeRef = useRef<number>(0); // narration time when playback started
 
     // Get or lazily create AudioContext
-    function getCtx(): AudioContext {
+    const getCtx = useCallback((): AudioContext => {
         if (!ctxRef.current || ctxRef.current.state === 'closed') {
             ctxRef.current = new AudioContext();
         }
         return ctxRef.current;
-    }
+    }, []);
 
     // Stop and discard all active AudioBufferSourceNodes
     const stopAll = useCallback(() => {
@@ -88,6 +82,7 @@ export function useWebAudioMixer({
     // Fetch + decode all track buffers whenever track URLs change
     useEffect(() => {
         if (!tracks || tracks.length === 0) {
+            stopAll();
             trackStatesRef.current = [];
             return;
         }
@@ -118,9 +113,11 @@ export function useWebAudioMixer({
         load();
         return () => {
             cancelled = true;
+            // Stop nodes using old buffers
+            stopAll();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [JSON.stringify(tracks?.map((t) => t.url))]);
+    }, [JSON.stringify(tracks?.map((t) => t.url)), getCtx, stopAll]);
 
     // Start playing all buffered tracks from the given narration time offset
     const startTracks = useCallback(
@@ -132,10 +129,17 @@ export function useWebAudioMixer({
             }
 
             stopAll();
-            playStartAcTimeRef.current = ctx.currentTime;
-            playStartNarTimeRef.current = narTime;
 
             for (const { buffer, track } of trackStatesRef.current) {
+                // How far into the track audio we should start (accounting for delay)
+                const trackDelay = track.delay ?? 0;
+                const trackOffset = Math.max(0, narTime - trackDelay);
+
+                // Skip tracks that have already finished at the current narration time
+                if (trackOffset >= buffer.duration) continue;
+
+                const acStartTime = ctx.currentTime + Math.max(0, trackDelay - narTime);
+
                 const gainNode = ctx.createGain();
                 gainNode.connect(ctx.destination);
 
@@ -143,36 +147,32 @@ export function useWebAudioMixer({
                 source.buffer = buffer;
                 source.connect(gainNode);
 
-                // How far into the track audio we should start (accounting for delay)
-                const trackDelay = track.delay ?? 0;
-                const trackOffset = Math.max(0, narTime - trackDelay);
-                const acStartTime = ctx.currentTime + Math.max(0, trackDelay - narTime);
-
-                // Volume
-                gainNode.gain.setValueAtTime(0.0001, acStartTime);
+                // Volume + fade-in
                 const targetVol = track.volume ?? 1;
                 const fadeInDur = track.fadeIn ?? 0;
-                if (fadeInDur > 0) {
-                    gainNode.gain.linearRampToValueAtTime(targetVol, acStartTime + fadeInDur);
+                gainNode.gain.setValueAtTime(0.0001, acStartTime);
+                if (fadeInDur > 0 && trackOffset < fadeInDur) {
+                    // Still within fade-in region — ramp from current point
+                    const remaining = fadeInDur - trackOffset;
+                    gainNode.gain.linearRampToValueAtTime(targetVol, acStartTime + remaining);
                 } else {
                     gainNode.gain.setValueAtTime(targetVol, acStartTime);
                 }
-                // Fade out (schedule from end of buffer)
+
+                // Fade out (schedule relative to remaining playback)
                 const fadeOutDur = track.fadeOut ?? 0;
-                if (fadeOutDur > 0 && buffer.duration > fadeOutDur) {
-                    const fadeOutStart = acStartTime + (buffer.duration - trackOffset - fadeOutDur);
-                    if (fadeOutStart > ctx.currentTime) {
-                        gainNode.gain.setValueAtTime(targetVol, fadeOutStart);
-                        gainNode.gain.linearRampToValueAtTime(0, fadeOutStart + fadeOutDur);
-                    }
+                const remainingPlayback = buffer.duration - trackOffset;
+                if (fadeOutDur > 0 && remainingPlayback > fadeOutDur) {
+                    const fadeOutStart = acStartTime + (remainingPlayback - fadeOutDur);
+                    gainNode.gain.setValueAtTime(targetVol, fadeOutStart);
+                    gainNode.gain.linearRampToValueAtTime(0, fadeOutStart + fadeOutDur);
                 }
 
                 source.start(acStartTime, trackOffset);
-
                 activeNodesRef.current.push({ source, gain: gainNode, trackId: track.id });
             }
         },
-        [stopAll]
+        [getCtx, stopAll]
     );
 
     // React to play/pause state
@@ -183,33 +183,28 @@ export function useWebAudioMixer({
         prevIsPlayingRef.current = nowPlaying;
 
         if (nowPlaying && !wasPlaying) {
-            // Just started playing — start from current narration time
             const narTime = audioRef.current?.currentTime ?? currentTime;
             startTracks(narTime);
         } else if (!nowPlaying && wasPlaying) {
-            // Paused
             if (ctxRef.current && ctxRef.current.state === 'running') {
                 ctxRef.current.suspend();
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isPlaying]);
+    }, [isPlaying, audioRef, currentTime, startTracks]);
 
-    // React to seek (currentTime change while not playing, or large jumps)
+    // React to seek (large time jumps while playing)
     const prevCurrentTimeRef = useRef<number>(-1);
     useEffect(() => {
         const prev = prevCurrentTimeRef.current;
         prevCurrentTimeRef.current = currentTime;
 
-        if (!isPlaying) return; // seek while paused is handled on resume
+        if (!isPlaying) return;
 
-        // Detect a seek: change > 1s that wasn't from normal playback progression
         if (prev >= 0 && Math.abs(currentTime - prev) > 1.5) {
             const narTime = audioRef.current?.currentTime ?? currentTime;
             startTracks(narTime);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentTime]);
+    }, [currentTime, isPlaying, audioRef, startTracks]);
 
     // Cleanup on unmount
     useEffect(() => {
