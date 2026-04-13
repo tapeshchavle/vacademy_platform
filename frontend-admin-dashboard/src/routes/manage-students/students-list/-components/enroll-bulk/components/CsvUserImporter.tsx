@@ -206,7 +206,7 @@ export const CsvUserImporter = ({ onImport, onPaymentInfoDetected }: Props) => {
                 if (onPaymentInfoDetected && result.data.length > 0) {
                     let paymentDate: string | undefined;
                     let transactionId: string | undefined;
-                    const DATE_FORMATS = ['dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd', 'dd-MM-yyyy'];
+                    const DATE_FORMATS = ['d/M/yyyy', 'dd/MM/yyyy', 'M/d/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd', 'd-M-yyyy', 'dd-MM-yyyy'];
                     for (const row of result.data) {
                         if (!paymentDate && row.payment_date?.trim()) {
                             const raw = row.payment_date.trim();
