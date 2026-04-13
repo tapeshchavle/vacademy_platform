@@ -813,23 +813,19 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                                                         </SortableDragHandle>
                                                                     </div>
                                                                 </div>
-                                                                {!field.oldKey && (
-                                                                    <>
-                                                                        <h1 className="text-sm">
-                                                                            Required
-                                                                        </h1>
-                                                                        <Switch
-                                                                            checked={
-                                                                                field.isRequired
-                                                                            }
-                                                                            onCheckedChange={() =>
-                                                                                toggleIsRequired(
-                                                                                    field.id
-                                                                                )
-                                                                            }
-                                                                        />
-                                                                    </>
-                                                                )}
+                                                                <h1 className="text-sm">
+                                                                    Required
+                                                                </h1>
+                                                                <Switch
+                                                                    checked={
+                                                                        field.isRequired
+                                                                    }
+                                                                    onCheckedChange={() =>
+                                                                        toggleIsRequired(
+                                                                            field.id
+                                                                        )
+                                                                    }
+                                                                />
                                                             </div>
                                                         </SortableItem>
                                                     );

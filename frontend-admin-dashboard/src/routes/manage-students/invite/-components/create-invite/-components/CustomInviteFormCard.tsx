@@ -109,17 +109,13 @@ const CustomInviteFormCard = ({
                                                         </SortableDragHandle>
                                                     </div>
                                                 </div>
-                                                {!field.oldKey && (
-                                                    <>
-                                                        <h1 className="text-sm">Required</h1>
-                                                        <Switch
-                                                            checked={field.isRequired}
-                                                            onCheckedChange={() => {
-                                                                toggleIsRequired(index);
-                                                            }}
-                                                        />
-                                                    </>
-                                                )}
+                                                <h1 className="text-sm">Required</h1>
+                                                <Switch
+                                                    checked={field.isRequired}
+                                                    onCheckedChange={() => {
+                                                        toggleIsRequired(index);
+                                                    }}
+                                                />
                                             </div>
                                         </SortableItem>
                                     );

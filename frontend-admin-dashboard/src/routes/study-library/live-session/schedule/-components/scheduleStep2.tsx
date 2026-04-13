@@ -726,27 +726,25 @@ export default function ScheduleStep2() {
                                                             <DotsSixVertical />
                                                         </SortableDragHandle>
                                                     </div>
-                                                    {!field.isDefault && (
-                                                        <div className="flex items-center gap-4">
-                                                            <Controller
-                                                                control={control}
-                                                                name={`fields.${index}.required`}
-                                                                render={({ field }) => (
-                                                                    <label className="flex items-center gap-2">
-                                                                        <span className="text-sm">
-                                                                            Required
-                                                                        </span>
-                                                                        <Switch
-                                                                            checked={field.value}
-                                                                            onCheckedChange={
-                                                                                field.onChange
-                                                                            }
-                                                                        />
-                                                                    </label>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
+                                                    <div className="flex items-center gap-4">
+                                                        <Controller
+                                                            control={control}
+                                                            name={`fields.${index}.required`}
+                                                            render={({ field }) => (
+                                                                <label className="flex items-center gap-2">
+                                                                    <span className="text-sm">
+                                                                        Required
+                                                                    </span>
+                                                                    <Switch
+                                                                        checked={field.value}
+                                                                        onCheckedChange={
+                                                                            field.onChange
+                                                                        }
+                                                                    />
+                                                                </label>
+                                                            )}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </SortableItem>
                                         </SortableItem>
