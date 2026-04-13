@@ -323,7 +323,13 @@ const Step4AccessControl: React.FC<StepContentProps> = ({
         <FormProvider {...form}>
             <form>
                 <div className="m-0 flex items-center justify-between p-0">
-                    <h1>Access Control</h1>
+                    <div>
+                        <h1>Access Control</h1>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Control who can manage, view results, and evaluate this
+                            assessment.
+                        </p>
+                    </div>
                     <div className="flex items-center gap-6">
                         <MyButton
                             type="button"

@@ -8,6 +8,8 @@ export interface AssessmentPublicDto {
   assessment_id: string;
   assessment_name: string;
   about: About;
+  instructions?: About | null;
+  registration_instructions?: About | null;
   play_mode: string;
   evaluation_type: string;
   submission_type: string;

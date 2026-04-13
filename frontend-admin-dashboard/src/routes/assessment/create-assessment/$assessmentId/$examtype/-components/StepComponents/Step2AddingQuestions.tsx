@@ -348,7 +348,13 @@ const Step2AddingQuestions: React.FC<StepContentProps> = ({
                 {allSections.length > 0 && (
                     <>
                         <div className="m-0 flex items-center justify-between p-0">
-                            <h1>Add Questions</h1>
+                            <div>
+                                <h1>Add Questions</h1>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Add sections and questions to your assessment. You can
+                                    upload a question paper or create questions manually.
+                                </p>
+                            </div>
                             <MyButton
                                 type="button"
                                 scale="large"

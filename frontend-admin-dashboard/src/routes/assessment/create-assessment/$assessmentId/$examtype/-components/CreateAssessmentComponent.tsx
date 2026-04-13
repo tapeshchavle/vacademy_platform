@@ -11,11 +11,14 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { useInstituteQuery } from '@/services/student-list-section/getInstituteDetails';
 import { NoCourseDialog } from '@/components/common/students/no-course-dialog';
 // Define interfaces for props
+interface StepDef {
+    label: string;
+    description: string;
+    id: string;
+}
+
 interface CreateAssessmentSidebarProps {
-    steps: {
-        label: string;
-        id: string;
-    }[];
+    steps: StepDef[];
     currentStep: number;
     completedSteps: boolean[];
     onStepClick: (index: number) => void;
@@ -56,7 +59,14 @@ const CreateAssessmentSidebar: React.FC<CreateAssessmentSidebarProps> = ({
                             <span className="text-lg font-semibold">{index + 1}</span>
                         )}
                         {open && <span className="text-lg font-semibold">{index + 1}</span>}
-                        {open && <span className="font-thin">{step.label}</span>}
+                        {open && (
+                            <div className="flex flex-col">
+                                <span className="font-thin">{step.label}</span>
+                                <span className="text-[10px] leading-tight text-muted-foreground">
+                                    {step.description}
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     {completedSteps[index] && (
@@ -76,21 +86,33 @@ const CreateAssessmentComponent = () => {
     const { data: instituteDetails } = useSuspenseQuery(useInstituteQuery());
     const { SubjectFilterData } = useFilterDataForAssesment(instituteDetails);
 
-    const steps = [
+    const examTypeLabel: Record<string, string> = {
+        EXAM: 'Examination',
+        MOCK: 'Mock Assessment',
+        PRACTICE: 'Practice Assessment',
+        SURVEY: 'Survey',
+        MANUAL_UPLOAD_EXAM: 'Manual Upload Exam',
+    };
+
+    const steps: StepDef[] = [
         {
             label: 'Basic Info',
+            description: 'Name, schedule, and settings',
             id: 'basic-info',
         },
         {
-            label: 'Add Question',
+            label: 'Add Questions',
+            description: 'Upload or create questions',
             id: 'add-question',
         },
         {
             label: 'Add Participants',
+            description: 'Choose who can take this',
             id: 'add-participants',
         },
         {
             label: 'Access Control',
+            description: 'Permissions for managing',
             id: 'access-control',
         },
     ];
@@ -147,6 +169,14 @@ const CreateAssessmentComponent = () => {
                     content={examtype === 'SURVEY' ? 'This page is for creating a survey for students via admin.' : 'This page is for creating an assessment for students via admin.'}
                 />
             </Helmet>
+            <div className="mb-4 flex items-center gap-2">
+                <span className="rounded-md bg-primary-100 px-3 py-1 text-xs font-medium text-primary-700">
+                    {examTypeLabel[examtype] || examtype}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                    Step {currentStep + 1} of {steps.length}
+                </span>
+            </div>
             <MainStepComponent
                 currentStep={currentStep}
                 handleCompleteCurrentStep={completeCurrentStep}

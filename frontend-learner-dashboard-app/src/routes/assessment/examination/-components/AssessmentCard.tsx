@@ -61,6 +61,8 @@ const getPlayModeStyles = (mode: string) => {
       return "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200/80";
     case "SURVEY":
       return "bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200/80";
+    case "MANUAL_UPLOAD_EXAM":
+      return "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200/80";
     default:
       return "bg-muted text-muted-foreground border-border hover:bg-muted/80";
   }
@@ -70,6 +72,8 @@ const getCardBorderColor = (mode: string) => {
   switch (mode) {
     case "EXAM":
       return "border-l-green-500";
+    case "MANUAL_UPLOAD_EXAM":
+      return "border-l-amber-500";
     case "MOCK":
       return "border-l-purple-500";
     case "PRACTICE":
@@ -363,7 +367,9 @@ export const AssessmentCard = ({
           )}
 
           {assessmentType === assessmentTypes.PAST &&
-            (assessmentInfo.created_attempts ?? 0) > 0 && (
+            (assessmentInfo.created_attempts ?? 0) > 0 &&
+            (assessmentInfo.result_type !== 'MANUAL' ||
+              assessmentInfo.report_release_status === 'RELEASED') && (
               <>
                 <Button
                   variant="outline"
@@ -402,6 +408,18 @@ export const AssessmentCard = ({
                   Show AI Report
                 </Button>
               </>
+            )}
+          {assessmentType === assessmentTypes.PAST &&
+            (assessmentInfo.created_attempts ?? 0) > 0 &&
+            assessmentInfo.result_type === 'MANUAL' &&
+            assessmentInfo.report_release_status !== 'RELEASED' && (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto min-w-[140px] cursor-not-allowed text-muted-foreground"
+                disabled
+              >
+                Results Pending
+              </Button>
             )}
         </CardFooter>
       </Card>

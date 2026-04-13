@@ -166,7 +166,23 @@ export const fetchPreviewData = async (
 
 
     const sessions = await getAllSessionListFromStorage();
-    const batchIds = sessions?.map((session) => session.id) || [];
+    const batchIds = sessions?.map((session) => session.id).filter(Boolean) || [];
+
+    // Build the resolved batch_ids list, filtering out any null/undefined values
+    const resolvedBatchIds: string[] = (
+      batch_id
+        ? [batch_id]
+        : batchIds.length > 0
+          ? batchIds
+          : [student_details.package_session_id]
+    ).filter((id): id is string => Boolean(id));
+
+    if (resolvedBatchIds.length === 0) {
+      toast.error(
+        "No enrolled batch found for this student. Please contact your institute."
+      );
+      return;
+    }
 
     const requestBody = {
       username: student_details.username,
@@ -178,11 +194,7 @@ export const fetchPreviewData = async (
       guardian_email: student_details.parents_email,
       guardian_mobile_number: student_details.parents_mobile_number,
       reattempt_count: 3,
-      batch_ids: batch_id
-        ? [batch_id]
-        : batchIds.length > 0
-          ? batchIds
-          : [student_details.package_session_id],
+      batch_ids: resolvedBatchIds,
       institute_id: institute_id,
       assessment_id: assessment_id,
     };
@@ -194,11 +206,7 @@ export const fetchPreviewData = async (
       requestBody,
       {
         params: {
-          batch_ids: batch_id
-            ? batch_id
-            : batchIds.length > 0
-              ? batchIds.join(",")
-              : student_details.package_session_id,
+          batch_ids: resolvedBatchIds.join(","),
           instituteId: institute_id,
           assessment_id: assessment_id,
         },

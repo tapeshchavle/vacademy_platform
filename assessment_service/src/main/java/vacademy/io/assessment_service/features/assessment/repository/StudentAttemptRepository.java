@@ -597,6 +597,18 @@ public interface StudentAttemptRepository extends CrudRepository<StudentAttempt,
     List<StudentAttempt> findByStatusNotIn(List<String> name);
 
     Optional<StudentAttempt> findTopByRegistrationOrderByCreatedAtDesc(vacademy.io.assessment_service.features.assessment.entity.AssessmentUserRegistration registration);
+
+    @Query(value = """
+            SELECT sa.* FROM student_attempt sa
+            JOIN assessment_user_registration aur ON aur.id = sa.registration_id
+            JOIN assessment a ON a.id = aur.assessment_id
+            WHERE a.result_type = 'AUTO_AFTER_ASSESSMENT_END'
+            AND CURRENT_TIMESTAMP AT TIME ZONE 'UTC' > a.bound_end_time
+            AND sa.status = 'ENDED'
+            AND sa.result_status = 'COMPLETED'
+            AND (sa.report_release_status IS NULL OR sa.report_release_status = 'PENDING')
+            """, nativeQuery = true)
+    List<StudentAttempt> findUnreleasedAttemptsForEndedAutoReleaseAssessments();
 }
 
 

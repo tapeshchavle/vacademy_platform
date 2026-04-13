@@ -25,6 +25,7 @@ public class BasicAssessmentDetailsDTO {
     private Boolean raiseTimeIncreaseRequest;
     private Boolean hasOmrMode;
     private Integer defaultReattemptCount = 1;
+    private String resultType;
     private String source;
     private String sourceId;
 

@@ -86,6 +86,19 @@ function AssessmentPage() {
                         A set of questions for feedback or opinions, with no right or wrong answers.
                     </p>
                 </div>
+                <div
+                    onClick={() => handleRedirectRoute('MANUAL_UPLOAD_EXAM')}
+                    className="flex cursor-pointer flex-col items-center rounded-xl border bg-neutral-50 p-4 transition-all hover:border-primary-200 hover:shadow-md active:scale-[0.98] sm:p-6 md:p-8"
+                >
+                    <Examination className="size-16 sm:size-auto" />
+                    <h1 className="mt-2 text-lg font-semibold sm:text-[1.4rem]">
+                        Manual Upload Exam
+                    </h1>
+                    <p className="mt-1 text-center text-xs text-neutral-500 sm:text-sm">
+                        Students download the question paper, solve offline, and upload answer
+                        sheets. Teachers check and assign marks manually.
+                    </p>
+                </div>
             </div>
         </>
     );

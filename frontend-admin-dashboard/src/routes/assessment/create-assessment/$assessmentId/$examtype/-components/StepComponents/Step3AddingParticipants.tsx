@@ -551,7 +551,13 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
         <FormProvider {...form}>
             <form>
                 <div className="m-0 flex items-center justify-between p-0">
-                    <h1>Add Participants</h1>
+                    <div>
+                        <h1>Add Participants</h1>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Define who can participate in this assessment. Add students from
+                            batches, individually, or via open registration.
+                        </p>
+                    </div>
                     <MyButton
                         type="button"
                         scale="large"
