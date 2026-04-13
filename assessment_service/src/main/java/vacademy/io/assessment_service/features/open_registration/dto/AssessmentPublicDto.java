@@ -20,6 +20,8 @@ public class AssessmentPublicDto {
     private String assessmentId;
     private String assessmentName;
     private AssessmentRichTextDataDTO about;
+    private AssessmentRichTextDataDTO instructions;
+    private AssessmentRichTextDataDTO registrationInstructions;
     private String playMode;
     private String evaluationType;
     private String submissionType;
@@ -40,6 +42,12 @@ public class AssessmentPublicDto {
         this.assessmentId = assessment.getId();
         this.assessmentName = assessment.getName();
         this.about = new AssessmentRichTextDataDTO(assessment.getAbout());
+        this.instructions = assessment.getInstructions() != null
+                ? new AssessmentRichTextDataDTO(assessment.getInstructions())
+                : null;
+        this.registrationInstructions = assessment.getRegistrationInstructions() != null
+                ? new AssessmentRichTextDataDTO(assessment.getRegistrationInstructions())
+                : null;
         this.playMode = assessment.getPlayMode();
         this.evaluationType = assessment.getEvaluationType();
         this.submissionType = assessment.getSubmissionType();

@@ -14,12 +14,12 @@ import { useTestAccessStore } from './zustand-global-states/step3-adding-partici
 import { useAccessControlStore } from './zustand-global-states/step4-access-control';
 import {
     AccessControlFormValues,
-    BasicSectionFormType,
     SectionFormType,
     TestAccessFormType,
 } from '@/types/assessments/assessment-steps';
 import { z } from 'zod';
 import sectionDetailsSchema from './section-details-schema';
+import { BasicInfoFormSchema as HomeworkBasicInfoFormSchema } from './basic-info-form-schema';
 import { convertCustomFields } from '../-services/assessment-services';
 import testAccessSchema from './add-participants-schema';
 import { CourseWithSessionsType } from '@/stores/study-library/use-study-library-store';
@@ -291,7 +291,12 @@ export const convertToUTC = (dateString: string) => {
 export const formatDateTimeLocal = (dateString: string | undefined) => {
     if (!dateString) return ''; // Handle empty or undefined values
     const date = new Date(dateString);
-    return date.toISOString().slice(0, 16); // Extract `YYYY-MM-DDTHH:mm`
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
 export const getTimeLimitString = (time: number, timeLimit: string[]) => {
@@ -313,7 +318,9 @@ export function calculateTotalMarks(questions: AdaptiveMarkingQuestion[]) {
     return String(totalMarks);
 }
 
-export const syncStep1DataWithStore = (form: UseFormReturn<BasicSectionFormType>) => {
+export const syncStep1DataWithStore = (
+    form: UseFormReturn<z.infer<typeof HomeworkBasicInfoFormSchema>>
+) => {
     const setBasicInfo = useBasicInfoStore.getState().setBasicInfo;
     const { getValues } = form;
     const basicInfoData = {

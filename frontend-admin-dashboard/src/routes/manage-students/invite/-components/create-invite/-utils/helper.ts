@@ -1,4 +1,5 @@
 import { getInstituteId } from '@/constants/helper';
+import { getCustomFieldSettingsFromCache } from '@/services/custom-field-settings';
 import { InviteLinkFormValues } from '../GenerateInviteLinkSchema';
 import { CustomField } from '../../../-schema/InviteFormSchema';
 import { IndividualInviteLinkDetails } from '@/types/study-library/individual-invite-interface';
@@ -158,30 +159,43 @@ export function transformApiDataToDummyStructure(data: ApiCourseData[]) {
     return { dummyCourses, dummyBatches };
 }
 
+/**
+ * Normalize the invite form's field type (which may be "textfield") to the
+ * backend's expected values: "text" | "number" | "dropdown".
+ */
+function normalizeFieldType(uiType: string): string {
+    if (uiType === 'textfield') return 'text';
+    if (uiType === 'dropdown' || uiType === 'number') return uiType;
+    return 'text';
+}
+
 function transformCustomFields(customFields: CustomField[], instituteId: string) {
     const toSnakeCase = (str: string | null | undefined) =>
         (str ?? '')
             .trim()
-            .replace(/\s+/g, '_') // Replace spaces with underscores
-            .replace(/([a-z])([A-Z])/g, '$1_$2') // Add underscore between camelCase transitions
+            .replace(/\s+/g, '_')
+            .replace(/([a-z])([A-Z])/g, '$1_$2')
             .toLowerCase();
     return customFields.map((field, index) => {
-        const isDropdown = field.type === 'dropdown';
+        const backendType = normalizeFieldType(field.type);
+        const isDropdown = backendType === 'dropdown';
         const options = isDropdown ? field.options?.map((opt) => opt.value).join(',') : '';
 
         return {
-            // Only set id (mapping ID) if _id (custom field ID) is present, indicating an existing field
-            // For new fields, id should be empty so the backend can create a new mapping
             id: field._id ? (field.id || '') : '',
             institute_id: instituteId,
-            type: field.type,
+            // `type` here is the institute_custom_fields.type (feature type),
+            // NOT the field's data type. The backend's saveInstituteCustomFields
+            // stamps ENROLL_INVITE on every DTO before persisting, so we leave
+            // this empty and let the backend control it.
+            type: '',
             type_id: '',
             custom_field: {
                 guestId: '',
-                id: field._id || '', // Use _id for the custom field ID (custom_field.id)
+                id: field._id || '',
                 fieldKey: toSnakeCase(field.name),
                 fieldName: field.name,
-                fieldType: field.type,
+                fieldType: backendType,
                 defaultValue: '',
                 config: isDropdown ? JSON.stringify({ coommaSepartedOptions: options }) : '',
                 formOrder: index,
@@ -207,14 +221,28 @@ function safeJsonParse<T = unknown>(str: string, fallback: T): T {
     }
 }
 
+/**
+ * Re-transform saved custom fields from backend format to the invite form
+ * format used by React Hook Form.
+ *
+ * `oldKey` is determined by cross-referencing the custom field id against
+ * the institute's fixed (locked/seeded) fields in the settings cache. If
+ * the cache is unavailable, it falls back to matching the field key against
+ * the known seeded defaults (full_name, email, phone_number).
+ */
 export function ReTransformCustomFields(inviteDetails: IndividualInviteLinkDetails) {
+    const cachedSettings = getCustomFieldSettingsFromCache();
+    const fixedFieldIds = new Set(
+        (cachedSettings?.fixedFields || []).map((f: { id: string }) => f.id)
+    );
+    const SEEDED_KEYS = ['full_name', 'email', 'phone_number'];
+
     return inviteDetails?.institute_custom_fields?.map((field, index) => {
         const config = safeJsonParse<{ coommaSepartedOptions?: string }>(
             field.custom_field.config,
             {}
         );
 
-        // Convert options to the new format with id, value, and disabled
         const options = config.coommaSepartedOptions
             ? config.coommaSepartedOptions.split(',').map((option: string, optIndex: number) => ({
                   id: String(optIndex),
@@ -223,18 +251,24 @@ export function ReTransformCustomFields(inviteDetails: IndividualInviteLinkDetai
               }))
             : undefined;
 
+        const cfId = field.custom_field.id;
+        const cfKey = (field.custom_field.fieldKey || '').toLowerCase();
+        const isLocked =
+            fixedFieldIds.has(cfId) ||
+            SEEDED_KEYS.some((k) => cfKey.startsWith(k));
+
         return {
-            id: field.id, // Preserve the mapping ID (InstituteCustomField.id)
+            id: field.id,
             type: field.type,
             name: field.custom_field.fieldName,
-            oldKey: false,
-            isRequired: field.custom_field.isMandatory,
+            oldKey: isLocked,
+            isRequired: field.custom_field.isMandatory || isLocked,
             key: field.custom_field.fieldName
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, '_')
                 .replace(/^_+|_+$/g, ''),
             order: index,
-            _id: field.custom_field.id, // Preserve the custom field ID (custom_field.id)
+            _id: field.custom_field.id,
             ...(options && { options }),
         };
     });

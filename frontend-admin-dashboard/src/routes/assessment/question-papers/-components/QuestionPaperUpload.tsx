@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useRef, useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
 import { uploadQuestionPaperFormSchema } from '../-utils/upload-question-paper-form-schema';
 import { z } from 'zod';
 import { FormProvider, useForm, UseFormReturn } from 'react-hook-form';
@@ -51,6 +51,7 @@ interface QuestionPaperUploadProps {
     currentQuestionIndex: number;
     setCurrentQuestionIndex: Dispatch<SetStateAction<number>>;
     examType?: string;
+    defaultSubject?: string;
 }
 
 // Helper hook for form management
@@ -239,10 +240,11 @@ const FileUploadSection = ({
 };
 
 // Helper component for basic form fields
-const BasicFormFields = ({ form, YearClassFilterData, SubjectFilterData }: {
+const BasicFormFields = ({ form, YearClassFilterData, SubjectFilterData, defaultSubject }: {
     form: any;
     YearClassFilterData: any[];
     SubjectFilterData: any[];
+    defaultSubject?: string;
 }) => {
     const { getTerminology } = useNamingSettings();
 
@@ -255,30 +257,32 @@ const BasicFormFields = ({ form, YearClassFilterData, SubjectFilterData }: {
                                 placeholder="Enter Title"
                                 required
                             />
-                            <div className="flex items-center gap-4">
-                                <SelectField
-                                    label={getTerminology('Level', 'Year/Class')}
-                                    name="yearClass"
-                                    options={YearClassFilterData.map((option, index) => ({
-                                        value: option.name,
-                                        label: convertCapitalToTitleCase(option.name),
-                                        _id: index,
-                                    }))}
-                                    control={form.control}
-                                    className="!w-full"
-                                />
-                                <SelectField
-                                    label={getTerminology('Subject', 'Subject')}
-                                    name="subject"
-                                    options={SubjectFilterData.map((option, index) => ({
-                                        value: option.name,
-                                        label: convertCapitalToTitleCase(option.name),
-                                        _id: index,
-                                    }))}
-                                    control={form.control}
-                                    className="!w-full"
-                                />
-                            </div>
+                            {!defaultSubject && (
+                                <div className="flex items-center gap-4">
+                                    <SelectField
+                                        label={getTerminology('Level', 'Year/Class')}
+                                        name="yearClass"
+                                        options={YearClassFilterData.map((option, index) => ({
+                                            value: option.name,
+                                            label: convertCapitalToTitleCase(option.name),
+                                            _id: index,
+                                        }))}
+                                        control={form.control}
+                                        className="!w-full"
+                                    />
+                                    <SelectField
+                                        label={getTerminology('Subject', 'Subject')}
+                                        name="subject"
+                                        options={SubjectFilterData.map((option, index) => ({
+                                            value: option.name,
+                                            label: convertCapitalToTitleCase(option.name),
+                                            _id: index,
+                                        }))}
+                                        control={form.control}
+                                        className="!w-full"
+                                    />
+                                </div>
+                            )}
         </>
     );
 };
@@ -405,6 +409,7 @@ export const QuestionPaperUpload = ({
     currentQuestionIndex,
     setCurrentQuestionIndex,
     examType = 'EXAM',
+    defaultSubject,
 }: QuestionPaperUploadProps) => {
     const queryClient = useQueryClient();
     const { instituteDetails } = useInstituteDetailsStore();
@@ -414,6 +419,14 @@ export const QuestionPaperUpload = ({
 
     const form = useQuestionPaperForm(examType);
     const { getValues, setValue, watch } = form;
+
+    // Auto-fill subject from parent assessment context
+    useEffect(() => {
+        if (defaultSubject) {
+            setValue('subject', defaultSubject);
+        }
+    }, [defaultSubject, setValue]);
+
     const formValidation = useFormValidation(form);
 
     const questionPaperId = getValues('questionPaperId') || 'default';
@@ -675,6 +688,7 @@ export const QuestionPaperUpload = ({
                                 form={form}
                                 YearClassFilterData={YearClassFilterData}
                                 SubjectFilterData={SubjectFilterData}
+                                defaultSubject={defaultSubject}
                             />
 
                             <ActionButtons

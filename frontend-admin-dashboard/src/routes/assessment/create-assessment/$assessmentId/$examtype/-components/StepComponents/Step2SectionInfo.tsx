@@ -43,6 +43,8 @@ import sectionDetailsSchema from '../../-utils/section-details-schema';
 import { useSavedAssessmentStore } from '../../-utils/global-states';
 import { Route } from '../..';
 import { useQuestionsForSection } from '../../-hooks/getQuestionsDataForSection';
+import { getSubjectNameById } from '@/routes/assessment/question-papers/-utils/helper';
+import { useBasicInfoStore } from '../../-utils/zustand-global-states/step1-basic-info';
 import { calculateAveragePenalty } from '@/routes/assessment/assessment-list/assessment-details/$assessmentId/$examType/$assesssmentType/$assessmentTab/-utils/helper';
 import Step2GenerateQuestionsFromAI from './-components/Step2GenerateQuestionsFromAI';
 import { CriteriaStatusBadge } from './-components/CriteriaStatusBadge';
@@ -217,6 +219,16 @@ export const Step2SectionInfo = ({
             type: examtype,
         })
     );
+
+    // Get subject name from Step 1 context (Zustand store or saved assessment details)
+    const basicInfoStore = useBasicInfoStore();
+    const defaultSubject =
+        basicInfoStore.testCreation?.subject ||
+        getSubjectNameById(
+            instituteDetails?.subjects || [],
+            assessmentDetails?.[0]?.saved_data?.subject_selection ?? ''
+        ) ||
+        '';
 
     const adaptiveMarking = useQuestionsForSection(
         assessmentId,
@@ -587,7 +599,7 @@ export const Step2SectionInfo = ({
                     id="upload-question-paper"
                 >
                     <h3>Upload Question Paper</h3>
-                    <AlertDialog
+                    {/* <AlertDialog
                         open={isUploadFromDeviceDialogOpen}
                         onOpenChange={setIsUploadFromDeviceDialogOpen}
                     >
@@ -620,9 +632,10 @@ export const Step2SectionInfo = ({
                                 currentQuestionIndex={currentQuestionIndex}
                                 setCurrentQuestionIndex={setCurrentQuestionIndex}
                                 examType={examtype}
+                                defaultSubject={defaultSubject}
                             />
                         </AlertDialogContent>
-                    </AlertDialog>
+                    </AlertDialog> */}
                     <AlertDialog
                         open={isManualQuestionPaperDialogOpen}
                         onOpenChange={setIsManualQuestionPaperDialogOpen}
@@ -656,6 +669,7 @@ export const Step2SectionInfo = ({
                                 currentQuestionIndex={currentQuestionIndex}
                                 setCurrentQuestionIndex={setCurrentQuestionIndex}
                                 examType={examtype}
+                                defaultSubject={defaultSubject}
                             />
                         </AlertDialogContent>
                     </AlertDialog>
@@ -1150,13 +1164,6 @@ export const Step2SectionInfo = ({
                             <FormItem className="flex w-1/2 items-center justify-between">
                                 <FormLabel className="font-normal">
                                     Problem Randomization
-                                    {getStepKey({
-                                        assessmentDetails,
-                                        currentStep,
-                                        key: 'problem_randomization',
-                                    }) === 'REQUIRED' && (
-                                        <span className="text-subtitle text-danger-600">*</span>
-                                    )}
                                 </FormLabel>
                                 <FormControl>
                                     <Switch

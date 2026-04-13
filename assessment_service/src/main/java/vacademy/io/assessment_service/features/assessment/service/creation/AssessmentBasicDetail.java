@@ -7,6 +7,7 @@ import vacademy.io.assessment_service.features.assessment.enums.StepStatus;
 import vacademy.io.assessment_service.features.assessment.enums.creationSteps.AssessmentCreationEnum;
 import vacademy.io.assessment_service.features.assessment.service.IStep;
 import vacademy.io.assessment_service.features.assessment.service.StepOption;
+import vacademy.io.assessment_service.features.assessment.enums.ResultTypeEnum;
 import vacademy.io.assessment_service.features.question_core.enums.EvaluationTypes;
 import vacademy.io.assessment_service.features.question_core.enums.SubmissionTypes;
 
@@ -41,6 +42,7 @@ public class AssessmentBasicDetail extends IStep {
         savedData.put(AssessmentCreationEnum.SUBJECT_SELECTION.name().toLowerCase(), getSubjectIdByInstituteId(this.getInstituteId(), assessment.get()));
         savedData.put(AssessmentCreationEnum.BOUNDATION_START_DATE.name().toLowerCase(), assessment.get().getBoundStartTime());
         savedData.put(AssessmentCreationEnum.BOUNDATION_END_DATE.name().toLowerCase(), assessment.get().getBoundEndTime());
+        savedData.put(AssessmentCreationEnum.RESULT_TYPE.name().toLowerCase(), assessment.get().getResultType());
         setSavedData(savedData);
         updateStatusForStep();
     }
@@ -105,6 +107,11 @@ public class AssessmentBasicDetail extends IStep {
         this.getDefaultValues().put(AssessmentCreationEnum.ADD_TIME_CONSENT.name().toLowerCase(), new StepOption(AssessmentCreationEnum.ADD_TIME_CONSENT.name().toLowerCase(), "TRUE", null, false));
         this.getDefaultValues().put(AssessmentCreationEnum.REATTEMPT_CONSENT.name().toLowerCase(), new StepOption(AssessmentCreationEnum.REATTEMPT_CONSENT.name().toLowerCase(), "TRUE", null, false));
 
+        this.getFieldOptions().put(AssessmentCreationEnum.RESULT_TYPE.name().toLowerCase(), Arrays.stream(ResultTypeEnum.values()).map((option) ->
+                new StepOption(AssessmentCreationEnum.RESULT_TYPE.name().toLowerCase(), option.name(), null, false)
+        ).toList());
+        this.getDefaultValues().put(AssessmentCreationEnum.RESULT_TYPE.name().toLowerCase(), new StepOption(AssessmentCreationEnum.RESULT_TYPE.name().toLowerCase(), ResultTypeEnum.MANUAL.name(), null, false));
+
     }
 
     private List<Map<String, String>> getStepsForExam() {
@@ -119,7 +126,8 @@ public class AssessmentBasicDetail extends IStep {
                 Map.of(AssessmentCreationEnum.SUBMISSION_TYPE.name().toLowerCase(), "REQUIRED"),
                 Map.of(AssessmentCreationEnum.ASSESSMENT_PREVIEW.name().toLowerCase(), "REQUIRED"),
                 Map.of(AssessmentCreationEnum.ADD_TIME_CONSENT.name().toLowerCase(), "REQUIRED"),
-                Map.of(AssessmentCreationEnum.REATTEMPT_CONSENT.name().toLowerCase(), "REQUIRED"));
+                Map.of(AssessmentCreationEnum.REATTEMPT_CONSENT.name().toLowerCase(), "REQUIRED"),
+                Map.of(AssessmentCreationEnum.RESULT_TYPE.name().toLowerCase(), "REQUIRED"));
     }
 
     private List<Map<String, String>> getStepsForMock() {
@@ -163,7 +171,8 @@ public class AssessmentBasicDetail extends IStep {
                 Map.of(AssessmentCreationEnum.ASSESSMENT_VISIBILITY.name().toLowerCase(), "REQUIRED"),
                 Map.of(AssessmentCreationEnum.EXPECTED_PARTICIPANTS.name().toLowerCase(), "REQUIRED"),
                 Map.of(AssessmentCreationEnum.REATTEMPT_CONSENT.name().toLowerCase(), "REQUIRED"),
-                Map.of(AssessmentCreationEnum.REATTEMPT_COUNT.name().toLowerCase(), "REQUIRED"));
+                Map.of(AssessmentCreationEnum.REATTEMPT_COUNT.name().toLowerCase(), "REQUIRED"),
+                Map.of(AssessmentCreationEnum.RESULT_TYPE.name().toLowerCase(), "REQUIRED"));
 
     }
 

@@ -88,9 +88,11 @@ public class InstituteStudentRepositoryImpl implements InstituteStudentRepositor
             LEFT JOIN custom_fields cf
                 ON cf.id = icf.custom_field_id
             LEFT JOIN custom_field_values cfv
-                ON cfv.source_type = 'USER'
-                AND cfv.source_id = ssigm.user_id
-                AND cfv.custom_field_id = cf.id
+                ON cfv.custom_field_id = cf.id
+                AND (
+                    (cfv.source_type IN ('STUDENT_SESSION_INSTITUTE_GROUP_MAPPING', 'STUDENT_SESSION_MAPPING') AND cfv.source_id = ssigm.id)
+                    OR (cfv.source_type = 'USER' AND cfv.source_id = ssigm.user_id)
+                )
             LEFT JOIN user_plan up
                 ON up.id = ssigm.user_plan_id
             LEFT JOIN enroll_invite ei

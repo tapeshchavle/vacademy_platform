@@ -154,8 +154,9 @@ export const handlePostStep1Data = async (
         default_reattempt_count:
             type === 'MOCK' || type === 'PRACTICE' ? 100000 : data.reattemptCount,
         switch_sections: data.switchSections,
-        evaluation_type: data.evaluationType,
+        evaluation_type: data.resultType === 'MANUAL' ? 'MANUAL' : 'AUTO',
         submission_type: data.submissionType,
+        result_type: data.resultType,
         raise_reattempt_request: data.raiseReattemptRequest,
         raise_time_increase_request: data.raiseTimeIncreaseRequest,
     };

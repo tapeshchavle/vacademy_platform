@@ -26,6 +26,8 @@ export type Assessment = {
   last_attempt_id: string | null;
   assessment_user_registration_id: string | null;
   can_switch_section: boolean;
+  result_type: string | null;
+  report_release_status: string | null;
   batch_id?: string;
   package_session_id?: string;
 };

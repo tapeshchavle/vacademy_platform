@@ -17,6 +17,8 @@ import vacademy.io.assessment_service.features.assessment.entity.QuestionAssessm
 import vacademy.io.assessment_service.features.assessment.entity.Section;
 import vacademy.io.assessment_service.features.assessment.entity.StudentAttempt;
 import vacademy.io.assessment_service.features.assessment.enums.AttemptResultStatusEnum;
+import vacademy.io.assessment_service.features.assessment.enums.ReleaseResultStatusEnum;
+import vacademy.io.assessment_service.features.assessment.enums.ResultTypeEnum;
 import vacademy.io.assessment_service.features.assessment.repository.QuestionAssessmentSectionMappingRepository;
 import vacademy.io.assessment_service.features.assessment.repository.SectionRepository;
 import vacademy.io.assessment_service.features.assessment.repository.StudentAttemptRepository;
@@ -31,10 +33,7 @@ import vacademy.io.assessment_service.features.notification.service.AssessmentNo
 import vacademy.io.assessment_service.features.question_core.entity.Question;
 import vacademy.io.common.exceptions.VacademyException;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.StreamSupport;
 
@@ -68,6 +67,19 @@ public class StudentAttemptService {
         return updateStudentAttempt(studentAttempt);
     }
 
+    public void releaseResultsForEndedAutoReleaseAssessments() {
+        List<StudentAttempt> unreleased = studentAttemptRepository.findUnreleasedAttemptsForEndedAutoReleaseAssessments();
+        Date now = new Date();
+        for (StudentAttempt attempt : unreleased) {
+            attempt.setReportReleaseStatus(ReleaseResultStatusEnum.RELEASED.name());
+            attempt.setReportLastReleaseDate(now);
+        }
+        if (!unreleased.isEmpty()) {
+            studentAttemptRepository.saveAll(unreleased);
+            log.info("[AUTO-RELEASE] Released results for {} attempts after assessment end", unreleased.size());
+        }
+    }
+
 
     @Async
     public CompletableFuture<StudentAttempt> updateStudentAttemptWithTotalAfterMarksCalculationAsync(Optional<StudentAttempt> studentAttemptOptional) {
@@ -98,6 +110,9 @@ public class StudentAttemptService {
             attempt.setStatus(AssessmentAttemptEnum.ENDED.name());
         }
 
+        // Auto-release result based on assessment's result_type
+        autoReleaseResultIfApplicable(attempt);
+
         return studentAttemptRepository.save(attempt);
     }
 
@@ -119,6 +134,27 @@ public class StudentAttemptService {
 
     }
 
+
+    private void autoReleaseResultIfApplicable(StudentAttempt attempt) {
+        try {
+            Assessment assessment = attempt.getRegistration().getAssessment();
+            String resultType = assessment.getResultType();
+            if (resultType == null) return;
+
+            if (ResultTypeEnum.AUTO_AFTER_SUBMISSION.name().equals(resultType)) {
+                attempt.setReportReleaseStatus(ReleaseResultStatusEnum.RELEASED.name());
+                attempt.setReportLastReleaseDate(new Date());
+            } else if (ResultTypeEnum.AUTO_AFTER_ASSESSMENT_END.name().equals(resultType)) {
+                Date now = new Date();
+                if (assessment.getBoundEndTime() != null && now.after(assessment.getBoundEndTime())) {
+                    attempt.setReportReleaseStatus(ReleaseResultStatusEnum.RELEASED.name());
+                    attempt.setReportLastReleaseDate(now);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to auto-release result for attempt {}: {}", attempt.getId(), e.getMessage());
+        }
+    }
 
     @Transactional
     public Double calculateTotalMarksForAttemptAndUpdateQuestionWiseMarks(Optional<StudentAttempt> studentAttemptOptional) {

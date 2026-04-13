@@ -22,5 +22,6 @@ public enum AssessmentCreationEnum {
     ASSESSMENT_ID,
     ASSESSMENT_MODE,
     INSTRUCTIONS,
-    REATTEMPT_COUNT;
+    REATTEMPT_COUNT,
+    RESULT_TYPE;
 }

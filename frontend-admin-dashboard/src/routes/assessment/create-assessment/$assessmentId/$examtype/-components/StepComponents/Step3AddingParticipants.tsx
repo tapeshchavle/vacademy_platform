@@ -53,11 +53,17 @@ import { Step3ParticipantsListIndiviudalStudentInterface } from '@/types/assessm
 import { Sortable, SortableDragHandle, SortableItem } from '@/components/ui/sortable';
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
 import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
-import { getFieldsForLocation } from '@/lib/custom-fields/utils';
+import { getCustomFieldSettingsFromCache } from '@/services/custom-field-settings';
 type TestAccessFormType = z.infer<typeof testAccessSchema>;
 
 function getInitialAssessmentCustomFields() {
-    const settingsFields = getFieldsForLocation('Assessment Registration Form');
+    // Custom Fields Revamp: read ALL institute defaults from cache
+    const settings = getCustomFieldSettingsFromCache();
+    const settingsFields = [
+        ...(settings?.fixedFields || []),
+        ...(settings?.customFields || []),
+        ...(settings?.instituteFields || []),
+    ];
     if (!settingsFields.length) {
         // Fallback to hardcoded defaults only if settings has nothing
         return [
@@ -551,7 +557,13 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
         <FormProvider {...form}>
             <form>
                 <div className="m-0 flex items-center justify-between p-0">
-                    <h1>Add Participants</h1>
+                    <div>
+                        <h1>Add Participants</h1>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Define who can participate in this assessment. Add students from
+                            batches, individually, or via open registration.
+                        </p>
+                    </div>
                     <MyButton
                         type="button"
                         scale="large"
