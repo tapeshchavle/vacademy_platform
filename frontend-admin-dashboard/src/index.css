@@ -11,6 +11,7 @@ html {
     scroll-behavior: smooth;
 }
 
+
 /* Hide scrollbar utility */
 .scrollbar-hide {
     -ms-overflow-style: none; /* Internet Explorer 10+ */
