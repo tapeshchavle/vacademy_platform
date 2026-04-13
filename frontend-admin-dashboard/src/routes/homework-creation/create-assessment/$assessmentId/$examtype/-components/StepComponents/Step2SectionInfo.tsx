@@ -36,6 +36,8 @@ import sectionDetailsSchema from '../../-utils/section-details-schema';
 import { useSavedAssessmentStore } from '../../-utils/global-states';
 import { Route } from '../..';
 import { useQuestionsForSection } from '../../-hooks/getQuestionsDataForSection';
+import { getSubjectNameById } from '@/routes/assessment/question-papers/-utils/helper';
+import { useBasicInfoStore } from '../../-utils/zustand-global-states/step1-basic-info';
 import { calculateAveragePenalty } from '@/routes/assessment/assessment-list/assessment-details/$assessmentId/$examType/$assesssmentType/$assessmentTab/-utils/helper';
 import Step2GenerateQuestionsFromAIHomework from './-components/Step2GenerateQuestionsFromAIHomework';
 
@@ -64,6 +66,16 @@ export const Step2SectionInfo = ({
             type: examtype,
         })
     );
+
+    // Get subject name from Step 1 context (Zustand store or saved assessment details)
+    const basicInfoStore = useBasicInfoStore();
+    const defaultSubject =
+        basicInfoStore.testCreation?.subject ||
+        getSubjectNameById(
+            instituteDetails?.subjects || [],
+            assessmentDetails?.[0]?.saved_data?.subject_selection ?? ''
+        ) ||
+        '';
 
     const adaptiveMarking = useQuestionsForSection(
         assessmentId,
@@ -301,6 +313,7 @@ export const Step2SectionInfo = ({
                                 currentQuestionIndex={currentQuestionIndex}
                                 setCurrentQuestionIndex={setCurrentQuestionIndex}
                                 examType={examtype}
+                                defaultSubject={defaultSubject}
                             />
                         </AlertDialogContent>
                     </AlertDialog>
@@ -337,6 +350,7 @@ export const Step2SectionInfo = ({
                                 currentQuestionIndex={currentQuestionIndex}
                                 setCurrentQuestionIndex={setCurrentQuestionIndex}
                                 examType={examtype}
+                                defaultSubject={defaultSubject}
                             />
                         </AlertDialogContent>
                     </AlertDialog>

@@ -3,7 +3,13 @@ import { getCurrentInstituteId } from '@/lib/auth/instituteUtils';
 export const convertToLocalDateTime = (dateString: string): string => {
     if (!dateString) return '';
 
-    const date = new Date(dateString);
+    // Backend sends timestamps as UTC but sometimes omits the trailing 'Z'.
+    // new Date("2026-04-11T06:47:00") without a zone is parsed as *local*
+    // time by modern browsers, so the conversion silently no-ops. Force UTC
+    // interpretation when no zone marker is present.
+    const hasTimezone = /Z$|[+-]\d{2}:?\d{2}$/i.test(dateString);
+    const normalized = hasTimezone ? dateString : `${dateString.replace(' ', 'T')}Z`;
+    const date = new Date(normalized);
 
     const options: Intl.DateTimeFormatOptions = {
         day: 'numeric',
@@ -13,7 +19,6 @@ export const convertToLocalDateTime = (dateString: string): string => {
         minute: '2-digit',
         second: '2-digit',
         hour12: true,
-        timeZone: 'UTC', // ← Force UTC output
     };
 
     // Use en-GB for day-month-year ordering

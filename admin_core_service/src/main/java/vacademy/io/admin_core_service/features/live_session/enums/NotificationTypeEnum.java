@@ -5,6 +5,7 @@ public enum NotificationTypeEnum {
     POST,
     ON_LIVE,
     ON_CREATE,
+    ON_EDIT,
     ATTENDANCE,
     DELETE,
 }
