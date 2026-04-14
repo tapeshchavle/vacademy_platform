@@ -724,11 +724,15 @@ const AssessmentRegistrationForm = () => {
                       layoutVariant="default"
                       className="w-full sm:w-auto"
                       onClick={form.handleSubmit(onSubmit, onInvalid)}
-                      disable={
-                        !form.getValues("phone_number").value ||
-                        !form.getValues("email").value ||
-                        !form.getValues("full_name").value
-                      }
+                      disable={(["phone_number", "email", "full_name"] as const).some(
+                        (key) => {
+                          const field = form.getValues(key as any) as
+                            | { value?: string }
+                            | undefined;
+                          // Only block if the field is present in the schema and empty.
+                          return field !== undefined && !field.value;
+                        },
+                      )}
                     >
                       Register
                     </MyButton>
