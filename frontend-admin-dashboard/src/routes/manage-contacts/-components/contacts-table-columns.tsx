@@ -7,6 +7,7 @@ import { StudentTable } from '@/types/student-table-types';
 import { MyDropdown } from '@/components/design-system/dropdown';
 import { useRef } from 'react';
 import { LeadScoreBadge } from '@/components/shared/lead-score-badge';
+import { DuplicateBadge } from '@/components/shared/duplicate-badge';
 
 // Reusing the click handler logic pattern
 export const useClickHandlers = () => {
@@ -171,7 +172,10 @@ export const getContactColumns = (
             return (
                 <div className="flex flex-col gap-0.5">
                     <CreateClickableCell row={row} columnId="user.full_name" />
-                    {score != null && !isConverted && <LeadScoreBadge score={score} size="sm" />}
+                    <div className="flex flex-wrap gap-1">
+                        {score != null && !isConverted && <LeadScoreBadge score={score} size="sm" />}
+                        <DuplicateBadge isDuplicate={row.original.is_duplicate} />
+                    </div>
                 </div>
             );
         },

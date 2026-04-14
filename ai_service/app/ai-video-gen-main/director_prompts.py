@@ -10,10 +10,67 @@ prompt containing only the documentation for that specific shot type.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 import json
+import re
 
 from prompts import TOPIC_SHOT_PROFILES
+
+
+# ---------------------------------------------------------------------------
+# Emphasis map — detects natural breakpoints and stress peaks in narration
+# ---------------------------------------------------------------------------
+
+def build_emphasis_map(words: List[Dict[str, Any]]) -> str:
+    """Build a condensed 'emphasis map' the Director can anchor shots on.
+
+    Detects:
+    - Silence gaps >0.4s (natural breakpoints — great shot boundaries)
+    - Long/key words (>6 chars) that the narrator likely stresses
+    - Sentence starts (words following ., !, ? in the preceding word)
+    - First and last words (always anchors)
+
+    Returns a short markdown block; empty string if input has <5 words.
+    """
+    if not words or len(words) < 5:
+        return ""
+
+    gaps: List[Tuple[float, str]] = []   # (time, word_after_gap)
+    peaks: List[Tuple[float, str]] = []  # (time, stressed_word)
+    sentence_starts: List[Tuple[float, str]] = []
+
+    prev_end = 0.0
+    prev_word_text = ""
+    for w in words:
+        try:
+            start = float(w.get("start", 0.0))
+            end = float(w.get("end", start))
+        except (TypeError, ValueError):
+            continue
+        word_text = str(w.get("word", "")).strip()
+        if not word_text:
+            continue
+        gap = start - prev_end
+        if gap >= 0.4 and prev_end > 0:
+            gaps.append((start, word_text))
+        if re.search(r'[.!?]$', prev_word_text or ""):
+            sentence_starts.append((start, word_text))
+        # Stress heuristic: long word OR all-caps (>3 letters)
+        if len(word_text) >= 7 or (len(word_text) > 3 and word_text.isupper()):
+            peaks.append((start, word_text))
+        prev_end = end
+        prev_word_text = word_text
+
+    def _fmt(pairs: List[Tuple[float, str]], limit: int) -> str:
+        return ", ".join(f"{t:.1f}s '{w}'" for t, w in pairs[:limit]) or "(none)"
+
+    lines = [
+        "EMPHASIS MAP (anchor key shots here):",
+        f"- Silence breakpoints (≥0.4s pauses — natural shot boundaries): {_fmt(gaps, 12)}",
+        f"- Stress peaks (long/emphatic words): {_fmt(peaks, 12)}",
+        f"- Sentence starts: {_fmt(sentence_starts, 10)}",
+    ]
+    return "\n".join(lines)
 
 # ---------------------------------------------------------------------------
 # Director system prompt — concise catalog + rules
@@ -59,14 +116,16 @@ DIRECTOR_SYSTEM_PROMPT = (
     "Badge (flat colored rect), tracking labels, and slam text orbit the subject. Use for product showcases, brand reels, origin stories. "
     "Needs `image_prompt` with cutout instructions.\n"
     "- **INFOGRAPHIC_SVG**: Pure SVG diagram/illustration that draws itself on screen via `stroke-dashoffset`. "
-    "Courts, anatomy, process flows, maps, how-to mechanics. Cream background with grid. "
-    "No photos — everything is drawn. ONLY available in `illustrated_svg` visual style.\n"
+    "Courts, anatomy, process flows, maps, how-to mechanics. Uses its own cream+grid canvas — "
+    "pick this for any beat that can be drawn rather than photographed. No photos — everything is drawn.\n"
     "- **KINETIC_TITLE**: Full-screen bold typography. Single phrase, word-wipe reveal (translateY 100%→0%), "
     "one accent-color word. Hooks, section headers ('1. THE PASS'), outros. "
-    "ONLY available in `illustrated_svg` visual style.\n\n"
+    "Works as a hard cut between style worlds (e.g. from a photo-hero act into an illustrated infographic act).\n\n"
 
     "**RULES**:\n"
-    "1. First shot MUST be VIDEO_HERO or IMAGE_HERO (cinematic hook).\n"
+    "1. First shot is the hook — pick whichever shot type sells the topic best "
+    "(VIDEO_HERO / IMAGE_HERO for real-world openers, KINETIC_TITLE for bold-text hooks, "
+    "INFOGRAPHIC_SVG for concept-first openers, PRODUCT_HERO for brand/subject reels).\n"
     "2. Never use the same shot type 3 times in a row.\n"
     "3. Follow the topic image_ratio guidance provided.\n"
     "4. Each shot: 2-5 seconds (reel/short-form pace). For portrait/9:16, aim for 2-4 seconds per shot. "
@@ -79,8 +138,11 @@ DIRECTOR_SYSTEM_PROMPT = (
     "9. `start_word` must be the first 3-5 words of the narration at that timestamp.\n"
     "10. Prefer VIDEO_HERO over IMAGE_HERO when topic has real-world visual component.\n"
     "11. KINETIC_TEXT must appear at most once per video and never back-to-back with another KINETIC_TEXT.\n"
-    "12. Once the background style is established (shot 1 sets it), ALL shots must use the same background. "
-    "Never mix dark and cream backgrounds in a single video.\n\n"
+    "12. **You own the visual style.** You decide the theme, background, and animation language for each shot — "
+    "and whether they stay consistent or shift across the timeline. Coherence is usually good "
+    "(matching shot families within an act), but a long video CAN change worlds between acts "
+    "(e.g. photo hero → illustrated infographic → product hero outro) as long as each transition "
+    "feels intentional. Use KINETIC_TITLE or a hard cut between shots to mark act changes.\n\n"
 
     "Return JSON only. No markdown, no commentary. "
     "The first character of your response must be `{` and the last must be `}`.\n\n"
@@ -92,6 +154,185 @@ DIRECTOR_SYSTEM_PROMPT = (
     "this is wrong. ALWAYS wrap your shot(s) in `{\"shots\": [...]}`.\n"
     "DO NOT return a bare list like `[{...}, {...}]` — wrap it in `{\"shots\": [...]}`.\n"
 )
+
+
+# ---------------------------------------------------------------------------
+# Super Ultra extension — few-shot examples + shot_density self-report
+# ---------------------------------------------------------------------------
+
+SUPER_ULTRA_DIRECTOR_EXTENSION = (
+    "\n\n**🎓 FEW-SHOT EXAMPLES — STUDY THESE BEFORE PLANNING**:\n\n"
+
+    "**Example 1 — Travel reel (9:16 portrait, 30s, fast density)**:\n"
+    "Script: 'Tokyo at night hits different. Neon alleys, ramen steam, 24-hour arcades. "
+    "Book the red-eye flight.'\n"
+    "Plan (6 shots):\n"
+    "```json\n"
+    "{\n"
+    '  "shots": [\n'
+    '    {"shot_index":0,"shot_type":"VIDEO_HERO","start_time":0.0,"end_time":4.0,'
+    '"narration_excerpt":"Tokyo at night hits different.",'
+    '"video_query":"tokyo shibuya crossing night neon 4k",'
+    '"animation_strategy":"0.0s video crossfades in, 0.4s title splitReveal \\"TOKYO\\" (Bebas 10rem), 1.2s subtitle fadeIn, 3.0s ken-burns zoom starts"},\n'
+    '    {"shot_index":1,"shot_type":"VIDEO_HERO","start_time":4.0,"end_time":9.0,'
+    '"narration_excerpt":"Neon alleys,",'
+    '"video_query":"tokyo shinjuku alley neon signs",'
+    '"animation_strategy":"0.0s cut, 0.2s label wipe \\"NEON ALLEYS\\", 1.5s accent underline draws under label"},\n'
+    '    {"shot_index":2,"shot_type":"VIDEO_HERO","start_time":9.0,"end_time":14.0,'
+    '"narration_excerpt":"ramen steam,",'
+    '"video_query":"ramen bowl steam rising close up cinematic"},\n'
+    '    {"shot_index":3,"shot_type":"KINETIC_TEXT","start_time":14.0,"end_time":19.0,'
+    '"narration_excerpt":"24-hour arcades.",'
+    '"animation_strategy":"words appear when spoken, final word \\"arcades\\" in accent color with scale pulse"},\n'
+    '    {"shot_index":4,"shot_type":"VIDEO_HERO","start_time":19.0,"end_time":25.0,'
+    '"narration_excerpt":"Book the",'
+    '"video_query":"airplane window view sunrise clouds"},\n'
+    '    {"shot_index":5,"shot_type":"KINETIC_TITLE","start_time":25.0,"end_time":30.0,'
+    '"narration_excerpt":"red-eye flight.",'
+    '"text_elements":["RED-EYE","FLIGHT"],'
+    '"animation_strategy":"translateY wipe reveal, \\"RED-EYE\\" in accent, \\"FLIGHT\\" in primary"}\n'
+    '  ],\n'
+    '  "shot_density": "fast",\n'
+    '  "pacing_rationale": "30s travel reel with punchy visuals — every sentence gets its own cinematic shot; KINETIC_TEXT breaks up video to prevent monotony; outro is bold typography for shareability",\n'
+    '  "continuity_notes": "Keep the neon color temperature across all video shots; accent color is electric pink to match signage"\n'
+    "}\n"
+    "```\n\n"
+
+    "**Example 2 — Physics explainer (16:9 landscape, 45s, medium density)**:\n"
+    "Script: 'Newton's second law says force equals mass times acceleration. Push a shopping "
+    "cart twice as hard, it accelerates twice as fast. This is why F1 cars shed weight: less "
+    "mass means more acceleration for the same engine force.'\n"
+    "Plan (9 shots — notice the EQUATION_BUILD gets a longer 7s hold because it has heavy internal motion):\n"
+    "```json\n"
+    "{\n"
+    '  "shots": [\n'
+    '    {"shot_index":0,"shot_type":"IMAGE_HERO","start_time":0.0,"end_time":4.0,'
+    '"narration_excerpt":"Newton\'s second law",'
+    '"image_prompt":"portrait of Isaac Newton, cinematic lighting, dark background","animation_strategy":"slow zoom Ken Burns, title splitReveal \\"NEWTON\'S 2ND LAW\\" at 0.5s"},\n'
+    '    {"shot_index":1,"shot_type":"EQUATION_BUILD","start_time":4.0,"end_time":11.0,'
+    '"narration_excerpt":"force equals mass times acceleration.",'
+    '"text_elements":["F = ma"],'
+    '"animation_strategy":"0.0s \\"F\\" scale-in from 3x, 0.8s \\"=\\" slides left, 1.6s \\"m\\" scale-in, 2.4s \\"a\\" scale-in, 3.5s each term gets a color-coded label (force/mass/accel) fading in beneath"},\n'
+    '    {"shot_index":2,"shot_type":"ANIMATED_ASSET","start_time":11.0,"end_time":15.0,'
+    '"narration_excerpt":"Push a shopping cart",'
+    '"image_prompt":"shopping cart cutout, isolated on solid white background, side view, clean edges",'
+    '"animation_strategy":"cart slides in from left, cartoon push motion lines draw in behind it"},\n'
+    '    {"shot_index":3,"shot_type":"TEXT_DIAGRAM","start_time":15.0,"end_time":19.0,'
+    '"narration_excerpt":"twice as hard, it accelerates twice as fast.",'
+    '"animation_strategy":"two side-by-side cart diagrams draw in (SVG), force arrows grow sequentially, speed meter counter runs 0→20→40mph"},\n'
+    '    {"shot_index":4,"shot_type":"KINETIC_TEXT","start_time":19.0,"end_time":23.0,'
+    '"narration_excerpt":"This is why F1 cars",'
+    '"animation_strategy":"pipeline-built word sync"},\n'
+    '    {"shot_index":5,"shot_type":"VIDEO_HERO","start_time":23.0,"end_time":28.0,'
+    '"narration_excerpt":"shed weight:",'
+    '"video_query":"formula 1 pit crew removing parts slow motion"},\n'
+    '    {"shot_index":6,"shot_type":"DATA_STORY","start_time":28.0,"end_time":35.0,'
+    '"narration_excerpt":"less mass means more acceleration",'
+    '"animation_strategy":"bar chart draws in showing 3 cars with descending mass and ascending 0-60 times, counter-rolls on each bar"},\n'
+    '    {"shot_index":7,"shot_type":"TEXT_DIAGRAM","start_time":35.0,"end_time":41.0,'
+    '"narration_excerpt":"for the same engine force.",'
+    '"animation_strategy":"F = ma equation returns, this time with F held constant (locked icon), mass shrinks, acceleration grows — live demonstration"},\n'
+    '    {"shot_index":8,"shot_type":"KINETIC_TITLE","start_time":41.0,"end_time":45.0,'
+    '"narration_excerpt":"(outro)",'
+    '"text_elements":["LESS MASS.","MORE SPEED."],'
+    '"animation_strategy":"two-line wipe reveal, \\"MORE SPEED\\" in accent color"}\n'
+    '  ],\n'
+    '  "shot_density": "medium",\n'
+    '  "pacing_rationale": "Physics needs visual proofs — the EQUATION_BUILD gets 7s because its internal animation (term-by-term reveal + labels) carries the motion; short cutaways in between keep tempo up",\n'
+    '  "continuity_notes": "Primary = #1e40af (physics blue), accent = #f59e0b (F1 orange); maintain this palette across all shots"\n'
+    "}\n"
+    "```\n\n"
+
+    "**📊 SHOT DENSITY SELF-REPORT (REQUIRED)**:\n"
+    "Add these two fields to your top-level JSON (alongside `shots` and `continuity_notes`):\n"
+    "- `shot_density`: one of `\"fast\"` (≤2.5s avg), `\"medium\"` (2.5-4s avg), `\"slow\"` (≥4s avg)\n"
+    "- `pacing_rationale`: one-sentence justification for the density you chose, referencing "
+    "the content type (e.g. \"fast because travel reels need constant visual stimulation\", "
+    "\"medium because physics needs visual proof time on each equation\").\n"
+    "These let the pipeline validate your pacing against the content — if you say 'fast' but "
+    "return 8-second shots, something is off.\n"
+)
+
+
+# ---------------------------------------------------------------------------
+# Two-pass Director — Act planner (runs before shot planner in super_ultra)
+# ---------------------------------------------------------------------------
+
+ACT_PLANNER_SYSTEM_PROMPT = (
+    "You are the narrative architect for an educational video pipeline. "
+    "Before any shots are planned, you divide the video into 2-5 ACTS — narrative "
+    "beats that each hold a single emotional/informational purpose. This lets the "
+    "downstream Shot Planner expand each act into shots with a clear sense of flow.\n\n"
+
+    "Think of acts like a film's structure:\n"
+    "- Act 1 (HOOK): cinematic opener that establishes the subject and stakes.\n"
+    "- Middle acts (DEVELOP): each advances ONE idea. Don't cram two topics into an act.\n"
+    "- Last act (LAND): payoff, call-to-action, or memorable outro.\n\n"
+
+    "For each act, decide:\n"
+    "1. `label` — a short name (\"Opening Hook\", \"The Physics\", \"Real-World Proof\").\n"
+    "2. `start_time` / `end_time` — the narration range this act covers.\n"
+    "3. `narration_excerpt` — the exact script text for this act.\n"
+    "4. `style_direction` — what visual world this act lives in. "
+    "Options: \"cinematic_photo\" (stock video / hero images), \"illustrated_infographic\" "
+    "(pure SVG cream canvas), \"product_stage\" (fixed hero subject with layered bgs), "
+    "\"kinetic_text\" (bold typography), \"mixed\" (use if the act benefits from contrast). "
+    "You can pick DIFFERENT style_directions for different acts — the Shot Planner will "
+    "pick shot types that fit each act's world.\n"
+    "5. `emotional_beat` — the feeling this act should produce "
+    "(\"awe\", \"curiosity\", \"clarity\", \"surprise\", \"urgency\", \"payoff\").\n"
+    "6. `estimated_shot_count` — how many shots you think this act needs.\n"
+    "7. `transition_out` — how this act hands off to the next "
+    "(\"hard_cut\", \"kinetic_title_interstitial\", \"zoom_through\", \"vignette_fade\").\n\n"
+
+    "Return JSON only with a top-level `acts` array. First char must be `{`, last must be `}`.\n"
+    "Example shape:\n"
+    "`{\"acts\":[{\"label\":\"Hook\",\"start_time\":0,\"end_time\":5,\"narration_excerpt\":\"...\",\"style_direction\":\"cinematic_photo\",\"emotional_beat\":\"awe\",\"estimated_shot_count\":2,\"transition_out\":\"hard_cut\"},...],\"overall_arc\":\"one sentence describing the narrative shape\"}`\n"
+)
+
+
+ACT_PLANNER_USER_PROMPT_TEMPLATE = """FULL SCRIPT:
+"{script_text}"
+
+BEAT OUTLINE:
+{beat_outline_json}
+
+TOTAL AUDIO DURATION: {audio_duration:.1f}s
+CANVAS: {width}x{height} ({aspect_label})
+SUBJECT DOMAIN: {subject_domain}
+
+Split this video into 2-5 acts. Each act should have ONE emotional purpose. Return JSON only."""
+
+
+def build_act_planner_user_prompt(
+    script_text: str,
+    beat_outline: List[Dict[str, Any]],
+    subject_domain: str,
+    width: int,
+    height: int,
+    audio_duration: float,
+) -> str:
+    """Build the user prompt for the Act Planner (pass 1 of two-pass Director)."""
+    aspect_label = "9:16 portrait" if width < height else "16:9 landscape"
+    beat_summary = [
+        {
+            "index": i,
+            "label": b.get("label", f"Beat {i}"),
+            "narration": b.get("narration", ""),
+            "emotion": b.get("emotion", ""),
+            "pacing": b.get("pacing", "normal"),
+        }
+        for i, b in enumerate(beat_outline)
+    ]
+    return ACT_PLANNER_USER_PROMPT_TEMPLATE.format(
+        script_text=script_text.strip(),
+        beat_outline_json=json.dumps(beat_summary, indent=2, ensure_ascii=False),
+        subject_domain=subject_domain,
+        width=width,
+        height=height,
+        aspect_label=aspect_label,
+        audio_duration=audio_duration,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -111,11 +352,18 @@ IMAGE RATIO TARGET: {image_ratio_pct}% of shots should use images/video backgrou
 WORD TIMESTAMPS (key words):
 {word_timings}
 
-VISUAL STYLE: {visual_style}
 STYLE: Background={background_type}
 CANVAS: {width}x{height} ({aspect_label})
 LANGUAGE: {language}
 TOTAL AUDIO DURATION: {audio_duration:.1f}s
+
+SHOT COUNT IS YOUR CALL. You decide how many shots the video needs based on the content,
+the pacing of the narration, and the quality of transitions you want between beats.
+Reference pace (not a rule): reel/short-form is typically ~{pace_hint_sec}s/shot; a data-heavy
+beat can sit longer if it has continuous in-shot motion; a hook or emphasis moment can be
+<2s. Use whatever pacing the content demands, then justify it in `continuity_notes`.
+The one hard constraint: a {audio_duration:.0f}s video cannot be a single static shot —
+if it feels like one shot to you, think again about where the emotional beats are.
 
 Produce a shot plan JSON:
 {{
@@ -147,6 +395,7 @@ Produce a shot plan JSON:
 }}
 
 IMPORTANT:
+- The `shots` array must be a proper list — wrap every shot in `{{"shots": [...]}}`, even a one-shot plan.
 - Every shot must have `start_time` and `end_time` that align with word timestamps.
 - Shots must be sequential: shot N's end_time == shot N+1's start_time (no gaps).
 - First shot starts at 0.0, last shot ends at {audio_duration:.1f}.
@@ -155,8 +404,7 @@ IMPORTANT:
 - `video_query` is required for VIDEO_HERO.
 - For ANIMATED_ASSET, `image_prompt` should describe isolated cutout objects (one per image).
 - `text_elements` lists the key text strings that will appear on screen.
-- `sync_points` use EXACT word timestamps for animation triggers.
-{illustrated_svg_restriction}"""
+- `sync_points` use EXACT word timestamps for animation triggers."""
 
 
 def build_director_user_prompt(
@@ -169,7 +417,9 @@ def build_director_user_prompt(
     height: int = 1080,
     language: str = "English",
     audio_duration: float = 0.0,
-    visual_style: str = "standard",
+    act_plan: Dict[str, Any] | None = None,
+    emphasis_map: str = "",
+    require_shot_density: bool = False,
 ) -> str:
     """Assemble the Director user prompt from pipeline data."""
     aspect_label = "9:16 portrait" if width < height else "16:9"
@@ -179,13 +429,14 @@ def build_director_user_prompt(
     topic_guidance = profile.get("guidance", "Use a balanced mix of shot types.")
     image_ratio_pct = int(profile.get("image_ratio", 0.3) * 100)
 
-    # Condensed beat outline (just the fields the Director needs)
+    # Full beat outline — Director needs the whole narration to decide shot count,
+    # not a 200-char truncation. Token budget is now generous enough.
     beat_summary = []
     for i, beat in enumerate(beat_outline):
         beat_summary.append({
             "index": i,
             "label": beat.get("label", f"Beat {i}"),
-            "narration": beat.get("narration", "")[:200],
+            "narration": beat.get("narration", ""),
             "visual_type": beat.get("visual_type", ""),
             "visual_idea": beat.get("visual_idea", ""),
             "emotion": beat.get("emotion", ""),
@@ -195,8 +446,9 @@ def build_director_user_prompt(
         })
     beat_outline_json = json.dumps(beat_summary, indent=2, ensure_ascii=False)
 
-    # Condensed word timings: first 3 words, every 5th word, words > 4 chars
-    # Limit to ~60 entries to keep prompt manageable
+    # Richer word timings — give the Director a denser sample so it can place
+    # sync points precisely. Cap at 200 entries which is ~2-3x the old limit
+    # but still well under the token budget.
     word_lines = ["Time(s)  | Word", "---------|--------"]
     selected = set()
     for i, w in enumerate(words):
@@ -204,62 +456,61 @@ def build_director_user_prompt(
         if not word_text:
             continue
         include = (
-            i < 3 or                    # first 3
-            i % 5 == 0 or              # every 5th
-            len(word_text) > 4 or      # likely key terms
-            i == len(words) - 1        # last word
+            i < 5 or                    # first 5
+            i % 3 == 0 or               # every 3rd (was every 5th)
+            len(word_text) > 4 or       # likely key terms
+            i == len(words) - 1         # last word
         )
         if include and i not in selected:
             selected.add(i)
             word_lines.append(f"{float(w['start']):>7.2f}  | {word_text}")
-        if len(selected) >= 60:
+        if len(selected) >= 200:
             break
     word_timings = "\n".join(word_lines)
 
     background_type = style_guide.get("background_type", "black")
 
-    # product_showcase mode: restrict Director to subject-centric shot types
-    if visual_style == "product_showcase":
-        illustrated_svg_restriction = (
-            "\nPRODUCT_SHOWCASE MODE ACTIVE:\n"
-            "- Primary shot type: PRODUCT_HERO (use for most shots).\n"
-            "- Mix in: KINETIC_TITLE (section intros/outros), DATA_STORY (stats), LOWER_THIRD (labels).\n"
-            "- NEVER use VIDEO_HERO, IMAGE_HERO, IMAGE_SPLIT, ANNOTATION_MAP.\n"
-            "- All PRODUCT_HERO shots share the same `image_prompt` (the hero product).\n"
-            "- Background evolves across shots: cream stage → halftone texture act → watermark/geometric → bold brand color.\n"
-            "- First shot: PRODUCT_HERO with badge entrance (year, tagline, or stat).\n"
-            "- Last shot: PRODUCT_HERO with slam-text outro ('THE ICON', 'SINCE 1917', etc.).\n"
-        )
-        image_ratio_pct = 100  # Every shot has the product image
-    # illustrated_svg mode: restrict Director to SVG-only shot types
-    elif visual_style == "illustrated_svg":
-        illustrated_svg_restriction = (
-            "\nILLUSTRATED_SVG MODE ACTIVE — STRICT CONSTRAINTS:\n"
-            "- Use ONLY these shot types: INFOGRAPHIC_SVG, KINETIC_TITLE, KINETIC_TEXT.\n"
-            "- NEVER use IMAGE_HERO, VIDEO_HERO, IMAGE_SPLIT, ANNOTATION_MAP, ANIMATED_ASSET.\n"
-            "- All shots share the cream #f5f0e8 background (the .svg-canvas CSS class).\n"
-            "- Maintain ONE visual world — consistent background, palette, and typography throughout.\n"
-            "- image_prompt and video_query must be null for every shot.\n"
-            "- First shot should be KINETIC_TITLE (cinematic hook).\n"
-        )
-        # Override image_ratio_pct to 0 — no photos
-        image_ratio_pct = 0
-    else:
-        illustrated_svg_restriction = ""
+    # Pacing reference only — surfaced to the Director as guidance, not a cap.
+    # The Director decides final shot count.
+    pace_hint_sec = 3 if height > width else 4
 
-    return DIRECTOR_USER_PROMPT_TEMPLATE.format(
+    base = DIRECTOR_USER_PROMPT_TEMPLATE.format(
         script_text=script_text.strip(),
         beat_outline_json=beat_outline_json,
         subject_domain=subject_domain,
         topic_guidance=topic_guidance,
         image_ratio_pct=image_ratio_pct,
         word_timings=word_timings,
-        visual_style=visual_style,
         background_type=background_type,
         width=width,
         height=height,
         aspect_label=aspect_label,
         language=language,
         audio_duration=audio_duration,
-        illustrated_svg_restriction=illustrated_svg_restriction,
+        pace_hint_sec=pace_hint_sec,
     )
+
+    extras: List[str] = []
+
+    if act_plan and act_plan.get("acts"):
+        acts_json = json.dumps(act_plan, indent=2, ensure_ascii=False)
+        extras.append(
+            "\n\n**📐 ACT PLAN (from the Narrative Architect — pass 1)**:\n"
+            "Expand these acts into shots. Each shot should live inside exactly one act, "
+            "respecting its `style_direction` and `emotional_beat`. Use the act's "
+            "`transition_out` as the transition between the last shot of one act and the "
+            "first shot of the next.\n"
+            f"```json\n{acts_json}\n```\n"
+        )
+
+    if emphasis_map:
+        extras.append("\n\n" + emphasis_map + "\n")
+
+    if require_shot_density:
+        extras.append(
+            "\n\n**REQUIRED EXTRA FIELDS** (add to the top-level JSON object, alongside `shots`):\n"
+            "- `shot_density`: `\"fast\"` | `\"medium\"` | `\"slow\"`\n"
+            "- `pacing_rationale`: one sentence explaining your density choice vs the content.\n"
+        )
+
+    return base + "".join(extras)

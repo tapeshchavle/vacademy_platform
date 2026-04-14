@@ -138,31 +138,9 @@ export const CONTENT_TYPES = [
 
 export type VideoOrientation = 'landscape' | 'portrait';
 export type QualityTier = 'free' | 'standard' | 'premium' | 'ultra' | 'super_ultra';
+// Deprecated: the Director now picks theme/background/animation per-shot.
+// Type kept for reading historical metadata from past runs.
 export type VisualStyle = 'standard' | 'illustrated_svg' | 'product_showcase';
-
-export const VISUAL_STYLES: Array<{
-    value: VisualStyle;
-    label: string;
-    description: string;
-    badge?: string;
-}> = [
-    {
-        value: 'standard',
-        label: 'Standard',
-        description: 'Mixed photos, videos & motion graphics',
-        badge: 'Default',
-    },
-    {
-        value: 'illustrated_svg',
-        label: 'Illustrated',
-        description: 'Pure SVG infographic — draw-on animations, no photos',
-    },
-    {
-        value: 'product_showcase',
-        label: 'Product Showcase',
-        description: 'Hero product stays fixed — background layers animate behind it (brand reel style)',
-    },
-];
 
 export interface ReferenceFile {
     url: string;

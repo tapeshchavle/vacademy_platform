@@ -23,6 +23,7 @@ import { StudentPaymentHistory } from './student-payment-history/student-payment
 import { StudentEnquiry } from './student-enquiry/student-enquiry';
 import { StudentApplication } from './student-application/student-application';
 import { StudentLeadProfile } from './student-lead-profile/student-lead-profile';
+import { StudentFullHistory } from './student-full-history/student-full-history';
 import { useLeadSettings } from '@/hooks/use-lead-settings';
 import { getPublicUrl } from '@/services/upload_file';
 import { ErrorBoundary } from '@/components/core/dashboard-loader';
@@ -541,6 +542,25 @@ export const StudentSidebar = ({
                                             </span>
                                         </button>
                                     )}
+
+                                    {tabSettings?.fullHistoryTab && !leadSettings.isLoading && leadSettings.enabled && (
+                                        <button
+                                            ref={category === 'fullHistory' ? activeTabRef : null}
+                                            className={`group relative z-10 shrink-0 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
+                                                category === 'fullHistory'
+                                                    ? 'bg-white text-primary-500 shadow-lg'
+                                                    : 'text-neutral-600 hover:text-neutral-800'
+                                            }`}
+                                            onClick={() => setCategory('fullHistory')}
+                                        >
+                                            <span className="relative">
+                                                Full History
+                                                {category === 'fullHistory' && (
+                                                    <div className="absolute -bottom-1 left-1/2 size-1 -translate-x-1/2 animate-bounce rounded-full bg-primary-500"></div>
+                                                )}
+                                            </span>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -675,6 +695,14 @@ export const StudentSidebar = ({
                             !isEnrollRequestStudentList &&
                             selectedStudent?.user_id && (
                                 <StudentLeadProfile userId={selectedStudent.user_id} />
+                            )}
+                        {category === 'fullHistory' &&
+                            tabSettings?.fullHistoryTab &&
+                            !leadSettings.isLoading &&
+                            leadSettings.enabled &&
+                            !isEnrollRequestStudentList &&
+                            selectedStudent?.user_id && (
+                                <StudentFullHistory studentUserId={selectedStudent.user_id} />
                             )}
                     </ErrorBoundary>
                 </div>

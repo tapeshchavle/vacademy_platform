@@ -93,6 +93,8 @@ export interface ContactUser {
     lead_conversion_status?: string | null;
     assigned_counselor_id?: string | null;
     assigned_counselor_name?: string | null;
+    is_duplicate?: boolean | null;
+    primary_response_id?: string | null;
 }
 
 export interface ContactListResponse {

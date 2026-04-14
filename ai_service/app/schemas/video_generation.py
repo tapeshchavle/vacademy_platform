@@ -100,13 +100,10 @@ class VideoGenerationRequest(BaseModel):
     visual_style: str = Field(
         default="standard",
         description=(
-            "Visual style MODE (independent from quality_tier). One of:\n"
-            "- 'standard': Mixed photos + stock video + motion graphics (default).\n"
-            "- 'illustrated_svg': Pure SVG infographic — cream + grid background, 2-color brand palette, "
-            "hand-drawn wobble via SVG filters, red tech-annotations, paper-grain texture, "
-            "zero photos, blueprint-draft animations. Think 'How to Play Volleyball' / MacBook Neo explainers.\n"
-            "- 'product_showcase': Hero subject stays fixed center-stage, background layers crossfade behind it "
-            "(cream → halftone → watermark → bold color). Flat badges + slam-text outro. Think Converse brand reel."
+            "DEPRECATED — accepted for API back-compat but no longer gates behavior. "
+            "The Director LLM now picks theme, background, and animation language "
+            "per-shot based on content, and can shift styles across a long video's "
+            "timeline. Kept on the request schema so existing clients don't break."
         )
     )
 

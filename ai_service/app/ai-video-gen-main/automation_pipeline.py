@@ -299,7 +299,7 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "shot_diversity_enforcement": True,
         "segment_context": True,
         "use_director": True,
-        "director_max_tokens": 8000,
+        "director_max_tokens": 20000,
         "per_shot_max_tokens": 16000,
         "crossfade_duration": 0.35,
     },
@@ -314,7 +314,8 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "shot_diversity_enforcement": True,
         "segment_context": True,
         "use_director": True,
-        "director_max_tokens": 12000,
+        "director_max_tokens": 32000,
+        "director_emphasis_map": True,
         "per_shot_max_tokens": 24000,
         "crossfade_duration": 0.35,
     },
@@ -329,7 +330,11 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "shot_diversity_enforcement": True,
         "segment_context": True,
         "use_director": True,
-        "director_max_tokens": 14000,
+        "director_max_tokens": 40000,
+        "director_emphasis_map": True,
+        "director_two_pass": True,
+        "director_few_shot": True,
+        "director_shot_density": True,
         "per_shot_max_tokens": 32000,
         "kinetic_text_shots": True,
         "crossfade_duration": 0.35,
@@ -562,19 +567,22 @@ class OpenRouterClient:
         model: Optional[str] = None,
         temperature: float = 0.6,
         max_tokens: int = 2000,
+        response_format: Optional[Dict[str, Any]] = None,
     ) -> Tuple[str, Dict[str, Any]]:
         # If using free models, try them in order with fallback
         models_to_try = self.model_chain if model is None and self.default_model in self.FREE_MODELS else [model or self.default_model]
-        
+
         last_error = None
         for model_to_use in models_to_try:
             try:
-                payload = {
+                payload: Dict[str, Any] = {
                     "model": model_to_use,
                     "messages": list(messages),
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                 }
+                if response_format is not None:
+                    payload["response_format"] = response_format
                 request = urllib.request.Request(
                     self.base_url,
                     data=json.dumps(payload).encode("utf-8"),
@@ -1127,13 +1135,15 @@ class VideoGenerationPipeline:
         reference_context: Optional[Dict[str, Any]] = None,
         video_width: int = 1920,
         video_height: int = 1080,
-        visual_style: str = "standard",
+        visual_style: str = "standard",  # deprecated: Director now picks styles per-shot
     ) -> Dict[str, Any]:
         # Store video dimensions (landscape 1920x1080 or portrait 1080x1920)
         self.video_width = video_width
         self.video_height = video_height
-        self._current_visual_style = visual_style
         self.aspect_label = "9:16 portrait" if video_width < video_height else "16:9 landscape"
+        # visual_style is accepted for API back-compat but no longer gates behavior —
+        # the Director now decides theme / background / animation per shot.
+        del visual_style
         # Store max_segments for use in concept-aligned segmentation
         self._max_segments = max_segments
 
@@ -1349,17 +1359,13 @@ class VideoGenerationPipeline:
                 if subject_domain not in TOPIC_SHOT_PROFILES:
                     subject_domain = "general"
                 self._current_subject_domain = subject_domain
-                # IMPORTANT: `_current_image_style` is the LLM-picked IMAGE STYLE used as a
-                # prefix for image generation prompts ("realistic cinematic photograph",
-                # "flat vector illustration", etc.). It is DISTINCT from `_current_visual_style`,
-                # which is the pipeline MODE set by the user API param
-                # (standard/illustrated_svg/product_showcase). Do NOT collapse the two —
-                # they have different semantics and overwriting _current_visual_style here
-                # would break mode-dispatch in _run_director and _shot_task downstream.
+                # `_current_image_style` is the LLM-picked IMAGE STYLE used as a prefix
+                # for AI image generation prompts ("realistic cinematic photograph",
+                # "flat vector illustration", etc.). Shot style (cream infographic vs
+                # dark stage vs product hero) is now chosen per-shot by the Director.
                 self._current_image_style = plan_data.get("visual_style", "realistic cinematic photograph")
                 print(f"📘 Subject domain: {subject_domain} ({TOPIC_SHOT_PROFILES[subject_domain]['description']})")
                 print(f"🎨 Image style: {self._current_image_style}")
-                print(f"🎬 Pipeline visual mode: {getattr(self, '_current_visual_style', 'standard')}")
                 
                 print("🧠 Building concept-aligned segments ...")
                 # Use beat_outline for concept-aligned segmentation if available
@@ -1691,32 +1697,6 @@ class VideoGenerationPipeline:
                 target_duration=target_duration,
                 aspect_label=_aspect,
             ).strip()
-
-            # Visual-style mode note: nudge the script LLM to produce a narration
-            # that fits the chosen visual mode (affects tone, pacing, vocabulary).
-            _vs = getattr(self, "_current_visual_style", "standard")
-            if _vs == "illustrated_svg":
-                user_prompt += (
-                    "\n\n**VISUAL STYLE = ILLUSTRATED_SVG**: This video will be rendered as a "
-                    "pure-SVG infographic (think 'How to Play' explainers — hand-drawn look, "
-                    "cream paper background, navy + orange palette, everything draws itself on). "
-                    "Write the narration so it matches: step-based, mechanical, each beat "
-                    "describes something that can be *drawn* (a court, an arc, a process, a chart). "
-                    "Avoid beats that rely on real-world photography. In the beat_outline, use "
-                    "`visual_type: 'TEXT_DIAGRAM'` or `'PROCESS_STEPS'` — the Director will map "
-                    "them to INFOGRAPHIC_SVG / KINETIC_TITLE."
-                )
-            elif _vs == "product_showcase":
-                user_prompt += (
-                    "\n\n**VISUAL STYLE = PRODUCT_SHOWCASE**: This video is a brand/product reel "
-                    "(think Converse Chuck Taylor origin reel — single hero product stays fixed "
-                    "on screen while background layers and slam-text animate behind it). "
-                    "Write the narration as a *story about one subject*: origin, milestone stats, "
-                    "iconic moments, tagline outro. Short punchy sentences. Every beat should "
-                    "orbit the same hero subject — no scene changes. In the beat_outline, use "
-                    "`visual_type: 'IMAGE_HERO'` for every beat — the Director will map them to "
-                    "PRODUCT_HERO with layered backgrounds."
-                )
         else:
             # Use content-type-specific prompts
             system_prompt = ct_prompts["system"]
@@ -2825,22 +2805,6 @@ class VideoGenerationPipeline:
             if layout_theme_id:
                 style_guide["layout_theme"] = layout_theme_id
 
-        # Product showcase mode: light neutral bg, enforce brand palette
-        if getattr(self, "_current_visual_style", "standard") == "product_showcase":
-            style_guide["visual_style"] = "product_showcase"
-            style_guide["palette"]["background"] = "#f2f0ec"  # warm off-white stage
-            style_guide["background_type"] = "white"
-            print("   🎬 Product showcase mode: neutral stage background, PRODUCT_HERO shots")
-
-        # Illustrated SVG mode: override background to cream, disable photos
-        if getattr(self, "_current_visual_style", "standard") == "illustrated_svg":
-            style_guide["palette"]["background"] = "#f5f0e8"
-            style_guide["palette"]["grid_pattern"] = True
-            style_guide["visual_style"] = "illustrated_svg"
-            style_guide["no_photos"] = True
-            style_guide["background_type"] = "white"  # Closest preset for CSS defaults
-            print("   🎨 Illustrated SVG mode: cream background, no photos, SVG-only shots")
-
         # Save for inspection
         (run_dir / "style_guide.json").write_text(json.dumps(style_guide, indent=2))
         # Store resolved style_guide so _ensure_fonts can use brand-override'd palette
@@ -3279,10 +3243,14 @@ class VideoGenerationPipeline:
         for alt_key in ("shot_list", "shots_plan", "plan", "shot_plan", "planned_shots"):
             if isinstance(parsed.get(alt_key), list):
                 print(f"   🔧 Salvage: re-wrapping under '{alt_key}' → 'shots'")
-                return {
+                salvaged = {
                     "shots": parsed[alt_key],
                     "continuity_notes": parsed.get("continuity_notes", ""),
                 }
+                for meta_key in ("shot_density", "pacing_rationale", "overall_arc"):
+                    if meta_key in parsed:
+                        salvaged[meta_key] = parsed[meta_key]
+                return salvaged
 
         # Case 4b: wrong envelope key pointing at a single shot dict
         for alt_key in ("shot", "single_shot"):
@@ -3296,9 +3264,19 @@ class VideoGenerationPipeline:
         # Case 3: flat single shot (has shot-level keys at top level)
         shot_level_markers = {"shot_type", "shot_index", "narration_excerpt", "animation_strategy"}
         if shot_level_markers & set(parsed.keys()):
-            print("   🔧 Salvage: top-level object looks like a single shot — wrapping in envelope")
-            # Extend the single shot to cover the full audio if it stopped short
+            # For videos longer than ~15s, a single-shot response is almost
+            # certainly a broken LLM output (not a legitimate one-shot plan).
+            # Accepting and stretching it produces a static video. Force a
+            # corrective retry instead.
             end = float(parsed.get("end_time", 0.0) or 0.0)
+            shot_duration_ok = end >= max(10.0, audio_duration * 0.6)
+            if audio_duration > 15.0 and not shot_duration_ok:
+                print(
+                    f"   ⚠️ Single-shot response with end_time={end:.2f}s for "
+                    f"{audio_duration:.1f}s audio — rejecting (will trigger retry)"
+                )
+                return {"shots": []}
+            print("   🔧 Salvage: top-level object looks like a single shot — wrapping in envelope")
             if audio_duration > 0 and end < audio_duration - 0.5:
                 print(f"       extending end_time {end:.2f}s → {audio_duration:.2f}s to cover full audio")
                 parsed["end_time"] = audio_duration
@@ -3309,6 +3287,89 @@ class VideoGenerationPipeline:
 
         # Unrecognizable shape
         return {"shots": []}
+
+    def _build_director_reference_image_block(self) -> List[Dict[str, Any]]:
+        """Return OpenRouter-vision content parts for any user-uploaded reference images.
+
+        Output format matches the multimodal OpenAI content schema:
+        `[{"type": "image_url", "image_url": {"url": "..."}}, ...]`
+        Returns [] when no reference context is attached to this run.
+        """
+        ref_ctx = getattr(self, "_reference_context", None)
+        if not ref_ctx:
+            return []
+        ref_images = ref_ctx.get("embeddable_images", []) or []
+        parts: List[Dict[str, Any]] = []
+        for ri in ref_images[:6]:  # hard cap — don't flood the context
+            url = ri.get("s3_url") or ri.get("url")
+            if not url:
+                continue
+            parts.append({"type": "image_url", "image_url": {"url": url}})
+        return parts
+
+    def _run_act_planner(
+        self,
+        script_text: str,
+        beat_outline: List[Dict[str, Any]],
+        subject_domain: str,
+        width: int,
+        height: int,
+        audio_duration: float,
+        run_dir: Path,
+        system_prompt: str,
+        user_prompt: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Pass 1 of two-pass Director (super_ultra only).
+
+        Produces a high-level 'act plan' that the downstream shot planner
+        expands into shots. Returns None on failure — the shot planner then
+        runs without an act plan (graceful degradation).
+        """
+        # Unused knobs kept for signature stability / future logging hooks.
+        del script_text, beat_outline, subject_domain, width, height, audio_duration
+
+        print("🎭 Running Act Planner (pass 1)...")
+        ref_image_parts = self._build_director_reference_image_block()
+
+        # Build user message (attach reference images if present)
+        if ref_image_parts:
+            user_content: Any = [{"type": "text", "text": user_prompt}] + ref_image_parts
+        else:
+            user_content = user_prompt
+
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ]
+
+        try:
+            raw, _usage = self.html_client.chat(
+                messages=messages,
+                temperature=0.55,
+                max_tokens=min(8000, self._tier_config.get("director_max_tokens", 20000)),
+                response_format={"type": "json_object"},
+            )
+        except Exception as exc:
+            print(f"   ⚠️ Act Planner failed: {exc} — shot planner will run without an act plan")
+            return None
+
+        try:
+            parsed = _extract_json_blob(raw)
+        except Exception as exc:
+            print(f"   ⚠️ Act Planner JSON parse failed: {exc}")
+            return None
+
+        if not isinstance(parsed, dict) or not isinstance(parsed.get("acts"), list) or not parsed["acts"]:
+            print("   ⚠️ Act Planner returned no acts — shot planner will run without an act plan")
+            return None
+
+        # Save for debugging
+        try:
+            (run_dir / "act_plan.json").write_text(json.dumps(parsed, indent=2, ensure_ascii=False))
+        except Exception:
+            pass
+        print(f"   ✅ Act Planner produced {len(parsed['acts'])} acts")
+        return parsed
 
     def _run_director(
         self,
@@ -3324,7 +3385,14 @@ class VideoGenerationPipeline:
         Returns the parsed director plan dict, or None if the call fails
         (the pipeline will fall back to the segment-based flow).
         """
-        from director_prompts import DIRECTOR_SYSTEM_PROMPT, build_director_user_prompt
+        from director_prompts import (
+            DIRECTOR_SYSTEM_PROMPT,
+            SUPER_ULTRA_DIRECTOR_EXTENSION,
+            ACT_PLANNER_SYSTEM_PROMPT,
+            build_director_user_prompt,
+            build_act_planner_user_prompt,
+            build_emphasis_map,
+        )
 
         plan_data = script_plan.get("plan", script_plan)
         script_text = str(plan_data.get("script") or script_plan.get("script_text", "")).strip()
@@ -3337,7 +3405,33 @@ class VideoGenerationPipeline:
             print("⚠️ Director: missing script or beat outline — skipping")
             return None
 
-        _visual_style = getattr(self, "_current_visual_style", "standard")
+        # ── Optional Pass 1: Act Planner (super_ultra only) ────────────────
+        act_plan: Optional[Dict[str, Any]] = None
+        if self._tier_config.get("director_two_pass"):
+            act_plan = self._run_act_planner(
+                script_text=script_text,
+                beat_outline=beat_outline,
+                subject_domain=subject_domain,
+                width=_w,
+                height=_h,
+                audio_duration=audio_duration,
+                run_dir=run_dir,
+                system_prompt=ACT_PLANNER_SYSTEM_PROMPT,
+                user_prompt=build_act_planner_user_prompt(
+                    script_text=script_text,
+                    beat_outline=beat_outline,
+                    subject_domain=subject_domain,
+                    width=_w,
+                    height=_h,
+                    audio_duration=audio_duration,
+                ),
+            )
+
+        # ── Emphasis map (ultra / super_ultra) ─────────────────────────────
+        emphasis_map = ""
+        if self._tier_config.get("director_emphasis_map"):
+            emphasis_map = build_emphasis_map(words)
+
         user_prompt = build_director_user_prompt(
             script_text=script_text,
             beat_outline=beat_outline,
@@ -3348,37 +3442,16 @@ class VideoGenerationPipeline:
             height=_h,
             language=language,
             audio_duration=audio_duration,
-            visual_style=_visual_style,
+            act_plan=act_plan,
+            emphasis_map=emphasis_map,
+            require_shot_density=bool(self._tier_config.get("director_shot_density")),
         )
 
         # Super Ultra: bias the Director toward motion-graphics shot types
         director_system = DIRECTOR_SYSTEM_PROMPT
-        # Product showcase mode: Director uses PRODUCT_HERO as primary shot type
-        if _visual_style == "product_showcase":
-            director_system = DIRECTOR_SYSTEM_PROMPT + (
-                "\n\n**PRODUCT_SHOWCASE MODE — ABSOLUTE RULES**:\n"
-                "- Primary shot type: PRODUCT_HERO (subject stays fixed, background layers change behind it).\n"
-                "- First shot: PRODUCT_HERO (establish the product / subject with badge entrance).\n"
-                "- Mix in KINETIC_TITLE for section intros, DATA_STORY for stats, LOWER_THIRD for labels.\n"
-                "- NEVER use VIDEO_HERO, IMAGE_HERO, IMAGE_SPLIT, ANNOTATION_MAP.\n"
-                "- Each PRODUCT_HERO shot should advance a 'background act': cream → halftone → watermark → bold color.\n"
-                "- All shots share the same subject (same product image). The `image_prompt` should describe one hero object.\n"
-                "- Typography: Bebas Neue for headlines + badges, Inter tracking-label for small words.\n"
-                "- Keep shots 3–6s. The product is always the anchor — text and bg layers orbit it.\n"
-            )
-        # Illustrated SVG mode: override Director to use only SVG shot types
-        elif _visual_style == "illustrated_svg":
-            director_system = DIRECTOR_SYSTEM_PROMPT + (
-                "\n\n**ILLUSTRATED_SVG MODE — ABSOLUTE RESTRICTION**:\n"
-                "- Use ONLY these shot types: INFOGRAPHIC_SVG, KINETIC_TITLE, KINETIC_TEXT.\n"
-                "- NEVER produce IMAGE_HERO, VIDEO_HERO, IMAGE_SPLIT, ANNOTATION_MAP, ANIMATED_ASSET.\n"
-                "- All shots must have `image_prompt: null` and `video_query: null`.\n"
-                "- First shot must be KINETIC_TITLE (bold title wipe reveal).\n"
-                "- All shots share the cream #f5f0e8 .svg-canvas background — do not specify any other background.\n"
-                "- INFOGRAPHIC_SVG shots must use inline SVG with `pathLength='1'` stroke-dashoffset draw-on animation.\n"
-                "- Palette strictly: `var(--brand-primary)` and `var(--brand-accent)` only.\n"
-            )
-        elif self._tier_config.get("director_motion_bias"):
+        if self._tier_config.get("director_few_shot"):
+            director_system = director_system + SUPER_ULTRA_DIRECTOR_EXTENSION
+        if self._tier_config.get("director_motion_bias"):
             _is_portrait = _h > _w
             _target_shot_dur = "2-3.5 seconds" if _is_portrait else "2-4 seconds"
             _min_shots_hint = (
@@ -3413,6 +3486,17 @@ class VideoGenerationPipeline:
             )
 
         print("🎬 Running Director stage (shot planning)...")
+        # Attach any user-uploaded reference images to the Director's user message
+        # so it can plan shots that actually feature those assets (multimodal call).
+        _ref_image_parts = self._build_director_reference_image_block()
+        if _ref_image_parts:
+            print(f"   🖼️  Attaching {len(_ref_image_parts)} reference image(s) to Director call")
+
+        def _build_user_content(text: str) -> Any:
+            if _ref_image_parts:
+                return [{"type": "text", "text": text}] + _ref_image_parts
+            return text
+
         max_attempts = 3
         last_error = None
         director_plan: Dict[str, Any] = {}
@@ -3424,7 +3508,7 @@ class VideoGenerationPipeline:
                 # that shows the LLM what it returned and what the correct shape is.
                 messages: List[Dict[str, Any]] = [
                     {"role": "system", "content": director_system},
-                    {"role": "user", "content": user_prompt},
+                    {"role": "user", "content": _build_user_content(user_prompt)},
                 ]
                 if correction_message and raw:
                     messages.append({"role": "assistant", "content": raw[:2000]})
@@ -3433,7 +3517,8 @@ class VideoGenerationPipeline:
                 raw, usage = self.html_client.chat(
                     messages=messages,
                     temperature=0.5 if attempt == 0 else 0.3,  # lower temp on retries
-                    max_tokens=self._tier_config.get("director_max_tokens", 8000),
+                    max_tokens=self._tier_config.get("director_max_tokens", 20000),
+                    response_format={"type": "json_object"},
                 )
                 print(f"   ℹ️  Director raw response length: {len(raw)} chars")
                 parsed = _extract_json_blob(raw)
@@ -3503,6 +3588,23 @@ class VideoGenerationPipeline:
                 pass
             return None
 
+        # Sanity check: one shot covering a long video almost always means
+        # the LLM produced a broken/truncated plan. Falling back to the
+        # segment-based flow gives a varied video instead of a static one.
+        non_overlay_count = sum(1 for s in shots if not s.get("overlay"))
+        if non_overlay_count <= 1 and audio_duration > 15.0:
+            print(
+                f"   ⚠️ Director produced only {non_overlay_count} primary shot(s) "
+                f"for {audio_duration:.1f}s audio — falling back to segment flow"
+            )
+            try:
+                (run_dir / "director_debug.json").write_text(
+                    json.dumps({"raw": raw, "parsed": director_plan, "reason": "too_few_shots"}, indent=2)
+                )
+            except Exception:
+                pass
+            return None
+
         # Validate shot types
         valid_types = {
             "IMAGE_HERO", "VIDEO_HERO", "IMAGE_SPLIT", "TEXT_DIAGRAM",
@@ -3540,6 +3642,21 @@ class VideoGenerationPipeline:
         director_path = run_dir / "director_plan.json"
         director_path.write_text(json.dumps(director_plan, indent=2, ensure_ascii=False))
         print(f"   ✅ Director planned {len(shots)} shots ({len(non_overlay)} primary + {len(shots) - len(non_overlay)} overlays)")
+
+        # Log / sanity-check Director's self-reported density (super_ultra only)
+        density = director_plan.get("shot_density")
+        rationale = director_plan.get("pacing_rationale")
+        if density:
+            avg_shot = audio_duration / max(1, len(non_overlay)) if non_overlay else 0.0
+            expected_bucket = (
+                "fast" if avg_shot <= 2.5 else
+                "slow" if avg_shot >= 4.0 else
+                "medium"
+            )
+            mismatch = "" if density == expected_bucket else f" ⚠️ MISMATCH — actual bucket is '{expected_bucket}'"
+            print(f"   🎯 Density: self-reported='{density}' | actual avg={avg_shot:.2f}s/shot → '{expected_bucket}'{mismatch}")
+            if rationale:
+                print(f"   📝 Rationale: {rationale}")
 
         return director_plan
 
@@ -3733,10 +3850,10 @@ class VideoGenerationPipeline:
                     "`var(--brand-primary, #3b82f6)`.\n"
                 )
 
-            # ── Product showcase mode: enforce layered-stage composition ──
-            if getattr(self, "_current_visual_style", "standard") == "product_showcase":
+            # ── PRODUCT_HERO shots: layered-stage composition constraints ──
+            if shot_type == "PRODUCT_HERO":
                 user_prompt = user_prompt + (
-                    "\n\n**🎬 PRODUCT SHOWCASE MODE — NON-NEGOTIABLE CONSTRAINTS**:\n"
+                    "\n\n**🎬 PRODUCT HERO SHOT — NON-NEGOTIABLE CONSTRAINTS**:\n"
                     "- Root element: `<div class='product-stage'>` — full-screen relative container.\n"
                     "- Subject image: `position:absolute`, `data-cutout='true'`, centered, bottom 22%, width 70–80%, z-index:10.\n"
                     "- Background layers: 3 separate `position:absolute` divs at z-index 0/1/2. "
@@ -3753,10 +3870,10 @@ class VideoGenerationPipeline:
                     "- DO NOT hard-cut backgrounds — always crossfade via GSAP opacity.\n"
                 )
 
-            # ── Illustrated SVG mode: hard constraint on per-shot HTML ──
-            elif getattr(self, "_current_visual_style", "standard") == "illustrated_svg":
+            # ── INFOGRAPHIC_SVG / KINETIC_TITLE shots: pure-SVG constraints ──
+            elif shot_type in ("INFOGRAPHIC_SVG", "KINETIC_TITLE"):
                 user_prompt = user_prompt + (
-                    "\n\n**🎨 ILLUSTRATED SVG MODE — NON-NEGOTIABLE CONSTRAINTS**:\n"
+                    "\n\n**🎨 PURE-SVG SHOT — NON-NEGOTIABLE CONSTRAINTS**:\n"
                     "- NO `<img>` tags, NO `<video>` tags, NO `data-img-prompt`, NO `data-video-query`.\n"
                     "- NO `background-image` referencing external URLs in any style attribute.\n"
                     "- ALL visuals must be INLINE SVG. No external assets of any kind.\n"
@@ -4913,14 +5030,14 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
         _style_cfg = getattr(self, '_current_style_config', None)
         _layout_theme = (_style_cfg or {}).get("layout_theme", "") if _style_cfg else ""
         _extra_family = self._TEMPLATE_EXTRA_FONT_FAMILIES.get(_layout_theme, "")
-        _is_illustrated = (getattr(self, "_current_style_guide", {}) or {}).get("visual_style") == "illustrated_svg"
-        # Bebas Neue loaded for illustrated_svg mode (KINETIC_TITLE / INFOGRAPHIC_SVG headers)
-        _display_font = "&family=Bebas+Neue" if _is_illustrated else ""
-        _base_families = f"Montserrat:wght@700;900&family=Inter:wght@400;600&family=Fira+Code{_display_font}"
+        # Bebas Neue is always loaded — the Director may pick KINETIC_TITLE / INFOGRAPHIC_SVG /
+        # PRODUCT_HERO shots at any time, and they all need it for display typography.
+        _base_families = "Montserrat:wght@700;900&family=Inter:wght@400;600&family=Fira+Code&family=Bebas+Neue"
         _fonts_param = f"{_base_families}&family={_extra_family}" if _extra_family else _base_families
         _fonts_url = f"https://fonts.googleapis.com/css2?family={_fonts_param}&display=swap"
 
-        # Illustrated SVG mode: inject .svg-canvas class with cream+grid background
+        # .svg-canvas class is always injected so any shot (INFOGRAPHIC_SVG / KINETIC_TITLE)
+        # that opts into the cream+grid canvas works regardless of the document background.
         svg_canvas_css = """
             /* --- ILLUSTRATED SVG: cream+grid canvas --- */
             .svg-canvas {
@@ -4933,7 +5050,7 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
                 background-size: 60px 60px;
                 overflow: hidden;
             }
-        """ if _is_illustrated else ""
+        """
 
         global_css = f"""<style>
             @import url('{_fonts_url}');
@@ -5757,7 +5874,7 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
         """
         images_dir = run_dir / "generated_images"
         images_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Check if Gemini API key is available
         if not self.gemini_image_api_key:
             print("    ⚠️  No Gemini API key configured. Skipping image generation.")
