@@ -18,6 +18,7 @@ interface TncSettingsData {
     fileMediaId: string | null;
     notifyOnSign: boolean;
     notifyEmails: string;
+    prefillLearnerName: boolean;
 }
 
 const DEFAULT_TNC_SETTINGS: TncSettingsData = {
@@ -25,6 +26,7 @@ const DEFAULT_TNC_SETTINGS: TncSettingsData = {
     fileMediaId: null,
     notifyOnSign: false,
     notifyEmails: '',
+    prefillLearnerName: false,
 };
 
 const SETTING_KEY = 'STUDENT_TNC_SETTING';
@@ -190,6 +192,31 @@ export default function TncSettings() {
                             />
                         )}
                         {isUploadingMedia && <p className="text-xs text-primary">Uploading PDF...</p>}
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                        <Label>Learner Name on Signature</Label>
+                        <p className="text-sm text-muted-foreground">
+                            Choose how the learner's name is captured when they sign the Terms & Conditions.
+                        </p>
+                        <div className="flex items-start gap-3 rounded-md border p-4">
+                            <Switch
+                                id="tnc-prefill-name"
+                                checked={settings.prefillLearnerName}
+                                onCheckedChange={(v) => update({ prefillLearnerName: v })}
+                                className="mt-0.5"
+                            />
+                            <div className="space-y-1">
+                                <Label htmlFor="tnc-prefill-name" className="cursor-pointer">
+                                    Prefill learner's name (non-editable)
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    {settings.prefillLearnerName
+                                        ? "The learner's registered name will be auto-filled and locked on the signature field."
+                                        : 'The learner will be required to type their full name manually when signing.'}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

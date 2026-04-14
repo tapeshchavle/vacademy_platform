@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,19 +7,66 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { PdfViewerComponent } from '@/components/common/study-library/level-material/subject-material/module-material/chapter-material/slide-material/pdf-viewer-component';
 import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
-import { ACCEPT_TNC } from '@/constants/urls';
+import { ACCEPT_TNC, BASE_URL } from '@/constants/urls';
 import { useInstituteFeatureStore } from '@/stores/insititute-feature-store';
+import { fetchUserData } from '@/routes/dashboard/-lib/utils';
 
 interface TncModalProps {
     tncUrl: string;
     onAccepted: () => void;
+    prefillName?: boolean;
 }
 
-export function TncModal({ tncUrl, onAccepted }: TncModalProps) {
+const TNC_SETTING_KEY = 'STUDENT_TNC_SETTING';
+
+export function TncModal({ tncUrl, onAccepted, prefillName: prefillNameProp = false }: TncModalProps) {
     const { instituteId } = useInstituteFeatureStore();
     const [hasRead, setHasRead] = useState(false);
     const [name, setName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLocked, setIsLocked] = useState<boolean>(prefillNameProp);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            // Resolve whether prefill is enabled: prop wins if true, else fetch the T&C setting directly.
+            let shouldPrefill = prefillNameProp;
+            if (!shouldPrefill) {
+                try {
+                    const userData = await fetchUserData();
+                    const resolvedInstituteId = instituteId || userData?.institute_id;
+                    if (resolvedInstituteId) {
+                        const res = await authenticatedAxiosInstance.get<{
+                            data: { prefillLearnerName?: boolean } | null;
+                        }>(`${BASE_URL}/admin-core-service/institute/setting/v1/get`, {
+                            params: { instituteId: resolvedInstituteId, settingKey: TNC_SETTING_KEY },
+                        });
+                        shouldPrefill = Boolean(res.data?.data?.prefillLearnerName);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch T&C prefill setting:', error);
+                }
+            }
+
+            if (cancelled) return;
+            setIsLocked(shouldPrefill);
+
+            if (!shouldPrefill) return;
+
+            try {
+                const userData = await fetchUserData();
+                const fullName = userData?.full_name?.trim();
+                if (!cancelled && fullName) {
+                    setName(fullName);
+                }
+            } catch (error) {
+                console.error('Failed to prefill learner name:', error);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [prefillNameProp, instituteId]);
 
     const handleAccept = async () => {
         if (!hasRead) {
@@ -86,16 +133,20 @@ export function TncModal({ tncUrl, onAccepted }: TncModalProps) {
                             <Label htmlFor="tnc-name" className="text-sm font-medium text-primary-900 mb-1.5 block">
                                 Digital Signature
                             </Label>
-                            <Input 
-                                id="tnc-name" 
-                                placeholder="Enter your full legal name" 
-                                value={name} 
+                            <Input
+                                id="tnc-name"
+                                placeholder="Enter your full legal name"
+                                value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 className="bg-white"
-                                autoFocus
+                                autoFocus={!isLocked}
+                                readOnly={isLocked}
+                                aria-readonly={isLocked}
                             />
                             <p className="text-xs text-primary-600 mt-2">
-                                By entering your name and clicking Accept, you are digitally signing this document.
+                                {isLocked
+                                    ? 'Your registered name is shown above. By clicking Accept, you are digitally signing this document.'
+                                    : 'By entering your name and clicking Accept, you are digitally signing this document.'}
                             </p>
                         </div>
                     )}

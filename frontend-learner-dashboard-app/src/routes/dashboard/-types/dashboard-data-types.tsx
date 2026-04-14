@@ -22,6 +22,7 @@ export type DashbaordResponse = {
   tnc_url?: string;
   tnc_accepted_date?: string | number;
   tnc_file_url?: string;
+  tnc_prefill_name?: boolean;
 };
 
 
