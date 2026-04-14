@@ -138,7 +138,7 @@ export function AttendanceMarkingTable({
             }
             // Fallback: try matching by email across all entries
             for (const fields of Object.values(cfData)) {
-                if (fields.length > 0 && fields[0].guestId) {
+                if (fields.length > 0 && fields[0]?.guestId) {
                     const emailField = fields.find(
                         (f) => f.fieldKey?.toLowerCase().includes('email') && f.customFieldValue === student.email
                     );
