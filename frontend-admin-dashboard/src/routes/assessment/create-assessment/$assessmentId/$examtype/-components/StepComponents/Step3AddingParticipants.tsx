@@ -53,41 +53,12 @@ import { Step3ParticipantsListIndiviudalStudentInterface } from '@/types/assessm
 import { Sortable, SortableDragHandle, SortableItem } from '@/components/ui/sortable';
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
 import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
-import { getCustomFieldSettingsFromCache } from '@/services/custom-field-settings';
+import { fetchInstituteDefaultFields } from '@/services/custom-field-mappings';
 type TestAccessFormType = z.infer<typeof testAccessSchema>;
 
 function getInitialAssessmentCustomFields() {
-    // Custom Fields Revamp: read ALL institute defaults from cache
-    const settings = getCustomFieldSettingsFromCache();
-    const settingsFields = [
-        ...(settings?.fixedFields || []),
-        ...(settings?.customFields || []),
-        ...(settings?.instituteFields || []),
-    ];
-    const SEEDED_KEYS = ['full_name', 'email', 'phone_number'];
-
-    if (!settingsFields.length) {
-        return [
-            { id: '0', type: 'textfield', name: 'Full Name', oldKey: true, isRequired: true, key: 'full_name', order: 0 },
-            { id: '1', type: 'textfield', name: 'Email', oldKey: true, isRequired: true, key: 'email', order: 1 },
-            { id: '2', type: 'textfield', name: 'Phone Number', oldKey: true, isRequired: true, key: 'phone_number', order: 2 },
-        ];
-    }
-
-    return settingsFields.map((f, i) => {
-        const key = f.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-        const isSeeded = !f.canBeDeleted || SEEDED_KEYS.includes(key);
-        return {
-            id: String(i),
-            type: f.type === 'dropdown' ? 'dropdown' : 'textfield',
-            name: f.name,
-            oldKey: isSeeded,
-            isRequired: f.required || isSeeded,
-            key,
-            order: i,
-            ...(f.type === 'dropdown' && f.options ? { options: f.options.map((opt, oi) => ({ id: `${i}_opt_${oi}`, value: opt })) } : {}),
-        };
-    });
+    // Returns empty — the useEffect below will async-load from the live API.
+    return [];
 }
 
 const Step3AddingParticipants: React.FC<StepContentProps> = ({
@@ -203,6 +174,47 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
         control,
         name: 'open_test.custom_fields',
     });
+
+    // Async-load institute defaults directly from the live backend endpoint.
+    useEffect(() => {
+        const loadFields = async () => {
+            if (!instituteId) return;
+            const defaults = await fetchInstituteDefaultFields(instituteId);
+            if (!defaults || defaults.length === 0) return;
+            const SEEDED_KEYS = ['full_name', 'email', 'phone_number'];
+            const fields = defaults.map((entry, i) => {
+                const cf = entry.custom_field;
+                const key = cf.fieldName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+                const isSeeded = SEEDED_KEYS.includes(key);
+                const result: any = {
+                    id: String(i),
+                    type: cf.fieldType === 'dropdown' ? 'dropdown' : 'textfield',
+                    name: cf.fieldName,
+                    oldKey: isSeeded,
+                    isRequired: cf.isMandatory || isSeeded,
+                    key,
+                    order: entry.individual_order ?? i,
+                };
+                if (cf.fieldType === 'dropdown' && cf.config) {
+                    try {
+                        const parsed = JSON.parse(cf.config);
+                        if (Array.isArray(parsed)) {
+                            result.options = parsed.map((opt: any, oi: number) => ({ id: `${i}_opt_${oi}`, value: opt.value || opt.label || opt }));
+                        } else if (parsed.coommaSepartedOptions) {
+                            result.options = parsed.coommaSepartedOptions.split(',').map((v: string, oi: number) => ({ id: `${i}_opt_${oi}`, value: v.trim() }));
+                        }
+                    } catch { /* ignore */ }
+                }
+                return result;
+            });
+            const currentValues = form.getValues();
+            form.reset({
+                ...currentValues,
+                open_test: { ...currentValues.open_test, custom_fields: fields },
+            });
+        };
+        loadFields();
+    }, []);
 
     const handleSubmitStep3Form = useMutation({
         mutationFn: ({

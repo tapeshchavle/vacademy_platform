@@ -1662,13 +1662,24 @@ const CustomFieldsSettings: React.FC = () => {
 
                                                 {/* Usage Information */}
                                                 <div className="mb-3 ml-8 flex items-center gap-3">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="border-blue-200 bg-blue-50 text-[10px] font-medium text-blue-700 hover:bg-blue-100"
-                                                        title="Institute-wide default field. Available for selection in every Enroll Invite, Audience, Live Class and Assessment create dialog."
-                                                    >
-                                                        DEFAULT
-                                                    </Badge>
+                                                    {field.canBeEdited !== false && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="border-blue-200 bg-blue-50 text-[10px] font-medium text-blue-700 hover:bg-blue-100"
+                                                            title="Institute-wide default field. Available for selection in every Enroll Invite, Audience, Live Class and Assessment create dialog."
+                                                        >
+                                                            DEFAULT
+                                                        </Badge>
+                                                    )}
+                                                    {field.canBeEdited === false && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="border-gray-200 bg-gray-50 text-[10px] font-medium text-gray-600 hover:bg-gray-100"
+                                                            title="Feature-scoped field — created from an Invite, Live Session, or Assessment dialog. Not a default."
+                                                        >
+                                                            FEATURE
+                                                        </Badge>
+                                                    )}
                                                     {field.usage && (
                                                         <>
                                                             <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -1821,13 +1832,24 @@ const CustomFieldsSettings: React.FC = () => {
 
                                                 {/* Usage Information */}
                                                 <div className="mb-3 ml-8 flex items-center gap-3">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="border-blue-200 bg-blue-50 text-[10px] font-medium text-blue-700 hover:bg-blue-100"
-                                                        title="Institute-wide default field. Available for selection in every Enroll Invite, Audience, Live Class and Assessment create dialog."
-                                                    >
-                                                        DEFAULT
-                                                    </Badge>
+                                                    {field.canBeEdited !== false && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="border-blue-200 bg-blue-50 text-[10px] font-medium text-blue-700 hover:bg-blue-100"
+                                                            title="Institute-wide default field. Available for selection in every Enroll Invite, Audience, Live Class and Assessment create dialog."
+                                                        >
+                                                            DEFAULT
+                                                        </Badge>
+                                                    )}
+                                                    {field.canBeEdited === false && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="border-gray-200 bg-gray-50 text-[10px] font-medium text-gray-600 hover:bg-gray-100"
+                                                            title="Feature-scoped field — created from an Invite, Live Session, or Assessment dialog. Not a default."
+                                                        >
+                                                            FEATURE
+                                                        </Badge>
+                                                    )}
                                                     {field.usage && (
                                                         <>
                                                             <div className="flex items-center gap-3 text-xs text-gray-500">

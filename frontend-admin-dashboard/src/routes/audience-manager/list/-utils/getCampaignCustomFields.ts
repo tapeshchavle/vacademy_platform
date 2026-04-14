@@ -1,4 +1,6 @@
 import { getCustomFieldSettingsFromCache } from '@/services/custom-field-settings';
+import { fetchInstituteDefaultFields } from '@/services/custom-field-mappings';
+import { getInstituteId } from '@/constants/helper';
 
 /**
  * Interface for campaign form custom field
@@ -98,12 +100,63 @@ export const getCampaignCustomFields = (): CampaignFormCustomField[] => {
 };
 
 /**
+ * Async variant that fetches DEFAULT_CUSTOM_FIELD mappings directly from
+ * the live backend endpoint. Bypasses the stale settings JSON blob.
+ */
+export const getCampaignCustomFieldsAsync = async (): Promise<CampaignFormCustomField[]> => {
+    try {
+        const instId = getInstituteId();
+        if (!instId) return [];
+
+        const defaults = await fetchInstituteDefaultFields(instId);
+        if (!defaults || defaults.length === 0) return [];
+
+        return defaults
+            .map((entry, index): CampaignFormCustomField => {
+                const cf = entry.custom_field;
+                const fieldType = mapFieldType(cf.fieldType || 'text');
+                const transformed: CampaignFormCustomField = {
+                    id: String(index),
+                    type: fieldType,
+                    name: cf.fieldName,
+                    isRequired: cf.isMandatory || false,
+                    key: generateKeyFromName(cf.fieldName),
+                    order: entry.individual_order ?? cf.formOrder ?? index,
+                    _id: cf.id,
+                    status: 'ACTIVE',
+                };
+                if (fieldType === 'dropdown' && cf.config) {
+                    try {
+                        const parsed = JSON.parse(cf.config);
+                        if (Array.isArray(parsed)) {
+                            transformed.options = parsed.map((opt: any, i: number) => ({
+                                id: `${index}_opt_${i}`,
+                                value: opt.value || opt.label || opt,
+                                disabled: true,
+                            }));
+                        } else if (parsed.coommaSepartedOptions) {
+                            transformed.options = parsed.coommaSepartedOptions
+                                .split(',')
+                                .map((v: string, i: number) => ({
+                                    id: `${index}_opt_${i}`,
+                                    value: v.trim(),
+                                    disabled: true,
+                                }));
+                        }
+                    } catch { /* ignore */ }
+                }
+                return transformed;
+            })
+            .sort((a, b) => a.order - b.order);
+    } catch {
+        return [];
+    }
+};
+
+/**
  * Refresh campaign custom fields (call this when settings are updated)
- * This ensures the latest fields from settings are loaded
  */
 export const refreshCampaignCustomFields = (): CampaignFormCustomField[] => {
-    // The cache is automatically updated when settings are saved
-    // This function just re-reads from cache
     return getCampaignCustomFields();
 };
 

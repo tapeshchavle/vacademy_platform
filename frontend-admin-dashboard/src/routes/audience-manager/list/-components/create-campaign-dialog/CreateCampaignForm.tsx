@@ -23,7 +23,7 @@ import StatusDropdown from './StatusDropdown';
 import createCampaignLink from '../../-utils/createCampaignLink';
 import CampaignLink from './CampaignLink';
 import { CampaignItem } from '../../-services/get-campaigns-list';
-import { getCampaignCustomFields } from '../../-utils/getCampaignCustomFields';
+import { getCampaignCustomFields, getCampaignCustomFieldsAsync } from '../../-utils/getCampaignCustomFields';
 import { useGetCampaignById } from '../../-hooks/useGetCampaignById';
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
 import { OtherTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
@@ -376,6 +376,32 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
             form.reset(defaultFormValues);
         }
     }, [form, initialFormValues, isEditMode, isLoadingCampaign, setValue]);
+
+    // Create mode: async-load institute defaults to ensure newly-added
+    // DEFAULT fields from Settings appear (cache may be empty after save).
+    useEffect(() => {
+        if (!isEditMode) {
+            getCampaignCustomFieldsAsync().then((fields) => {
+                if (fields && fields.length > 0) {
+                    const currentValues = form.getValues();
+                    if (!currentValues.custom_fields || currentValues.custom_fields.length === 0) {
+                        const normalized = fields.map((field, index) => ({
+                            id: field.id || String(index),
+                            type: field.type,
+                            name: field.name,
+                            oldKey: false,
+                            isRequired: field.isRequired ?? true,
+                            key: field.key,
+                            order: index,
+                            _id: field._id,
+                            options: field.options,
+                        }));
+                        form.reset({ ...currentValues, custom_fields: normalized });
+                    }
+                }
+            });
+        }
+    }, []);
 
     // Custom fields array management
     const { fields: customFieldsArray, move: moveCustomField } = useFieldArray({

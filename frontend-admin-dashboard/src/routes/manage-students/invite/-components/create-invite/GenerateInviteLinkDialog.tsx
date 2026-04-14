@@ -705,10 +705,11 @@ const GenerateInviteLinkDialog = ({
                 includePaymentPlans:
                     safeJsonParse(inviteLinkDetails?.web_page_meta_data_json, {})
                         ?.includePaymentPlans ?? true,
-                custom_fields:
-                    inviteLinkDetails?.institute_custom_fields.length === 0
+                custom_fields: isEditInviteLink
+                    ? (inviteLinkDetails?.institute_custom_fields.length === 0
                         ? getInviteListCustomFields()
-                        : ReTransformCustomFields(inviteLinkDetails),
+                        : ReTransformCustomFields(inviteLinkDetails))
+                    : form.getValues('custom_fields'),
                 freePlans: splitFreePlans,
                 paidPlans: splitPaidPlans.map((plan) => ({
                     ...plan,

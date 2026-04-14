@@ -25,7 +25,8 @@ import QRCode from 'react-qr-code';
 import { handleDownloadQRCode } from '@/routes/homework-creation/create-assessment/$assessmentId/$examtype/-utils/helper';
 import { Checkbox } from '@/components/ui/checkbox';
 import { addCustomFiledSchema, addParticipantsSchema } from '../-schema/schema';
-import { getCustomFieldSettingsFromCache } from '@/services/custom-field-settings';
+import { fetchInstituteDefaultFields } from '@/services/custom-field-mappings';
+import { getInstituteId as getInstId } from '@/constants/helper';
 import { Sortable, SortableDragHandle, SortableItem } from '@/components/ui/sortable';
 import { Switch } from '@/components/ui/switch';
 import { MyDialog } from '@/components/design-system/dialog';
@@ -405,40 +406,44 @@ export default function ScheduleStep2() {
             return;
         }
         if (accessType === AccessType.PUBLIC) {
-            // Load from settings, fallback to hardcoded defaults
-            // Custom Fields Revamp: read ALL institute defaults from cache
-            const settings = getCustomFieldSettingsFromCache();
-            const settingsFields = [
-                ...(settings?.fixedFields || []),
-                ...(settings?.customFields || []),
-                ...(settings?.instituteFields || []),
-            ];
-            const SEEDED = ['full name', 'email', 'phone number', 'mobile number'];
-            let allFields;
-            if (settingsFields.length > 0) {
-                allFields = settingsFields.map((f) => ({
-                    label: f.name,
-                    required: f.required || SEEDED.includes(f.name.toLowerCase()),
-                    isDefault: !f.canBeDeleted || SEEDED.includes(f.name.toLowerCase()),
-                    type: f.type === 'dropdown' ? InputType.DROPDOWN : InputType.TEXT,
-                    ...(f.type === 'dropdown' && f.options ? {
-                        options: f.options.map((opt) => ({ label: opt, name: opt })),
-                    } : {}),
-                }));
-            } else {
-                allFields = [
-                    { label: 'Full Name', required: true, isDefault: true, type: InputType.TEXT },
-                    { label: 'Email', required: true, isDefault: true, type: InputType.TEXT },
-                    { label: 'Mobile Number', required: false, isDefault: true, type: InputType.TEXT },
-                    { label: 'State', required: true, isDefault: false, type: InputType.TEXT },
-                    { label: 'City/Village', required: true, isDefault: false, type: InputType.TEXT },
-                ];
-            }
-            form.setValue('fields', allFields);
+            form.setValue('fields', []);
             form.setValue(
                 'joinLink',
                 `${learnerBaseUrl}/register/live-class?sessionId=${sessionId}`
             );
+
+            const SEEDED = ['full name', 'email', 'phone number', 'mobile number'];
+            const loadFields = async () => {
+                const instId = getInstId();
+                if (!instId) return;
+                const defaults = await fetchInstituteDefaultFields(instId);
+                if (defaults && defaults.length > 0) {
+                    const allFields = defaults.map((entry) => {
+                        const cf = entry.custom_field;
+                        const nameLC = cf.fieldName.toLowerCase();
+                        return {
+                            label: cf.fieldName,
+                            required: cf.isMandatory || SEEDED.includes(nameLC),
+                            isDefault: SEEDED.includes(nameLC),
+                            type: cf.fieldType === 'dropdown' ? InputType.DROPDOWN : InputType.TEXT,
+                            ...(cf.fieldType === 'dropdown' && cf.config ? (() => {
+                                try {
+                                    const parsed = JSON.parse(cf.config);
+                                    if (Array.isArray(parsed)) {
+                                        return { options: parsed.map((o: any) => ({ label: o.value || o.label, name: o.value || o.name })) };
+                                    }
+                                    if (parsed.coommaSepartedOptions) {
+                                        return { options: parsed.coommaSepartedOptions.split(',').map((v: string) => ({ label: v.trim(), name: v.trim() })) };
+                                    }
+                                } catch { /* ignore */ }
+                                return {};
+                            })() : {}),
+                        };
+                    });
+                    form.setValue('fields', allFields);
+                }
+            };
+            loadFields();
         } else {
             form.setValue('fields', []);
             form.setValue('joinLink', `${learnerBaseUrl}/study-library/live-class`);
