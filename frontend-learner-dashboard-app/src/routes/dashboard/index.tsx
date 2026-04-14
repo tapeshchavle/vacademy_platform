@@ -424,11 +424,12 @@ export function DashboardComponent() {
 
       {/* Render T&C Modal if ask_for_tnc is true */}
       {data?.ask_for_tnc && data?.tnc_url && (
-        <TncModal 
-          tncUrl={data.tnc_url} 
+        <TncModal
+          tncUrl={data.tnc_url}
+          prefillName={data.tnc_prefill_name ?? false}
           onAccepted={() => {
             setData(prev => prev ? { ...prev, ask_for_tnc: false } : prev);
-          }} 
+          }}
         />
       )}
 
