@@ -322,7 +322,7 @@ public class Step2Service {
 
         if (request.getAddedFields() != null) {
             for (LiveSessionStep2RequestDTO.CustomFieldDTO dto : request.getAddedFields()) {
-                saveNewCustomField(dto, request.getSessionId(), index++);
+                saveNewCustomField(dto, request.getSessionId(), session.getInstituteId(), index++);
             }
         }
 
@@ -357,7 +357,7 @@ public class Step2Service {
         }
     }
 
-    private void saveNewCustomField(LiveSessionStep2RequestDTO.CustomFieldDTO dto, String sessionId, int index) {
+    private void saveNewCustomField(LiveSessionStep2RequestDTO.CustomFieldDTO dto, String sessionId, String instituteId, int index) {
         String fieldKey = dto.getLabel().toLowerCase().replaceAll("\\s+", "_");
         String configJson = "{}";
         try {
@@ -386,7 +386,7 @@ public class Step2Service {
 
         InstituteCustomField mapping = InstituteCustomField.builder()
                 .id(UUID.randomUUID().toString())
-                .instituteId("") // set actual institute ID if needed
+                .instituteId(instituteId)
                 .customFieldId(savedField.getId())
                 .type("SESSION")
                 .typeId(sessionId)

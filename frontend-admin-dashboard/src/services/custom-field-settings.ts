@@ -88,6 +88,8 @@ export interface ApiCustomFieldUsageItem {
     };
     enroll_invite_count: number;
     audience_count: number;
+    session_count: number;
+    assessment_count: number;
     default?: boolean;
 }
 
@@ -125,6 +127,8 @@ export interface SystemField {
 export interface CustomFieldUsage {
     enrollInviteCount: number;
     audienceCount: number;
+    sessionCount: number;
+    assessmentCount: number;
     isDefault: boolean;
 }
 
@@ -858,8 +862,8 @@ const mapUIToApiRequestFresh = (
         }
     });
 
-    // Process custom fields
-    uiData.customFields.forEach((customField) => {
+    // Process custom fields — skip feature-scoped fields (canBeEdited=false)
+    uiData.customFields.filter((f) => f.canBeEdited !== false).forEach((customField) => {
         const apiField: ApiCustomField = {
             id: '', // Backend will assign
             customFieldId: isTempField(customField) ? '' : customField.id, // Empty for new fields
@@ -1036,8 +1040,10 @@ const mapUIToApiRequest = (uiData: CustomFieldSettingsData): ApiCustomFieldReque
         }
     });
 
-    // Process custom fields
-    uiData.customFields.forEach((customField) => {
+    // Process custom fields — skip feature-scoped fields (canBeEdited=false)
+    // that were merged from the usage response for display only. Saving them
+    // here would create a spurious DEFAULT_CUSTOM_FIELD mapping.
+    uiData.customFields.filter((f) => f.canBeEdited !== false).forEach((customField) => {
         if (isTempField(customField)) {
             // New field - create new API structure without ID
             const newApiField = createNewApiField(customField, instituteId) as ApiCustomField;
@@ -1268,125 +1274,82 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
         if (settingsResponse.data && settingsResponse.data.data) {
             const apiData = settingsResponse.data.data.data;
 
-            // Merge usage data into apiData
+            // Build currentCustomFieldsAndGroups entirely from the usage
+            // response (the live DB). The blob's list is stale and often
+            // contains duplicates from old saves. We keep the blob's OTHER
+            // data (fixedFieldRenameDtos, customFieldLocations, etc.) but
+            // replace the field list with the authoritative usage data.
             if (usageResponse.data && Array.isArray(usageResponse.data)) {
-                const existingFieldIds = new Set<string>();
+                const freshFields: ApiCustomField[] = [];
+                const freshAllCustomFields: string[] = [];
+                const freshCustomFieldsNames: string[] = [];
+                const freshCompulsoryCustomFields: string[] = [];
+                const freshFixedCustomFields: string[] = [];
+                const seenNames = new Set<string>();
 
-                // Track existing fields from currentCustomFieldsAndGroups
+                // Build a lookup from the blob for fields that have extra
+                // settings (locations, groupName, order, canBe* flags).
+                const blobFieldMap = new Map<string, ApiCustomField>();
                 if (Array.isArray(apiData.currentCustomFieldsAndGroups)) {
-                    apiData.currentCustomFieldsAndGroups.forEach((f) =>
-                        existingFieldIds.add(f.customFieldId)
-                    );
+                    apiData.currentCustomFieldsAndGroups.forEach((f) => {
+                        if (f.customFieldId) blobFieldMap.set(f.customFieldId, f);
+                    });
                 }
-
-                // Track existing fields from customGroup
-                if (apiData.customGroup) {
-                    Object.values(apiData.customGroup).forEach((f) =>
-                        existingFieldIds.add(f.customFieldId)
-                    );
-                }
-
-                // Track fixed fields to avoid duplicates
-                if (Array.isArray(apiData.fixedCustomFields)) {
-                    apiData.fixedCustomFields.forEach((id) => existingFieldIds.add(id));
-                }
+                const blobFixedSet = new Set<string>(apiData.fixedCustomFields || []);
+                const blobCompulsorySet = new Set<string>(apiData.compulsoryCustomFields || []);
 
                 usageResponse.data.forEach((usageItem) => {
                     const fieldId = usageItem.custom_field.id;
                     if (!fieldId) return;
 
-                    // Only merge fields that have a DEFAULT_CUSTOM_FIELD
-                    // mapping. Feature-scoped fields (ENROLL_INVITE,
-                    // AUDIENCE_FORM, SESSION, ASSESSMENT) must NOT leak into
-                    // the settings blob — otherwise saving from Settings
-                    // would create a spurious DEFAULT mapping for them.
-                    if (!usageItem.default) return;
+                    // Deduplicate by name (case-insensitive)
+                    const nameLower = (usageItem.custom_field.fieldName || '').toLowerCase();
+                    if (seenNames.has(nameLower)) return;
+                    seenNames.add(nameLower);
 
-                    if (!existingFieldIds.has(fieldId)) {
+                    // If the blob has this field, inherit its UI settings
+                    const blobEntry = blobFieldMap.get(fieldId);
 
-                        // Construct a default ApiCustomField
-                        // We default to 'text' if type is unknown or missing, though usageItem should have it
-                        const newField: ApiCustomField = {
-                            id: '', // Backend internal ID (different from customFieldId usually, but here likely unused or generated)
-                            customFieldId: fieldId,
-                            instituteId: usageItem.custom_field.instituteId || instituteId,
-                            groupName: null,
-                            fieldName: usageItem.custom_field.fieldName,
-                            fieldType:
-                                (usageItem.custom_field.fieldType as
-                                    | 'text'
-                                    | 'number'
-                                    | 'dropdown') || 'text',
-                            individualOrder: 999, // Append to end
-                            groupInternalOrder: null,
-                            canBeDeleted: true,
-                            canBeEdited: true, // Assuming editable
-                            canBeRenamed: true,
-                            locations: [], // Default to no visibility until configured
-                            status: usageItem.custom_field.status || 'ACTIVE',
-                            config: usageItem.custom_field.config,
-                        };
+                    const field: ApiCustomField = {
+                        id: blobEntry?.id || '',
+                        customFieldId: fieldId,
+                        instituteId: usageItem.custom_field.instituteId || instituteId,
+                        groupName: blobEntry?.groupName || null,
+                        fieldName: usageItem.custom_field.fieldName,
+                        fieldType: (usageItem.custom_field.fieldType as 'text' | 'number' | 'dropdown') || 'text',
+                        individualOrder: blobEntry?.individualOrder ?? 999,
+                        groupInternalOrder: blobEntry?.groupInternalOrder ?? null,
+                        canBeDeleted: blobEntry?.canBeDeleted ?? true,
+                        canBeEdited: usageItem.default ? (blobEntry?.canBeEdited ?? true) : false,
+                        canBeRenamed: usageItem.default ? (blobEntry?.canBeRenamed ?? true) : false,
+                        locations: blobEntry?.locations || [],
+                        status: usageItem.custom_field.status || 'ACTIVE',
+                        config: usageItem.custom_field.config,
+                    };
 
-                        // Add to currentCustomFieldsAndGroups
-                        if (!apiData.currentCustomFieldsAndGroups) {
-                            apiData.currentCustomFieldsAndGroups = [];
+                    freshFields.push(field);
+
+                    if (usageItem.default) {
+                        freshAllCustomFields.push(fieldId);
+                        freshCustomFieldsNames.push(field.fieldName);
+                        if (blobFixedSet.has(fieldId)) {
+                            freshFixedCustomFields.push(fieldId);
                         }
-                        apiData.currentCustomFieldsAndGroups.push(newField);
-
-                        // Add to allCustomFields
-                        if (!apiData.allCustomFields) {
-                            apiData.allCustomFields = [];
+                        if (blobCompulsorySet.has(fieldId)) {
+                            freshCompulsoryCustomFields.push(fieldId);
                         }
-                        apiData.allCustomFields.push(fieldId);
-
-                        // Add to customFieldsNames
-                        if (!apiData.customFieldsNames) {
-                            apiData.customFieldsNames = [];
-                        }
-                        apiData.customFieldsNames.push(newField.fieldName);
-
-                        // Add to existing IDs set to prevent double adding if logic changes
-                        existingFieldIds.add(fieldId);
                     }
                 });
-            }
 
-            // Filter the blob to only include fields that have at least one
-            // ACTIVE mapping of ANY type (DEFAULT, ENROLL_INVITE, etc.).
-            // This removes fields that were fully soft-deleted. Feature-scoped
-            // fields are kept for display (with usage counts) but will NOT
-            // be saved as DEFAULT — the merge guard above (`!usageItem.default`)
-            // and the backend's own logic handle that.
-            if (usageResponse.data && Array.isArray(usageResponse.data) && Array.isArray(apiData.currentCustomFieldsAndGroups)) {
-                const activeFieldIds = new Set<string>(
-                    usageResponse.data
-                        .filter((item) => item.custom_field?.id)
-                        .map((item) => item.custom_field.id)
-                );
-                apiData.currentCustomFieldsAndGroups = apiData.currentCustomFieldsAndGroups
-                    .filter((f) => activeFieldIds.has(f.customFieldId));
-
-                if (Array.isArray(apiData.allCustomFields)) {
-                    apiData.allCustomFields = apiData.allCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
-                }
-                if (Array.isArray(apiData.fixedCustomFields)) {
-                    apiData.fixedCustomFields = apiData.fixedCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
-                }
-                if (Array.isArray(apiData.compulsoryCustomFields)) {
-                    apiData.compulsoryCustomFields = apiData.compulsoryCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
-                }
+                apiData.currentCustomFieldsAndGroups = freshFields;
+                apiData.allCustomFields = freshAllCustomFields;
+                apiData.customFieldsNames = freshCustomFieldsNames;
+                apiData.fixedCustomFields = freshFixedCustomFields;
+                apiData.compulsoryCustomFields = freshCompulsoryCustomFields;
             }
 
             // Store original API data for preservation during save operations
             setOriginalApiData(apiData);
-
-            // Check if the data has the expected structure
-            if (!settingsResponse.data.data.data?.allCustomFields) {
-                console.warn('🚨 [DEBUG] API response missing allCustomFields - using empty array');
-            }
 
             settings = mapApiResponseToUI(settingsResponse.data);
 
@@ -1398,6 +1361,8 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                         usageMap.set(item.custom_field.id, {
                             enrollInviteCount: item.enroll_invite_count,
                             audienceCount: item.audience_count,
+                            sessionCount: item.session_count ?? 0,
+                            assessmentCount: item.assessment_count ?? 0,
                             isDefault: item.default ?? false,
                         });
                     }

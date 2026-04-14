@@ -23,7 +23,7 @@ import StatusDropdown from './StatusDropdown';
 import createCampaignLink from '../../-utils/createCampaignLink';
 import CampaignLink from './CampaignLink';
 import { CampaignItem } from '../../-services/get-campaigns-list';
-import { getCampaignCustomFields } from '../../-utils/getCampaignCustomFields';
+import { getCampaignCustomFields, getCampaignCustomFieldsAsync } from '../../-utils/getCampaignCustomFields';
 import { useGetCampaignById } from '../../-hooks/useGetCampaignById';
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
 import { OtherTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
@@ -376,6 +376,35 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
             form.reset(defaultFormValues);
         }
     }, [form, initialFormValues, isEditMode, isLoadingCampaign, setValue]);
+
+    // Create mode: async-load institute defaults directly from the live
+    // backend endpoint. This replaces whatever the sync cache-based init
+    // loaded (which may include feature-scoped fields from invites etc).
+    useEffect(() => {
+        if (!isEditMode) {
+            const SEEDED = ['full_name', 'email', 'phone_number'];
+            getCampaignCustomFieldsAsync().then((fields) => {
+                if (fields && fields.length > 0) {
+                    const currentValues = form.getValues();
+                    const normalized = fields.map((field, index) => {
+                        const isSeeded = SEEDED.includes(field.key);
+                        return {
+                            id: field.id || String(index),
+                            type: field.type,
+                            name: field.name,
+                            oldKey: isSeeded,
+                            isRequired: field.isRequired ?? isSeeded,
+                            key: field.key,
+                            order: index,
+                            _id: field._id,
+                            options: field.options,
+                        };
+                    });
+                    form.reset({ ...currentValues, custom_fields: normalized });
+                }
+            });
+        }
+    }, []);
 
     // Custom fields array management
     const { fields: customFieldsArray, move: moveCustomField } = useFieldArray({

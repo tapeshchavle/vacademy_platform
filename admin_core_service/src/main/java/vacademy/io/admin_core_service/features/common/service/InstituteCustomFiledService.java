@@ -815,6 +815,8 @@ public class InstituteCustomFiledService {
                                 .isDefault(false)
                                 .enrollInviteCount(0)
                                 .audienceCount(0)
+                                .sessionCount(0)
+                                .assessmentCount(0)
                                 .build();
                     });
 
@@ -824,6 +826,10 @@ public class InstituteCustomFiledService {
                 usageDTO.setEnrollInviteCount(usageDTO.getEnrollInviteCount() + count);
             } else if (CustomFieldTypeEnum.AUDIENCE_FORM.name().equals(type)) {
                 usageDTO.setAudienceCount(usageDTO.getAudienceCount() + count);
+            } else if (CustomFieldTypeEnum.SESSION.name().equals(type)) {
+                usageDTO.setSessionCount(usageDTO.getSessionCount() + count);
+            } else if (CustomFieldTypeEnum.ASSESSMENT.name().equals(type)) {
+                usageDTO.setAssessmentCount(usageDTO.getAssessmentCount() + count);
             }
         }
 
