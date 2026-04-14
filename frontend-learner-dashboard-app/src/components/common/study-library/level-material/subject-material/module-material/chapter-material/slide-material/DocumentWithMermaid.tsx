@@ -287,6 +287,32 @@ export const DocumentWithMermaid: React.FC<DocumentWithMermaidProps> = ({
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlContent;
 
+            // Merge consecutive sibling <ol>/<ul> so numbering is continuous.
+            // Why: authored HTML wraps each <li> in its own <ol>, which resets the
+            // CSS counter on every list and renders 1, 1, 1, 1 instead of 1, 2, 3, 4.
+            // Admin uses Yoopta which coalesces these during deserialization; we
+            // replicate that by merging in the DOM before rendering.
+            const mergeConsecutiveLists = (node: Element) => {
+                for (const child of Array.from(node.children)) {
+                    mergeConsecutiveLists(child);
+                }
+                let cur = node.firstElementChild;
+                while (cur) {
+                    const next = cur.nextElementSibling;
+                    if (
+                        next &&
+                        (cur.tagName === 'OL' || cur.tagName === 'UL') &&
+                        cur.tagName === next.tagName
+                    ) {
+                        while (next.firstChild) cur.appendChild(next.firstChild);
+                        next.remove();
+                    } else {
+                        cur = next;
+                    }
+                }
+            };
+            mergeConsecutiveLists(tempDiv);
+
             // First, check for div.mermaid elements (most common pattern for mermaid)
             const mermaidDivs = tempDiv.querySelectorAll('div.mermaid');
 
@@ -558,7 +584,7 @@ export const DocumentWithMermaid: React.FC<DocumentWithMermaidProps> = ({
                 ];
 
                 let foundMermaid = false;
-                let processedHtml = htmlContent;
+                let processedHtml = tempDiv.innerHTML;
                 const regexSections: typeof newSections = [];
 
                 mermaidPatterns.forEach((pattern) => {
@@ -581,7 +607,7 @@ export const DocumentWithMermaid: React.FC<DocumentWithMermaidProps> = ({
                     if (processedHtml.trim()) regexSections.push({ type: 'html', content: processedHtml });
                     setSections(regexSections);
                 } else {
-                    setSections([{ type: 'html', content: htmlContent }]);
+                    setSections([{ type: 'html', content: tempDiv.innerHTML }]);
                 }
             }
         } catch (error) {
