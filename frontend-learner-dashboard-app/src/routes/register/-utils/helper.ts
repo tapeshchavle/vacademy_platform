@@ -6,12 +6,22 @@ import {
 import { UserDetailsOpenTest } from "@/types/open-test";
 import { z } from "zod";
 
+const parseBackendDate = (raw: string): number => {
+  // Backend may send timestamps with or without an explicit timezone.
+  // Without a zone marker, modern browsers parse the string as *local*
+  // time, which makes the countdown drift by the local UTC offset.
+  // Force UTC interpretation when no zone marker is present.
+  const hasTimezone = /Z$|[+-]\d{2}:?\d{2}$/i.test(raw);
+  const normalized = hasTimezone ? raw : `${raw.replace(" ", "T")}Z`;
+  return new Date(normalized).getTime();
+};
+
 export const calculateTimeDifference = (
   serverTime: number,
   startDate: string
 ) => {
   if (!startDate) return false;
-  const startTime: number = new Date(Date.parse(startDate)).getTime();
+  const startTime = parseBackendDate(startDate);
   if (isNaN(startTime)) return false;
 
   const difference: number = startTime - serverTime;
@@ -21,7 +31,7 @@ export const calculateTimeDifference = (
 
 export const calculateTimeLeft = (serverTime: number, startDate: string) => {
   if (!startDate) return { hours: 0, minutes: 0, seconds: 0 };
-  const startTime: number = new Date(Date.parse(startDate)).getTime();
+  const startTime = parseBackendDate(startDate);
   if (isNaN(startTime)) return { hours: 0, minutes: 0, seconds: 0 };
 
   const difference: number = startTime - serverTime;
