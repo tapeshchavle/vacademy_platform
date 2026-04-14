@@ -114,12 +114,16 @@ export function AttendanceMarkingTable({
 
     // Extract unique custom field names (excluding name/email/phone which are already columns)
     const customFieldColumns = useMemo(() => {
-        const SKIP_KEYS = ['full_name', 'name', 'email', 'phone', 'phone_number', 'mobile_number', 'mobile'];
+        // Skip fields that are already shown as standard columns. Match by
+        // fieldName (case-insensitive exact match) — NOT by substring on
+        // fieldKey, because keys like "name_of_the_school_inst_..." would
+        // incorrectly match "name".
+        const SKIP_NAMES = ['full name', 'name', 'email', 'phone number', 'mobile number', 'phone', 'mobile'];
         const fieldMap = new Map<string, string>(); // fieldKey → fieldName
         Object.values(cfData).forEach((fields) => {
             fields.forEach((f) => {
-                const keyLC = (f.fieldKey || '').toLowerCase();
-                if (!SKIP_KEYS.some((s) => keyLC.includes(s)) && f.fieldName && !fieldMap.has(f.fieldKey)) {
+                const nameLC = (f.fieldName || '').toLowerCase();
+                if (!SKIP_NAMES.includes(nameLC) && f.fieldName && !fieldMap.has(f.fieldKey)) {
                     fieldMap.set(f.fieldKey, f.fieldName);
                 }
             });
