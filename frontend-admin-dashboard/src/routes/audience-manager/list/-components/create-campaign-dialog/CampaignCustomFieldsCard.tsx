@@ -98,8 +98,8 @@ const CampaignCustomFieldsCard = ({
                                         }
                                         return (
                                             <SortableItem key={field.id} value={field.id} asChild>
-                                                <div key={field.id} className="flex items-center gap-4">
-                                                    <div className="flex w-3/4 items-center justify-between rounded-lg border border-neutral-300 bg-neutral-50 px-4 py-2">
+                                                <div key={field.id} className="flex items-center gap-3">
+                                                    <div className="flex min-w-0 flex-1 items-center justify-between rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2">
                                                         <h1 className="text-sm">
                                                             {field.name}
                                                             {field.oldKey && (
@@ -138,17 +138,13 @@ const CampaignCustomFieldsCard = ({
                                                             </SortableDragHandle>
                                                         </div>
                                                     </div>
-                                                    {!field.oldKey && (
-                                                        <>
-                                                            <h1 className="text-sm">Required</h1>
-                                                            <Switch
-                                                                checked={field.isRequired}
-                                                                onCheckedChange={() => {
-                                                                    toggleIsRequired(index);
-                                                                }}
-                                                            />
-                                                        </>
-                                                    )}
+                                                    <h1 className="text-sm">Required</h1>
+                                                    <Switch
+                                                        checked={field.isRequired}
+                                                        onCheckedChange={() => {
+                                                            toggleIsRequired(index);
+                                                        }}
+                                                    />
                                                 </div>
                                             </SortableItem>
                                         );

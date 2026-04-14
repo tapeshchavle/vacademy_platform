@@ -88,6 +88,8 @@ export interface ApiCustomFieldUsageItem {
     };
     enroll_invite_count: number;
     audience_count: number;
+    session_count: number;
+    assessment_count: number;
     default?: boolean;
 }
 
@@ -125,6 +127,8 @@ export interface SystemField {
 export interface CustomFieldUsage {
     enrollInviteCount: number;
     audienceCount: number;
+    sessionCount: number;
+    assessmentCount: number;
     isDefault: boolean;
 }
 
@@ -1270,121 +1274,82 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
         if (settingsResponse.data && settingsResponse.data.data) {
             const apiData = settingsResponse.data.data.data;
 
-            // Merge usage data into apiData
+            // Build currentCustomFieldsAndGroups entirely from the usage
+            // response (the live DB). The blob's list is stale and often
+            // contains duplicates from old saves. We keep the blob's OTHER
+            // data (fixedFieldRenameDtos, customFieldLocations, etc.) but
+            // replace the field list with the authoritative usage data.
             if (usageResponse.data && Array.isArray(usageResponse.data)) {
-                const existingFieldIds = new Set<string>();
+                const freshFields: ApiCustomField[] = [];
+                const freshAllCustomFields: string[] = [];
+                const freshCustomFieldsNames: string[] = [];
+                const freshCompulsoryCustomFields: string[] = [];
+                const freshFixedCustomFields: string[] = [];
+                const seenNames = new Set<string>();
 
-                // Track existing fields from currentCustomFieldsAndGroups
+                // Build a lookup from the blob for fields that have extra
+                // settings (locations, groupName, order, canBe* flags).
+                const blobFieldMap = new Map<string, ApiCustomField>();
                 if (Array.isArray(apiData.currentCustomFieldsAndGroups)) {
-                    apiData.currentCustomFieldsAndGroups.forEach((f) =>
-                        existingFieldIds.add(f.customFieldId)
-                    );
+                    apiData.currentCustomFieldsAndGroups.forEach((f) => {
+                        if (f.customFieldId) blobFieldMap.set(f.customFieldId, f);
+                    });
                 }
-
-                // Track existing fields from customGroup
-                if (apiData.customGroup) {
-                    Object.values(apiData.customGroup).forEach((f) =>
-                        existingFieldIds.add(f.customFieldId)
-                    );
-                }
-
-                // Track fixed fields to avoid duplicates
-                if (Array.isArray(apiData.fixedCustomFields)) {
-                    apiData.fixedCustomFields.forEach((id) => existingFieldIds.add(id));
-                }
+                const blobFixedSet = new Set<string>(apiData.fixedCustomFields || []);
+                const blobCompulsorySet = new Set<string>(apiData.compulsoryCustomFields || []);
 
                 usageResponse.data.forEach((usageItem) => {
                     const fieldId = usageItem.custom_field.id;
                     if (!fieldId) return;
 
-                    if (!existingFieldIds.has(fieldId)) {
-                        const newField: ApiCustomField = {
-                            id: '',
-                            customFieldId: fieldId,
-                            instituteId: usageItem.custom_field.instituteId || instituteId,
-                            groupName: null,
-                            fieldName: usageItem.custom_field.fieldName,
-                            fieldType:
-                                (usageItem.custom_field.fieldType as
-                                    | 'text'
-                                    | 'number'
-                                    | 'dropdown') || 'text',
-                            individualOrder: 999,
-                            groupInternalOrder: null,
-                            // Feature-scoped fields (no DEFAULT mapping) are
-                            // shown in Settings for visibility but must NOT be
-                            // saved as DEFAULT. Mark them canBeDeleted: true /
-                            // canBeEdited: false so the save path skips them.
-                            canBeDeleted: true,
-                            canBeEdited: !!usageItem.default,
-                            canBeRenamed: !!usageItem.default,
-                            locations: [],
-                            status: usageItem.custom_field.status || 'ACTIVE',
-                            config: usageItem.custom_field.config,
-                        };
+                    // Deduplicate by name (case-insensitive)
+                    const nameLower = (usageItem.custom_field.fieldName || '').toLowerCase();
+                    if (seenNames.has(nameLower)) return;
+                    seenNames.add(nameLower);
 
-                        if (!apiData.currentCustomFieldsAndGroups) {
-                            apiData.currentCustomFieldsAndGroups = [];
+                    // If the blob has this field, inherit its UI settings
+                    const blobEntry = blobFieldMap.get(fieldId);
+
+                    const field: ApiCustomField = {
+                        id: blobEntry?.id || '',
+                        customFieldId: fieldId,
+                        instituteId: usageItem.custom_field.instituteId || instituteId,
+                        groupName: blobEntry?.groupName || null,
+                        fieldName: usageItem.custom_field.fieldName,
+                        fieldType: (usageItem.custom_field.fieldType as 'text' | 'number' | 'dropdown') || 'text',
+                        individualOrder: blobEntry?.individualOrder ?? 999,
+                        groupInternalOrder: blobEntry?.groupInternalOrder ?? null,
+                        canBeDeleted: blobEntry?.canBeDeleted ?? true,
+                        canBeEdited: usageItem.default ? (blobEntry?.canBeEdited ?? true) : false,
+                        canBeRenamed: usageItem.default ? (blobEntry?.canBeRenamed ?? true) : false,
+                        locations: blobEntry?.locations || [],
+                        status: usageItem.custom_field.status || 'ACTIVE',
+                        config: usageItem.custom_field.config,
+                    };
+
+                    freshFields.push(field);
+
+                    if (usageItem.default) {
+                        freshAllCustomFields.push(fieldId);
+                        freshCustomFieldsNames.push(field.fieldName);
+                        if (blobFixedSet.has(fieldId)) {
+                            freshFixedCustomFields.push(fieldId);
                         }
-                        apiData.currentCustomFieldsAndGroups.push(newField);
-
-                        // Only add to the save-related arrays if it's a
-                        // DEFAULT field. Feature-scoped fields should appear
-                        // in the UI but NOT be included in the save payload
-                        // (which would create a spurious DEFAULT mapping).
-                        if (usageItem.default) {
-                            if (!apiData.allCustomFields) {
-                                apiData.allCustomFields = [];
-                            }
-                            apiData.allCustomFields.push(fieldId);
-
-                            if (!apiData.customFieldsNames) {
-                                apiData.customFieldsNames = [];
-                            }
-                            apiData.customFieldsNames.push(newField.fieldName);
+                        if (blobCompulsorySet.has(fieldId)) {
+                            freshCompulsoryCustomFields.push(fieldId);
                         }
-
-                        existingFieldIds.add(fieldId);
                     }
                 });
-            }
 
-            // Filter the blob to only include fields that have at least one
-            // ACTIVE mapping of ANY type (DEFAULT, ENROLL_INVITE, etc.).
-            // This removes fields that were fully soft-deleted. Feature-scoped
-            // fields are kept for display (with usage counts) but will NOT
-            // be saved as DEFAULT — the merge guard above (`!usageItem.default`)
-            // and the backend's own logic handle that.
-            if (usageResponse.data && Array.isArray(usageResponse.data) && Array.isArray(apiData.currentCustomFieldsAndGroups)) {
-                const activeFieldIds = new Set<string>(
-                    usageResponse.data
-                        .filter((item) => item.custom_field?.id)
-                        .map((item) => item.custom_field.id)
-                );
-                apiData.currentCustomFieldsAndGroups = apiData.currentCustomFieldsAndGroups
-                    .filter((f) => activeFieldIds.has(f.customFieldId));
-
-                if (Array.isArray(apiData.allCustomFields)) {
-                    apiData.allCustomFields = apiData.allCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
-                }
-                if (Array.isArray(apiData.fixedCustomFields)) {
-                    apiData.fixedCustomFields = apiData.fixedCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
-                }
-                if (Array.isArray(apiData.compulsoryCustomFields)) {
-                    apiData.compulsoryCustomFields = apiData.compulsoryCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
-                }
+                apiData.currentCustomFieldsAndGroups = freshFields;
+                apiData.allCustomFields = freshAllCustomFields;
+                apiData.customFieldsNames = freshCustomFieldsNames;
+                apiData.fixedCustomFields = freshFixedCustomFields;
+                apiData.compulsoryCustomFields = freshCompulsoryCustomFields;
             }
 
             // Store original API data for preservation during save operations
             setOriginalApiData(apiData);
-
-            // Check if the data has the expected structure
-            if (!settingsResponse.data.data.data?.allCustomFields) {
-                console.warn('🚨 [DEBUG] API response missing allCustomFields - using empty array');
-            }
 
             settings = mapApiResponseToUI(settingsResponse.data);
 
@@ -1396,6 +1361,8 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                         usageMap.set(item.custom_field.id, {
                             enrollInviteCount: item.enroll_invite_count,
                             audienceCount: item.audience_count,
+                            sessionCount: item.session_count ?? 0,
+                            assessmentCount: item.assessment_count ?? 0,
                             isDefault: item.default ?? false,
                         });
                     }

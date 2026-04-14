@@ -1682,7 +1682,7 @@ const CustomFieldsSettings: React.FC = () => {
                                                     )}
                                                     {field.usage && (
                                                         <>
-                                                            <div className="flex items-center gap-3 text-xs text-gray-500">
+                                                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                                                                 <span
                                                                     className="flex items-center gap-1.5"
                                                                     title="Number of times used in invite lists"
@@ -1695,12 +1695,32 @@ const CustomFieldsSettings: React.FC = () => {
                                                                 <span className="h-3 w-px bg-gray-300" />
                                                                 <span
                                                                     className="flex items-center gap-1.5"
-                                                                    title="Number of times used in audience lists"
+                                                                    title="Number of times used in audience campaigns"
                                                                 >
                                                                     <span className="font-medium text-gray-700">
                                                                         Audience:
                                                                     </span>
                                                                     {field.usage.audienceCount}
+                                                                </span>
+                                                                <span className="h-3 w-px bg-gray-300" />
+                                                                <span
+                                                                    className="flex items-center gap-1.5"
+                                                                    title="Number of times used in live sessions"
+                                                                >
+                                                                    <span className="font-medium text-gray-700">
+                                                                        Sessions:
+                                                                    </span>
+                                                                    {field.usage.sessionCount ?? 0}
+                                                                </span>
+                                                                <span className="h-3 w-px bg-gray-300" />
+                                                                <span
+                                                                    className="flex items-center gap-1.5"
+                                                                    title="Number of times used in assessments"
+                                                                >
+                                                                    <span className="font-medium text-gray-700">
+                                                                        Assessments:
+                                                                    </span>
+                                                                    {field.usage.assessmentCount ?? 0}
                                                                 </span>
                                                             </div>
                                                             {field.usage.isDefault && (
@@ -1852,7 +1872,7 @@ const CustomFieldsSettings: React.FC = () => {
                                                     )}
                                                     {field.usage && (
                                                         <>
-                                                            <div className="flex items-center gap-3 text-xs text-gray-500">
+                                                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                                                                 <span
                                                                     className="flex items-center gap-1.5"
                                                                     title="Number of times used in invite lists"
@@ -1865,12 +1885,32 @@ const CustomFieldsSettings: React.FC = () => {
                                                                 <span className="h-3 w-px bg-gray-300" />
                                                                 <span
                                                                     className="flex items-center gap-1.5"
-                                                                    title="Number of times used in audience lists"
+                                                                    title="Number of times used in audience campaigns"
                                                                 >
                                                                     <span className="font-medium text-gray-700">
                                                                         Audience:
                                                                     </span>
                                                                     {field.usage.audienceCount}
+                                                                </span>
+                                                                <span className="h-3 w-px bg-gray-300" />
+                                                                <span
+                                                                    className="flex items-center gap-1.5"
+                                                                    title="Number of times used in live sessions"
+                                                                >
+                                                                    <span className="font-medium text-gray-700">
+                                                                        Sessions:
+                                                                    </span>
+                                                                    {field.usage.sessionCount ?? 0}
+                                                                </span>
+                                                                <span className="h-3 w-px bg-gray-300" />
+                                                                <span
+                                                                    className="flex items-center gap-1.5"
+                                                                    title="Number of times used in assessments"
+                                                                >
+                                                                    <span className="font-medium text-gray-700">
+                                                                        Assessments:
+                                                                    </span>
+                                                                    {field.usage.assessmentCount ?? 0}
                                                                 </span>
                                                             </div>
                                                             {field.usage.isDefault && (

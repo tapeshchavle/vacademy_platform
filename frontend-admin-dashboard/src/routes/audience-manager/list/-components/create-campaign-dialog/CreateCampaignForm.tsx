@@ -377,27 +377,30 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
         }
     }, [form, initialFormValues, isEditMode, isLoadingCampaign, setValue]);
 
-    // Create mode: async-load institute defaults to ensure newly-added
-    // DEFAULT fields from Settings appear (cache may be empty after save).
+    // Create mode: async-load institute defaults directly from the live
+    // backend endpoint. This replaces whatever the sync cache-based init
+    // loaded (which may include feature-scoped fields from invites etc).
     useEffect(() => {
         if (!isEditMode) {
+            const SEEDED = ['full_name', 'email', 'phone_number'];
             getCampaignCustomFieldsAsync().then((fields) => {
                 if (fields && fields.length > 0) {
                     const currentValues = form.getValues();
-                    if (!currentValues.custom_fields || currentValues.custom_fields.length === 0) {
-                        const normalized = fields.map((field, index) => ({
+                    const normalized = fields.map((field, index) => {
+                        const isSeeded = SEEDED.includes(field.key);
+                        return {
                             id: field.id || String(index),
                             type: field.type,
                             name: field.name,
-                            oldKey: false,
-                            isRequired: field.isRequired ?? true,
+                            oldKey: isSeeded,
+                            isRequired: field.isRequired ?? isSeeded,
                             key: field.key,
                             order: index,
                             _id: field._id,
                             options: field.options,
-                        }));
-                        form.reset({ ...currentValues, custom_fields: normalized });
-                    }
+                        };
+                    });
+                    form.reset({ ...currentValues, custom_fields: normalized });
                 }
             });
         }
