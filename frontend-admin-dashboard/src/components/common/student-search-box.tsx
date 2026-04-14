@@ -23,6 +23,12 @@ export const StudentSearchBox = ({
                     inputType="text"
                     input={searchInput}
                     onChangeFunction={onSearchChange}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            onSearchEnter();
+                        }
+                    }}
                     inputPlaceholder={placeholder || "Search by name, enroll..."}
                     className={cn("px-9 w-full", isCompact ? "h-8 text-xs placeholder:text-xs" : "")}
                 />
