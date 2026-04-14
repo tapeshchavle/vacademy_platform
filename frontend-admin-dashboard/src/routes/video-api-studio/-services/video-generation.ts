@@ -138,6 +138,31 @@ export const CONTENT_TYPES = [
 
 export type VideoOrientation = 'landscape' | 'portrait';
 export type QualityTier = 'free' | 'standard' | 'premium' | 'ultra' | 'super_ultra';
+export type VisualStyle = 'standard' | 'illustrated_svg' | 'product_showcase';
+
+export const VISUAL_STYLES: Array<{
+    value: VisualStyle;
+    label: string;
+    description: string;
+    badge?: string;
+}> = [
+    {
+        value: 'standard',
+        label: 'Standard',
+        description: 'Mixed photos, videos & motion graphics',
+        badge: 'Default',
+    },
+    {
+        value: 'illustrated_svg',
+        label: 'Illustrated',
+        description: 'Pure SVG infographic — draw-on animations, no photos',
+    },
+    {
+        value: 'product_showcase',
+        label: 'Product Showcase',
+        description: 'Hero product stays fixed — background layers animate behind it (brand reel style)',
+    },
+];
 
 export interface ReferenceFile {
     url: string;
@@ -161,6 +186,7 @@ export interface GenerateVideoRequest {
     video_id?: string; // Optional: auto-generated if not provided
     reference_files?: ReferenceFile[];
     orientation?: VideoOrientation;
+    visual_style?: VisualStyle;
 }
 
 export const QUALITY_TIERS: Array<{
@@ -353,6 +379,7 @@ export const DEFAULT_OPTIONS: Omit<GenerateVideoRequest, 'prompt'> = {
     model: '',
     quality_tier: 'ultra',
     orientation: 'landscape',
+    visual_style: 'standard',
 };
 
 export function generateVideoId(): string {
@@ -771,32 +798,42 @@ export async function getRemoteHistory(apiKey: string, limit: number = 20): Prom
 
     const data: RemoteHistoryItem[] = await response.json();
 
-    return data.map((item) => ({
-        id: item.id,
-        video_id: item.video_id,
-        prompt: item.prompt,
-        content_type: item.content_type,
-        status: mapRemoteStatus(item.status),
-        stage: item.current_stage,
-        created_at: item.created_at,
-        html_url: item.s3_urls.timeline,
-        audio_url: item.s3_urls.audio,
-        words_url: item.s3_urls.words,
-        // Reconstruct options as they aren't fully returned by the history API yet
-        options: {
+    return data.map((item) => {
+        // Pull persisted fields out of item.metadata when present.
+        // The pipeline stores visual_style, orientation, quality_tier here so history
+        // can reconstruct the original generation settings faithfully.
+        const meta = (item.metadata || {}) as Record<string, unknown>;
+        const metaVisualStyle = typeof meta.visual_style === 'string' ? (meta.visual_style as VisualStyle) : 'standard';
+        const metaOrientation = typeof meta.orientation === 'string' ? (meta.orientation as VideoOrientation) : 'landscape';
+        const metaQualityTier = typeof meta.quality_tier === 'string' ? (meta.quality_tier as QualityTier) : 'ultra';
+        return {
+            id: item.id,
+            video_id: item.video_id,
+            prompt: item.prompt,
             content_type: item.content_type,
-            language: item.language,
-            // Defaults for missing fields
-            voice_gender: 'female',
-            tts_provider: 'standard',
-            captions_enabled: true,
-            html_quality: 'advanced',
-            target_audience: 'General/Adult',
-            target_duration: '2-3 minutes',
-            model: '',
-            quality_tier: 'ultra',
-        },
-    }));
+            status: mapRemoteStatus(item.status),
+            stage: item.current_stage,
+            created_at: item.created_at,
+            html_url: item.s3_urls.timeline,
+            audio_url: item.s3_urls.audio,
+            words_url: item.s3_urls.words,
+            // Reconstruct options, preferring values from item.metadata over static defaults
+            options: {
+                content_type: item.content_type,
+                language: item.language,
+                voice_gender: 'female',
+                tts_provider: 'standard',
+                captions_enabled: true,
+                html_quality: 'advanced',
+                target_audience: 'General/Adult',
+                target_duration: '2-3 minutes',
+                model: '',
+                quality_tier: metaQualityTier,
+                orientation: metaOrientation,
+                visual_style: metaVisualStyle,
+            },
+        };
+    });
 }
 
 // ---------------------------------------------------------------------------

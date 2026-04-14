@@ -97,6 +97,18 @@ class VideoGenerationRequest(BaseModel):
         default="landscape",
         description="Video orientation: 'landscape' (1920x1080, 16:9) or 'portrait' (1080x1920, 9:16)"
     )
+    visual_style: str = Field(
+        default="standard",
+        description=(
+            "Visual style MODE (independent from quality_tier). One of:\n"
+            "- 'standard': Mixed photos + stock video + motion graphics (default).\n"
+            "- 'illustrated_svg': Pure SVG infographic — cream + grid background, 2-color brand palette, "
+            "hand-drawn wobble via SVG filters, red tech-annotations, paper-grain texture, "
+            "zero photos, blueprint-draft animations. Think 'How to Play Volleyball' / MacBook Neo explainers.\n"
+            "- 'product_showcase': Hero subject stays fixed center-stage, background layers crossfade behind it "
+            "(cream → halftone → watermark → bold color). Flat badges + slam-text outro. Think Converse brand reel."
+        )
+    )
 
     class Config:
         json_schema_extra = {

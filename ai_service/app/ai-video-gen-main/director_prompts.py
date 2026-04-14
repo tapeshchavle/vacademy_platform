@@ -10,7 +10,7 @@ prompt containing only the documentation for that specific shot type.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import json
 
 from prompts import TOPIC_SHOT_PROFILES
@@ -54,7 +54,16 @@ DIRECTOR_SYSTEM_PROMPT = (
     "- **ANIMATED_ASSET**: Cutout images with transparent backgrounds + GSAP animation. "
     "For floating objects (molecules, planets, tools). Needs `image_prompt` with cutout instructions.\n"
     "- **KINETIC_TEXT**: Words appear exactly when spoken — pipeline-built, 100% accurate sync. "
-    "Use for hooks, conclusions, key emphasis moments. No image/video needed.\n\n"
+    "Use for hooks, conclusions, key emphasis moments. No image/video needed.\n"
+    "- **PRODUCT_HERO**: Single hero product/subject anchored center-stage. Background layers (solid color → halftone texture → geometric watermark → bold color) crossfade behind the subject via GSAP opacity. "
+    "Badge (flat colored rect), tracking labels, and slam text orbit the subject. Use for product showcases, brand reels, origin stories. "
+    "Needs `image_prompt` with cutout instructions.\n"
+    "- **INFOGRAPHIC_SVG**: Pure SVG diagram/illustration that draws itself on screen via `stroke-dashoffset`. "
+    "Courts, anatomy, process flows, maps, how-to mechanics. Cream background with grid. "
+    "No photos — everything is drawn. ONLY available in `illustrated_svg` visual style.\n"
+    "- **KINETIC_TITLE**: Full-screen bold typography. Single phrase, word-wipe reveal (translateY 100%→0%), "
+    "one accent-color word. Hooks, section headers ('1. THE PASS'), outros. "
+    "ONLY available in `illustrated_svg` visual style.\n\n"
 
     "**RULES**:\n"
     "1. First shot MUST be VIDEO_HERO or IMAGE_HERO (cinematic hook).\n"
@@ -69,7 +78,9 @@ DIRECTOR_SYSTEM_PROMPT = (
     "8. For cutout images (ANIMATED_ASSET), always specify 'isolated on solid [color] background, no other objects, clean edges'.\n"
     "9. `start_word` must be the first 3-5 words of the narration at that timestamp.\n"
     "10. Prefer VIDEO_HERO over IMAGE_HERO when topic has real-world visual component.\n"
-    "11. KINETIC_TEXT must appear at most once per video and never back-to-back with another KINETIC_TEXT.\n\n"
+    "11. KINETIC_TEXT must appear at most once per video and never back-to-back with another KINETIC_TEXT.\n"
+    "12. Once the background style is established (shot 1 sets it), ALL shots must use the same background. "
+    "Never mix dark and cream backgrounds in a single video.\n\n"
 
     "Return JSON only. No markdown, no commentary. "
     "The first character of your response must be `{` and the last must be `}`.\n"
@@ -93,6 +104,7 @@ IMAGE RATIO TARGET: {image_ratio_pct}% of shots should use images/video backgrou
 WORD TIMESTAMPS (key words):
 {word_timings}
 
+VISUAL STYLE: {visual_style}
 STYLE: Background={background_type}
 CANVAS: {width}x{height} ({aspect_label})
 LANGUAGE: {language}
@@ -137,7 +149,7 @@ IMPORTANT:
 - For ANIMATED_ASSET, `image_prompt` should describe isolated cutout objects (one per image).
 - `text_elements` lists the key text strings that will appear on screen.
 - `sync_points` use EXACT word timestamps for animation triggers.
-"""
+{illustrated_svg_restriction}"""
 
 
 def build_director_user_prompt(
@@ -150,6 +162,7 @@ def build_director_user_prompt(
     height: int = 1080,
     language: str = "English",
     audio_duration: float = 0.0,
+    visual_style: str = "standard",
 ) -> str:
     """Assemble the Director user prompt from pipeline data."""
     aspect_label = "9:16 portrait" if width < height else "16:9"
@@ -198,6 +211,35 @@ def build_director_user_prompt(
 
     background_type = style_guide.get("background_type", "black")
 
+    # product_showcase mode: restrict Director to subject-centric shot types
+    if visual_style == "product_showcase":
+        illustrated_svg_restriction = (
+            "\nPRODUCT_SHOWCASE MODE ACTIVE:\n"
+            "- Primary shot type: PRODUCT_HERO (use for most shots).\n"
+            "- Mix in: KINETIC_TITLE (section intros/outros), DATA_STORY (stats), LOWER_THIRD (labels).\n"
+            "- NEVER use VIDEO_HERO, IMAGE_HERO, IMAGE_SPLIT, ANNOTATION_MAP.\n"
+            "- All PRODUCT_HERO shots share the same `image_prompt` (the hero product).\n"
+            "- Background evolves across shots: cream stage → halftone texture act → watermark/geometric → bold brand color.\n"
+            "- First shot: PRODUCT_HERO with badge entrance (year, tagline, or stat).\n"
+            "- Last shot: PRODUCT_HERO with slam-text outro ('THE ICON', 'SINCE 1917', etc.).\n"
+        )
+        image_ratio_pct = 100  # Every shot has the product image
+    # illustrated_svg mode: restrict Director to SVG-only shot types
+    elif visual_style == "illustrated_svg":
+        illustrated_svg_restriction = (
+            "\nILLUSTRATED_SVG MODE ACTIVE — STRICT CONSTRAINTS:\n"
+            "- Use ONLY these shot types: INFOGRAPHIC_SVG, KINETIC_TITLE, KINETIC_TEXT.\n"
+            "- NEVER use IMAGE_HERO, VIDEO_HERO, IMAGE_SPLIT, ANNOTATION_MAP, ANIMATED_ASSET.\n"
+            "- All shots share the cream #f5f0e8 background (the .svg-canvas CSS class).\n"
+            "- Maintain ONE visual world — consistent background, palette, and typography throughout.\n"
+            "- image_prompt and video_query must be null for every shot.\n"
+            "- First shot should be KINETIC_TITLE (cinematic hook).\n"
+        )
+        # Override image_ratio_pct to 0 — no photos
+        image_ratio_pct = 0
+    else:
+        illustrated_svg_restriction = ""
+
     return DIRECTOR_USER_PROMPT_TEMPLATE.format(
         script_text=script_text.strip(),
         beat_outline_json=beat_outline_json,
@@ -205,10 +247,12 @@ def build_director_user_prompt(
         topic_guidance=topic_guidance,
         image_ratio_pct=image_ratio_pct,
         word_timings=word_timings,
+        visual_style=visual_style,
         background_type=background_type,
         width=width,
         height=height,
         aspect_label=aspect_label,
         language=language,
         audio_duration=audio_duration,
+        illustrated_svg_restriction=illustrated_svg_restriction,
     )

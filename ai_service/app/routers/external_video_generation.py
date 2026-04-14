@@ -208,6 +208,7 @@ async def generate_video_external(
                         user_id=None,
                         reference_files=[rf.model_dump() for rf in p.reference_files] if p.reference_files else None,
                         orientation=p.orientation,
+                        visual_style=p.visual_style,
                     ):
                         await q.put(json.dumps(event))
             except Exception as exc:

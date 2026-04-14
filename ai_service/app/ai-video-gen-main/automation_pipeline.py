@@ -1127,10 +1127,12 @@ class VideoGenerationPipeline:
         reference_context: Optional[Dict[str, Any]] = None,
         video_width: int = 1920,
         video_height: int = 1080,
+        visual_style: str = "standard",
     ) -> Dict[str, Any]:
         # Store video dimensions (landscape 1920x1080 or portrait 1080x1920)
         self.video_width = video_width
         self.video_height = video_height
+        self._current_visual_style = visual_style
         self.aspect_label = "9:16 portrait" if video_width < video_height else "16:9 landscape"
         # Store max_segments for use in concept-aligned segmentation
         self._max_segments = max_segments
@@ -1347,9 +1349,17 @@ class VideoGenerationPipeline:
                 if subject_domain not in TOPIC_SHOT_PROFILES:
                     subject_domain = "general"
                 self._current_subject_domain = subject_domain
-                self._current_visual_style = plan_data.get("visual_style", "realistic cinematic photograph")
+                # IMPORTANT: `_current_image_style` is the LLM-picked IMAGE STYLE used as a
+                # prefix for image generation prompts ("realistic cinematic photograph",
+                # "flat vector illustration", etc.). It is DISTINCT from `_current_visual_style`,
+                # which is the pipeline MODE set by the user API param
+                # (standard/illustrated_svg/product_showcase). Do NOT collapse the two —
+                # they have different semantics and overwriting _current_visual_style here
+                # would break mode-dispatch in _run_director and _shot_task downstream.
+                self._current_image_style = plan_data.get("visual_style", "realistic cinematic photograph")
                 print(f"📘 Subject domain: {subject_domain} ({TOPIC_SHOT_PROFILES[subject_domain]['description']})")
-                print(f"🎨 Visual style: {self._current_visual_style}")
+                print(f"🎨 Image style: {self._current_image_style}")
+                print(f"🎬 Pipeline visual mode: {getattr(self, '_current_visual_style', 'standard')}")
                 
                 print("🧠 Building concept-aligned segments ...")
                 # Use beat_outline for concept-aligned segmentation if available
@@ -1463,10 +1473,11 @@ class VideoGenerationPipeline:
                             prompt_e = m.group(3)
                             if _SVG_KW_RE_PIPE.search(prompt_e):
                                 continue
-                            visual_style_e = getattr(
-                                self, '_current_visual_style', 'realistic cinematic photograph')
-                            if visual_style_e.lower() not in prompt_e.lower():
-                                prompt_e = f"{visual_style_e}, {prompt_e}"
+                            # Use IMAGE STYLE (LLM-picked), not the pipeline visual mode
+                            image_style_e = getattr(
+                                self, '_current_image_style', 'realistic cinematic photograph')
+                            if image_style_e.lower() not in prompt_e.lower():
+                                prompt_e = f"{image_style_e}, {prompt_e}"
 
                             img_source_e = "generate"  # default for backwards compat
                             source_match_e = re.search(r'data-img-source=["\'](\w+)["\']', full_tag)
@@ -1680,6 +1691,32 @@ class VideoGenerationPipeline:
                 target_duration=target_duration,
                 aspect_label=_aspect,
             ).strip()
+
+            # Visual-style mode note: nudge the script LLM to produce a narration
+            # that fits the chosen visual mode (affects tone, pacing, vocabulary).
+            _vs = getattr(self, "_current_visual_style", "standard")
+            if _vs == "illustrated_svg":
+                user_prompt += (
+                    "\n\n**VISUAL STYLE = ILLUSTRATED_SVG**: This video will be rendered as a "
+                    "pure-SVG infographic (think 'How to Play' explainers — hand-drawn look, "
+                    "cream paper background, navy + orange palette, everything draws itself on). "
+                    "Write the narration so it matches: step-based, mechanical, each beat "
+                    "describes something that can be *drawn* (a court, an arc, a process, a chart). "
+                    "Avoid beats that rely on real-world photography. In the beat_outline, use "
+                    "`visual_type: 'TEXT_DIAGRAM'` or `'PROCESS_STEPS'` — the Director will map "
+                    "them to INFOGRAPHIC_SVG / KINETIC_TITLE."
+                )
+            elif _vs == "product_showcase":
+                user_prompt += (
+                    "\n\n**VISUAL STYLE = PRODUCT_SHOWCASE**: This video is a brand/product reel "
+                    "(think Converse Chuck Taylor origin reel — single hero product stays fixed "
+                    "on screen while background layers and slam-text animate behind it). "
+                    "Write the narration as a *story about one subject*: origin, milestone stats, "
+                    "iconic moments, tagline outro. Short punchy sentences. Every beat should "
+                    "orbit the same hero subject — no scene changes. In the beat_outline, use "
+                    "`visual_type: 'IMAGE_HERO'` for every beat — the Director will map them to "
+                    "PRODUCT_HERO with layered backgrounds."
+                )
         else:
             # Use content-type-specific prompts
             system_prompt = ct_prompts["system"]
@@ -2788,6 +2825,22 @@ class VideoGenerationPipeline:
             if layout_theme_id:
                 style_guide["layout_theme"] = layout_theme_id
 
+        # Product showcase mode: light neutral bg, enforce brand palette
+        if getattr(self, "_current_visual_style", "standard") == "product_showcase":
+            style_guide["visual_style"] = "product_showcase"
+            style_guide["palette"]["background"] = "#f2f0ec"  # warm off-white stage
+            style_guide["background_type"] = "white"
+            print("   🎬 Product showcase mode: neutral stage background, PRODUCT_HERO shots")
+
+        # Illustrated SVG mode: override background to cream, disable photos
+        if getattr(self, "_current_visual_style", "standard") == "illustrated_svg":
+            style_guide["palette"]["background"] = "#f5f0e8"
+            style_guide["palette"]["grid_pattern"] = True
+            style_guide["visual_style"] = "illustrated_svg"
+            style_guide["no_photos"] = True
+            style_guide["background_type"] = "white"  # Closest preset for CSS defaults
+            print("   🎨 Illustrated SVG mode: cream background, no photos, SVG-only shots")
+
         # Save for inspection
         (run_dir / "style_guide.json").write_text(json.dumps(style_guide, indent=2))
         # Store resolved style_guide so _ensure_fonts can use brand-override'd palette
@@ -3213,6 +3266,7 @@ class VideoGenerationPipeline:
             print("⚠️ Director: missing script or beat outline — skipping")
             return None
 
+        _visual_style = getattr(self, "_current_visual_style", "standard")
         user_prompt = build_director_user_prompt(
             script_text=script_text,
             beat_outline=beat_outline,
@@ -3223,11 +3277,37 @@ class VideoGenerationPipeline:
             height=_h,
             language=language,
             audio_duration=audio_duration,
+            visual_style=_visual_style,
         )
 
         # Super Ultra: bias the Director toward motion-graphics shot types
         director_system = DIRECTOR_SYSTEM_PROMPT
-        if self._tier_config.get("director_motion_bias"):
+        # Product showcase mode: Director uses PRODUCT_HERO as primary shot type
+        if _visual_style == "product_showcase":
+            director_system = DIRECTOR_SYSTEM_PROMPT + (
+                "\n\n**PRODUCT_SHOWCASE MODE — ABSOLUTE RULES**:\n"
+                "- Primary shot type: PRODUCT_HERO (subject stays fixed, background layers change behind it).\n"
+                "- First shot: PRODUCT_HERO (establish the product / subject with badge entrance).\n"
+                "- Mix in KINETIC_TITLE for section intros, DATA_STORY for stats, LOWER_THIRD for labels.\n"
+                "- NEVER use VIDEO_HERO, IMAGE_HERO, IMAGE_SPLIT, ANNOTATION_MAP.\n"
+                "- Each PRODUCT_HERO shot should advance a 'background act': cream → halftone → watermark → bold color.\n"
+                "- All shots share the same subject (same product image). The `image_prompt` should describe one hero object.\n"
+                "- Typography: Bebas Neue for headlines + badges, Inter tracking-label for small words.\n"
+                "- Keep shots 3–6s. The product is always the anchor — text and bg layers orbit it.\n"
+            )
+        # Illustrated SVG mode: override Director to use only SVG shot types
+        elif _visual_style == "illustrated_svg":
+            director_system = DIRECTOR_SYSTEM_PROMPT + (
+                "\n\n**ILLUSTRATED_SVG MODE — ABSOLUTE RESTRICTION**:\n"
+                "- Use ONLY these shot types: INFOGRAPHIC_SVG, KINETIC_TITLE, KINETIC_TEXT.\n"
+                "- NEVER produce IMAGE_HERO, VIDEO_HERO, IMAGE_SPLIT, ANNOTATION_MAP, ANIMATED_ASSET.\n"
+                "- All shots must have `image_prompt: null` and `video_query: null`.\n"
+                "- First shot must be KINETIC_TITLE (bold title wipe reveal).\n"
+                "- All shots share the cream #f5f0e8 .svg-canvas background — do not specify any other background.\n"
+                "- INFOGRAPHIC_SVG shots must use inline SVG with `pathLength='1'` stroke-dashoffset draw-on animation.\n"
+                "- Palette strictly: `var(--brand-primary)` and `var(--brand-accent)` only.\n"
+            )
+        elif self._tier_config.get("director_motion_bias"):
             _is_portrait = _h > _w
             _target_shot_dur = "2-3.5 seconds" if _is_portrait else "2-4 seconds"
             _min_shots_hint = (
@@ -3309,6 +3389,7 @@ class VideoGenerationPipeline:
             "IMAGE_HERO", "VIDEO_HERO", "IMAGE_SPLIT", "TEXT_DIAGRAM",
             "LOWER_THIRD", "ANNOTATION_MAP", "DATA_STORY", "PROCESS_STEPS",
             "EQUATION_BUILD", "ANIMATED_ASSET", "KINETIC_TEXT",
+            "INFOGRAPHIC_SVG", "KINETIC_TITLE", "PRODUCT_HERO",
         }
         for i, shot in enumerate(shots):
             if shot.get("shot_type") not in valid_types:
@@ -3531,6 +3612,61 @@ class VideoGenerationPipeline:
                     "and highlight underlines MUST use the brand variables.\n"
                     "- If a palette value isn't available, fall back inside the var(): "
                     "`var(--brand-primary, #3b82f6)`.\n"
+                )
+
+            # ── Product showcase mode: enforce layered-stage composition ──
+            if getattr(self, "_current_visual_style", "standard") == "product_showcase":
+                user_prompt = user_prompt + (
+                    "\n\n**🎬 PRODUCT SHOWCASE MODE — NON-NEGOTIABLE CONSTRAINTS**:\n"
+                    "- Root element: `<div class='product-stage'>` — full-screen relative container.\n"
+                    "- Subject image: `position:absolute`, `data-cutout='true'`, centered, bottom 22%, width 70–80%, z-index:10.\n"
+                    "- Background layers: 3 separate `position:absolute` divs at z-index 0/1/2. "
+                    "They crossfade via GSAP opacity tweens — subject NEVER moves.\n"
+                    "- Use `.halftone` or `.halftone-light` on bg layer 1 for texture act.\n"
+                    "- Badge: `<div class='flat-badge'>` — zero border-radius, flat color, Bebas Neue.\n"
+                    "- Bottom tagline: `<div class='slam-wrapper'><div class='slam-text'>` with `gsap.to('#slam', {y:'0%', ease:'expo.out'})`.\n"
+                    "- Small word labels: `<div class='tracking-label'>`.\n"
+                    "- Subject gets slow continuous scale: `gsap.to('#subject', {scale:1.05, duration:10, ease:'none'})`.\n"
+                    "- For the text/badge group (not the subject), wrap them in `<div class='stage-drift'>` and run the hold-drift tween: "
+                    "`gsap.fromTo('.stage-drift', {x:0,y:0}, {x:15,y:-8, duration:12, ease:'none'});` "
+                    "This gives the text a subtle parallax while the subject stays anchored.\n"
+                    "- Easing: `expo.out` for snappy reveals, `power3.out` for smooth entrances, `power2.inOut` for bg crossfades.\n"
+                    "- DO NOT hard-cut backgrounds — always crossfade via GSAP opacity.\n"
+                )
+
+            # ── Illustrated SVG mode: hard constraint on per-shot HTML ──
+            elif getattr(self, "_current_visual_style", "standard") == "illustrated_svg":
+                user_prompt = user_prompt + (
+                    "\n\n**🎨 ILLUSTRATED SVG MODE — NON-NEGOTIABLE CONSTRAINTS**:\n"
+                    "- NO `<img>` tags, NO `<video>` tags, NO `data-img-prompt`, NO `data-video-query`.\n"
+                    "- NO `background-image` referencing external URLs in any style attribute.\n"
+                    "- ALL visuals must be INLINE SVG. No external assets of any kind.\n"
+                    "- Root MUST be `<div class='svg-canvas paper-texture'><div class='stage-drift'>...</div></div>` — "
+                    "the outer svg-canvas gives cream #f5f0e8 + grid + parchment grain, the inner stage-drift gets the mandatory hold-drift tween.\n"
+                    "- Content palette is STRICTLY `var(--brand-primary)` and `var(--brand-accent)`. "
+                    "RED `.tech-annotation` is allowed (and encouraged) for dimension lines, crosshairs, measurement arrows — "
+                    "it reads as 'engineering markup' and doesn't count against the 2-color content rule.\n"
+                    "- **HAND-DRAWN LOOK**: Wrap all primary line-art in `<g filter='url(#roughen)'>` for architect-sketch wobble. "
+                    "This is what separates top-tier illustrated explainers (MacBook Neo blueprint style) from generic flat SVG.\n"
+                    "- Draw-on pattern: `pathLength='1' stroke-dasharray='1' stroke-dashoffset='1'` → `gsap.to(el, {strokeDashoffset:0, ...})`. "
+                    "Works perfectly with filter='url(#roughen)' — the wobble is applied after the draw animation.\n"
+                    "- **TECHNICAL DIMENSION LINES**: For diagrams with measurements, add `<line class='tech-annotation' pathLength='1' stroke-dashoffset='1'>` "
+                    "with matching `<text class='tech-annotation-label'>16-INCH</text>` labels. Makes diagrams look authored.\n"
+                    "- **FIG CAPTIONS**: Add a `<div class='tech-annotation-caption'>Fig. 1 — description</div>` "
+                    "below complex diagrams for documentary/textbook feel.\n"
+                    "- For multi-node diagrams (pipelines, agent graphs, flow charts): use the BLUEPRINT DRAFT two-phase pattern — "
+                    "`<g class='draft-guide'>` (dashed guides draw in first) then `<g class='solid-overlay'>` (solid ink lands on top), "
+                    "then node badges slam in from left with `expo.out`. See INFOGRAPHIC_SVG card for exact code.\n"
+                    "- MANDATORY hold-drift for the composition: "
+                    "`gsap.fromTo('.stage-drift', {x:0,y:0,scale:1}, {x:20,y:-10,scale:1.04, duration:12, ease:'none'});` "
+                    "This runs the whole 12s loop regardless of shot length — it's what makes the video feel alive during holds.\n"
+                    "- **SCENE TRANSITIONS** (when shot is NOT the last in the video): At shot end, add EITHER "
+                    "(a) ZOOM-THROUGH: `gsap.to('#focus-target', {scale:25, duration:0.8, delay:<end-0.8>, ease:'power3.in'});` "
+                    "where `#focus-target` is a small element (dot/badge corner) the next scene will emerge from; OR "
+                    "(b) VIGNETTE EXIT: add `<div class='vignette-overlay'></div>` + "
+                    "`gsap.to('.vignette-overlay', {opacity:1, duration:0.6, delay:<end-0.6>, ease:'power2.in'});`. "
+                    "Never end a shot with a static frame — there must be an exit motion.\n"
+                    "- For motionPath shots: guard with `if(window.MotionPathPlugin) gsap.registerPlugin(MotionPathPlugin);`.\n"
                 )
 
             # ── KINETIC_TEXT bypass — skip LLM, build exact word-sync HTML directly ──
@@ -4658,9 +4794,27 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
         _style_cfg = getattr(self, '_current_style_config', None)
         _layout_theme = (_style_cfg or {}).get("layout_theme", "") if _style_cfg else ""
         _extra_family = self._TEMPLATE_EXTRA_FONT_FAMILIES.get(_layout_theme, "")
-        _base_families = "Montserrat:wght@700;900&family=Inter:wght@400;600&family=Fira+Code"
+        _is_illustrated = (getattr(self, "_current_style_guide", {}) or {}).get("visual_style") == "illustrated_svg"
+        # Bebas Neue loaded for illustrated_svg mode (KINETIC_TITLE / INFOGRAPHIC_SVG headers)
+        _display_font = "&family=Bebas+Neue" if _is_illustrated else ""
+        _base_families = f"Montserrat:wght@700;900&family=Inter:wght@400;600&family=Fira+Code{_display_font}"
         _fonts_param = f"{_base_families}&family={_extra_family}" if _extra_family else _base_families
         _fonts_url = f"https://fonts.googleapis.com/css2?family={_fonts_param}&display=swap"
+
+        # Illustrated SVG mode: inject .svg-canvas class with cream+grid background
+        svg_canvas_css = """
+            /* --- ILLUSTRATED SVG: cream+grid canvas --- */
+            .svg-canvas {
+                width: 100%; height: 100%;
+                position: relative;
+                background-color: #f5f0e8;
+                background-image:
+                    linear-gradient(rgba(180,170,160,0.25) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(180,170,160,0.25) 1px, transparent 1px);
+                background-size: 60px 60px;
+                overflow: hidden;
+            }
+        """ if _is_illustrated else ""
 
         global_css = f"""<style>
             @import url('{_fonts_url}');
@@ -4873,18 +5027,240 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
               font-weight: bold;
             }}
 
-            :host {{ 
-              width: 100%; height: 100%; 
-              display: flex; flex-direction: column; align-items: center; justify-content: center; 
-              font-family: 'Inter', sans-serif; 
+            :host {{
+              width: 100%; height: 100%;
+              display: flex; flex-direction: column; align-items: center; justify-content: center;
+              font-family: 'Inter', sans-serif;
               color: {text_color};
             }}
+
+            /* ═══════════════════════════════════════════════════════
+               PROFESSIONAL QUALITY UTILITIES
+               ═══════════════════════════════════════════════════════ */
+
+            /* --- PRODUCT/SUBJECT STAGE --- */
+            .product-stage {{
+              position: relative;
+              width: 100%; height: 100%;
+              overflow: hidden;
+              background: var(--brand-bg, {background_color});
+            }}
+
+            /* --- HALFTONE DOT PATTERNS --- */
+            /* Dark dots (use on light backgrounds) */
+            .halftone {{
+              background-image: radial-gradient(circle, rgba(0,0,0,0.18) 1.5px, transparent 1.5px);
+              background-size: 18px 18px;
+            }}
+            /* Light dots (use on dark / colored backgrounds) */
+            .halftone-light {{
+              background-image: radial-gradient(circle, rgba(255,255,255,0.22) 1.5px, transparent 1.5px);
+              background-size: 18px 18px;
+            }}
+
+            /* --- FLAT BADGE (year / stat callout — zero border-radius) --- */
+            .flat-badge {{
+              display: inline-block;
+              padding: 10px 36px;
+              background: var(--brand-accent, {accent_color});
+              font-family: 'Bebas Neue', Impact, sans-serif;
+              font-size: 4rem;
+              letter-spacing: 0.05em;
+              line-height: 1;
+              color: #111;
+              border-radius: 0;
+            }}
+            .flat-badge.light {{
+              background: #fff;
+              color: #111;
+            }}
+            .flat-badge.dark {{
+              background: #111;
+              color: #fff;
+            }}
+
+            /* --- SLAM TEXT (translateY reveal from bottom) --- */
+            .slam-wrapper {{
+              overflow: hidden;
+            }}
+            .slam-text {{
+              display: block;
+              transform: translateY(102%);
+              font-family: 'Bebas Neue', Impact, sans-serif;
+              font-size: 5.5rem;
+              letter-spacing: 0.06em;
+              line-height: 1;
+              color: var(--brand-text, {text_color});
+            }}
+
+            /* --- TRACKING LABEL (small ALL-CAPS below subject) --- */
+            .tracking-label {{
+              font-family: 'Inter', sans-serif;
+              font-size: 0.85rem;
+              font-weight: 700;
+              letter-spacing: 0.28em;
+              text-transform: uppercase;
+              color: var(--brand-text, {text_color});
+              opacity: 0.8;
+            }}
+
+            /* --- DISPLAY HEADLINE SCALE SIZES --- */
+            .display-xl {{
+              font-family: 'Bebas Neue', 'Montserrat', sans-serif;
+              font-size: clamp(4rem, 12vw, 9rem);
+              font-weight: 900;
+              letter-spacing: 0.04em;
+              line-height: 0.95;
+              color: var(--brand-text, {text_color});
+            }}
+            .display-lg {{
+              font-family: 'Bebas Neue', 'Montserrat', sans-serif;
+              font-size: clamp(3rem, 8vw, 6rem);
+              font-weight: 900;
+              letter-spacing: 0.03em;
+              line-height: 1;
+              color: var(--brand-text, {text_color});
+            }}
+
+            /* --- ACCENT COLOR WORD SWAP --- */
+            .accent-word {{
+              color: var(--brand-accent, {accent_color});
+            }}
+
+            /* --- BACKGROUND GEOMETRIC WATERMARK (position:absolute, z-index:2) --- */
+            .bg-watermark {{
+              position: absolute;
+              pointer-events: none;
+              z-index: 2;
+              opacity: 0;
+            }}
+
+            /* --- STAGE DRIFT (continuous hold-motion) ---
+               Wrap full shot content in <div class='stage-drift'> and tween:
+               gsap.fromTo('.stage-drift', {{x:0,y:0,scale:1}}, {{x:20,y:-10,scale:1.04, duration:12, ease:'none'}});
+               This enforces the CONTINUOUS MOTION rule — no frame is ever fully static. */
+            .stage-drift {{
+              width: 100%;
+              height: 100%;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              transform-origin: center center;
+              will-change: transform;
+            }}
+
+            /* --- DRAFT/BLUEPRINT guides (two-phase SVG reveal) ---
+               Light dashed guide layer for architect-drafting look. Solid
+               overlay lands on top. Used by INFOGRAPHIC_SVG blueprint pattern. */
+            .draft-guide {{
+              stroke: rgba(20, 20, 20, 0.32);
+              stroke-width: 1.5;
+              stroke-dasharray: 4 4;
+              fill: none;
+            }}
+            .solid-overlay {{
+              stroke: var(--brand-text, {text_color});
+              stroke-width: 2.5;
+              fill: none;
+            }}
+
+            /* --- PAPER TEXTURE (parchment / sketchbook grain) ---
+               Layer over .svg-canvas or .product-stage to get a subtle fibrous
+               noise overlay. Uses inline SVG noise filter as data-URI, no PNG. */
+            .paper-texture {{
+              position: relative;
+            }}
+            .paper-texture::before {{
+              content: "";
+              position: absolute;
+              inset: 0;
+              background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.10  0 0 0 0 0.08  0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+              background-size: 240px 240px;
+              mix-blend-mode: multiply;
+              pointer-events: none;
+              opacity: 0.55;
+              z-index: 1;
+            }}
+            /* Stronger variant for darker parchment look */
+            .paper-texture.strong::before {{
+              opacity: 0.85;
+            }}
+
+            /* --- TECH ANNOTATION (red dashed dimension lines + callouts) ---
+               Utility color for architect/engineer annotations — NOT part of the
+               brand palette. Used for dimension lines, crosshairs, measurement
+               arrows. One shot may use annotations freely; they read as "technical
+               detail" and don't violate the 2-color content rule. */
+            .tech-annotation {{
+              stroke: #c4453a;
+              stroke-width: 1.4;
+              stroke-dasharray: 5 4;
+              fill: none;
+            }}
+            .tech-annotation-label {{
+              font-family: 'Inter', 'Fira Code', monospace;
+              font-size: 0.7rem;
+              font-weight: 600;
+              letter-spacing: 0.12em;
+              text-transform: uppercase;
+              color: #c4453a;
+            }}
+            .tech-annotation-caption {{
+              font-family: Georgia, 'Times New Roman', serif;
+              font-style: italic;
+              font-size: 0.85rem;
+              color: var(--brand-text, {text_color});
+              opacity: 0.75;
+            }}
+
+            /* --- VIGNETTE OVERLAY (scene-exit radial darkening transition) ---
+               Start with opacity:0, tween to opacity:1 for cinematic fade-out.
+               Combine with next-scene zoom for a seamless transition. */
+            .vignette-overlay {{
+              position: absolute;
+              inset: 0;
+              pointer-events: none;
+              z-index: 50;
+              opacity: 0;
+              background: radial-gradient(ellipse at center,
+                  transparent 15%,
+                  rgba(0,0,0,0.35) 55%,
+                  rgba(0,0,0,0.92) 100%);
+            }}
+
+            /* --- HAND-DRAWN ROUGHEN FILTER ---
+               Applied via `filter="url(#roughen)"` on any SVG <path>/<rect>/<line>.
+               Gives the blueprint-sketch wobble effect WITHOUT breaking
+               stroke-dashoffset animation. Strength tuned so small drawings
+               stay readable. See the inline <svg> defs block prepended at the
+               top of every generated HTML. */
+
+            {svg_canvas_css}
             </style>"""
-        
+
+        # Global SVG defs — hidden 0×0 SVG holding filters that any other
+        # SVG in the document can reference. Used for the hand-drawn wobble
+        # and paper grain effects in illustrated_svg / blueprint shots.
+        svg_defs = """<svg width="0" height="0" style="position:absolute;pointer-events:none;" aria-hidden="true">
+            <defs>
+                <!-- Hand-drawn wobble — apply via filter="url(#roughen)" -->
+                <filter id="roughen" x="-10%" y="-10%" width="120%" height="120%">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" seed="2" result="noise"/>
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.6"/>
+                </filter>
+                <!-- Stronger wobble for bolder sketch feel -->
+                <filter id="roughen-strong" x="-10%" y="-10%" width="120%" height="120%">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="3" seed="5" result="noise"/>
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="4.2"/>
+                </filter>
+            </defs>
+        </svg>"""
+
         # If the model already imports fonts, trust it.
         # But still inject our global helpers.
         if "fonts.googleapis.com" in html:
-            return global_css + html
+            return svg_defs + global_css + html
 
         # Fallback corporate pairing if none found
         base_style = (
@@ -4894,7 +5270,7 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
             "h1, h2, h3, h4, h5, h6 { font-family: 'Montserrat', sans-serif; }"
             "</style>"
         )
-        return global_css + base_style + html
+        return svg_defs + global_css + base_style + html
 
     def _ensure_segment_coverage(
         self, entries: List[Dict[str, Any]], seg: Dict[str, Any], base_start: float, base_end: float
@@ -5176,11 +5552,12 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
         if not self._tier_config.get("image_prompt_enhancement"):
             return raw_prompt
 
-        visual_style = getattr(self, '_current_visual_style', 'realistic cinematic photograph')
+        # Use LLM-picked IMAGE STYLE, not pipeline visual mode
+        image_style = getattr(self, '_current_image_style', 'realistic cinematic photograph')
         topic = getattr(self, '_current_topic', '')
 
         enhance_prompt = (
-            f"Enhance this image generation prompt for a {visual_style} educational video"
+            f"Enhance this image generation prompt for a {image_style} educational video"
             f"{' about ' + topic if topic else ''}.\n\n"
             f"Original prompt: \"{raw_prompt}\"\n\n"
             "Add: lighting direction, camera angle, color palette, mood, and "
@@ -5362,9 +5739,10 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
                 # Enhance image prompt with cinematic details (Premium+ tiers)
                 prompt = self._enhance_image_prompt(prompt)
 
-                visual_style = getattr(self, '_current_visual_style', 'realistic cinematic photograph')
-                if visual_style.lower() not in prompt.lower():
-                    prompt = f"{visual_style}, {prompt}"
+                # Use LLM-picked IMAGE STYLE, not pipeline visual mode
+                image_style = getattr(self, '_current_image_style', 'realistic cinematic photograph')
+                if image_style.lower() not in prompt.lower():
+                    prompt = f"{image_style}, {prompt}"
 
             label = f"seg={idx}" + (" (cutout)" if is_cutout else "")
             print(f"    🎨 Generating image {label}: {prompt[:60]}...")

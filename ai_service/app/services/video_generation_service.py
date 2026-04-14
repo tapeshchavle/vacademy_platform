@@ -97,6 +97,7 @@ class VideoGenerationService:
         quality_tier: str = "ultra",
         reference_files: Optional[list] = None,
         orientation: str = "landscape",
+        visual_style: str = "standard",
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         Generate video up to a specific stage with SSE progress updates.
@@ -152,6 +153,12 @@ class VideoGenerationService:
                 gen_metadata["user_id"] = user_id
             if orientation and orientation != "landscape":
                 gen_metadata["orientation"] = orientation
+            # Persist visual_style mode so history, resume, and frame regeneration
+            # can look up which pipeline mode the video was originally generated with.
+            if visual_style and visual_style != "standard":
+                gen_metadata["visual_style"] = visual_style
+            if quality_tier and quality_tier != "ultra":
+                gen_metadata["quality_tier"] = quality_tier
 
             video_record = self.repository.create(
                 video_id=video_id,
@@ -218,6 +225,7 @@ class VideoGenerationService:
                     quality_tier=quality_tier,
                     reference_files=reference_files,
                     orientation=orientation,
+                    visual_style=visual_style,
                 ):
                     # If we get an error event, refund credits and stop
                     if event.get("type") == "error":
@@ -296,6 +304,7 @@ class VideoGenerationService:
         quality_tier: str = "ultra",
         reference_files: Optional[list] = None,
         orientation: str = "landscape",
+        visual_style: str = "standard",
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         Run the video generation pipeline stages with real-time DB updates.
@@ -657,6 +666,7 @@ class VideoGenerationService:
                     reference_context=reference_context.to_dict() if reference_context else None,
                     video_width=_vid_width,
                     video_height=_vid_height,
+                    visual_style=visual_style,
                 )
                 
                 with ThreadPoolExecutor() as executor:

@@ -61,10 +61,12 @@ import {
     TARGET_DURATIONS,
     CONTENT_TYPES,
     QUALITY_TIERS,
+    VISUAL_STYLES,
     VoiceGender,
     TtsProvider,
     ContentType,
     QualityTier,
+    VisualStyle,
     TtsVoice,
     fetchTtsVoices,
 } from '../-services/video-generation';
@@ -575,6 +577,53 @@ export function PromptInput({
                             </Select>
                         </div>
                     </OptionBubble>
+
+                    {/* Visual Style Selector — only for VIDEO content type */}
+                    {(options.content_type === 'VIDEO' || !options.content_type) && (
+                        <OptionBubble
+                            icon={<Sparkles className="size-3" />}
+                            label="Style"
+                            value={
+                                VISUAL_STYLES.find((s) => s.value === (options.visual_style || 'standard'))
+                                    ?.label || 'Standard'
+                            }
+                        >
+                            <Select
+                                value={options.visual_style || 'standard'}
+                                onValueChange={(v) =>
+                                    onOptionsChange({ ...options, visual_style: v as VisualStyle })
+                                }
+                            >
+                                <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {VISUAL_STYLES.map((style) => (
+                                        <SelectItem
+                                            key={style.value}
+                                            value={style.value}
+                                            className="text-xs"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="font-medium">{style.label}</span>
+                                                {style.badge && (
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="h-4 px-1 text-[9px]"
+                                                    >
+                                                        {style.badge}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground">
+                                                {style.description}
+                                            </span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </OptionBubble>
+                    )}
 
                     <OptionBubble
                         icon={<Globe className="size-3" />}

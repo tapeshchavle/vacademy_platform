@@ -22,7 +22,29 @@ function getCommonLibraries(): string {
         <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
         <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+        <script>
+        // Anime.js browser-mode bridge.
+        // LLM code creates instances with autoplay:false and registers via _animeR({instance, startMs}).
+        // In the browser player (real-time), we start each instance using gsap.delayedCall so the
+        // startMs delay is respected and stays on the GSAP timeline (no raw setTimeout).
+        window._animeTimelines = [];
+        window._animeR = function(entry) {
+            if (!entry || !entry.instance) return;
+            window._animeTimelines.push(entry);
+            var delayS = ((entry.startMs) || 0) / 1000;
+            if (window.gsap) {
+                window.gsap.delayedCall(delayS, function() {
+                    try { entry.instance.play(); } catch(e) {}
+                });
+            } else {
+                setTimeout(function() { try { entry.instance.play(); } catch(e) {} }, entry.startMs || 0);
+            }
+        };
+        // _animeSeek is a no-op in browser mode (used only by the Playwright server renderer)
+        window._animeSeek = function() {};
+        </script>
         <script>
         // splitReveal — split text into chars/words and animate with GSAP stagger
         window.splitReveal = function(selectorOrEl, options) {
