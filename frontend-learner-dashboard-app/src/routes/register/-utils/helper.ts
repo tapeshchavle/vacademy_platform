@@ -6,17 +6,24 @@ import {
 import { UserDetailsOpenTest } from "@/types/open-test";
 import { z } from "zod";
 
+// Parse a backend-issued timestamp into an epoch millis value.
+// Backend sometimes omits the trailing 'Z' on ISO strings; without a zone
+// marker modern browsers interpret the string as *local* time, so we force
+// UTC interpretation when no zone is present. Returns NaN on missing/invalid
+// input so the callers can branch cleanly.
+const parseBackendDate = (raw: string): number => {
+  if (!raw) return NaN;
+  const hasTimezone = /Z$|[+-]\d{2}:?\d{2}$/i.test(raw);
+  const normalized = hasTimezone ? raw : `${raw.replace(" ", "T")}Z`;
+  return new Date(normalized).getTime();
+};
+
 export const calculateTimeDifference = (
   serverTime: number,
   startDate: string
 ) => {
-  // Parse the startDate correctly
-  const startTime: number = new Date(Date.parse(startDate)).getTime();
-
-  if (isNaN(startTime)) {
-    console.error("Invalid date format");
-    return { hours: 0, minutes: 0, seconds: 0 };
-  }
+  const startTime = parseBackendDate(startDate);
+  if (isNaN(startTime)) return false;
 
   const difference: number = startTime - serverTime;
 
@@ -24,13 +31,8 @@ export const calculateTimeDifference = (
 };
 
 export const calculateTimeLeft = (serverTime: number, startDate: string) => {
-  // Parse the startDate correctly
-  const startTime: number = new Date(Date.parse(startDate)).getTime();
-
-  if (isNaN(startTime)) {
-    console.error("Invalid date format");
-    return { hours: 0, minutes: 0, seconds: 0 };
-  }
+  const startTime = parseBackendDate(startDate);
+  if (isNaN(startTime)) return { hours: 0, minutes: 0, seconds: 0 };
 
   const difference: number = startTime - serverTime;
 
