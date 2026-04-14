@@ -23,6 +23,9 @@ import {
 } from '@/services/domain-routing';
 import { resolveFontStack } from '@/utils/font';
 import { useTitleStore } from '@/stores/useTitleStore';
+import { getTokenFromCookie, getTokenDecodedData } from '@/lib/auth/sessionUtility';
+import { TokenKey } from '@/constants/auth/tokens';
+import { useInstituteDetailsStore } from '@/stores/students/students-list/useInstituteDetailsStore';
 
 // Initialize Amplitude as early as possible on client
 if (typeof window !== 'undefined') {
@@ -69,6 +72,48 @@ if (import.meta.env.VITE_ENABLE_SENTRY === 'true') {
             "Failed to execute 'removeChild' on 'Node'",
             "Failed to execute 'insertBefore' on 'Node'",
         ],
+        beforeSend(event) {
+            try {
+                const token = getTokenFromCookie(TokenKey.accessToken);
+                const tokenData = token ? getTokenDecodedData(token) : undefined;
+                if (tokenData) {
+                    event.user = {
+                        ...(event.user ?? {}),
+                        id: tokenData.user ?? tokenData.sub,
+                        username: tokenData.username,
+                        email: tokenData.email,
+                    };
+                }
+                const branding = getCachedInstituteBranding();
+                const storeDetails = useInstituteDetailsStore.getState().instituteDetails;
+                const instituteId = branding?.instituteId ?? storeDetails?.id ?? null;
+                const instituteName =
+                    branding?.instituteName ?? storeDetails?.institute_name ?? null;
+                if (instituteId || instituteName) {
+                    event.tags = {
+                        ...(event.tags ?? {}),
+                        'institute.id': instituteId ?? 'unknown',
+                        'institute.name': instituteName ?? 'unknown',
+                    };
+                }
+
+                const username = tokenData?.username ?? tokenData?.email ?? 'unknown';
+                const suffix = ` — user: ${username}, institute: ${instituteName ?? 'unknown'}`;
+                const exc = event.exception?.values?.[0];
+                if (exc?.value) {
+                    const originalValue = exc.value;
+                    event.fingerprint = [exc.type ?? 'Error', originalValue];
+                    exc.value = `${originalValue}${suffix}`;
+                } else if (event.message) {
+                    const originalMessage = String(event.message);
+                    event.fingerprint = ['message', originalMessage];
+                    event.message = `${originalMessage}${suffix}`;
+                }
+            } catch {
+                // never block event capture on enrichment failures
+            }
+            return event;
+        },
     });
 }
 
