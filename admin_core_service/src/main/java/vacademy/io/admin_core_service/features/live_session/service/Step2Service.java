@@ -68,6 +68,9 @@ public class Step2Service {
     @Autowired
     private LiveSessionNotificationConfigRepository notificationConfigRepository;
 
+    @Autowired
+    private vacademy.io.admin_core_service.features.common.util.CustomFieldKeyGenerator customFieldKeyGenerator;
+
     public Boolean step2AddService(LiveSessionStep2RequestDTO request, CustomUserDetails user) {
         LiveSession session = getSessionOrThrow(request.getSessionId());
 
@@ -347,7 +350,7 @@ public class Step2Service {
     }
 
     private void saveNewCustomField(LiveSessionStep2RequestDTO.CustomFieldDTO dto, String sessionId, String instituteId, int index) {
-        String fieldKey = dto.getLabel().toLowerCase().replaceAll("\\s+", "_");
+        String fieldKey = customFieldKeyGenerator.generateFieldKey(dto.getLabel(), instituteId);
         String configJson = "{}";
         try {
             if (dto.getOptions() != null && !dto.getOptions().isEmpty()) {

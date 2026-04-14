@@ -30,7 +30,9 @@ export const CreateCampaignDialog: React.FC<CreateCampaignDialogProps> = ({
                 <DialogHeader>
                     <DialogTitle>{heading}</DialogTitle>
                 </DialogHeader>
-                <CreateCampaignForm onSuccess={onClose} campaign={campaign} />
+                <div className="min-w-0 overflow-hidden">
+                    <CreateCampaignForm onSuccess={onClose} campaign={campaign} />
+                </div>
             </DialogContent>
         </Dialog>
     );

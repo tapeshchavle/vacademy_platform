@@ -177,26 +177,11 @@ const buildInitialFormValues = (campaign?: CampaignItem | null): AudienceCampaig
     // Convert existing custom fields from campaign
     const existingCustomFields = convertExistingCustomFields(campaign.institute_custom_fields);
     
-    // If no existing custom fields, load from settings (Name, Email, etc.)
+    // Use existing fields from the campaign if available. If none saved,
+    // start empty — the useEffect will async-load defaults from the API.
     let customFieldsToUse: any[] = [];
     if (existingCustomFields && existingCustomFields.length > 0) {
-        // Use existing fields from campaign
         customFieldsToUse = existingCustomFields;
-    } else {
-        // Load from settings (Name, Email, and other fields with Campaign visibility)
-        const fieldsFromSettings = getCampaignCustomFields();
-        // Transform to match form format (ensure oldKey is present)
-        customFieldsToUse = fieldsFromSettings.map((field, index) => ({
-            id: field.id || String(index),
-            type: field.type,
-            name: field.name,
-            oldKey: (field as any).oldKey ?? false, // Ensure oldKey is present
-            isRequired: field.isRequired ?? true,
-            key: field.key,
-            order: index,
-            _id: field._id,
-            options: field.options,
-        }));
     }
     
     const initialValues = {
@@ -377,11 +362,11 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
         }
     }, [form, initialFormValues, isEditMode, isLoadingCampaign, setValue]);
 
-    // Create mode: async-load institute defaults directly from the live
-    // backend endpoint. This replaces whatever the sync cache-based init
-    // loaded (which may include feature-scoped fields from invites etc).
+    // Async-load institute defaults directly from the live backend endpoint.
+    // For create mode: always loads defaults.
+    // For edit mode: only loads if the campaign has no saved custom fields.
     useEffect(() => {
-        if (!isEditMode) {
+        if (!isEditMode || (initialFormValues && (!initialFormValues.custom_fields || initialFormValues.custom_fields.length === 0))) {
             const SEEDED = ['full_name', 'email', 'phone_number'];
             getCampaignCustomFieldsAsync().then((fields) => {
                 if (fields && fields.length > 0) {
@@ -831,14 +816,14 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
                 ...(fieldId && { id: fieldId }),
                 field_id: field.field_id || customFieldData.id || fieldId,
                 institute_id: field.institute_id || instituteId,
-                type: field.type_id || customFieldData.fieldType || mapFieldTypeToPayload(field.type),
-                type_id: field.type_id || customFieldData.fieldType || mapFieldTypeToPayload(field.type),
+                type: '',
+                type_id: '',
                 group_name: field.group_name || customFieldData.groupName || '',
                 status: field.status || 'ACTIVE', // Preserve status (ACTIVE or DELETED)
                 individual_order: field.individual_order ?? field.order ?? index,
                 group_internal_order: field.group_internal_order ?? 0,
                 custom_field: {
-                    ...(customFieldData.id && { id: customFieldData.id }),
+                    ...(( customFieldData.id || field._id) && { id: customFieldData.id || field._id }),
                     ...(customFieldData.guestId && { guestId: customFieldData.guestId }),
                     fieldKey: field.key || customFieldData.fieldKey || generateKeyFromName(field.name),
                     fieldName: field.name || customFieldData.fieldName || `Field ${index + 1}`,
@@ -910,10 +895,14 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
         const customFieldsToSend =
             customFieldsFromJson.length > 0 ? customFieldsFromJson : transformedCustomFields;
 
-        // Include all fields (both ACTIVE and DELETED) in the payload
-        // The API will handle the status updates
-        const allFieldsIncludingDeleted = (data.custom_fields || []).map((field: any) => field);
-        const allCustomFieldsPayload = convertFieldsToPayload(allFieldsIncludingDeleted, instituteDetails.id);
+        // Only include ACTIVE fields in the payload. Fields the user
+        // deleted (status=DELETED) are excluded — the backend's
+        // syncFeatureCustomFields will soft-delete any previously-saved
+        // mapping that is no longer in the incoming list.
+        const activeFields = (data.custom_fields || []).filter(
+            (field: any) => field.status !== 'DELETED'
+        );
+        const allCustomFieldsPayload = convertFieldsToPayload(activeFields, instituteDetails.id);
 
         // Debug logging
         console.log('Custom Fields Debug:', {
@@ -997,7 +986,7 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
     }
 
     return (
-        <form onSubmit={onFormSubmit} className="w-full space-y-6">
+        <form onSubmit={onFormSubmit} className="w-full min-w-0 space-y-6 overflow-hidden">
             {isStatusActive && latestCampaignShareLink && (
                 <div className="rounded-lg border border-primary-100 bg-primary-50 p-4">
                     <p className="text-sm font-semibold text-primary-700">
