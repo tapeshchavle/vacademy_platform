@@ -272,5 +272,20 @@ public class AudienceController {
             @RequestParam String userId) {
         return ResponseEntity.ok(userLeadProfileService.getUserAudienceMemberships(userId));
     }
+
+    /**
+     * Assign a counselor to a user's lead profile.
+     * POST /admin-core-service/v1/audience/user-lead-profile/assign-counselor
+     *   ?userId=...&instituteId=...&counselorId=...&counselorName=...
+     */
+    @PostMapping("/user-lead-profile/assign-counselor")
+    public ResponseEntity<UserLeadProfileDTO> assignCounselor(
+            @RequestParam String userId,
+            @RequestParam String instituteId,
+            @RequestParam String counselorId,
+            @RequestParam(required = false) String counselorName) {
+        userLeadProfileService.assignCounselor(userId, instituteId, counselorId, counselorName);
+        return ResponseEntity.ok(userLeadProfileService.getProfileDTO(userId, instituteId).orElse(null));
+    }
 }
 

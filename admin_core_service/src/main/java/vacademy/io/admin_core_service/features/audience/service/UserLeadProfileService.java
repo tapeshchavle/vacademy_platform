@@ -362,6 +362,29 @@ public class UserLeadProfileService {
         }
     }
 
+    /**
+     * Assign a counselor to a user's lead profile (stored at profile level, not per-response).
+     *
+     * @param userId       Auth user ID of the lead
+     * @param instituteId  Institute ID
+     * @param counselorId  Auth user ID of the counselor being assigned
+     * @param counselorName Display name of the counselor (pass null to clear)
+     */
+    @Transactional
+    public UserLeadProfile assignCounselor(String userId, String instituteId, String counselorId, String counselorName) {
+        UserLeadProfile profile = userLeadProfileRepository
+                .findByUserIdAndInstituteId(userId, instituteId)
+                .orElseGet(() -> UserLeadProfile.builder()
+                        .userId(userId)
+                        .instituteId(instituteId)
+                        .build());
+
+        profile.setAssignedCounselorId(counselorId);
+        profile.setAssignedCounselorName(counselorName);
+        profile.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
+        return userLeadProfileRepository.save(profile);
+    }
+
     private UserLeadProfileDTO toDTO(UserLeadProfile p) {
         return UserLeadProfileDTO.builder()
                 .userId(p.getUserId())
@@ -379,6 +402,8 @@ public class UserLeadProfileService {
                 .lastActivityAt(p.getLastActivityAt())
                 .lastCalculatedAt(p.getLastCalculatedAt())
                 .createdAt(p.getCreatedAt())
+                .assignedCounselorId(p.getAssignedCounselorId())
+                .assignedCounselorName(p.getAssignedCounselorName())
                 .build();
     }
 }

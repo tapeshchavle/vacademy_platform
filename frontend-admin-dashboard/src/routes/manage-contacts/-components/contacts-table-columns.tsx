@@ -1,6 +1,6 @@
 import { ColumnDef, Row } from '@tanstack/react-table';
 import { ContactUser } from '../-types/contact-types';
-import { ArrowSquareOut, CaretUpDown } from '@phosphor-icons/react';
+import { ArrowSquareOut, CaretUpDown, UserCircle } from '@phosphor-icons/react';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useStudentSidebar } from '@/routes/manage-students/students-list/-context/selected-student-sidebar-context';
 import { StudentTable } from '@/types/student-table-types';
@@ -135,7 +135,9 @@ const CreateClickableCell = ({ row, columnId }: { row: Row<ContactUser>; columnI
 
 export const getContactColumns = (
     onSort?: (columnId: string, direction: string) => void,
-    showLeadScore = false
+    showLeadScore = false,
+    onAssignCounselor?: (userId: string, userName: string) => void,
+    showCounselor = false
 ): ColumnDef<ContactUser>[] => [
     {
         id: 'details',
@@ -165,10 +167,11 @@ export const getContactColumns = (
         ),
         cell: ({ row }) => {
             const score = showLeadScore ? row.original.lead_score : undefined;
+            const isConverted = row.original.lead_conversion_status === 'CONVERTED';
             return (
                 <div className="flex flex-col gap-0.5">
                     <CreateClickableCell row={row} columnId="user.full_name" />
-                    {score != null && <LeadScoreBadge score={score} size="sm" />}
+                    {score != null && !isConverted && <LeadScoreBadge score={score} size="sm" />}
                 </div>
             );
         },
@@ -241,4 +244,93 @@ export const getContactColumns = (
             return <div>{sources.join(', ')}</div>;
         },
     },
+    ...(showLeadScore
+        ? [
+              {
+                  id: 'lead_status',
+                  header: 'Lead Status',
+                  size: 140,
+                  cell: ({ row }: { row: Row<ContactUser> }) => {
+                      const score = row.original.lead_score;
+                      const status = row.original.lead_conversion_status;
+                      const isConverted = status === 'CONVERTED';
+                      if (isConverted) {
+                          return (
+                              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                                  Converted
+                              </span>
+                          );
+                      }
+                      if (status === 'LOST') {
+                          return (
+                              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">
+                                  Lost
+                              </span>
+                          );
+                      }
+                      if (score != null) {
+                          return <LeadScoreBadge score={score} size="sm" />;
+                      }
+                      return <span className="text-xs text-neutral-400">—</span>;
+                  },
+              } as ColumnDef<ContactUser>,
+              {
+                  id: 'lead_points',
+                  header: 'Lead Points',
+                  size: 110,
+                  cell: ({ row }: { row: Row<ContactUser> }) => {
+                      const score = row.original.lead_score;
+                      const isConverted = row.original.lead_conversion_status === 'CONVERTED';
+                      if (isConverted || score == null) {
+                          return <span className="text-xs text-neutral-400">—</span>;
+                      }
+                      return (
+                          <span className="text-sm font-semibold text-neutral-700">{score}</span>
+                      );
+                  },
+              } as ColumnDef<ContactUser>,
+          ]
+        : []),
+    ...(showCounselor
+        ? [
+              {
+                  id: 'counsellor',
+                  header: 'Counsellor',
+                  size: 160,
+                  cell: ({ row }: { row: Row<ContactUser> }) => {
+                      const userId = row.original.user?.id;
+                      const userName = row.original.user?.full_name ?? '';
+                      const assignedName = row.original.assigned_counselor_name;
+                      if (assignedName) {
+                          return (
+                              <button
+                                  className="flex items-center gap-1 truncate text-sm text-neutral-700 hover:text-primary-600"
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (onAssignCounselor && userId)
+                                          onAssignCounselor(userId, userName);
+                                  }}
+                                  title="Click to reassign"
+                              >
+                                  <UserCircle className="size-4 shrink-0 text-neutral-400" />
+                                  <span className="truncate">{assignedName}</span>
+                              </button>
+                          );
+                      }
+                      return (
+                          <button
+                              className="rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 hover:bg-primary-50 hover:text-primary-700"
+                              onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onAssignCounselor && userId)
+                                      onAssignCounselor(userId, userName);
+                              }}
+                          >
+                              Assign
+                          </button>
+                      );
+                  },
+              } as ColumnDef<ContactUser>,
+          ]
+        : []),
 ];

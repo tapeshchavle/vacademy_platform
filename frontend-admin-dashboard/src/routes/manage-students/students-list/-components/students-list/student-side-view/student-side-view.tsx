@@ -504,7 +504,7 @@ export const StudentSidebar = ({
                                         </button>
                                     )}
 
-                                    {tabSettings.leadTab && leadSettings.enabled && (
+                                    {tabSettings.leadTab && !leadSettings.isLoading && leadSettings.enabled && (
                                         <button
                                             ref={category === 'lead' ? activeTabRef : null}
                                             className={`group relative z-10 shrink-0 whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
@@ -670,6 +670,7 @@ export const StudentSidebar = ({
                             )}
                         {category === 'lead' &&
                             tabSettings?.leadTab &&
+                            !leadSettings.isLoading &&
                             leadSettings.enabled &&
                             !isEnrollRequestStudentList &&
                             selectedStudent?.user_id && (
