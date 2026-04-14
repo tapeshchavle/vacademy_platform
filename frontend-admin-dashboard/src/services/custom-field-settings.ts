@@ -858,8 +858,8 @@ const mapUIToApiRequestFresh = (
         }
     });
 
-    // Process custom fields
-    uiData.customFields.forEach((customField) => {
+    // Process custom fields — skip feature-scoped fields (canBeEdited=false)
+    uiData.customFields.filter((f) => f.canBeEdited !== false).forEach((customField) => {
         const apiField: ApiCustomField = {
             id: '', // Backend will assign
             customFieldId: isTempField(customField) ? '' : customField.id, // Empty for new fields
@@ -1036,8 +1036,10 @@ const mapUIToApiRequest = (uiData: CustomFieldSettingsData): ApiCustomFieldReque
         }
     });
 
-    // Process custom fields
-    uiData.customFields.forEach((customField) => {
+    // Process custom fields — skip feature-scoped fields (canBeEdited=false)
+    // that were merged from the usage response for display only. Saving them
+    // here would create a spurious DEFAULT_CUSTOM_FIELD mapping.
+    uiData.customFields.filter((f) => f.canBeEdited !== false).forEach((customField) => {
         if (isTempField(customField)) {
             // New field - create new API structure without ID
             const newApiField = createNewApiField(customField, instituteId) as ApiCustomField;
@@ -1295,19 +1297,9 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                     const fieldId = usageItem.custom_field.id;
                     if (!fieldId) return;
 
-                    // Only merge fields that have a DEFAULT_CUSTOM_FIELD
-                    // mapping. Feature-scoped fields (ENROLL_INVITE,
-                    // AUDIENCE_FORM, SESSION, ASSESSMENT) must NOT leak into
-                    // the settings blob — otherwise saving from Settings
-                    // would create a spurious DEFAULT mapping for them.
-                    if (!usageItem.default) return;
-
                     if (!existingFieldIds.has(fieldId)) {
-
-                        // Construct a default ApiCustomField
-                        // We default to 'text' if type is unknown or missing, though usageItem should have it
                         const newField: ApiCustomField = {
-                            id: '', // Backend internal ID (different from customFieldId usually, but here likely unused or generated)
+                            id: '',
                             customFieldId: fieldId,
                             instituteId: usageItem.custom_field.instituteId || instituteId,
                             groupName: null,
@@ -1317,35 +1309,41 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                                     | 'text'
                                     | 'number'
                                     | 'dropdown') || 'text',
-                            individualOrder: 999, // Append to end
+                            individualOrder: 999,
                             groupInternalOrder: null,
+                            // Feature-scoped fields (no DEFAULT mapping) are
+                            // shown in Settings for visibility but must NOT be
+                            // saved as DEFAULT. Mark them canBeDeleted: true /
+                            // canBeEdited: false so the save path skips them.
                             canBeDeleted: true,
-                            canBeEdited: true, // Assuming editable
-                            canBeRenamed: true,
-                            locations: [], // Default to no visibility until configured
+                            canBeEdited: !!usageItem.default,
+                            canBeRenamed: !!usageItem.default,
+                            locations: [],
                             status: usageItem.custom_field.status || 'ACTIVE',
                             config: usageItem.custom_field.config,
                         };
 
-                        // Add to currentCustomFieldsAndGroups
                         if (!apiData.currentCustomFieldsAndGroups) {
                             apiData.currentCustomFieldsAndGroups = [];
                         }
                         apiData.currentCustomFieldsAndGroups.push(newField);
 
-                        // Add to allCustomFields
-                        if (!apiData.allCustomFields) {
-                            apiData.allCustomFields = [];
-                        }
-                        apiData.allCustomFields.push(fieldId);
+                        // Only add to the save-related arrays if it's a
+                        // DEFAULT field. Feature-scoped fields should appear
+                        // in the UI but NOT be included in the save payload
+                        // (which would create a spurious DEFAULT mapping).
+                        if (usageItem.default) {
+                            if (!apiData.allCustomFields) {
+                                apiData.allCustomFields = [];
+                            }
+                            apiData.allCustomFields.push(fieldId);
 
-                        // Add to customFieldsNames
-                        if (!apiData.customFieldsNames) {
-                            apiData.customFieldsNames = [];
+                            if (!apiData.customFieldsNames) {
+                                apiData.customFieldsNames = [];
+                            }
+                            apiData.customFieldsNames.push(newField.fieldName);
                         }
-                        apiData.customFieldsNames.push(newField.fieldName);
 
-                        // Add to existing IDs set to prevent double adding if logic changes
                         existingFieldIds.add(fieldId);
                     }
                 });
