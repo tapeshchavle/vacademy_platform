@@ -108,7 +108,15 @@ export function AttendanceMarkingTable({
 
     useEffect(() => {
         if (sessionId) {
-            getSessionCustomFieldValues(sessionId).then(setCfData);
+            getSessionCustomFieldValues(sessionId).then((data) => {
+                console.log('[AttendanceMarkingTable] Custom field data:', {
+                    sessionId,
+                    guestCount: Object.keys(data).length,
+                    sampleKeys: Object.keys(data).slice(0, 3),
+                    sampleData: Object.entries(data).slice(0, 1).map(([k, v]) => ({ guestId: k, fields: v.map(f => ({ name: f.fieldName, key: f.fieldKey, value: f.customFieldValue })) })),
+                });
+                setCfData(data);
+            });
         }
     }, [sessionId]);
 
@@ -118,7 +126,9 @@ export function AttendanceMarkingTable({
         // fieldName (case-insensitive exact match) — NOT by substring on
         // fieldKey, because keys like "name_of_the_school_inst_..." would
         // incorrectly match "name".
-        const SKIP_NAMES = ['full name', 'name', 'email', 'phone number', 'mobile number', 'phone', 'mobile'];
+        // Only skip fields already shown as standard columns in this table:
+        // Name (fullName) and Email. All other custom fields show as columns.
+        const SKIP_NAMES = ['full name', 'name', 'email'];
         const fieldMap = new Map<string, string>(); // fieldKey → fieldName
         Object.values(cfData).forEach((fields) => {
             fields.forEach((f) => {
@@ -128,7 +138,9 @@ export function AttendanceMarkingTable({
                 }
             });
         });
-        return Array.from(fieldMap.entries()).map(([key, name]) => ({ key, name }));
+        const cols = Array.from(fieldMap.entries()).map(([key, name]) => ({ key, name }));
+        console.log('[AttendanceMarkingTable] Custom field columns:', cols);
+        return cols;
     }, [cfData]);
 
     // Helper: get custom field value for a participant by email (guests) or studentId
@@ -334,7 +346,7 @@ export function AttendanceMarkingTable({
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         toast.success('Attendance CSV downloaded');
-    }, [sortedData, getStatus, sessionId, sessionTitle]);
+    }, [sortedData, getStatus, sessionId, sessionTitle, customFieldColumns, getCfValue]);
 
     const hasEngagementOrDuration = (student: LiveSessionReport) => {
         return student.providerTotalDurationMinutes || student.engagementData;
