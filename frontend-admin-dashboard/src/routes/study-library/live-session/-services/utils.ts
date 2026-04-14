@@ -1,4 +1,5 @@
 import {
+    BASE_URL,
     GET_LIVE_SESSIONS,
     GET_PAST_SESSIONS,
     GET_UPCOMING_SESSIONS,
@@ -278,6 +279,34 @@ export const getLiveSessionReport = async (
         },
     });
     return response.data;
+};
+
+/**
+ * Fetch custom field values for all guests/participants in a session.
+ * Returns: Map<participantId, CustomFieldDTO[]> where each DTO has
+ * fieldName, fieldKey, customFieldValue, etc.
+ */
+export interface SessionCustomFieldValue {
+    guestId: string;
+    fieldName: string;
+    fieldKey: string;
+    fieldType: string;
+    customFieldValue: string | null;
+    id: string;
+}
+
+export const getSessionCustomFieldValues = async (
+    sessionId: string
+): Promise<Record<string, SessionCustomFieldValue[]>> => {
+    try {
+        const response = await authenticatedAxiosInstance.get(
+            `${BASE_URL}/admin-core-service/live-session-report/public-registration`,
+            { params: { SessionId: sessionId } }
+        );
+        return response.data ?? {};
+    } catch {
+        return {};
+    }
 };
 
 export const adminMarkAttendance = async (data: {
