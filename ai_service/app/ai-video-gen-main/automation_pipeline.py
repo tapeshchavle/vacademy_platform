@@ -3239,6 +3239,77 @@ class VideoGenerationPipeline:
     # Director Stage — produces shot-by-shot plan (premium/ultra tiers)
     # ------------------------------------------------------------------
 
+    def _normalize_director_plan(
+        self,
+        parsed: Any,
+        audio_duration: float,
+    ) -> Dict[str, Any]:
+        """Coerce a variety of LLM response shapes into the canonical
+        `{"shots": [...], "continuity_notes": "..."}` envelope.
+
+        Handles the following common LLM failure modes without losing data:
+
+        1. Already correct → `{"shots": [...], ...}` — pass through unchanged
+        2. Bare list → `[{shot}, {shot}]` — wrap in `{"shots": <list>}`
+        3. Flat single shot → `{"shot_index": 0, "shot_type": "VIDEO_HERO", ...}`
+           (LLM emitted a shot object directly, dropping the envelope) — wrap
+           in `{"shots": [<parsed>]}` and extend `end_time` to `audio_duration`
+           if it falls short so the shot covers the full video.
+        4. Wrong envelope key → `{"shot": {...}}` / `{"plan": [...]}` /
+           `{"shots_plan": [...]}` — unwrap and re-wrap with the correct key.
+
+        If the shape is unrecognizable, returns `{"shots": []}` so the caller
+        can trigger a corrective retry.
+        """
+        # Case 1: already correct
+        if isinstance(parsed, dict) and isinstance(parsed.get("shots"), list):
+            return parsed
+
+        # Case 2: bare list of shots
+        if isinstance(parsed, list):
+            if parsed and isinstance(parsed[0], dict) and "shot_type" in parsed[0]:
+                print("   🔧 Salvage: wrapping bare list of shots in envelope")
+                return {"shots": parsed, "continuity_notes": ""}
+            return {"shots": []}
+
+        if not isinstance(parsed, dict):
+            return {"shots": []}
+
+        # Case 4a: wrong envelope key pointing at a list
+        for alt_key in ("shot_list", "shots_plan", "plan", "shot_plan", "planned_shots"):
+            if isinstance(parsed.get(alt_key), list):
+                print(f"   🔧 Salvage: re-wrapping under '{alt_key}' → 'shots'")
+                return {
+                    "shots": parsed[alt_key],
+                    "continuity_notes": parsed.get("continuity_notes", ""),
+                }
+
+        # Case 4b: wrong envelope key pointing at a single shot dict
+        for alt_key in ("shot", "single_shot"):
+            inner = parsed.get(alt_key)
+            if isinstance(inner, dict) and "shot_type" in inner:
+                print(f"   🔧 Salvage: wrapping single shot under '{alt_key}'")
+                inner.setdefault("start_time", 0.0)
+                inner.setdefault("end_time", audio_duration)
+                return {"shots": [inner], "continuity_notes": parsed.get("continuity_notes", "")}
+
+        # Case 3: flat single shot (has shot-level keys at top level)
+        shot_level_markers = {"shot_type", "shot_index", "narration_excerpt", "animation_strategy"}
+        if shot_level_markers & set(parsed.keys()):
+            print("   🔧 Salvage: top-level object looks like a single shot — wrapping in envelope")
+            # Extend the single shot to cover the full audio if it stopped short
+            end = float(parsed.get("end_time", 0.0) or 0.0)
+            if audio_duration > 0 and end < audio_duration - 0.5:
+                print(f"       extending end_time {end:.2f}s → {audio_duration:.2f}s to cover full audio")
+                parsed["end_time"] = audio_duration
+            parsed.setdefault("shot_index", 0)
+            parsed.setdefault("beat_index", 0)
+            parsed.setdefault("start_time", 0.0)
+            return {"shots": [parsed], "continuity_notes": ""}
+
+        # Unrecognizable shape
+        return {"shots": []}
+
     def _run_director(
         self,
         script_plan: Dict[str, Any],
@@ -3344,37 +3415,85 @@ class VideoGenerationPipeline:
         print("🎬 Running Director stage (shot planning)...")
         max_attempts = 3
         last_error = None
+        director_plan: Dict[str, Any] = {}
+        raw: str = ""
+        correction_message: Optional[str] = None
         for attempt in range(max_attempts):
             try:
+                # On retry after a malformed response, prepend a corrective message
+                # that shows the LLM what it returned and what the correct shape is.
+                messages: List[Dict[str, Any]] = [
+                    {"role": "system", "content": director_system},
+                    {"role": "user", "content": user_prompt},
+                ]
+                if correction_message and raw:
+                    messages.append({"role": "assistant", "content": raw[:2000]})
+                    messages.append({"role": "user", "content": correction_message})
+
                 raw, usage = self.html_client.chat(
-                    messages=[
-                        {"role": "system", "content": director_system},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.5,
+                    messages=messages,
+                    temperature=0.5 if attempt == 0 else 0.3,  # lower temp on retries
                     max_tokens=self._tier_config.get("director_max_tokens", 8000),
                 )
                 print(f"   ℹ️  Director raw response length: {len(raw)} chars")
-                director_plan = _extract_json_blob(raw)
-                print(f"   ℹ️  Director parsed keys: {list(director_plan.keys()) if isinstance(director_plan, dict) else type(director_plan).__name__}")
-                break
+                parsed = _extract_json_blob(raw)
+                print(f"   ℹ️  Director parsed type: {type(parsed).__name__}; keys: {list(parsed.keys()) if isinstance(parsed, dict) else 'N/A'}")
+
+                # Normalize the response into the canonical {"shots": [...]} envelope.
+                # Handles several common LLM failure modes:
+                #   1. Already correct: {"shots": [...]}
+                #   2. Flat single shot: {"shot_index": 0, "shot_type": ...}  → wrap
+                #   3. Bare list: [{...}, {...}]                               → wrap
+                #   4. Wrong key: {"shot": {...}} or {"plan": [...]}           → unwrap+wrap
+                director_plan = self._normalize_director_plan(parsed, audio_duration)
+
+                if director_plan.get("shots"):
+                    break
+
+                # Empty shots after normalization — set up corrective retry
+                correction_message = (
+                    "Your previous response was not in the correct shape. "
+                    "The response MUST be a single JSON object with a top-level `shots` array, "
+                    "where each item in the array is a shot object. "
+                    "Example of CORRECT shape:\n"
+                    '{"shots": [ {"shot_index": 0, "shot_type": "VIDEO_HERO", "start_time": 0.0, ...}, '
+                    '{"shot_index": 1, ...} ], "continuity_notes": "..."}\n\n'
+                    f"Re-emit your plan covering the full {audio_duration:.1f}s audio, "
+                    "wrapped in the `shots` array. Return JSON only."
+                )
+                print(f"   ⚠️ Director attempt {attempt + 1} returned no shots after normalization — retrying with correction")
+
             except (ValueError, Exception) as e:
                 last_error = e
                 print(f"   ⚠️ Director attempt {attempt + 1}/{max_attempts} failed: {e}")
                 # Log first 500 chars of raw response if available for debugging
-                if 'raw' in dir():
-                    print(f"   ℹ️  Raw response preview: {raw[:500] if raw else '(empty)'}...")
+                if raw:
+                    print(f"   ℹ️  Raw response preview: {raw[:500]}...")
+                # On parse error, send a simpler corrective retry asking for valid JSON
+                correction_message = (
+                    "Your previous response could not be parsed as JSON. "
+                    "Return ONLY a JSON object with a top-level `shots` array. "
+                    "No markdown fences, no commentary, no prose. "
+                    "First character must be `{`, last must be `}`."
+                )
                 time.sleep(2)
         else:
             print(f"   ❌ Director failed after {max_attempts} attempts — falling back to segment flow")
             if last_error:
                 print(f"   ❌ Last error: {last_error}")
+            # Save for debugging
+            try:
+                (run_dir / "director_debug.json").write_text(
+                    json.dumps({"raw": raw, "last_error": str(last_error)}, indent=2)
+                )
+            except Exception:
+                pass
             return None
 
-        # Validate the director plan
+        # Validate the director plan (post-normalization guarantees `shots` key exists)
         shots = director_plan.get("shots", [])
         if not shots:
-            print(f"   ⚠️ Director returned empty shots list — falling back")
+            print(f"   ⚠️ Director returned empty shots list after retries — falling back")
             print(f"   ℹ️  Director plan contents: {json.dumps(director_plan, indent=2)[:1000]}")
             # Save for debugging
             try:

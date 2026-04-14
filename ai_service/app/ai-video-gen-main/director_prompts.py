@@ -83,7 +83,14 @@ DIRECTOR_SYSTEM_PROMPT = (
     "Never mix dark and cream backgrounds in a single video.\n\n"
 
     "Return JSON only. No markdown, no commentary. "
-    "The first character of your response must be `{` and the last must be `}`.\n"
+    "The first character of your response must be `{` and the last must be `}`.\n\n"
+
+    "**OUTPUT ENVELOPE — NON-NEGOTIABLE**:\n"
+    "Your response MUST be a JSON object with a top-level `shots` array, even if the video "
+    "only has one shot. Example: `{\"shots\": [{...}, {...}], \"continuity_notes\": \"...\"}`.\n"
+    "DO NOT return a bare shot object like `{\"shot_index\": 0, \"shot_type\": ...}` — "
+    "this is wrong. ALWAYS wrap your shot(s) in `{\"shots\": [...]}`.\n"
+    "DO NOT return a bare list like `[{...}, {...}]` — wrap it in `{\"shots\": [...]}`.\n"
 )
 
 
