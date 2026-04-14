@@ -102,12 +102,7 @@ const CampaignCustomFieldsCard = ({
                                                     <div className="flex min-w-0 flex-1 items-center justify-between rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2">
                                                         <h1 className="text-sm">
                                                             {field.name}
-                                                            {field.oldKey && (
-                                                                <span className="text-subtitle text-danger-600">
-                                                                    *
-                                                                </span>
-                                                            )}
-                                                            {!field.oldKey && field.isRequired && (
+                                                            {field.isRequired && (
                                                                 <span className="text-subtitle text-danger-600">
                                                                     *
                                                                 </span>

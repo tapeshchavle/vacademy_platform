@@ -47,7 +47,7 @@ const CampaignLink: React.FC<CampaignLinkProps> = ({
     return (
         <div className={cn('flex flex-col gap-2', className)}>
             {label && <span className="text-sm font-semibold text-neutral-700">{label}</span>}
-            <div className="flex flex-wrap items-center gap-3 text-sm">
+            <div className="flex items-center gap-3 text-sm">
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -55,7 +55,7 @@ const CampaignLink: React.FC<CampaignLinkProps> = ({
                                 href={shareableLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="truncate text-neutral-600 underline decoration-dotted hover:text-primary-600"
+                                className="min-w-0 flex-1 truncate text-neutral-600 underline decoration-dotted hover:text-primary-600"
                             >
                                 {shareableLink}
                             </a>
