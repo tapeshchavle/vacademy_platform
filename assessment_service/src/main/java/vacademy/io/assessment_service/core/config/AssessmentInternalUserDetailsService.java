@@ -30,7 +30,11 @@ public class AssessmentInternalUserDetailsService {
         log.debug("Entering in loadUserByUsername Method...");
         String usernameWithoutInstitute = username;
         String instituteId = null;
-        String[] stringUsernameSplit = username.split("@");
+        // Split at most twice so that an email-style username
+        // (e.g. "learner@example.com") stays intact after the institute prefix.
+        // The JWT filter builds composites as "<instituteId>@<username>", and
+        // that inner <username> can itself contain '@' characters.
+        String[] stringUsernameSplit = username.split("@", 2);
 
         if (stringUsernameSplit.length > 1) {
             instituteId = stringUsernameSplit[0];
