@@ -178,6 +178,23 @@ export const CsvUserImporter = ({ onImport, onPaymentInfoDetected }: Props) => {
                         }
                     }
 
+                    // Parse payment_date to ISO format (yyyy-MM-dd) for the backend
+                    let parsedPaymentDate: string | undefined;
+                    const rawPaymentDate = row.payment_date?.trim();
+                    if (rawPaymentDate) {
+                        const DATE_FORMATS = ['d/M/yyyy', 'dd/MM/yyyy', 'M/d/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd', 'd-M-yyyy', 'dd-MM-yyyy'];
+                        for (const fmt of DATE_FORMATS) {
+                            const pd = parse(rawPaymentDate, fmt, new Date());
+                            if (isValid(pd)) {
+                                parsedPaymentDate = `${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}-${String(pd.getDate()).padStart(2, '0')}`;
+                                break;
+                            }
+                        }
+                        if (!parsedPaymentDate) {
+                            errs.push(`Row ${rowNum}: invalid payment_date format "${rawPaymentDate}"`);
+                        }
+                    }
+
                     rows.push({
                         email: row.email.trim(),
                         full_name: row.full_name.trim(),
@@ -198,6 +215,7 @@ export const CsvUserImporter = ({ onImport, onPaymentInfoDetected }: Props) => {
                             row.parents_to_mother_mobile_number?.trim() || undefined,
                         parents_to_mother_email: row.parents_to_mother_email?.trim() || undefined,
                         linked_institute_name: row.linked_institute_name?.trim() || undefined,
+                        payment_date: parsedPaymentDate,
                         custom_field_values: customFieldValues.length > 0 ? customFieldValues : undefined,
                     });
                 });

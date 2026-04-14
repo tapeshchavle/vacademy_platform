@@ -88,6 +88,11 @@ public class NewUserDTO {
     /** College/School name */
     private String linkedInstituteName;
 
+    // ──── Payment fields ────
+
+    /** Per-user payment date (ISO format string, e.g. "2025-03-15"). Overrides global options.paymentDate when present. */
+    private String paymentDate;
+
     // ──── Custom field values (institute-specific fields) ────
 
     /**

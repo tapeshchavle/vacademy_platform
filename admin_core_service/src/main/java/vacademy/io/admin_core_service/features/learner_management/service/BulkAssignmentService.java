@@ -373,7 +373,8 @@ public class BulkAssignmentService {
             }
 
             // Case C: No existing mapping → create new
-            return handleNewEnrollment(userId, userEmail, config, instituteId, dryRun, userDTO, extraDetails, adminUserId, options);
+            NewUserDTO newUserData = newUserDataMap.get(userId);
+            return handleNewEnrollment(userId, userEmail, config, instituteId, dryRun, userDTO, extraDetails, adminUserId, options, newUserData);
 
         } catch (Exception e) {
             log.error("Error processing assignment userId={}, packageSessionId={}: {}",
@@ -397,7 +398,8 @@ public class BulkAssignmentService {
             DefaultInviteResolver.ResolvedConfig config,
             String instituteId, boolean dryRun,
             UserDTO userDTO, StudentExtraDetails extraDetails,
-            String adminUserId, BulkAssignOptionsDTO options) {
+            String adminUserId, BulkAssignOptionsDTO options,
+            NewUserDTO newUserData) {
 
         if (dryRun) {
             return BulkAssignResultItemDTO.builder()
@@ -472,13 +474,19 @@ public class BulkAssignmentService {
         // Auto-link learner to sub-org if the enrolling admin belongs to one
         subOrgAutoLinkService.linkIfSubOrgAdmin(userId, config.getPackageSession().getId(), mappingId, adminUserId);
 
-        // Create payment log if payment date or transaction ID is provided
-        if (options != null && (options.getPaymentDate() != null || StringUtils.hasText(options.getTransactionId()))) {
+        // Resolve per-user payment date: per-user (from CSV) > global (from options) > now
+        Date perUserPaymentDate = parsePerUserPaymentDate(newUserData);
+        Date globalPaymentDate = options != null ? options.getPaymentDate() : null;
+        String transactionId = options != null ? options.getTransactionId() : null;
+
+        // Create payment log if any payment date or transaction ID is provided
+        if (perUserPaymentDate != null || globalPaymentDate != null || StringUtils.hasText(transactionId)) {
             try {
                 Double amount = config.getPaymentPlan() != null ? config.getPaymentPlan().getActualPrice() : 0.0;
                 String currency = config.getPaymentPlan() != null ? config.getPaymentPlan().getCurrency()
                         : (config.getEnrollInvite().getCurrency() != null ? config.getEnrollInvite().getCurrency() : "INR");
-                Date paymentDate = options.getPaymentDate() != null ? options.getPaymentDate() : new Date();
+                Date paymentDate = perUserPaymentDate != null ? perUserPaymentDate
+                        : (globalPaymentDate != null ? globalPaymentDate : new Date());
 
                 String paymentLogId = paymentLogService.createPaymentLog(
                         userId,
@@ -491,8 +499,8 @@ public class BulkAssignmentService {
                         paymentDate);
 
                 Map<String, Object> paymentSpecificData = new HashMap<>();
-                if (StringUtils.hasText(options.getTransactionId())) {
-                    paymentSpecificData.put("transaction_id", options.getTransactionId());
+                if (StringUtils.hasText(transactionId)) {
+                    paymentSpecificData.put("transaction_id", transactionId);
                 }
                 paymentSpecificData.put("source", "BULK_ASSIGN");
 
@@ -595,6 +603,29 @@ public class BulkAssignmentService {
                 .enrollInviteIdUsed(config.getEnrollInvite().getId())
                 .message("Re-enrolled from " + existingMapping.getStatus() + " status")
                 .build();
+    }
+
+    /**
+     * Parses the per-user payment_date string from NewUserDTO.
+     * Supports ISO format (yyyy-MM-dd) and common formats (dd/MM/yyyy, dd-MM-yyyy).
+     */
+    private Date parsePerUserPaymentDate(NewUserDTO newUserData) {
+        if (newUserData == null || !StringUtils.hasText(newUserData.getPaymentDate())) {
+            return null;
+        }
+        String dateStr = newUserData.getPaymentDate().trim();
+        String[] formats = {"yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy"};
+        for (String format : formats) {
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat(format);
+                sdf.setLenient(false);
+                return sdf.parse(dateStr);
+            } catch (Exception ignored) {
+            }
+        }
+        log.warn("Could not parse payment_date='{}' for user email={}", dateStr,
+                newUserData.getEmail());
+        return null;
     }
 
     private StudentSessionInstituteGroupMapping createActiveMapping(
