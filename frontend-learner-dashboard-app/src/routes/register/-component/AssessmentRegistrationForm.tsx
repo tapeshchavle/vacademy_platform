@@ -156,22 +156,6 @@ const AssessmentRegistrationForm = () => {
   const { data: instituteDetails } = useInstituteDetails();
   const { setPrimaryColor } = useTheme();
 
-  // Apply institute theme on register page: default to Vacademy orange
-  // ("primary" theme), override with institute_theme_code when provided.
-  useEffect(() => {
-    const instituteTheme = instituteDetails?.institute_theme_code;
-    setPrimaryColor(
-      instituteTheme && instituteTheme.trim().length > 0
-        ? instituteTheme
-        : "primary",
-    );
-  }, [instituteDetails?.institute_theme_code, setPrimaryColor]);
-
-  const branding: InstituteBranding = {
-    instituteId: instituteDetails?.id || null,
-    instituteName: instituteDetails?.institute_name || null,
-    instituteLogoFileId: instituteDetails?.institute_logo_file_id || null,
-    instituteThemeCode: instituteDetails?.institute_theme_code ?? null,
   const { data, isLoading } = useSuspenseQuery(
     getOpenTestRegistrationDetails(code),
   );
