@@ -339,6 +339,69 @@ const hoistImagesFromBlocks = (html: string): string => {
     }
 };
 
+// Yoopta's NumberedList plugin renders each <li> as a standalone block and
+// computes its display number by walking previous sibling blocks: the counter
+// only increments across consecutive NumberedList blocks at the same depth and
+// resets whenever any other block type (image, paragraph, etc.) appears in
+// between. The `start` attribute on <ol> is not honored. Word documents that
+// interleave numbered steps with descriptive paragraphs and images (the normal
+// case) therefore render as "1." on every item. To get correct, continuous
+// numbering we flatten every <ol> into plain <p> siblings with the number
+// baked into the text, using one running counter for the whole document.
+// Phase 2 will preserve alpha/roman formats and per-list resets by reading
+// word/numbering.xml directly; for now everything is decimal and continuous.
+const flattenOrderedListsToParagraphs = (html: string): string => {
+    try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(
+            `<!DOCTYPE html><html><body><div id="__root__">${html}</div></body></html>`,
+            'text/html'
+        );
+        const root = doc.getElementById('__root__');
+        if (!root) return html;
+
+        let counter = 0;
+
+        const flattenOl = (ol: Element): DocumentFragment => {
+            const frag = doc.createDocumentFragment();
+            const directLis = Array.from(ol.children).filter(
+                (c) => c.tagName === 'LI'
+            );
+            for (const li of directLis) {
+                const nestedOls = Array.from(li.children).filter(
+                    (c) => c.tagName === 'OL'
+                );
+                nestedOls.forEach((n) => n.remove());
+
+                if (!isEmpty(li)) {
+                    counter++;
+                    const p = doc.createElement('p');
+                    p.innerHTML = `${counter}. ${li.innerHTML}`;
+                    frag.appendChild(p);
+                }
+
+                for (const nested of nestedOls) {
+                    frag.appendChild(flattenOl(nested));
+                }
+            }
+            return frag;
+        };
+
+        let safety = 0;
+        while (safety++ < 1000) {
+            const topOl = root.querySelector('ol');
+            if (!topOl) break;
+            const frag = flattenOl(topOl);
+            topOl.parentNode?.replaceChild(frag, topOl);
+        }
+
+        return root.innerHTML;
+    } catch (e) {
+        console.error('flattenOrderedListsToParagraphs failed:', e);
+        return html;
+    }
+};
+
 export const convertDocToHtml = async (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -356,10 +419,11 @@ export const convertDocToHtml = async (file: File): Promise<string> => {
                 const whitespaceFixed = normalizeInlineWhitespace(result.value);
                 const imagesHoisted = hoistImagesFromBlocks(whitespaceFixed);
                 const listsFixed = splitListItemsOnDoubleBreaks(imagesHoisted);
+                const olsFlattened = flattenOrderedListsToParagraphs(listsFixed);
 
                 const processedHTML = `
                     <div>
-                        ${listsFixed}
+                        ${olsFlattened}
                     </div>
                 `;
 
