@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { MermaidDiagram } from './MermaidDiagram';
 import { EnhancedCodeBlock } from './EnhancedCodeBlock';
+import SimplePDFViewer from '@/components/common/simple-pdf-viewer';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
@@ -322,7 +323,7 @@ export const DocumentWithMermaid: React.FC<DocumentWithMermaidProps> = ({
             // Also check raw HTML string for mermaid patterns
             const hasMermaidInHtml = /graph\s+TD|flowchart|sequenceDiagram|classDiagram|gantt|pie|erDiagram|journey/i.test(htmlContent);
 
-            type SectionType = 'html' | 'mermaid' | 'code' | 'math' | 'quiz' | 'flashcard' | 'fillBlanks' | 'tabs';
+            type SectionType = 'html' | 'mermaid' | 'code' | 'math' | 'quiz' | 'flashcard' | 'fillBlanks' | 'tabs' | 'pdfViewer';
             const newSections: Array<{ type: SectionType; content: string; meta?: Record<string, string> }> = [];
 
             // Mark special blocks in DOM
@@ -335,6 +336,21 @@ export const DocumentWithMermaid: React.FC<DocumentWithMermaidProps> = ({
                     element: div,
                     code: div.outerHTML,
                     type: 'html', // render as raw HTML — <audio> tag works natively
+                });
+            });
+
+            // Process PDF viewer blocks — render via PDF.js (SimplePDFViewer)
+            // because direct <iframe src=pdf> breaks on S3 header edge cases
+            // and docs.google.com/gview now blocks embedding.
+            const pdfDivs = tempDiv.querySelectorAll('div[data-yoopta-type="pdfViewer"]');
+            pdfDivs.forEach((div) => {
+                const pdfUrl = div.getAttribute('data-pdf-url') || '';
+                const title = div.getAttribute('data-title') || '';
+                specialBlocks.push({
+                    element: div,
+                    code: pdfUrl,
+                    type: 'pdfViewer' as SectionType,
+                    meta: { title },
                 });
             });
 
@@ -794,6 +810,40 @@ export const DocumentWithMermaid: React.FC<DocumentWithMermaidProps> = ({
                             key={`tabs-${index}`}
                             tabsJson={section.content}
                         />
+                    );
+                } else if (section.type === 'pdfViewer') {
+                    const pdfUrl = section.content;
+                    const title = section.meta?.title || '';
+                    return (
+                        <div
+                            key={`pdf-${index}`}
+                            style={{
+                                border: '1px solid #e0e0e0',
+                                borderRadius: '8px',
+                                margin: '16px 0',
+                                padding: '16px',
+                                background: '#fafafa',
+                            }}
+                        >
+                            {title && (
+                                <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: '#333' }}>
+                                    {title}
+                                </div>
+                            )}
+                            <div style={{ width: '100%', height: '600px', border: '1px solid #ddd', borderRadius: '4px', overflow: 'hidden', background: '#fff' }}>
+                                <SimplePDFViewer pdfUrl={pdfUrl} />
+                            </div>
+                            <div style={{ marginTop: '6px', fontSize: '12px' }}>
+                                <a
+                                    href={pdfUrl}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    style={{ color: '#3366cc' }}
+                                >
+                                    Open PDF in new tab
+                                </a>
+                            </div>
+                        </div>
                     );
                 } else if (section.type === 'code') {
                     return (
