@@ -7,9 +7,23 @@ import React, { useEffect, useRef, useState } from 'react';
 import { getSubdomain, HOLISTIC_SUBDOMAIN } from '@/utils/subdomain';
 
 export const SplashScreen = ({ children, isAnimationEnabled }: SplashScreenProps) => {
-    const { instituteLogo } = useInstituteLogoStore();
+    const { instituteLogo, brandingDisplay } = useInstituteLogoStore();
     const [animationDone, setAnimationDone] = useState(!isAnimationEnabled);
     const animationTimeout = useRef<NodeJS.Timeout | null>(null);
+
+    const hasCustomLogoDims =
+        brandingDisplay.logoWidthPx != null || brandingDisplay.logoHeightPx != null;
+    const customLogoStyle = hasCustomLogoDims
+        ? {
+              width: brandingDisplay.logoWidthPx ?? undefined,
+              height: brandingDisplay.logoHeightPx ?? undefined,
+          }
+        : undefined;
+    // When operator sets explicit dimensions, drop the circular crop so wide
+    // logos are shown in full.
+    const logoImgClass = hasCustomLogoDims
+        ? 'object-contain'
+        : 'size-2/3 rounded-full';
 
     useEffect(() => {
         if (isAnimationEnabled) {
@@ -77,7 +91,8 @@ export const SplashScreen = ({ children, isAnimationEnabled }: SplashScreenProps
                             <img
                                 src={instituteLogo}
                                 alt="Institute Logo"
-                                className="size-2/3 rounded-full"
+                                className={logoImgClass}
+                                style={customLogoStyle}
                             />
                         ) : getSubdomain() === HOLISTIC_SUBDOMAIN ? (
                             <img

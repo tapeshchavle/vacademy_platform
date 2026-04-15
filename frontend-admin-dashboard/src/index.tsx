@@ -175,6 +175,22 @@ if (!rootElement.innerHTML) {
                         store.setInstituteLogo(cached.instituteLogoUrl);
                     }
                 }
+                {
+                    const store = useInstituteLogoStore.getState();
+                    if (store && store.setBrandingDisplay) {
+                        store.setBrandingDisplay({
+                            hideInstituteName: cached.hideInstituteName === true,
+                            logoWidthPx:
+                                typeof cached.logoWidthPx === 'number'
+                                    ? cached.logoWidthPx
+                                    : null,
+                            logoHeightPx:
+                                typeof cached.logoHeightPx === 'number'
+                                    ? cached.logoHeightPx
+                                    : null,
+                        });
+                    }
+                }
                 if (cached.tabIconFileId && !cached.tabIconUrl) {
                     const iconUrl = await getPublicUrl(cached.tabIconFileId || '');
                     if (iconUrl) {
@@ -217,6 +233,23 @@ if (!rootElement.innerHTML) {
                 const store = useInstituteLogoStore.getState();
                 if (store && store.setInstituteLogo) {
                     store.setInstituteLogo(logoUrl);
+                }
+            }
+
+            {
+                const store = useInstituteLogoStore.getState();
+                if (store && store.setBrandingDisplay) {
+                    store.setBrandingDisplay({
+                        hideInstituteName: data.hideInstituteName === true,
+                        logoWidthPx:
+                            typeof data.logoWidthPx === 'number'
+                                ? data.logoWidthPx
+                                : null,
+                        logoHeightPx:
+                            typeof data.logoHeightPx === 'number'
+                                ? data.logoHeightPx
+                                : null,
+                    });
                 }
             }
 
