@@ -559,7 +559,7 @@ export default function SessionListPage() {
                         options={batchOptions}
                         selected={selectedBatches}
                         onChange={handleBatchChange}
-                        placeholder="Select Batches"
+                        placeholder={`Select ${getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}`}
                         multiSelect={true}
                         hasClearFilter={false}
                         className="h-9"

@@ -461,7 +461,7 @@ export const SubjectMaterial = () => {
                         <MyDropdown
                             currentValue={currentSession ?? undefined}
                             dropdownList={sessionList}
-                            placeholder="Select Session"
+                            placeholder={`Select ${getTerminology(ContentTerms.Session, SystemTerms.Session)}`}
                             handleChange={handleSessionChange}
                         />
                     </div>

@@ -11,6 +11,8 @@ import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
 import { UPDATE_FACULTY_ASSIGNMENTS } from '@/constants/urls';
 import { TrashSimple } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -96,7 +98,7 @@ export const TeachersList = ({ packageSessionId }: { packageSessionId: string })
         },
         {
             accessorKey: 'subjects',
-            header: 'Subjects',
+            header: getTerminologyPlural(ContentTerms.Subjects, SystemTerms.Subjects),
             // @ts-expect-error: Binding element 'row' implicitly has an 'any' type.
             cell: ({ row }) => {
                 const subjects = row.original.subjects || [];

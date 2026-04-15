@@ -24,7 +24,9 @@ import { SidebarItem } from "./sidebar-item";
 import {
   HamBurgerSidebarItemsData,
   filterHamburgerMenuItemsWithPermissions,
+  getTerminologyPlural,
 } from "./utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 import "./scrollbarStyle.css";
 import useStore from "./useSidebar";
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
@@ -153,10 +155,19 @@ export const MySidebar = ({
         const subItems: subItemsType[] | undefined = hasSubTabs
           ? (t.subTabs || [])
             .filter((s) => s.visible !== false)
-            .map((s) => ({
-              subItem: s.label || s.id,
-              subItemLink: s.route || "/",
-            }))
+            .map((s) => {
+              let subLabel = s.label;
+              if (!subLabel && s.id === "live-classes") {
+                subLabel = getTerminologyPlural(
+                  ContentTerms.LiveSession,
+                  SystemTerms.LiveSession
+                );
+              }
+              return {
+                subItem: subLabel || s.id,
+                subItemLink: s.route || "/",
+              };
+            })
           : undefined;
         const computedLabel = (
           t.label ||

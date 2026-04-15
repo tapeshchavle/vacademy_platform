@@ -7,6 +7,8 @@ import { DashboardLoader } from '@/components/core/dashboard-loader';
 import { format } from 'date-fns';
 import { User, Users } from '@phosphor-icons/react';
 import type { AllStudentStatsResponse, StudentStatsDTO } from '@/types/membership-stats';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 interface MembershipStatsTableProps {
     data: AllStudentStatsResponse | undefined;
@@ -80,7 +82,7 @@ export function MembershipStatsTable({
             },
             {
                 id: 'packages',
-                header: 'Packages',
+                header: getTerminologyPlural(ContentTerms.Package, SystemTerms.Package),
                 accessorFn: (row) => row.package_session_ids.join(','),
                 cell: ({ row }) => (
                     <div className="flex flex-col gap-1">

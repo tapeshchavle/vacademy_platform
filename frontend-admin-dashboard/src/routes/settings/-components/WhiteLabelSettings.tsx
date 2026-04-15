@@ -18,6 +18,10 @@ import {
     Plus,
     Trash2,
     Star,
+} from 'lucide-react';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
+import {
     ChevronDown,
     ChevronUp,
     Palette,
@@ -750,9 +754,9 @@ export default function WhiteLabelSettings({ isTab }: { isTab?: boolean }) {
                                 Primary Portal URLs (Institute Default)
                             </p>
                             <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-3">
-                                <PortalUrlRow label="Learner" url={status.learner_portal_url} />
-                                <PortalUrlRow label="Admin" url={status.admin_portal_url} />
-                                <PortalUrlRow label="Teacher" url={status.teacher_portal_url} />
+                                <PortalUrlRow label={getTerminology(RoleTerms.Learner, SystemTerms.Learner)} url={status.learner_portal_url} />
+                                <PortalUrlRow label={getTerminology(RoleTerms.Admin, SystemTerms.Admin)} url={status.admin_portal_url} />
+                                <PortalUrlRow label={getTerminology(RoleTerms.Teacher, SystemTerms.Teacher)} url={status.teacher_portal_url} />
                                 {!status.learner_portal_url && !status.admin_portal_url && !status.teacher_portal_url && (
                                     <p className="text-sm text-slate-400 italic">No portal URLs set.</p>
                                 )}
@@ -923,9 +927,9 @@ export default function WhiteLabelSettings({ isTab }: { isTab?: boolean }) {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <PortalUrlRow label="Learner" url={lastSetupResult.learner_portal_url} />
-                            <PortalUrlRow label="Admin" url={lastSetupResult.admin_portal_url} />
-                            <PortalUrlRow label="Teacher" url={lastSetupResult.teacher_portal_url} />
+                            <PortalUrlRow label={getTerminology(RoleTerms.Learner, SystemTerms.Learner)} url={lastSetupResult.learner_portal_url} />
+                            <PortalUrlRow label={getTerminology(RoleTerms.Admin, SystemTerms.Admin)} url={lastSetupResult.admin_portal_url} />
+                            <PortalUrlRow label={getTerminology(RoleTerms.Teacher, SystemTerms.Teacher)} url={lastSetupResult.teacher_portal_url} />
                         </div>
                         {lastSetupResult.dns_records_configured?.length > 0 && (
                             <>

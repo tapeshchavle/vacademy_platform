@@ -12,6 +12,8 @@ import { getStudentDisplaySettings } from "@/services/student-display-settings";
 import { loginEnrolledUser } from "@/services/signup-api";
 import { HOLISTIC_INSTITUTE_ID } from "@/constants/urls";
 import { pushNotificationService } from "@/services/push-notifications/push-notification-service";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { RoleTerms, SystemTerms } from "@/types/naming-settings";
 
 export interface LoginResponse {
     accessToken: string;
@@ -56,11 +58,15 @@ export const performFullAuthCycle = async (
         await setInstituteIdInStorage("instituteId", instituteId);
 
         // 4. Create a robust fallback user from the token if not provided in loginResponse
+        const learnerFallbackName = getTerminology(
+            RoleTerms.Learner,
+            SystemTerms.Learner
+        );
         const fallbackUser = loginResponse.user || {
             id: userId,
-            username: decodedData?.username || "Learner",
+            username: decodedData?.username || learnerFallbackName,
             email: decodedData?.email || "",
-            full_name: decodedData?.username || "Learner",
+            full_name: decodedData?.username || learnerFallbackName,
             roles: []
         };
 

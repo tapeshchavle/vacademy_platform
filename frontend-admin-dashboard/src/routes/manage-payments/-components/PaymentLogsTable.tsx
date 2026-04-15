@@ -13,6 +13,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import { formatDistanceToNow } from 'date-fns';
 import { DashboardLoader } from '@/components/core/dashboard-loader';
 import { PencilSimple, FloppyDisk, X } from '@phosphor-icons/react';
@@ -567,7 +569,7 @@ export function PaymentLogsTable({
             },
             {
                 id: 'enroll_invite',
-                header: 'Course/Membership',
+                header: `${getTerminology(ContentTerms.Course, SystemTerms.Course)}/Membership`,
                 accessorFn: (row) => row?.user_plan?.enroll_invite?.name || '',
                 cell: ({ row }) => {
                     const enrollInvite = row.original?.user_plan?.enroll_invite;

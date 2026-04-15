@@ -1,6 +1,8 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { ViewDetails } from '../-components/batch/viewDetailsDialogBox';
 import { ViewDetails as ViewDetailsStudent } from '../-components/student/viewDetailsDialogBox';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 export type ColumnWidthConfig = Record<string, string>;
 
@@ -58,7 +60,7 @@ export const learnersReportColumns: ColumnDef<TransformedReport>[] = [
     },
     {
         accessorKey: 'timeSpentBatch',
-        header: 'Time Spent By Batch (Avg)',
+        header: `Time Spent By ${getTerminology(ContentTerms.Batch, SystemTerms.Batch)} (Avg)`,
     },
 ];
 
@@ -142,11 +144,11 @@ export interface SubjectOverviewColumnType {
 export const SubjectOverviewColumns: ColumnDef<SubjectOverviewColumnType>[] = [
     {
         accessorKey: 'subject',
-        header: 'Subject',
+        header: getTerminology(ContentTerms.Subjects, SystemTerms.Subjects),
     },
     {
         accessorKey: 'module',
-        header: 'Module',
+        header: getTerminology(ContentTerms.Modules, SystemTerms.Modules),
     },
     {
         accessorKey: 'module_id',
@@ -154,15 +156,15 @@ export const SubjectOverviewColumns: ColumnDef<SubjectOverviewColumnType>[] = [
     },
     {
         accessorKey: 'module_completed',
-        header: 'Module Completed',
+        header: `${getTerminology(ContentTerms.Modules, SystemTerms.Modules)} Completed`,
     },
     {
         accessorKey: 'module_completed_by_batch',
-        header: 'Module completed by batch',
+        header: `${getTerminology(ContentTerms.Modules, SystemTerms.Modules)} completed by ${getTerminology(ContentTerms.Batch, SystemTerms.Batch).toLowerCase()}`,
     },
     {
         accessorKey: 'average_time_spent_by_batch',
-        header: 'Daily Time spent by batch (Avg)',
+        header: `Daily Time spent by ${getTerminology(ContentTerms.Batch, SystemTerms.Batch).toLowerCase()} (Avg)`,
     },
     {
         accessorKey: 'average_time_spent',
@@ -203,11 +205,11 @@ export interface SubjectOverviewBatchColumnType {
 export const SubjectOverviewBatchColumns: ColumnDef<SubjectOverviewBatchColumnType>[] = [
     {
         accessorKey: 'subject',
-        header: 'Subject',
+        header: getTerminology(ContentTerms.Subjects, SystemTerms.Subjects),
     },
     {
         accessorKey: 'module',
-        header: 'Module',
+        header: getTerminology(ContentTerms.Modules, SystemTerms.Modules),
     },
     {
         accessorKey: 'module_id',
@@ -215,11 +217,11 @@ export const SubjectOverviewBatchColumns: ColumnDef<SubjectOverviewBatchColumnTy
     },
     {
         accessorKey: 'module_completed_by_batch',
-        header: 'Module completed by batch',
+        header: `${getTerminology(ContentTerms.Modules, SystemTerms.Modules)} completed by ${getTerminology(ContentTerms.Batch, SystemTerms.Batch).toLowerCase()}`,
     },
     {
         accessorKey: 'average_time_spent_by_batch',
-        header: 'Daily Time spent by batch (Avg)',
+        header: `Daily Time spent by ${getTerminology(ContentTerms.Batch, SystemTerms.Batch).toLowerCase()} (Avg)`,
     },
     {
         accessorKey: 'details',
@@ -273,11 +275,11 @@ export interface ChapterOverviewColumnType {
 export const ChapterOverviewColumns: ColumnDef<ChapterOverviewColumnType>[] = [
     {
         accessorKey: 'study_slide',
-        header: 'Study Slide',
+        header: `Study ${getTerminology(ContentTerms.Slides, SystemTerms.Slides)}`,
     },
     {
         accessorKey: 'batch_concentration_score',
-        header: 'Batch Concentration Score (Avg)',
+        header: `${getTerminology(ContentTerms.Batch, SystemTerms.Batch)} Concentration Score (Avg)`,
     },
     {
         accessorKey: 'average_time_spent',
@@ -302,7 +304,7 @@ export interface ChapterOverviewStudentColumnType {
 export const ChapterOverviewStudentColumns: ColumnDef<ChapterOverviewStudentColumnType>[] = [
     {
         accessorKey: 'study_slide',
-        header: 'Study Slide',
+        header: `Study ${getTerminology(ContentTerms.Slides, SystemTerms.Slides)}`,
     },
     {
         accessorKey: 'slide_type',
@@ -314,7 +316,7 @@ export const ChapterOverviewStudentColumns: ColumnDef<ChapterOverviewStudentColu
     },
     {
         accessorKey: 'batch_concentration_score',
-        header: 'Batch Concentration Score (Avg)',
+        header: `${getTerminology(ContentTerms.Batch, SystemTerms.Batch)} Concentration Score (Avg)`,
     },
     {
         accessorKey: 'average_time_spent',
@@ -366,19 +368,19 @@ export interface SlidesColumnType {
 export const SlidesColumns: ColumnDef<SlidesColumnType>[] = [
     {
         accessorKey: 'study_slide',
-        header: 'Study Slide',
+        header: `Study ${getTerminology(ContentTerms.Slides, SystemTerms.Slides)}`,
     },
     {
         accessorKey: 'subject',
-        header: 'Subject',
+        header: getTerminology(ContentTerms.Subjects, SystemTerms.Subjects),
     },
     {
         accessorKey: 'module',
-        header: 'Module',
+        header: getTerminology(ContentTerms.Modules, SystemTerms.Modules),
     },
     {
         accessorKey: 'chapter',
-        header: 'Chapter',
+        header: getTerminology(ContentTerms.Chapters, SystemTerms.Chapters),
     },
     {
         accessorKey: 'concentration_score',

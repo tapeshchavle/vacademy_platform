@@ -160,7 +160,7 @@ export const CourseEnrollment = ({
                   "default" ? null : sessionOptions.length === 1 ? (
                   <div className="flex flex-col gap-1.5">
                     <span className="text-xs font-medium text-muted-foreground ml-1">
-                      Session
+                      {getTerminology(ContentTerms.Session, SystemTerms.Session)}
                     </span>
                     <div className="px-3 py-2.5 bg-muted/50 rounded-md border text-sm font-medium">
                       {sessionOptions[0]?.label}
@@ -169,14 +169,14 @@ export const CourseEnrollment = ({
                 ) : sessionOptions.length > 1 ? (
                   <div className="flex flex-col gap-1.5">
                     <span className="text-xs font-medium text-muted-foreground ml-1">
-                      Session
+                      {getTerminology(ContentTerms.Session, SystemTerms.Session)}
                     </span>
                     <Select
                       value={selectedSession}
                       onValueChange={onSessionChange}
                     >
                       <SelectTrigger className="w-full bg-background">
-                        <SelectValue placeholder="Select Session" />
+                        <SelectValue placeholder={`Select ${getTerminology(ContentTerms.Session, SystemTerms.Session)}`} />
                       </SelectTrigger>
                       <SelectContent>
                         {sessionOptions.map((option) => (
@@ -195,21 +195,21 @@ export const CourseEnrollment = ({
                                 (levelOptions.length === 1 &&
                                     levelOptions[0].label === "default" ? null : levelOptions.length === 1 ? (
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="text-xs font-medium text-muted-foreground ml-1">Level</span>
+                                            <span className="text-xs font-medium text-muted-foreground ml-1">{getTerminology(ContentTerms.Level, SystemTerms.Level)}</span>
                                             <div className="px-3 py-2.5 bg-muted/50 rounded-md border text-sm font-medium">
                                                 {levelOptions[0]?.label}
                                             </div>
                                         </div>
                                     ) : levelOptions.length > 1 ? (
                                         <div className="flex flex-col gap-1.5">
-                                            <span className="text-xs font-medium text-muted-foreground ml-1">Level</span>
+                                            <span className="text-xs font-medium text-muted-foreground ml-1">{getTerminology(ContentTerms.Level, SystemTerms.Level)}</span>
                                             <Select
                                                 value={selectedLevel}
                                                 onValueChange={onLevelChange}
                                                 disabled={!selectedSession}
                                             >
                                                 <SelectTrigger className="w-full bg-background">
-                                                    <SelectValue placeholder="Select Level" />
+                                                    <SelectValue placeholder={`Select ${getTerminology(ContentTerms.Level, SystemTerms.Level)}`} />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {levelOptions.map((option) => (

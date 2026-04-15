@@ -11,6 +11,8 @@ import { useMarkAttendance } from "../-hooks/useMarkAttendance";
 import { useServerTime, getServerTime } from "@/hooks/use-server-time";
 import { toast } from "sonner";
 import { convertSessionTimeToUserTimezone } from "@/utils/timezone";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 export const Route = createFileRoute("/live-class-guest/waiting-room/")({
   validateSearch: z.object({
@@ -150,7 +152,7 @@ function GuestWaitingRoomComponent() {
     <div className="w-screen h-screen bg-primary-50 p-20">
       <div className="flex flex-col items-center w-full justify-center p-1 gap-4">
         <h1 className="text-2xl font-bold text-center mb-6">
-          {sessionDetails?.title || "Session"}
+          {sessionDetails?.title || getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession)}
         </h1>
         <div>Get ready to flow! The session will begin in:</div>
         <div className="space-y-6">

@@ -10,6 +10,8 @@ import { DonationDialog } from "@/components/common/donation/DonationDialog";
 import { SubscriptionPaymentDialog } from "./SubscriptionPaymentDialog";
 import { FreeEnrollmentConfirmationDialog } from "./FreeEnrollmentConfirmationDialog";
 import { EnhancedEnrollmentDialog } from "./EnhancedEnrollmentDialog";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 interface EnrollmentPaymentRouterProps {
   open: boolean;
@@ -29,7 +31,7 @@ export const EnrollmentPaymentDialog: React.FC<EnrollmentPaymentRouterProps> = (
   packageSessionId,
   instituteId,
   token,
-  courseTitle = "Course",
+  courseTitle = getTerminology(ContentTerms.Course, SystemTerms.Course),
   inviteCode = "default",
   onEnrollmentSuccess,
   onNavigateToSlides,

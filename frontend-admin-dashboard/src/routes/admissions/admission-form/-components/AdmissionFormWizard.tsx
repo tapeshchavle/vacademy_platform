@@ -16,6 +16,8 @@ import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
 import { BASE_URL } from '@/constants/urls';
 import { toast } from 'sonner';
 import { MyButton } from '@/components/design-system/button';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import {
     validateAdmissionStep1,
     validateAdmissionStep2,
@@ -123,14 +125,18 @@ export interface AdmissionFormData {
     sendEmail: boolean;
 }
 
-const STEPS = [
-    { id: 1, title: 'Student Details' },
-    { id: 2, title: 'Previous School & Personal Details' },
-    { id: 3, title: 'Student Parent Details' },
-    { id: 4, title: 'Address Details' },
-    { id: 5, title: 'Finish' },
-    { id: 6, title: 'Fee Assignment' },
-];
+const getSteps = () => {
+    const learnerLabel = getTerminology(RoleTerms.Learner, SystemTerms.Learner);
+    return [
+        { id: 1, title: `${learnerLabel} Details` },
+        { id: 2, title: 'Previous School & Personal Details' },
+        { id: 3, title: `${learnerLabel} Parent Details` },
+        { id: 4, title: 'Address Details' },
+        { id: 5, title: 'Finish' },
+        { id: 6, title: 'Fee Assignment' },
+    ];
+};
+const STEPS = getSteps();
 
 /** Convert ValidationError[] to a Record<field, message> for easy lookup */
 function errorsToMap(errors: ValidationError[]): Record<string, string> {

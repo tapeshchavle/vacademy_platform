@@ -13,6 +13,8 @@ import { Separator } from '@/components/ui/separator';
 import { MyButton } from '@/components/design-system/button';
 import calculateLearningPercentage from '@/routes/manage-students/students-list/-utils/calculateLearningPercentage';
 import { PercentCompletionStatus } from './PercentCompletionStatus';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import SelectField from '@/components/design-system/select-field';
 import { useForm, FormProvider } from 'react-hook-form';
 import { useRouter } from '@tanstack/react-router';
@@ -213,7 +215,7 @@ export const StudentLearningProgress = ({ isSubmissionTab }: { isSubmissionTab?:
                 <div className="flex items-center justify-between gap-2">
                     <div className="w-full">
                         <SelectField
-                            label="Subject"
+                            label={getTerminology(ContentTerms.Subjects, SystemTerms.Subjects)}
                             name="subject"
                             options={subjectOptions}
                             control={formMethods.control}
@@ -229,7 +231,7 @@ export const StudentLearningProgress = ({ isSubmissionTab }: { isSubmissionTab?:
                                 {/* Module dropdown */}
                                 <div className="w-full">
                                     <SelectField
-                                        label="Module"
+                                        label={getTerminology(ContentTerms.Modules, SystemTerms.Modules)}
                                         name="module"
                                         options={moduleOptions}
                                         control={formMethods.control}
