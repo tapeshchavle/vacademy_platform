@@ -1,6 +1,7 @@
 import { getActiveRoleDisplaySettingsKey } from '@/lib/auth/instituteUtils';
 import { getInstituteId } from '@/constants/helper';
 import { hasFacultyAssignedPermission } from '@/lib/auth/facultyAccessUtils';
+import { isChunkLoadError, reloadForChunkError } from '@/lib/chunk-reload';
 import { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, Outlet, redirect } from '@tanstack/react-router';
 import React, { Suspense } from 'react';
@@ -166,19 +167,15 @@ export const Route = createRootRouteWithContext<{
         );
     },
     errorComponent: ({ error }: { error: Error }) => {
-        const isChunkError =
-            error.message &&
-            (error.message.includes('Failed to fetch dynamically imported module') ||
-                error.message.includes('Importing a module script failed') ||
-                error.name === 'ChunkLoadError');
+        const chunkError = isChunkLoadError(error);
 
         React.useEffect(() => {
-            if (isChunkError) {
-                window.location.reload();
+            if (chunkError) {
+                reloadForChunkError();
             }
-        }, [isChunkError]);
+        }, [chunkError]);
 
-        if (isChunkError) {
+        if (chunkError) {
             return (
                 <div className="flex h-[100vh] w-full flex-col items-center justify-center gap-4 bg-gray-50">
                     <p className="text-lg font-semibold text-gray-700">
