@@ -95,6 +95,9 @@ export const MySidebar = ({
     instructorPortalUrl,
     subOrgName,
     subOrgLogoUrl,
+    hideInstituteName,
+    logoWidthPx,
+    logoHeightPx,
   } = useStore();
   const handleInstituteLogoClick = () => {
     if (homeIconClickRoute) {
@@ -205,6 +208,19 @@ export const MySidebar = ({
 
   const isExpanded = state === "expanded";
 
+  // Operator-configured logo dimensions only apply when the sidebar is
+  // expanded — in icon-collapsed mode the rail has a fixed narrow width, so
+  // a wide custom logo would overflow. Fall back to the default 28px square
+  // in collapsed mode regardless of override.
+  const hasCustomLogoDims =
+    isExpanded && (logoWidthPx != null || logoHeightPx != null);
+  const customLogoStyle: React.CSSProperties | undefined = hasCustomLogoDims
+    ? {
+        width: logoWidthPx ?? undefined,
+        height: logoHeightPx ?? undefined,
+      }
+    : undefined;
+
   if (hideSidebar && !sidebarComponent) {
     return null;
   }
@@ -263,24 +279,45 @@ export const MySidebar = ({
                 ) : (
                   /* Default: parent institute branding */
                   <>
-                    <div className="flex aspect-square size-7 items-center justify-center rounded-md text-sidebar-primary-foreground">
+                    <div
+                      className={
+                        hasCustomLogoDims
+                          ? "flex items-center justify-center text-sidebar-primary-foreground shrink-0"
+                          : "flex aspect-square size-7 items-center justify-center rounded-md text-sidebar-primary-foreground"
+                      }
+                      style={customLogoStyle}
+                    >
                       {!isNullOrEmptyOrUndefined(instituteLogoFileUrl) ? (
                         <img
                           src={instituteLogoFileUrl}
                           alt="Logo"
-                          className="size-7 object-contain rounded-md bg-white"
+                          className={
+                            hasCustomLogoDims
+                              ? "object-contain rounded-md bg-white"
+                              : "size-7 object-contain rounded-md bg-white"
+                          }
+                          style={customLogoStyle}
                         />
                       ) : (
-                        <div className="h-7 w-7 rounded-md bg-primary-50 dark:bg-neutral-800 flex items-center justify-center text-xs font-semibold text-primary-700 dark:text-neutral-200">
+                        <div
+                          className={
+                            hasCustomLogoDims
+                              ? "rounded-md bg-primary-50 dark:bg-neutral-800 flex items-center justify-center text-xs font-semibold text-primary-700 dark:text-neutral-200"
+                              : "h-7 w-7 rounded-md bg-primary-50 dark:bg-neutral-800 flex items-center justify-center text-xs font-semibold text-primary-700 dark:text-neutral-200"
+                          }
+                          style={customLogoStyle}
+                        >
                           {(instituteName?.[0] || "I").toUpperCase()}
                         </div>
                       )}
                     </div>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold uppercase">
-                        {instituteName}
-                      </span>
-                    </div>
+                    {!hideInstituteName && (
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold uppercase">
+                          {instituteName}
+                        </span>
+                      </div>
+                    )}
                   </>
                 )}
               </SidebarMenuButton>
