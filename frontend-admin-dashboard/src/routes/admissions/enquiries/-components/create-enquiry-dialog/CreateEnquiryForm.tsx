@@ -21,7 +21,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { getCampaignCustomFields } from '@/routes/audience-manager/list/-utils/getCampaignCustomFields';
 
 const parseEmailsFromCsv = (value?: string | null) => {
     if (!value) return [];

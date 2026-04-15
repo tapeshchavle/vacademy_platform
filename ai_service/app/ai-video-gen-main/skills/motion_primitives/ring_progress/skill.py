@@ -54,6 +54,7 @@ def render(params: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
     cy = size / 2.0
     stroke_w = 22.0
 
+    label_html = f'<div class="{sid}-label">{label}</div>' if label else ""
     html = (
         f'<div class="{sid}-wrap">'
         f'<svg class="{sid}-svg" width="{size:.0f}" height="{size:.0f}" viewBox="0 0 {size:.0f} {size:.0f}">'
@@ -66,7 +67,7 @@ def render(params: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
         f'</svg>'
         f'<div class="{sid}-center">'
         f'<span class="{sid}-value" id="{sid}-val">0</span><span class="{sid}-unit">%</span>'
-        f'{f"<div class=\"{sid}-label\">{label}</div>" if label else ""}'
+        f'{label_html}'
         f'</div>'
         f'</div>'
     )
@@ -98,4 +99,11 @@ def render(params: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
         f'}}'
     )
 
-    return {"html": html, "css": css, "js": js, "plugins": ["gsap"]}
+    # Audio events: whoosh-like start as the arc begins filling, positive
+    # chime as it completes at the target percent.
+    audio_events = [
+        {"role": "data_reveal", "t": round(delay, 3),            "volume_mul": 0.90, "skill_id": "ring_progress"},
+        {"role": "ui_positive", "t": round(delay + duration, 3), "volume_mul": 0.95, "skill_id": "ring_progress"},
+    ]
+
+    return {"html": html, "css": css, "js": js, "plugins": ["gsap"], "audio_events": audio_events}

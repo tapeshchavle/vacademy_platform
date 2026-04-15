@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { sideBarStateType } from "../../../../types/layout-container-types";
 import { Preferences } from "@capacitor/preferences";
 import { getPublicUrl } from "@/services/upload_file";
+import { getCachedInstituteBranding } from "@/services/domain-routing";
 
 interface StoreState {
   sideBarState: sideBarStateType;
@@ -19,6 +20,10 @@ interface StoreState {
   // Sub-org branding (from student_sub_org junction)
   subOrgName: string | null;
   subOrgLogoUrl: string | null;
+  // White-label display overrides. Null / false = default behavior.
+  hideInstituteName: boolean;
+  logoWidthPx: number | null;
+  logoHeightPx: number | null;
   setSidebarOpen: () => void;
   setSideBarState: (sidebarstate: sideBarStateType) => void;
   setInstituteDetails: (
@@ -26,8 +31,30 @@ interface StoreState {
     instituteLogoFileUrl?: string,
     homeIconClickRoute?: string | null
   ) => void;
+  setBrandingDisplayOverrides: (overrides: {
+    hideInstituteName?: boolean | null;
+    logoWidthPx?: number | null;
+    logoHeightPx?: number | null;
+  }) => void;
   setHasCustomSidebar: (value: boolean) => void;
 }
+
+const readBrandingOverridesFromCache = () => {
+  try {
+    const branding = getCachedInstituteBranding();
+    return {
+      hideInstituteName: branding?.hideInstituteName === true,
+      logoWidthPx:
+        typeof branding?.logoWidthPx === "number" ? branding.logoWidthPx : null,
+      logoHeightPx:
+        typeof branding?.logoHeightPx === "number"
+          ? branding.logoHeightPx
+          : null,
+    };
+  } catch {
+    return { hideInstituteName: false, logoWidthPx: null, logoHeightPx: null };
+  }
+};
 
 const useStore = create<StoreState>((set) => ({
   sideBarState: sideBarStateType.DEFAULT,
@@ -44,9 +71,22 @@ const useStore = create<StoreState>((set) => ({
   hasCustomSidebar: false,
   subOrgName: null,
   subOrgLogoUrl: null,
+  // Initialize from whatever the domain-routing cache has (may be null on
+  // first load; the setters below will refresh it).
+  ...readBrandingOverridesFromCache(),
   setSidebarOpen: () => set((state) => ({ sideBarOpen: !state.sideBarOpen })),
   setSideBarState: (sidebarstate) => set({ sideBarState: sidebarstate }),
   setHasCustomSidebar: (value: boolean) => set({ hasCustomSidebar: value }),
+  setBrandingDisplayOverrides: ({
+    hideInstituteName,
+    logoWidthPx,
+    logoHeightPx,
+  }) =>
+    set({
+      hideInstituteName: hideInstituteName === true,
+      logoWidthPx: typeof logoWidthPx === "number" ? logoWidthPx : null,
+      logoHeightPx: typeof logoHeightPx === "number" ? logoHeightPx : null,
+    }),
 
   setInstituteDetails: async (
     name?: string,
@@ -54,12 +94,18 @@ const useStore = create<StoreState>((set) => ({
     homeIconClickRoute?: string | null
   ) => {
     try {
+      // Always refresh white-label display overrides from the latest cached
+      // domain-routing branding so the sidebar picks them up without needing
+      // every caller to thread them in explicitly.
+      const overrides = readBrandingOverridesFromCache();
+
       // If explicit values are provided, set them directly
       if (typeof name === 'string') {
         set({
           instituteName: name,
           instituteLogoFileUrl: logoUrl ?? "",
           homeIconClickRoute: homeIconClickRoute ?? null,
+          ...overrides,
         });
 
         // Also resolve sub-org branding from stored authenticated details
@@ -126,6 +172,7 @@ const useStore = create<StoreState>((set) => ({
           instructorPortalUrl: InstituteDetails.instructorPortalUrl ?? null,
           subOrgName,
           subOrgLogoUrl,
+          ...overrides,
         });
       }
     } catch (error) {

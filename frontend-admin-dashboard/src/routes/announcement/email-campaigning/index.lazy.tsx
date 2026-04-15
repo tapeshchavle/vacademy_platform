@@ -119,7 +119,7 @@ function EmailCampaigningPage() {
         Array<{
             id: string;
             name: string;
-            type: 'text' | 'dropdown' | 'number';
+            type: string;
             options?: string[];
         }>
     >([]);
@@ -129,7 +129,7 @@ function EmailCampaigningPage() {
             Array<{
                 fieldId: string;
                 fieldName: string;
-                fieldType: 'text' | 'dropdown' | 'number';
+                fieldType: string;
                 filterValue?: string | string[];
                 operator?: 'equals' | 'contains' | 'starts_with' | 'ends_with';
             }>
@@ -228,7 +228,7 @@ function EmailCampaigningPage() {
                     const allFields: Array<{
                         id: string;
                         name: string;
-                        type: 'text' | 'dropdown' | 'number';
+                        type: string;
                         options?: string[];
                     }> = [];
 
@@ -630,7 +630,7 @@ function EmailCampaigningPage() {
         updates: Partial<{
             fieldId: string;
             fieldName: string;
-            fieldType: 'text' | 'dropdown' | 'number';
+            fieldType: string;
             filterValue: string | string[];
             operator: 'equals' | 'contains' | 'starts_with' | 'ends_with';
         }>

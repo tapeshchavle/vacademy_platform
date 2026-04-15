@@ -28,6 +28,13 @@ export type DomainResolveResponse = {
     // Comma-separated ISO 3166-1 alpha-2 country codes (e.g. "in,us,gb,au").
     // Drives the default selection and ordering of country options in phone inputs.
     commaSeparatedPreferredCountry?: string | null;
+    // When true, the institute name is hidden alongside the logo on the login
+    // page and in the sidebar. Default (undefined/false): name is shown.
+    hideInstituteName?: boolean | null;
+    // Optional pixel overrides for logo sizing. When set, take precedence over
+    // the default responsive classes.
+    logoWidthPx?: number | null;
+    logoHeightPx?: number | null;
 };
 
 /**

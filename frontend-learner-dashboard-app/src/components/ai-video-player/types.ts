@@ -40,6 +40,25 @@ export interface AudioTrack {
 }
 
 /**
+ * A scheduled sound effect cue produced by the Sound Planner in the backend.
+ * Played live by `useSoundScheduler` during playback — NOT baked into any MP4.
+ *
+ * Cues are stored per timeline entry. `t` is the shot-relative time (seconds
+ * after the entry's `inTime`) and `absolute_time` is the global-clock time
+ * (already offset by any branding intro) pre-computed by the backend so the
+ * scheduler can fire against the player's master clock without recomputing.
+ */
+export interface SoundCue {
+  id: string;              // e.g. "sfx_2_signature" — stable across runs
+  t: number;               // shot-relative seconds (debug/inspection)
+  absolute_time?: number;  // global timeline seconds — preferred for scheduling
+  url: string;             // S3 URL of the sound file
+  volume: number;          // 0.0–1.0
+  role: string;            // semantic role (e.g. "transition_whoosh", "impact")
+  duration?: number;       // clip duration in seconds (informational)
+}
+
+/**
  * Entry/Frame interface matching the time_based_frame.json structure
  */
 export interface Entry {
@@ -55,6 +74,7 @@ export interface Entry {
   htmlEndX?: number;
   htmlEndY?: number;
   audio_url?: string; // Optional per-entry audio (for user_driven)
+  sound_cues?: SoundCue[]; // Sound Planner cues — scheduled via useSoundScheduler
   entry_meta?: {
     text?: string;
     audio_text?: string;

@@ -1,0 +1,326 @@
+package vacademy.io.admin_core_service.features.audience.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import vacademy.io.admin_core_service.features.audience.dto.NormalizedLeadData;
+import vacademy.io.admin_core_service.features.audience.dto.OAuthTokenResult;
+import vacademy.io.admin_core_service.features.audience.dto.ProcessedFormDataDTO;
+import vacademy.io.admin_core_service.features.audience.entity.FormWebhookConnector;
+import vacademy.io.admin_core_service.features.audience.repository.FormWebhookConnectorRepository;
+import vacademy.io.admin_core_service.features.audience.strategy.AdPlatformStrategy;
+import vacademy.io.common.exceptions.VacademyException;
+
+import java.util.*;
+
+/**
+ * Orchestrates ad platform webhook processing:
+ * 1. Looks up the connector by platform_form_id + vendor
+ * 2. Delegates signature verification to the strategy
+ * 3. Extracts and normalizes leads via the strategy
+ * 4. Applies routing rules to resolve target audience
+ * 5. Submits leads to AudienceService
+ */
+@Service
+@Slf4j
+public class AdPlatformWebhookService {
+
+    @Autowired
+    private List<AdPlatformStrategy> strategies;
+
+    @Autowired
+    private FormWebhookConnectorRepository connectorRepository;
+
+    @Autowired
+    private AudienceService audienceService;
+
+    @Autowired
+    private TokenEncryptionService tokenEncryptionService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    // ── Strategy registry (built once at startup via @PostConstruct) ─────────
+
+    private Map<String, AdPlatformStrategy> strategyMap;
+
+    @jakarta.annotation.PostConstruct
+    void initStrategyMap() {
+        Map<String, AdPlatformStrategy> map = new HashMap<>();
+        for (AdPlatformStrategy s : strategies) {
+            map.put(s.getVendorCode(), s);
+        }
+        this.strategyMap = map;
+        log.info("Registered {} ad platform strategies: {}", map.size(), map.keySet());
+    }
+
+    private AdPlatformStrategy getStrategy(String vendorCode) {
+        AdPlatformStrategy s = strategyMap.get(vendorCode);
+        if (s == null) throw new VacademyException("No strategy for vendor: " + vendorCode);
+        return s;
+    }
+
+    // ── Meta webhook handling ─────────────────────────────────────────────────
+
+    /**
+     * Handle Meta hub.challenge verification GET request.
+     * The strategy compares hub.verify_token against the app-configured secret.
+     */
+    public Optional<String> handleMetaVerificationChallenge(Map<String, String> queryParams) {
+        AdPlatformStrategy strategy = getStrategy("META_LEAD_ADS");
+        // Pass null — the strategy ignores this param and uses its @Value-injected secret
+        return strategy.handleVerificationChallenge(queryParams, null);
+    }
+
+    /**
+     * Handle Meta webhook POST asynchronously.
+     * Returns immediately after queuing; lead processing happens in background.
+     */
+    /**
+     * @param rawBody         webhook body (read by controller before async dispatch)
+     * @param signatureHeader value of X-Hub-Signature-256 header (read by controller from live request)
+     */
+    @Async("workflowTaskExecutor")
+    public void handleMetaWebhookAsync(String rawBody, String signatureHeader) {
+        try {
+            AdPlatformStrategy strategy = getStrategy("META_LEAD_ADS");
+
+            // Verify HMAC-SHA256 signature FIRST — uses only app secret, no DB lookup
+            if (!strategy.verifyWebhookSignature(signatureHeader, rawBody)) {
+                log.error("Meta webhook HMAC-SHA256 verification failed — request rejected");
+                return;
+            }
+
+            // Parse and process each leadgen event
+            JsonNode root = objectMapper.readTree(rawBody);
+            for (JsonNode entry : root.path("entry")) {
+                for (JsonNode change : entry.path("changes")) {
+                    if (!"leadgen".equals(change.path("field").asText())) continue;
+                    JsonNode val = change.path("value");
+                    String formId = val.path("form_id").asText(null);
+                    if (formId == null) continue;
+
+                    Optional<FormWebhookConnector> connectorOpt = connectorRepository
+                            .findByPlatformFormIdAndVendorAndIsActiveTrue(formId, "META_LEAD_ADS");
+
+                    if (connectorOpt.isEmpty()) {
+                        log.warn("No active META_LEAD_ADS connector for form_id={}", formId);
+                        continue;
+                    }
+                    processLeadsFromStrategy(strategy, rawBody, connectorOpt.get());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error processing Meta webhook", e);
+        }
+    }
+
+
+    // ── Google webhook handling ───────────────────────────────────────────────
+
+    /**
+     * Handle Google Lead Form webhook identified by googleKey (= connector.vendorId).
+     */
+    @Async("workflowTaskExecutor")
+    public void handleGoogleWebhookAsync(String googleKey, String rawBody) {
+        FormWebhookConnector connector = connectorRepository
+                .findByVendorIdAndIsActiveTrue(googleKey)
+                .orElse(null);
+
+        if (connector == null) {
+            log.warn("No active GOOGLE_LEAD_ADS connector for key={}", googleKey);
+            return;
+        }
+
+        if (!"GOOGLE_LEAD_ADS".equals(connector.getVendor())) {
+            log.warn("Connector {} is not a GOOGLE_LEAD_ADS connector", connector.getId());
+            return;
+        }
+
+        AdPlatformStrategy strategy = getStrategy("GOOGLE_LEAD_ADS");
+        processLeadsFromStrategy(strategy, rawBody, connector);
+    }
+
+    // ── Core processing ───────────────────────────────────────────────────────
+
+    private void processLeadsFromStrategy(AdPlatformStrategy strategy, String rawBody,
+            FormWebhookConnector connector) {
+        List<NormalizedLeadData> leads = strategy.extractAndFetchLeads(rawBody, connector);
+        for (NormalizedLeadData lead : leads) {
+            try {
+                submitNormalizedLead(lead, connector);
+            } catch (Exception e) {
+                log.error("Failed to submit lead {} from connector {}",
+                        lead.getPlatformLeadId(), connector.getId(), e);
+            }
+        }
+    }
+
+    // Note: @Transactional omitted intentionally — self-invocation from @Async bypasses AOP.
+    // audienceService.submitLeadFromFormWebhook() is itself @Transactional.
+    private void submitNormalizedLead(NormalizedLeadData lead, FormWebhookConnector connector) {
+        // Resolve routing rules to find actual audience
+        String audienceId = resolveAudience(lead, connector);
+        if (audienceId == null) {
+            log.info("No matching audience for lead {} — discarded per no_match_action",
+                    lead.getPlatformLeadId());
+            return;
+        }
+
+        // Build ProcessedFormDataDTO for AudienceService
+        Map<String, String> formFields = new LinkedHashMap<>(lead.getFields());
+        // Ensure standard keys are in formFields
+        if (StringUtils.hasText(lead.getEmail())) formFields.put("email", lead.getEmail());
+        if (StringUtils.hasText(lead.getPhone())) formFields.put("phoneNumber", lead.getPhone());
+        if (StringUtils.hasText(lead.getFullName())) formFields.put("fullName", lead.getFullName());
+
+        ProcessedFormDataDTO processedData = ProcessedFormDataDTO.builder()
+                .email(lead.getEmail())
+                .fullName(lead.getFullName())
+                .phone(lead.getPhone())
+                .formFields(formFields)
+                .metadata(Map.of(
+                        "platform_lead_id", lead.getPlatformLeadId() != null ? lead.getPlatformLeadId() : "",
+                        "source_type", lead.getSourceType() != null ? lead.getSourceType() : "",
+                        "is_test", String.valueOf(lead.isTestLead())
+                ))
+                .build();
+
+        audienceService.submitLeadFromFormWebhook(audienceId, processedData, connector.getVendor());
+        log.info("Lead {} submitted to audience {} via {}", lead.getPlatformLeadId(),
+                audienceId, connector.getVendor());
+    }
+
+    /**
+     * Evaluate routing rules JSON against the lead's fields to find the target audience.
+     * Falls back to connector.audienceId if no rules match.
+     *
+     * Routing rules format:
+     * {
+     *   "rules": [
+     *     {
+     *       "priority": 1,
+     *       "conditions": [{"field_key":"course","operator":"EQUALS","value":"Math"}],
+     *       "condition_logic": "AND",
+     *       "target_audience_id": "uuid"
+     *     }
+     *   ],
+     *   "default_audience_id": "uuid",
+     *   "no_match_action": "USE_DEFAULT"  // or "DISCARD"
+     * }
+     */
+    private String resolveAudience(NormalizedLeadData lead, FormWebhookConnector connector) {
+        String rulesJson = connector.getRoutingRulesJson();
+        if (!StringUtils.hasText(rulesJson)) {
+            return connector.getAudienceId();
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(rulesJson);
+            JsonNode rules = root.path("rules");
+
+            // Sort by priority ascending
+            List<JsonNode> sortedRules = new ArrayList<>();
+            rules.forEach(sortedRules::add);
+            sortedRules.sort(Comparator.comparingInt(r -> r.path("priority").asInt(Integer.MAX_VALUE)));
+
+            Map<String, String> fields = lead.getFields();
+
+            for (JsonNode rule : sortedRules) {
+                if (evaluateRule(rule, fields)) {
+                    return rule.path("target_audience_id").asText(null);
+                }
+            }
+
+            // No rule matched
+            String noMatchAction = root.path("no_match_action").asText("USE_DEFAULT");
+            if ("DISCARD".equals(noMatchAction)) return null;
+            return root.path("default_audience_id").asText(connector.getAudienceId());
+        } catch (Exception e) {
+            log.error("Failed to evaluate routing rules, using default audience", e);
+            return connector.getAudienceId();
+        }
+    }
+
+    private boolean evaluateRule(JsonNode rule, Map<String, String> fields) {
+        JsonNode conditions = rule.path("conditions");
+        String logic = rule.path("condition_logic").asText("AND");
+
+        List<Boolean> results = new ArrayList<>();
+        for (JsonNode cond : conditions) {
+            results.add(evaluateCondition(cond, fields));
+        }
+
+        // Empty conditions never match — prevents misconfigured rules from catching all leads
+        if (results.isEmpty()) return false;
+
+        if ("OR".equals(logic)) return results.stream().anyMatch(Boolean::booleanValue);
+        return results.stream().allMatch(Boolean::booleanValue);
+    }
+
+    private boolean evaluateCondition(JsonNode cond, Map<String, String> fields) {
+        String fieldKey = cond.path("field_key").asText(null);
+        String operator = cond.path("operator").asText("EQUALS");
+        String expected = cond.path("value").asText(null);
+
+        if (fieldKey == null || expected == null) return false;
+        String actual = fields.getOrDefault(fieldKey, "");
+
+        return switch (operator) {
+            case "EQUALS" -> expected.equalsIgnoreCase(actual);
+            case "NOT_EQUALS" -> !expected.equalsIgnoreCase(actual);
+            case "CONTAINS" -> actual.toLowerCase().contains(expected.toLowerCase());
+            case "NOT_CONTAINS" -> !actual.toLowerCase().contains(expected.toLowerCase());
+            case "STARTS_WITH" -> actual.toLowerCase().startsWith(expected.toLowerCase());
+            default -> false;
+        };
+    }
+
+    // ── OAuth / connector management ──────────────────────────────────────────
+
+    /**
+     * Save a new ad platform connector after OAuth completes.
+     * Called from MetaOAuthController after the user selects a page and configures mapping.
+     */
+    @Transactional
+    public FormWebhookConnector saveConnector(FormWebhookConnector connector,
+            OAuthTokenResult tokenResult) {
+        if (tokenResult != null && StringUtils.hasText(tokenResult.getAccessToken())) {
+            String encrypted = tokenEncryptionService.encrypt(tokenResult.getAccessToken());
+            connector.setOauthAccessTokenEnc(encrypted);
+            connector.setOauthTokenExpiresAt(tokenResult.getExpiresAt());
+        }
+        connector.setConnectionStatus("ACTIVE");
+        FormWebhookConnector saved = connectorRepository.save(connector);
+        log.info("Saved ad platform connector id={} vendor={}", saved.getId(), saved.getVendor());
+        return saved;
+    }
+
+    /**
+     * Refresh an expiring Meta token.
+     */
+    @Transactional
+    public void refreshMetaToken(FormWebhookConnector connector) {
+        if (connector.getOauthAccessTokenEnc() == null) return;
+        try {
+            String currentToken = tokenEncryptionService.decrypt(connector.getOauthAccessTokenEnc());
+            AdPlatformStrategy strategy = getStrategy(connector.getVendor());
+            Optional<OAuthTokenResult> result = strategy.refreshToken(connector, currentToken);
+            result.ifPresent(r -> {
+                connector.setOauthAccessTokenEnc(tokenEncryptionService.encrypt(r.getAccessToken()));
+                connector.setOauthTokenExpiresAt(r.getExpiresAt());
+                connectorRepository.save(connector);
+                log.info("Refreshed token for connector {}", connector.getId());
+            });
+        } catch (Exception e) {
+            log.error("Failed to refresh token for connector {}", connector.getId(), e);
+            connector.setConnectionStatus("TOKEN_EXPIRED");
+            connectorRepository.save(connector);
+        }
+    }
+}

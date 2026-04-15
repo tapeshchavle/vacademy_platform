@@ -26,6 +26,12 @@ import { useTitleStore } from '@/stores/useTitleStore';
 import { getTokenFromCookie, getTokenDecodedData } from '@/lib/auth/sessionUtility';
 import { TokenKey } from '@/constants/auth/tokens';
 import { useInstituteDetailsStore } from '@/stores/students/students-list/useInstituteDetailsStore';
+import { installChunkErrorHandler } from '@/lib/chunk-reload';
+
+// Recover stale tabs whose cached chunk URLs 404 after a new deploy.
+// Must run before React renders so failures during the first lazy import
+// are intercepted at the window level instead of bubbling to an error boundary.
+installChunkErrorHandler();
 
 // Initialize Amplitude as early as possible on client
 if (typeof window !== 'undefined') {
@@ -71,6 +77,13 @@ if (import.meta.env.VITE_ENABLE_SENTRY === 'true') {
             // (browser extensions, autofill, translation, etc.) — not actionable.
             "Failed to execute 'removeChild' on 'Node'",
             "Failed to execute 'insertBefore' on 'Node'",
+            // Stale-tab chunk load failures. We auto-reload via installChunkErrorHandler,
+            // so these are self-healing and should not reach Sentry.
+            'Failed to fetch dynamically imported module',
+            'Importing a module script failed',
+            'error loading dynamically imported module',
+            'Unable to preload CSS',
+            'ChunkLoadError',
         ],
         beforeSend(event) {
             try {
@@ -162,6 +175,22 @@ if (!rootElement.innerHTML) {
                         store.setInstituteLogo(cached.instituteLogoUrl);
                     }
                 }
+                {
+                    const store = useInstituteLogoStore.getState();
+                    if (store && store.setBrandingDisplay) {
+                        store.setBrandingDisplay({
+                            hideInstituteName: cached.hideInstituteName === true,
+                            logoWidthPx:
+                                typeof cached.logoWidthPx === 'number'
+                                    ? cached.logoWidthPx
+                                    : null,
+                            logoHeightPx:
+                                typeof cached.logoHeightPx === 'number'
+                                    ? cached.logoHeightPx
+                                    : null,
+                        });
+                    }
+                }
                 if (cached.tabIconFileId && !cached.tabIconUrl) {
                     const iconUrl = await getPublicUrl(cached.tabIconFileId || '');
                     if (iconUrl) {
@@ -204,6 +233,23 @@ if (!rootElement.innerHTML) {
                 const store = useInstituteLogoStore.getState();
                 if (store && store.setInstituteLogo) {
                     store.setInstituteLogo(logoUrl);
+                }
+            }
+
+            {
+                const store = useInstituteLogoStore.getState();
+                if (store && store.setBrandingDisplay) {
+                    store.setBrandingDisplay({
+                        hideInstituteName: data.hideInstituteName === true,
+                        logoWidthPx:
+                            typeof data.logoWidthPx === 'number'
+                                ? data.logoWidthPx
+                                : null,
+                        logoHeightPx:
+                            typeof data.logoHeightPx === 'number'
+                                ? data.logoHeightPx
+                                : null,
+                    });
                 }
             }
 

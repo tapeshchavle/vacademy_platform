@@ -100,7 +100,32 @@ interface RoutingConfig {
      * of the country picker dropdown.
      */
     comma_separated_preferred_country?: string;
+    /**
+     * When true, the institute name is hidden wherever the logo is rendered
+     * (login page, sidebar header). Useful when the logo already contains the
+     * institute name. Default (undefined / false): name is shown as before.
+     */
+    hide_institute_name?: boolean;
+    /**
+     * Optional explicit logo width in pixels. When set, overrides the default
+     * responsive logo sizing in the sidebar and login page. Leave unset to
+     * preserve existing behavior.
+     */
+    logo_width_px?: number;
+    /**
+     * Optional explicit logo height in pixels. When set, overrides the default
+     * responsive logo sizing in the sidebar and login page. Leave unset to
+     * preserve existing behavior.
+     */
+    logo_height_px?: number;
 }
+
+// UI-enforced caps so operators can't enter values that break the layout.
+export const LOGO_DIMENSION_LIMITS = {
+    minPx: 16,
+    maxWidthPx: 400,
+    maxHeightPx: 200,
+} as const;
 
 interface RoutingEntry extends RoutingConfig {
     id: string;
@@ -369,6 +394,88 @@ const ConfigFormSection = ({
                            onChange={e => onUpdate('font_family', e.target.value)} className="h-8 text-sm" />
                 </div>
             </div>
+
+            {/* Logo display controls — apply to sidebar + login on both admin and learner sides */}
+            <div className="rounded-md border border-slate-100 bg-slate-50/50 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                        <Label className="text-xs font-medium text-slate-700 cursor-pointer" htmlFor="switch-hide_institute_name">
+                            Hide institute name
+                        </Label>
+                        <p className="text-[11px] text-slate-400">
+                            Enable if your logo already contains the institute name. Hides
+                            the name in the sidebar and login page.
+                        </p>
+                    </div>
+                    <Switch
+                        id="switch-hide_institute_name"
+                        checked={!!config.hide_institute_name}
+                        onCheckedChange={v => onUpdate('hide_institute_name', v)}
+                    />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                        <Label className="text-xs text-slate-500">
+                            Logo width (px)
+                        </Label>
+                        <Input
+                            type="number"
+                            min={LOGO_DIMENSION_LIMITS.minPx}
+                            max={LOGO_DIMENSION_LIMITS.maxWidthPx}
+                            placeholder={`${LOGO_DIMENSION_LIMITS.minPx}–${LOGO_DIMENSION_LIMITS.maxWidthPx}`}
+                            value={config.logo_width_px ?? ''}
+                            onChange={e => {
+                                const raw = e.target.value;
+                                if (raw === '') {
+                                    onUpdate('logo_width_px', undefined);
+                                    return;
+                                }
+                                const n = Number(raw);
+                                if (!Number.isFinite(n)) return;
+                                const clamped = Math.max(
+                                    LOGO_DIMENSION_LIMITS.minPx,
+                                    Math.min(LOGO_DIMENSION_LIMITS.maxWidthPx, Math.round(n))
+                                );
+                                onUpdate('logo_width_px', clamped);
+                            }}
+                            className="h-8 text-sm"
+                        />
+                        <p className="text-[10px] text-slate-400">
+                            Leave blank to use default.
+                        </p>
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs text-slate-500">
+                            Logo height (px)
+                        </Label>
+                        <Input
+                            type="number"
+                            min={LOGO_DIMENSION_LIMITS.minPx}
+                            max={LOGO_DIMENSION_LIMITS.maxHeightPx}
+                            placeholder={`${LOGO_DIMENSION_LIMITS.minPx}–${LOGO_DIMENSION_LIMITS.maxHeightPx}`}
+                            value={config.logo_height_px ?? ''}
+                            onChange={e => {
+                                const raw = e.target.value;
+                                if (raw === '') {
+                                    onUpdate('logo_height_px', undefined);
+                                    return;
+                                }
+                                const n = Number(raw);
+                                if (!Number.isFinite(n)) return;
+                                const clamped = Math.max(
+                                    LOGO_DIMENSION_LIMITS.minPx,
+                                    Math.min(LOGO_DIMENSION_LIMITS.maxHeightPx, Math.round(n))
+                                );
+                                onUpdate('logo_height_px', clamped);
+                            }}
+                            className="h-8 text-sm"
+                        />
+                        <p className="text-[10px] text-slate-400">
+                            Leave blank to use default.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <Separator />
@@ -571,6 +678,9 @@ export default function WhiteLabelSettings({ isTab }: { isTab?: boolean }) {
                     mac_app_link: r.mac_app_link ?? undefined,
                     comma_separated_preferred_country:
                         r.comma_separated_preferred_country ?? undefined,
+                    hide_institute_name: r.hide_institute_name ?? undefined,
+                    logo_width_px: r.logo_width_px ?? undefined,
+                    logo_height_px: r.logo_height_px ?? undefined,
                 },
             };
         });
@@ -970,7 +1080,9 @@ function RoutingEntryCard({ entry }: { entry: RoutingEntry }) {
         entry.allow_signup != null || entry.allow_google_auth != null ||
         entry.allow_github_auth != null || entry.allow_email_otp_auth != null ||
         entry.allow_phone_auth != null || entry.allow_username_password_auth != null ||
-        entry.comma_separated_preferred_country
+        entry.comma_separated_preferred_country ||
+        entry.hide_institute_name != null ||
+        entry.logo_width_px != null || entry.logo_height_px != null
     );
 
     const preferredCountryCodes = parsePreferredCountriesString(
@@ -1038,6 +1150,9 @@ function RoutingEntryCard({ entry }: { entry: RoutingEntry }) {
                         <ConfigValue label="App Store" value={entry.app_store_app_link} />
                         <ConfigValue label="Windows" value={entry.windows_app_link} />
                         <ConfigValue label="Mac" value={entry.mac_app_link} />
+                        <ConfigValue label="Hide Institute Name" value={entry.hide_institute_name} />
+                        <ConfigValue label="Logo Width (px)" value={entry.logo_width_px} />
+                        <ConfigValue label="Logo Height (px)" value={entry.logo_height_px} />
                     </div>
                     {preferredCountryCodes.length > 0 && (
                         <div className="mt-3 border-t border-slate-200 pt-3">

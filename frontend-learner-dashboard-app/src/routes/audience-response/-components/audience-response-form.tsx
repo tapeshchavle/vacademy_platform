@@ -15,15 +15,12 @@ import { ModernCard, ModernCardHeader, ModernCardTitle } from "@/components/desi
 import { InstituteBrandingComponent } from "@/components/common/institute-branding";
 import { MyButton } from "@/components/design-system/button";
 import { FormControl, FormField, FormItem } from "@/components/ui/form";
-import { MyInput } from "@/components/design-system/input";
-import SelectField from "@/components/design-system/select-field";
 import PhoneInputField from "@/components/design-system/phone-input-field";
 import {
   FieldRenderType,
   getFieldRenderType,
-  getInputType,
-  parseDropdownOptions,
 } from "@/components/common/enroll-by-invite/-utils/custom-field-helpers";
+import { CustomFieldRenderer } from "@/components/common/custom-fields/CustomFieldRenderer";
 import { capitalise } from "@/utils/custom-field";
 import {
   getCountryCode,
@@ -117,24 +114,19 @@ const AudienceResponseForm = ({
       >,
       field: AssessmentCustomFieldOpenRegistration
     ) => {
-      if (field.field_type === "dropdown") {
-        defaults[field.field_key] = {
-          id: field.id,
-          name: field.field_name,
-          value: "",
-          is_mandatory: field.is_mandatory || false,
-          type: field.field_type,
-          config: field.config || "{}",
-        };
-      } else {
-        defaults[field.field_key] = {
-          id: field.id,
-          name: field.field_name,
-          value: "",
-          is_mandatory: field.is_mandatory || false,
-          type: field.field_type,
-        };
-      }
+      // Multi-input revamp (2026-04): always forward `config` and the parsed
+      // options so non-dropdown types (radio, date, file, checkbox, etc.) can
+      // read their metadata from `value.config` inside CustomFieldRenderer.
+      // Previously only dropdown fields carried `config`, so the shared
+      // renderer fell back to text input for everything else.
+      defaults[field.field_key] = {
+        id: field.id,
+        name: field.field_name,
+        value: "",
+        is_mandatory: field.is_mandatory || false,
+        type: field.field_type,
+        config: field.config || "{}",
+      };
       return defaults;
     },
     {}
@@ -486,131 +478,104 @@ const AudienceResponseForm = ({
                           formFields: formFields.map(f => f.field_key),
                           defaultValuesKeys: Object.keys(defaultValues)
                         });
-                        // Return a fallback field structure if value not found
-                        const renderType = getFieldRenderType(key, field.field_type || "text");
-                        
-                        // Render as text input if value not found
+                        // Fallback: render using the shared renderer with whatever
+                        // metadata we can derive from the field definition.
+                        const fallbackRenderType = getFieldRenderType(
+                          key,
+                          field.field_type || "text"
+                        );
                         return (
-                        <FormField
-                          key={key}
-                          control={form.control}
-                          name={`${key}.value`}
-                          render={({ field: formField }) => (
-                            <FormItem>
-                              <FormControl>
-                                <MyInput
-                                  inputType={getInputType(field.field_type || "text", renderType)}
-                                  inputPlaceholder={`Enter ${field.field_name}`}
-                                  input={formField.value || ""}
-                                  onChangeFunction={formField.onChange}
-                                  required={field.is_mandatory}
-                                  size="large"
-                                  label={capitalise(field.field_name)}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      );
+                          <FormField
+                            key={key}
+                            control={form.control}
+                            name={`${key}.value`}
+                            render={({ field: formField }) => (
+                              <FormItem>
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-subtitle font-regular">
+                                    {capitalise(field.field_name)}
+                                    {field.is_mandatory && (
+                                      <span className="text-danger-600"> *</span>
+                                    )}
+                                  </label>
+                                  <FormControl>
+                                    <CustomFieldRenderer
+                                      type={fallbackRenderType}
+                                      name={field.field_name}
+                                      value={formField.value || ""}
+                                      onChange={(val) => formField.onChange(val)}
+                                      config={field.config}
+                                      required={field.is_mandatory}
+                                    />
+                                  </FormControl>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        );
                       }
 
                       const renderType =
                         value.render_type ||
                         getFieldRenderType(key, value.type || field.field_type || "text");
 
-                      // Render Phone Input
+                      // Phone: use the specialized PhoneInputField with country-code detection
                       if (renderType === FieldRenderType.PHONE) {
                         const phoneCountryCode = getPhoneCountryCode();
                         return (
-                        <FormField
-                          key={key}
-                          control={form.control}
-                          name={`${key}.value`}
-                          render={() => (
-                            <FormItem>
-                              <FormControl>
-                                <PhoneInputField
-                                  label={capitalise(value.name)}
-                                  placeholder="123 456 7890"
-                                  name={`${key}.value`}
-                                  control={form.control}
-                                  country={phoneCountryCode}
-                                  required={value.is_mandatory}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      );
+                          <FormField
+                            key={key}
+                            control={form.control}
+                            name={`${key}.value`}
+                            render={() => (
+                              <FormItem>
+                                <FormControl>
+                                  <PhoneInputField
+                                    label={capitalise(value.name)}
+                                    placeholder="123 456 7890"
+                                    name={`${key}.value`}
+                                    control={form.control}
+                                    country={phoneCountryCode}
+                                    required={value.is_mandatory}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        );
                       }
 
-                      // Render Email
-                      if (renderType === FieldRenderType.EMAIL) {
-                        return (
-                        <FormField
-                          key={key}
-                          control={form.control}
-                          name={`${key}.value`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <MyInput
-                                  inputType="email"
-                                  inputPlaceholder="example@email.com"
-                                  input={field.value || ""}
-                                  onChangeFunction={field.onChange}
-                                  required={value.is_mandatory}
-                                  size="large"
-                                  label={capitalise(value.name)}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      );
-                      }
-
-                      // Render Dropdown
-                      if (value.type === "dropdown") {
-                        const options = parseDropdownOptions(value.config || "{}");
-                        return (
-                        <SelectField
-                          key={key}
-                          label={capitalise(value.name)}
-                          name={`${key}.value`}
-                          options={options}
-                          control={form.control}
-                          required={value.is_mandatory}
-                          className="!w-full"
-                        />
-                      );
-                      }
-
-                      // Render Text/Number Input
+                      // All other types — shared renderer handles text, number,
+                      // email, url, date, textarea, checkbox, radio, dropdown, file
                       return (
                         <FormField
-                        key={key}
-                        control={form.control}
-                        name={`${key}.value`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <MyInput
-                                inputType={getInputType(
-                                  value.type,
-                                  renderType
-                                )}
-                                inputPlaceholder={`Enter ${value.name}`}
-                                input={field.value || ""}
-                                onChangeFunction={field.onChange}
-                                required={value.is_mandatory}
-                                size="large"
-                                label={capitalise(value.name)}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
+                          key={key}
+                          control={form.control}
+                          name={`${key}.value`}
+                          render={({ field: formField }) => (
+                            <FormItem>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-subtitle font-regular">
+                                  {capitalise(value.name)}
+                                  {value.is_mandatory && (
+                                    <span className="text-danger-600"> *</span>
+                                  )}
+                                </label>
+                                <FormControl>
+                                  <CustomFieldRenderer
+                                    type={renderType}
+                                    name={value.name}
+                                    value={formField.value || ""}
+                                    onChange={(val) => formField.onChange(val)}
+                                    config={value.config}
+                                    options={value.comma_separated_options}
+                                    required={value.is_mandatory}
+                                  />
+                                </FormControl>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
                       );
                     })}
                   </>

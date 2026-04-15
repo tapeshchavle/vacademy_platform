@@ -39,6 +39,9 @@ def compose(shot_html: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
         - html: the final HTML with skills substituted and CSS/JS injected
         - invocations: list of {skill_id, valid, issues, version?} per tag seen
         - plugins: list of plugin IDs any skill requested (e.g. ["gsap"])
+        - audio_events: aggregated list of {role, t, volume_mul, skill_id}
+                        from every successful skill render — consumed by the
+                        Sound Planner to place concrete cues
         - succeeded: int count of valid renders
         - failed: int count of failed renders
     """
@@ -47,6 +50,7 @@ def compose(shot_html: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
     plugins_needed: set = set()
     aggregated_css: List[str] = []
     aggregated_js: List[str] = []
+    aggregated_audio_events: List[Dict[str, Any]] = []
 
     def _replace(match: re.Match) -> str:
         skill_id = match.group(1)
@@ -106,6 +110,7 @@ def compose(shot_html: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
         js_frag = rendered.get("js", "") or ""
         css_frag = rendered.get("css", "") or ""
         plugins = rendered.get("plugins", []) or []
+        audio_events = rendered.get("audio_events", []) or []
 
         if css_frag:
             aggregated_css.append(css_frag)
@@ -113,6 +118,9 @@ def compose(shot_html: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
             aggregated_js.append(js_frag)
         for p in plugins:
             plugins_needed.add(p)
+        for ev in audio_events:
+            if isinstance(ev, dict) and "role" in ev and "t" in ev:
+                aggregated_audio_events.append(ev)
 
         invocations.append({
             "skill_id": skill_id,
@@ -130,6 +138,7 @@ def compose(shot_html: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
             "html": shot_html,
             "invocations": [],
             "plugins": [],
+            "audio_events": [],
             "succeeded": 0,
             "failed": 0,
         }
@@ -161,6 +170,7 @@ def compose(shot_html: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
         "html": new_html,
         "invocations": invocations,
         "plugins": sorted(plugins_needed),
+        "audio_events": aggregated_audio_events,
         "succeeded": succeeded,
         "failed": failed,
     }

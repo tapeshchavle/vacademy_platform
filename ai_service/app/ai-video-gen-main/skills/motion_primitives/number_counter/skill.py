@@ -87,7 +87,14 @@ def render(params: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
         f'}}'
     )
 
-    return {"html": html, "css": css, "js": js, "plugins": ["gsap"]}
+    # Audio events: counter-start beep at the moment the number begins rolling,
+    # positive sting at the moment it lands on the target.
+    audio_events = [
+        {"role": "data_reveal", "t": round(delay, 3),            "volume_mul": 1.00, "skill_id": "number_counter"},
+        {"role": "ui_positive", "t": round(delay + duration, 3), "volume_mul": 0.90, "skill_id": "number_counter"},
+    ]
+
+    return {"html": html, "css": css, "js": js, "plugins": ["gsap"], "audio_events": audio_events}
 
 
 def _format_value(v: float, decimals: int) -> str:

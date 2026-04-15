@@ -40,6 +40,11 @@ export interface DomainRoutingResponse {
   // Comma-separated ISO 3166-1 alpha-2 country codes (e.g. "in,us,gb,au")
   // Drives the default selection and ordering of country options in phone inputs.
   commaSeparatedPreferredCountry?: string | null;
+  // White-label branding display settings. Default (undefined / null / false)
+  // preserves existing behavior: institute name visible, logo at default size.
+  hideInstituteName?: boolean | null;
+  logoWidthPx?: number | null;
+  logoHeightPx?: number | null;
 }
 
 export interface DomainRoutingError {
@@ -54,6 +59,10 @@ export interface CachedInstituteBranding {
   instituteLogoUrl: string | null;
   instituteThemeCode: string | null;
   homeIconClickRoute: string | null;
+  // White-label display overrides. `null` / `false` = default behavior.
+  hideInstituteName: boolean | null;
+  logoWidthPx: number | null;
+  logoHeightPx: number | null;
 }
 
 const BRANDING_CACHE_KEY = "InstituteBranding";
@@ -190,6 +199,14 @@ const normalizeBranding = (
   instituteLogoUrl: branding?.instituteLogoUrl ?? null,
   instituteThemeCode: branding?.instituteThemeCode ?? null,
   homeIconClickRoute: branding?.homeIconClickRoute ?? null,
+  hideInstituteName:
+    typeof branding?.hideInstituteName === "boolean"
+      ? branding.hideInstituteName
+      : null,
+  logoWidthPx:
+    typeof branding?.logoWidthPx === "number" ? branding.logoWidthPx : null,
+  logoHeightPx:
+    typeof branding?.logoHeightPx === "number" ? branding.logoHeightPx : null,
 });
 
 const readBrandingFromStorage = (): CachedInstituteBranding | null => {
@@ -233,6 +250,24 @@ const deriveBrandingFromInstituteDetails = (): CachedInstituteBranding | null =>
         parsed?.institute_theme_code ?? parsed?.instituteThemeCode ?? null,
       homeIconClickRoute:
         parsed?.home_icon_click_route ?? parsed?.homeIconClickRoute ?? null,
+      hideInstituteName:
+        typeof parsed?.hideInstituteName === "boolean"
+          ? parsed.hideInstituteName
+          : typeof parsed?.hide_institute_name === "boolean"
+            ? parsed.hide_institute_name
+            : null,
+      logoWidthPx:
+        typeof parsed?.logoWidthPx === "number"
+          ? parsed.logoWidthPx
+          : typeof parsed?.logo_width_px === "number"
+            ? parsed.logo_width_px
+            : null,
+      logoHeightPx:
+        typeof parsed?.logoHeightPx === "number"
+          ? parsed.logoHeightPx
+          : typeof parsed?.logo_height_px === "number"
+            ? parsed.logo_height_px
+            : null,
     });
   } catch (error) {
     console.warn(

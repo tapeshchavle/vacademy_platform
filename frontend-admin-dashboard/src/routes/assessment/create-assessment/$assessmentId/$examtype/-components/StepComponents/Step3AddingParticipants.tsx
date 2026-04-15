@@ -12,7 +12,6 @@ import {
     Copy,
     DotsSixVertical,
     DownloadSimple,
-    PencilSimple,
     Plus,
     TrashSimple,
 } from '@phosphor-icons/react';
@@ -36,7 +35,6 @@ import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-q
 import { useInstituteQuery } from '@/services/student-list-section/getInstituteDetails';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { getAssessmentDetails, handlePostStep3Data } from '../../-services/assessment-services';
 import { DashboardLoader } from '@/components/core/dashboard-loader';
 import { toast } from 'sonner';
@@ -54,6 +52,8 @@ import { Sortable, SortableDragHandle, SortableItem } from '@/components/ui/sort
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
 import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import { fetchInstituteDefaultFields } from '@/services/custom-field-mappings';
+import { AddCustomFieldDialog as SharedAddCustomFieldDialog, DropdownOption } from '@/components/common/custom-fields/AddCustomFieldDialog';
+import { CustomFieldRenderer } from '@/components/common/custom-fields/CustomFieldRenderer';
 type TestAccessFormType = z.infer<typeof testAccessSchema>;
 
 function getInitialAssessmentCustomFields() {
@@ -73,16 +73,6 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
     const instituteId = getInstituteId();
     const storeDataStep3 = useTestAccessStore((state) => state);
     const { savedAssessmentId } = useSavedAssessmentStore();
-    const [selectedOptionValue, setSelectedOptionValue] = useState('textfield');
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [textFieldValue, setTextFieldValue] = useState('');
-    const [dropdownOptions, setDropdownOptions] = useState<
-        {
-            id: string;
-            value: string;
-            disabled: boolean;
-        }[]
-    >([]);
 
     const { data: instituteDetails } = useSuspenseQuery(useInstituteQuery());
     const { batches_for_sessions } = instituteDetails || {};
@@ -289,17 +279,6 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
         setValue('open_test.custom_fields', updatedFields);
     };
 
-    const handleAddDropdownOptions = () => {
-        setDropdownOptions((prevOptions) => [
-            ...prevOptions,
-            {
-                id: String(prevOptions.length),
-                value: `option ${prevOptions.length + 1}`,
-                disabled: true,
-            },
-        ]);
-    };
-
     const handleAddOpenFieldValues = (type: string, name: string, oldKey: boolean) => {
         // Add the new field to the array
         const updatedFields = [
@@ -326,10 +305,6 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                 order: index, // Update order of remaining fields
             }));
         setValue('open_test.custom_fields', updatedFields);
-    };
-
-    const handleDeleteOptionField = (id: string) => {
-        setDropdownOptions((prevFields) => prevFields.filter((field) => field.id !== id));
     };
 
     const handleAddGender = (type: string, name: string, oldKey: boolean) => {
@@ -370,46 +345,19 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
         setValue('open_test.custom_fields', updatedFields);
     };
 
-    // Function to close the dialog
-    const handleCloseDialog = (type: string, name: string, oldKey: boolean) => {
-        // Create the new field
+    const handleAddCustomField = (type: string, name: string, oldKey: boolean, options?: DropdownOption[]) => {
         const newField = {
-            id: String(customFields.length), // Use the current array length as the new ID
+            id: String(customFields.length),
             type,
             name,
             oldKey,
-            ...(type === 'dropdown' && { options: dropdownOptions }), // Include options if type is dropdown
+            ...(options && { options: options.map((opt) => ({ id: String(opt.id), value: opt.value, disabled: true })) }),
             isRequired: true,
             key: '',
             order: customFields.length,
         };
-
-        // Add the new field to the array
         const updatedFields = [...customFields, newField];
-
-        // Update the form state
         setValue('open_test.custom_fields', updatedFields);
-
-        // Reset dialog and temporary values
-        setIsDialogOpen(false);
-        setTextFieldValue('');
-        setDropdownOptions([]);
-    };
-
-    const handleValueChange = (id: string, newValue: string) => {
-        setDropdownOptions((prevOptions) =>
-            prevOptions.map((option) =>
-                option.id === id ? { ...option, value: newValue } : option
-            )
-        );
-    };
-
-    const handleEditClick = (id: string) => {
-        setDropdownOptions((prevOptions) =>
-            prevOptions.map((option) =>
-                option.id === id ? { ...option, disabled: !option.disabled } : option
-            )
-        );
     };
 
     // Function that explicitly updates the order property of all fields
@@ -916,8 +864,8 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                                 <Plus size={32} /> Add School/College
                                             </MyButton>
                                         )}
-                                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                            <DialogTrigger>
+                                        <SharedAddCustomFieldDialog
+                                            trigger={
                                                 <MyButton
                                                     type="button"
                                                     scale="medium"
@@ -925,183 +873,10 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                                 >
                                                     <Plus size={32} /> Add Custom Field
                                                 </MyButton>
-                                            </DialogTrigger>
-                                            <DialogContent className="!w-[500px] p-0">
-                                                <h1 className="rounded-lg bg-primary-50 p-4 text-primary-500">
-                                                    Add Custom Field
-                                                </h1>
-                                                <div className="flex flex-col gap-4 px-4">
-                                                    <h1>
-                                                        Select the type of custom field you want to
-                                                        add:
-                                                    </h1>
-                                                    <RadioGroup
-                                                        defaultValue={selectedOptionValue}
-                                                        onValueChange={(value) =>
-                                                            setSelectedOptionValue(value)
-                                                        }
-                                                        className="flex items-center gap-6"
-                                                    >
-                                                        <div className="flex items-center space-x-2">
-                                                            <RadioGroupItem
-                                                                value="textfield"
-                                                                id="option-one"
-                                                            />
-                                                            <Label htmlFor="option-one">
-                                                                Text Field
-                                                            </Label>
-                                                        </div>
-                                                        <div className="flex items-center space-x-2">
-                                                            <RadioGroupItem
-                                                                value="dropdown"
-                                                                id="option-two"
-                                                            />
-                                                            <Label htmlFor="option-two">
-                                                                Dropdown
-                                                            </Label>
-                                                        </div>
-                                                    </RadioGroup>
-                                                    {selectedOptionValue === 'textfield' ? (
-                                                        <div className="flex flex-col gap-1">
-                                                            <h1>
-                                                                Text Field Name
-                                                                <span className="text-subtitle text-danger-600">
-                                                                    *
-                                                                </span>
-                                                            </h1>
-                                                            <MyInput
-                                                                inputType="text"
-                                                                inputPlaceholder="Type Here"
-                                                                input={textFieldValue}
-                                                                onChangeFunction={(e) =>
-                                                                    setTextFieldValue(
-                                                                        e.target.value
-                                                                    )
-                                                                }
-                                                                size="large"
-                                                                className="w-full"
-                                                            />
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex flex-col gap-1">
-                                                            <h1>
-                                                                Dropdown Name
-                                                                <span className="text-subtitle text-danger-600">
-                                                                    *
-                                                                </span>
-                                                            </h1>
-                                                            <MyInput
-                                                                inputType="text"
-                                                                inputPlaceholder="Type Here"
-                                                                input={textFieldValue}
-                                                                onChangeFunction={(e) =>
-                                                                    setTextFieldValue(
-                                                                        e.target.value
-                                                                    )
-                                                                }
-                                                                size="large"
-                                                                className="w-full"
-                                                            />
-                                                            <h1 className="mt-4">
-                                                                Dropdown Options
-                                                            </h1>
-                                                            <div className="flex flex-col gap-4">
-                                                                {dropdownOptions.map((option) => {
-                                                                    return (
-                                                                        <div
-                                                                            className="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-neutral-50 px-4 py-1"
-                                                                            key={option.id} // Use unique identifier
-                                                                        >
-                                                                            <MyInput
-                                                                                inputType="text"
-                                                                                inputPlaceholder={
-                                                                                    option.value
-                                                                                }
-                                                                                input={option.value}
-                                                                                onChangeFunction={(
-                                                                                    e
-                                                                                ) =>
-                                                                                    handleValueChange(
-                                                                                        option.id,
-                                                                                        e.target
-                                                                                            .value
-                                                                                    )
-                                                                                }
-                                                                                size="large"
-                                                                                disabled={
-                                                                                    option.disabled
-                                                                                }
-                                                                                className="border-none pl-0"
-                                                                            />
-                                                                            <div className="flex items-center gap-6">
-                                                                                <MyButton
-                                                                                    type="button"
-                                                                                    scale="medium"
-                                                                                    buttonType="secondary"
-                                                                                    className="h-6 min-w-6 !rounded-sm px-1"
-                                                                                    onClick={() =>
-                                                                                        handleEditClick(
-                                                                                            option.id
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    <PencilSimple
-                                                                                        size={32}
-                                                                                    />
-                                                                                </MyButton>
-                                                                                {dropdownOptions.length >
-                                                                                    1 && (
-                                                                                    <MyButton
-                                                                                        type="button"
-                                                                                        scale="medium"
-                                                                                        buttonType="secondary"
-                                                                                        onClick={() =>
-                                                                                            handleDeleteOptionField(
-                                                                                                option.id
-                                                                                            )
-                                                                                        }
-                                                                                        className="h-6 min-w-6 !rounded-sm px-1"
-                                                                                    >
-                                                                                        <TrashSimple className="!size-4 text-danger-500" />
-                                                                                    </MyButton>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                            <MyButton
-                                                                type="button"
-                                                                scale="small"
-                                                                buttonType="secondary"
-                                                                className="mt-2 w-20 min-w-4 border-none font-thin !text-primary-500"
-                                                                onClick={handleAddDropdownOptions}
-                                                            >
-                                                                <Plus size={18} />
-                                                                Add
-                                                            </MyButton>
-                                                        </div>
-                                                    )}
-                                                    <div className="mb-6 flex justify-center">
-                                                        <MyButton
-                                                            type="button"
-                                                            scale="medium"
-                                                            buttonType="primary"
-                                                            className="mt-4 w-fit"
-                                                            onClick={() =>
-                                                                handleCloseDialog(
-                                                                    selectedOptionValue,
-                                                                    textFieldValue,
-                                                                    false
-                                                                )
-                                                            }
-                                                        >
-                                                            Done
-                                                        </MyButton>
-                                                    </div>
-                                                </div>
-                                            </DialogContent>
-                                        </Dialog>
+                                            }
+                                            onAddField={handleAddCustomField}
+                                            existingFieldNames={customFieldsArray.map((f) => f.name)}
+                                        />
                                     </div>
                                     <Dialog>
                                         <DialogTrigger className="flex justify-start">
@@ -1122,58 +897,29 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                                 {customFields?.map((testInputFields, idx) => {
                                                     return (
                                                         <div
-                                                            className="flex flex-col items-start gap-4"
+                                                            className="flex w-full flex-col items-start gap-[0.4rem]"
                                                             key={idx}
                                                         >
-                                                            {testInputFields.type === 'dropdown' ? (
-                                                                <SelectField
-                                                                    label={testInputFields.name}
-                                                                    labelStyle="font-normal"
-                                                                    name={testInputFields.name}
-                                                                    options={
-                                                                        testInputFields?.options?.map(
-                                                                            (option, index) => ({
-                                                                                value: option.value,
-                                                                                label: option.value,
-                                                                                _id: index,
-                                                                            })
-                                                                        ) || []
-                                                                    }
-                                                                    control={form.control}
-                                                                    className="w-full font-thin"
-                                                                    required={
-                                                                        testInputFields.isRequired
-                                                                            ? true
-                                                                            : false
-                                                                    }
-                                                                />
-                                                            ) : (
-                                                                <div className="flex w-full flex-col gap-[0.4rem]">
-                                                                    <h1 className="text-sm">
-                                                                        {testInputFields.name}
-                                                                        {testInputFields.isRequired && (
-                                                                            <span className="text-subtitle text-danger-600">
-                                                                                *
-                                                                            </span>
-                                                                        )}
-                                                                    </h1>
-                                                                    <MyInput
-                                                                        inputType="text"
-                                                                        inputPlaceholder={
-                                                                            testInputFields.name
-                                                                        }
-                                                                        input=""
-                                                                        onChangeFunction={() => {}}
-                                                                        error={
-                                                                            form.formState.errors
-                                                                                .join_link?.message
-                                                                        }
-                                                                        size="large"
-                                                                        disabled
-                                                                        className="!min-w-full"
-                                                                    />
-                                                                </div>
-                                                            )}
+                                                            <h1 className="text-sm">
+                                                                {testInputFields.name}
+                                                                {testInputFields.isRequired && (
+                                                                    <span className="text-subtitle text-danger-600">
+                                                                        *
+                                                                    </span>
+                                                                )}
+                                                            </h1>
+                                                            <CustomFieldRenderer
+                                                                type={testInputFields.type}
+                                                                name={testInputFields.name}
+                                                                value=""
+                                                                disabled={true}
+                                                                options={testInputFields.options?.map(
+                                                                    (o) => o.value
+                                                                )}
+                                                                required={
+                                                                    testInputFields.isRequired
+                                                                }
+                                                            />
                                                         </div>
                                                     );
                                                 })}

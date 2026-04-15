@@ -4,9 +4,8 @@ import { GraduationCap, RotateCcw } from "lucide-react";
 import { FormProvider, UseFormReturn, useWatch } from "react-hook-form";
 import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import PhoneInputField from "@/components/design-system/phone-input-field";
-import SelectField from "@/components/design-system/select-field";
 import ComboboxField from "@/components/design-system/combobox-field";
-import { MyInput } from "@/components/design-system/input";
+import { CustomFieldRenderer } from "@/components/common/custom-fields/CustomFieldRenderer";
 import { MyButton } from "@/components/design-system/button";
 import { Calendar, CreditCard, Globe } from "@phosphor-icons/react";
 import { getDefaultPlanFromPaymentsData, PaymentPlan } from "../-utils/helper";
@@ -21,17 +20,9 @@ import {
 import axios from "axios";
 import {
   FieldRenderType,
-  getInputType,
   getFieldRenderType,
-  parseDropdownOptions,
 } from "../-utils/custom-field-helpers";
 import { capitalise } from "@/utils/custom-field";
-
-const getPlaceholder = (name: string) => {
-  const lower = name.toLowerCase().trim();
-  if (lower === "name") return "Full Name";
-  return capitalise(name);
-};
 import {
   getCountryCode,
   findCountryFieldKey,
@@ -547,7 +538,7 @@ const RegistrationStep = ({
                     ? value.render_type
                     : getFieldRenderType(key, value.type || "text");
 
-                  // Render Phone Input
+                  // Render Phone Input (keep special case for dynamic country-code detection)
                   if (renderType === FieldRenderType.PHONE) {
                     const phoneCountryCode = getPhoneCountryCode();
                     return (
@@ -573,117 +564,30 @@ const RegistrationStep = ({
                     );
                   }
 
-                  // Render Email - Simple input without OTP buttons
-                  if (renderType === FieldRenderType.EMAIL) {
-                    return (
-                      <FormField
-                        key={key}
-                        control={form.control}
-                        name={`${key}.value`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <MyInput
-                                inputType="email"
-                                inputPlaceholder={getPlaceholder(value.name)}
-                                input={field.value}
-                                onChangeFunction={field.onChange}
-                                required={value.is_mandatory}
-                                size="large"
-                                label={capitalise(value.name)}
-                                className="w-full"
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    );
-                  }
-
-                  // Render Dropdown
-                  // Skip City dropdown if we don't have city options (fallback to text input)
-                  if (
-                    renderType === FieldRenderType.DROPDOWN &&
-                    (!key.toLowerCase().includes("city") ||
-                      availableCityOptions.length > 0)
-                  ) {
-                    let dropdownOptions = value.comma_separated_options
-                      ? value.comma_separated_options
-                      : parseDropdownOptions(value.config || "{}");
-
-                    if (
-                      dropdownOptions.length === 0 &&
-                      value.comma_separated_options
-                    ) {
-                      if (Array.isArray(value.comma_separated_options)) {
-                        dropdownOptions = (
-                          value.comma_separated_options as unknown[]
-                        ).map((option: unknown, index: number) => {
-                          if (typeof option === "string") {
-                            return {
-                              _id: index,
-                              value: option,
-                              label: option,
-                            };
-                          }
-                          return option as {
-                            _id: number;
-                            value: string;
-                            label: string;
-                          };
-                        });
-                      }
-                    }
-
-                    return (
-                      <FormField
-                        key={key}
-                        control={form.control}
-                        name={`${key}.value`}
-                        render={() => (
-                          <FormItem>
-                            <FormControl>
-                              <SelectField
-                                label={capitalise(value.name)}
-                                name={`${key}.value`}
-                                options={dropdownOptions}
-                                control={form.control}
-                                required={value.is_mandatory}
-                                className="!w-full"
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    );
-                  }
-
-                  // Render State Dropdown if country is selected
+                  // Render State Dropdown if country is selected (keep combobox special case)
                   const isStateField =
                     key.toLowerCase().includes("state") &&
                     !key.toLowerCase().includes("statement");
 
                   if (isStateField && availableStateOptions.length > 0) {
-                          return (
-                            <ComboboxField
-                              key={key}
-                              label={capitalise(value.name)}
-                              name={`${key}.value`}
-                              options={availableStateOptions}
-                              control={form.control}
-                              required={value.is_mandatory}
-                              className="!w-full"
-                            />
-                          );
+                    return (
+                      <ComboboxField
+                        key={key}
+                        label={capitalise(value.name)}
+                        name={`${key}.value`}
+                        options={availableStateOptions}
+                        control={form.control}
+                        required={value.is_mandatory}
+                        className="!w-full"
+                      />
+                    );
                   }
 
-                  // Render City Dropdown
+                  // Render City Combobox if city options are available (keep special case)
                   const isCityField =
                     key.toLowerCase().includes("city") &&
                     !key.toLowerCase().includes("ethnicity");
 
-                  // If it's a city field and we have options, render combobox
-                  // Otherwise, it falls through to the default text input which is exactly what we want
                   if (isCityField && availableCityOptions.length > 0) {
                     return (
                       <ComboboxField
@@ -698,26 +602,34 @@ const RegistrationStep = ({
                     );
                   }
 
-                  // Render Text Input (default)
+                  // All other types — shared renderer handles text, number,
+                  // email, url, date, textarea, checkbox, radio, dropdown, file
                   return (
                     <FormField
                       key={key}
                       control={form.control}
                       name={`${key}.value`}
-                      render={({ field }) => (
+                      render={({ field: formField }) => (
                         <FormItem>
-                          <FormControl>
-                            <MyInput
-                              inputType={getInputType(value.type, renderType)}
-                              inputPlaceholder={getPlaceholder(value.name)}
-                              input={field.value}
-                              onChangeFunction={field.onChange}
-                              required={value.is_mandatory}
-                              size="large"
-                              label={capitalise(value.name)}
-                              className="!max-w-full !w-full"
-                            />
-                          </FormControl>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-subtitle font-regular">
+                              {capitalise(value.name)}
+                              {value.is_mandatory && (
+                                <span className="text-danger-600"> *</span>
+                              )}
+                            </label>
+                            <FormControl>
+                              <CustomFieldRenderer
+                                type={renderType}
+                                name={value.name}
+                                value={formField.value || ""}
+                                onChange={(val) => formField.onChange(val)}
+                                config={value.config}
+                                options={value.comma_separated_options}
+                                required={value.is_mandatory}
+                              />
+                            </FormControl>
+                          </div>
                         </FormItem>
                       )}
                     />
