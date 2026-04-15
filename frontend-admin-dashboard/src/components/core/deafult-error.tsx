@@ -5,19 +5,35 @@ import * as Sentry from '@sentry/react';
 import { MyButton } from '../design-system/button';
 import { removeCookiesAndLogout } from '@/lib/auth/sessionUtility';
 import { ErrorFeedbackDialog } from './error-feedback-dialog';
+import { isChunkLoadError, reloadForChunkError } from '@/lib/chunk-reload';
 
 function RootErrorComponent({ error }: { error?: unknown }) {
     const router = useRouter();
     const navigate = useNavigate();
     const [eventId, setEventId] = useState<string | undefined>(undefined);
+    const chunkError = isChunkLoadError(error);
 
     useEffect(() => {
+        if (chunkError) {
+            // Stale tab after a new deploy — fetch a fresh index.html instead
+            // of reporting to Sentry or showing the 500 page.
+            reloadForChunkError();
+            return;
+        }
         if (error && import.meta.env.VITE_ENABLE_SENTRY === 'true') {
             // Capture the error when the component mounts
             const id = Sentry.captureException(error);
             setEventId(id);
         }
-    }, [error]);
+    }, [error, chunkError]);
+
+    if (chunkError) {
+        return (
+            <div className="flex h-screen w-screen select-none items-center justify-center bg-gray-50 px-4 text-gray-700">
+                <p className="text-lg font-semibold">Updating application...</p>
+            </div>
+        );
+    }
 
     return (
         <>
