@@ -11,11 +11,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import vacademy.io.admin_core_service.features.audience.dto.AdConnectorSetupRequest;
+import vacademy.io.admin_core_service.features.audience.dto.ConnectorListItemDTO;
 import vacademy.io.admin_core_service.features.audience.dto.MetaPageDTO;
 import vacademy.io.admin_core_service.features.audience.dto.OAuthTokenResult;
 import vacademy.io.admin_core_service.features.audience.dto.PlatformFormField;
 import vacademy.io.admin_core_service.features.audience.entity.FormWebhookConnector;
 import vacademy.io.admin_core_service.features.audience.entity.OAuthConnectState;
+import vacademy.io.admin_core_service.features.audience.repository.FormWebhookConnectorRepository;
 import vacademy.io.admin_core_service.features.audience.repository.OAuthConnectStateRepository;
 import vacademy.io.admin_core_service.features.audience.service.AdPlatformWebhookService;
 import vacademy.io.admin_core_service.features.audience.service.TokenEncryptionService;
@@ -67,6 +69,7 @@ public class MetaOAuthController {
     private final MetaLeadAdsStrategy metaStrategy;
     private final AdPlatformWebhookService adPlatformWebhookService;
     private final OAuthConnectStateRepository stateRepository;
+    private final FormWebhookConnectorRepository connectorRepository;
     private final TokenEncryptionService tokenEncryptionService;
     private final ObjectMapper objectMapper;
 
@@ -369,6 +372,42 @@ public class MetaOAuthController {
                 "status", "ACTIVE",
                 "message", "Google Lead Form connector created. Paste the webhook_url in Google Ads."
         ));
+    }
+
+    // ── Connector list + deactivate (both platforms) ────────────────────────
+
+    /**
+     * List all active ad-platform connectors for an institute.
+     * Returns safe data — no encrypted tokens.
+     */
+    @GetMapping("/connectors")
+    public ResponseEntity<List<ConnectorListItemDTO>> listConnectors(
+            @RequestParam String instituteId) {
+        List<FormWebhookConnector> connectors = connectorRepository
+                .findByInstituteIdAndIsActiveTrue(instituteId);
+
+        List<ConnectorListItemDTO> result = connectors.stream()
+                .filter(c -> "META_LEAD_ADS".equals(c.getVendor())
+                        || "GOOGLE_LEAD_ADS".equals(c.getVendor()))
+                .map(ConnectorListItemDTO::from)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Deactivate (soft-delete) a connector. Leads will stop flowing immediately.
+     */
+    @DeleteMapping("/connectors/{connectorId}")
+    @Transactional
+    public ResponseEntity<Map<String, String>> deactivateConnector(
+            @PathVariable String connectorId) {
+        FormWebhookConnector connector = connectorRepository.findById(connectorId)
+                .orElseThrow(() -> new VacademyException("Connector not found"));
+        connector.setIsActive(false);
+        connector.setConnectionStatus("REVOKED");
+        connectorRepository.save(connector);
+        log.info("Deactivated connector id={} vendor={}", connectorId, connector.getVendor());
+        return ResponseEntity.ok(Map.of("status", "deactivated"));
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

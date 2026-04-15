@@ -1,6 +1,7 @@
 import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
 
 const BASE = '/admin-core-service/v1/oauth/meta';
+const WEBHOOK_BASE = '/admin-core-service/api/v1/webhook';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -87,3 +88,34 @@ export const saveGoogleConnector = async (
     const res = await authenticatedAxiosInstance.post(`${BASE}/google/connector`, request);
     return res.data;
 };
+
+// ── Connector list + deactivate ───────────────────────────────────────────
+
+export interface ConnectorListItem {
+    id: string;
+    vendor: string;
+    audienceId: string;
+    platformPageId: string | null;
+    platformFormId: string | null;
+    connectionStatus: string;
+    producesSourceType: string | null;
+    createdAt: string | null;
+    tokenExpiresAt: string | null;
+}
+
+/** List all active ad-platform connectors for an institute. */
+export const listConnectors = async (instituteId: string): Promise<ConnectorListItem[]> => {
+    const res = await authenticatedAxiosInstance.get(`${BASE}/connectors`, {
+        params: { instituteId },
+    });
+    return res.data;
+};
+
+/** Deactivate (soft-delete) a connector. */
+export const deactivateConnector = async (connectorId: string): Promise<void> => {
+    await authenticatedAxiosInstance.delete(`${BASE}/connectors/${connectorId}`);
+};
+
+/** Build the full Google webhook URL for display. */
+export const buildGoogleWebhookUrl = (googleKey: string): string =>
+    `${window.location.origin}${WEBHOOK_BASE}/google/${googleKey}`;
