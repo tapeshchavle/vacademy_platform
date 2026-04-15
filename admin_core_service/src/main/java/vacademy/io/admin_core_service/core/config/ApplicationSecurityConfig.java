@@ -75,6 +75,11 @@ public class ApplicationSecurityConfig {
             // validated internally
             "/admin-core-service/v1/agent/stream/**",
             "/admin-core-service/api/v1/audience/webhook/**",
+            // Ad platform webhook endpoints (Meta hub.challenge GET + POST, Google POST)
+            "/admin-core-service/api/v1/webhook/meta",
+            "/admin-core-service/api/v1/webhook/google/**",
+            // Meta OAuth callback (Meta redirects without Vacademy JWT)
+            "/admin-core-service/v1/oauth/meta/callback",
             "/admin-core-service/health/**",
             // Invoice test endpoints (for testing only)
             "/admin-core-service/v1/invoices/test/**",

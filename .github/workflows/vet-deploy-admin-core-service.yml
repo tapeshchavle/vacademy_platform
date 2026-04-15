@@ -95,7 +95,13 @@ jobs:
             "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" \
             "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
             "CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            "CLOUDFLARE_ZONE_ID=${{ secrets.CLOUDFLARE_ZONE_ID }}"
+            "CLOUDFLARE_ZONE_ID=${{ secrets.CLOUDFLARE_ZONE_ID }}" \
+            "META_APP_ID=${{ secrets.META_APP_ID }}" \
+            "META_APP_SECRET=${{ secrets.META_APP_SECRET }}" \
+            "META_WEBHOOK_VERIFY_TOKEN=${{ secrets.META_WEBHOOK_VERIFY_TOKEN }}" \
+            "META_OAUTH_REDIRECT_URI=${{ secrets.META_OAUTH_REDIRECT_URI }}" \
+            "META_OAUTH_FRONTEND_CALLBACK_URL=${{ secrets.META_OAUTH_FRONTEND_CALLBACK_URL }}" \
+            "OAUTH_TOKEN_ENCRYPTION_KEY=${{ secrets.OAUTH_TOKEN_ENCRYPTION_KEY }}"
 
       - name: Restart deployment
         env:

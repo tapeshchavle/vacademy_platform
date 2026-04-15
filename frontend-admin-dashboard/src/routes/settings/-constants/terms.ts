@@ -110,6 +110,7 @@ export const enum SettingsTabs {
     LeadSettings = 'leadSettings',
     GtmSettings = 'gtmSettings',
     Tnc = 'tnc',
+    Integrations = 'integrations',
 }
 
 export const DAYS_IN_MONTH = 30;

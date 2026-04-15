@@ -1,8 +1,10 @@
 # AI Video Generation — End-to-End Architecture
 
-**Status**: Living document. Last updated 2026-04-14.
+**Status**: Living document. Last updated 2026-04-15.
 **Audience**: Engineers working on the `ai_service` pipeline, admin/learner frontends, or the render server.
 **Scope**: The full "prompt → MP4" flow for VIDEO content, plus related content types (QUIZ, STORYBOOK, SLIDES, etc.) that share the same pipeline.
+
+**Recent architectural shift (2026-04)**: The Director LLM now owns all visual-style decisions per-shot. The old user-facing `visual_style` mode selector (`standard` / `illustrated_svg` / `product_showcase`) has been **removed from the UI and deprecated in the API** — the Director picks theme, background, shot type, and animation language per beat, and can freely shift styles across a long video's timeline. See §3.4 and §3.7 for the new flow.
 
 ---
 
@@ -27,14 +29,21 @@
  │    │                                                                         │
  │    ├── prompts.py                  → script/image-style prompts              │
  │    ├── shot_type_cards.py          → per-shot-type HTML/CSS/JS patterns      │
- │    ├── director_prompts.py         → shot-planning prompt                    │
+ │    ├── director_prompts.py         → shot-planning prompt + act planner      │
+ │    ├── skill_registry.py           → motion-primitive registry (Phase 1)     │
+ │    ├── skill_composer.py           → <skill> tag → rendered HTML/CSS/JS      │
+ │    ├── skills/**/skill.py          → 6 starter motion primitives             │
  │    ├── _generate_script_plan       → LLM call #1: narration + beat outline   │
  │    ├── TTS (ElevenLabs/Sarvam/Edge)→ audio + word timestamps                 │
  │    ├── _generate_style_guide       → LLM call #2: palette, background        │
- │    ├── _run_director               → LLM call #3: shot-by-shot plan          │
+ │    ├── _run_act_planner            → LLM call #3a (super_ultra): act arc     │
+ │    ├── _run_director               → LLM call #3b: shot-by-shot plan         │
+ │    ├── _build_shot_pack            → shared design tokens for all shots      │
  │    ├── _shot_task (parallel)       → LLM call #4…N: one per shot             │
+ │    ├── skill composer pass         → substitute <skill> tags                 │
+ │    ├── _validate_shot_animation_density → regen sparse shots (super_ultra)   │
  │    ├── _process_generated_images   → Gemini / Pexels for images              │
- │    ├── _process_stock_videos       → Pexels stock video                      │
+ │    ├── _process_stock_videos       → Pexels + LLM ranker (super_ultra)       │
  │    └── _ensure_fonts               → inject CSS + SVG defs                   │
  │    │                                                                         │
  │    ▼                                                                         │
@@ -76,11 +85,15 @@ Both playback paths consume **identical** HTML/CSS/JS. The pipeline generates on
 | `app/services/video_generation_service.py` | Business logic: credits, persistence, stage dispatch, background task management. Two overloads of `generate_till_stage()`. |
 | `app/services/token_usage_service.py` | Credit charges and refund-on-failure. |
 | `app/services/render_service.py` | Thin HTTP client for the external render server. |
-| `app/ai-video-gen-main/automation_pipeline.py` | The pipeline orchestrator. **`run()`** is the main entry point. ~6000 lines — it owns the full script→audio→HTML→timeline lifecycle. |
+| `app/ai-video-gen-main/automation_pipeline.py` | The pipeline orchestrator. **`run()`** is the main entry point. ~6300 lines — owns the full script→audio→HTML→timeline lifecycle. |
 | `app/ai-video-gen-main/prompts.py` | Script-generation system & user prompts, `TOPIC_SHOT_PROFILES`, image-style classification. |
-| `app/ai-video-gen-main/shot_type_cards.py` | Per-shot-type reference cards (HTML templates, script blocks, guidelines). `CORE_PREAMBLE` documents all CSS utilities. `DOMAIN_SHOT_TYPES` maps subject domains → shot types. |
-| `app/ai-video-gen-main/director_prompts.py` | Director LLM prompts (shot planning). Builds user prompt from beat outline + word timestamps. |
-| `app/ai-video-gen-main/generate_video.py` | The Playwright render engine. Loads HTML, advances GSAP timeline, screenshots each frame, emits MP4. Not actually called from `ai_service` — runs as its own render server. |
+| `app/ai-video-gen-main/shot_type_cards.py` | Per-shot-type reference cards (HTML templates, script blocks, guidelines). `CORE_PREAMBLE` documents all CSS utilities. `build_per_shot_system_prompt(shot_type)` builds a focused prompt with just the relevant card. |
+| `app/ai-video-gen-main/director_prompts.py` | Director LLM prompts. Exports `DIRECTOR_SYSTEM_PROMPT`, `SUPER_ULTRA_DIRECTOR_EXTENSION` (few-shot examples), `ACT_PLANNER_SYSTEM_PROMPT`, `build_director_user_prompt()`, `build_act_planner_user_prompt()`, `build_emphasis_map()`. |
+| `app/ai-video-gen-main/skill_registry.py` | Filesystem-discovered registry for motion-primitive skills. Loads `skills/**/skill.py`, validates METADATA/PARAMS_SCHEMA/render(), caches once per process. Exposes `get_registry()`, `build_catalog_for_shot()`, `validate_params()`. |
+| `app/ai-video-gen-main/skill_composer.py` | Pure function `compose(shot_html, ctx)` that scans for `<skill>` tags, validates params, renders each skill, and substitutes inline. Aggregates CSS/JS into the final HTML. |
+| `app/ai-video-gen-main/skills/**/skill.py` | Individual motion primitive modules (6 shipped — `bar_chart_grow`, `number_counter`, `typewriter_text`, `equation_term_reveal`, `stagger_list`, `ring_progress`). Drop-in: add a folder, no pipeline changes. |
+| `app/ai-video-gen-main/pexels_service.py` | Pexels stock photo + video client. Exposes `search_videos()` (legacy single-pick) and `search_video_candidates()` (returns N candidates for LLM ranking). |
+| `app/ai-video-gen-main/generate_video.py` | The Playwright render engine. Loads HTML, advances GSAP timeline, screenshots each frame, emits MP4. Not called from `ai_service` — runs as its own render server. |
 | `app/ai-video-gen-main/content_type_prompts.py` | Per-content-type prompt overrides (QUIZ, STORYBOOK, SIMULATION, etc.). |
 | `app/ai-video-gen-main/map_assets.py` | Pre-built SVG maps (world, countries, regions) the LLM can reference. |
 | `app/repositories/ai_video_repository.py` | DB persistence. |
@@ -91,7 +104,7 @@ Both playback paths consume **identical** HTML/CSS/JS. The pipeline generates on
 |------|---------------|
 | `src/routes/video-api-studio/index.tsx` | Video API studio landing page. |
 | `src/routes/video-api-studio/console/index.tsx` | Generation console — prompt input + live SSE progress + result. |
-| `src/routes/video-api-studio/-components/PromptInput.tsx` | The big prompt+options composer. Houses the VisualStyle selector, Quality tier, language, voice, reference files, etc. |
+| `src/routes/video-api-studio/-components/PromptInput.tsx` | The big prompt+options composer. Houses Quality tier, language, voice, reference files, orientation, captions, model picker. **No Visual Style selector** — the Director owns style decisions now. |
 | `src/routes/video-api-studio/-components/ContentSelector.tsx` | Content type picker (VIDEO/QUIZ/STORYBOOK/...). |
 | `src/routes/video-api-studio/-components/VideoResult.tsx` | Shows the generated result (AIVideoPlayer). |
 | `src/routes/video-api-studio/-components/HistorySidebar.tsx` | Past generations list. |
@@ -144,7 +157,6 @@ Same AIVideoPlayer module (copy-pasted — no shared package):
   "tts_provider": "standard",
   "voice_id": null,
   "orientation": "landscape",
-  "visual_style": "standard",
   "model": "openai/gpt-4o",
   "video_id": null,
   "reference_files": [
@@ -152,6 +164,8 @@ Same AIVideoPlayer module (copy-pasted — no shared package):
   ]
 }
 ```
+
+> **Deprecated field**: `visual_style` (`standard` / `illustrated_svg` / `product_showcase`) is still accepted on the request body for API back-compat but **no longer gates behavior**. The Director now picks style per-shot. Old clients sending the field won't break; the pipeline ignores the value. Will be removed in a future major version.
 
 **Response**: `StreamingResponse` (Server-Sent Events). The route starts a background task and streams progress events:
 
@@ -247,16 +261,17 @@ def run(
     reference_context: Optional[Dict] = None,
     video_width: int = 1920,
     video_height: int = 1080,
-    visual_style: str = "standard",
+    visual_style: str = "standard",  # deprecated — accepted for back-compat, immediately deleted
 ) -> Dict[str, Any]:
     ...
-    self._current_visual_style = visual_style  # pipeline mode (NOT image style)
+    del visual_style  # no longer gates behavior — Director picks style per-shot
+    self._used_pexels_video_ids = set()  # dedup for LLM-ranked stock video
     ...
 ```
 
-**Critical invariant**: `self._current_visual_style` holds the **pipeline MODE** (`standard` / `illustrated_svg` / `product_showcase`). It is **not** the image style (`realistic cinematic photograph` / `flat vector illustration` etc.), which is stored separately in `self._current_image_style` (set at line ~1359 from the LLM's script plan).
+**Style ownership** (2026-04 change): Style decisions (theme, background, animation character) used to be a global pipeline mode driven by the user's `visual_style` request. That model broke down for long, multi-act videos. The Director now owns these decisions per-shot and can shift worlds across the timeline (e.g. photo-hero opener → illustrated infographic middle → product-hero outro). Shot types like `INFOGRAPHIC_SVG`, `PRODUCT_HERO`, and `KINETIC_TITLE` are no longer mode-gated — they're freely pickable by the Director when the content calls for them.
 
-**Do not collapse the two.** Overwriting `_current_visual_style` with the image-style string silently breaks mode dispatch in `_run_director` and `_shot_task`. An inline comment at [automation_pipeline.py:1352](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L1352) documents this rule.
+**The one surviving distinction**: `self._current_image_style` still holds the LLM-picked **image style** (`"realistic cinematic photograph"` / `"flat vector illustration"` / `"watercolor painting"` / etc.) used as a prefix for AI image generation prompts. This comes from the script plan at [automation_pipeline.py:1358](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L1358) and is **distinct from anything shot-related** — it's just a consistent photo-style filter applied to every `<img data-img-prompt>` tag in the run.
 
 ### 3.2 Pipeline stages
 
@@ -274,84 +289,99 @@ Each stage yields progress events via callback → SSE → frontend.
 
 ### 3.3 `QUALITY_TIERS`
 
-Defined at [automation_pipeline.py:268](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L268). Controls per-tier feature gates:
+Defined at [automation_pipeline.py:268](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L268). Controls per-tier feature gates.
 
-| Tier | Temperature | Two-pass script review | HTML validation | Image prompt enhancement | Director | Kinetic text | Motion bias |
-|------|------------|------------------------|-----------------|--------------------------|----------|--------------|-------------|
-| `free` | 0.5/0.7 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `standard` | 0.5/0.7 | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| `premium` | 0.6/0.7 | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| `ultra` | 0.6/0.7 | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| `super_ultra` | 0.6/0.82 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+**Core feature gates:**
 
-- **`use_director`**: enables the three-stage LLM flow (script → director plan → per-shot HTML) vs the legacy single-stage flow. `premium` and above use the director.
-- **`kinetic_text_shots`**: pipeline builds `KINETIC_TEXT` shots deterministically (word-by-word sync) instead of asking the LLM. `super_ultra` only.
-- **`director_motion_bias`**: director is instructed to target reel-pace (2–4s shots, 50%+ motion-graphics types). `super_ultra` only.
+| Tier | Director | HTML validation | Image enhance | Kinetic text | Motion bias |
+|------|----------|-----------------|---------------|--------------|-------------|
+| `free` | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `standard` | ❌ | ✅ | ❌ | ❌ | ❌ |
+| `premium` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `ultra` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `super_ultra` | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+**Director tokens & advanced flags (2026-04):**
+
+| Tier | `director_max_tokens` | Shot pack | Emphasis map | Few-shot | Shot density | Two-pass | Anim validator | Stock video rank | Skill library |
+|------|----------------------:|-----------|--------------|----------|--------------|----------|----------------|------------------|---------------|
+| `premium` | 20,000 | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `ultra` | 32,000 | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `super_ultra` | 40,000 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+- **`use_director`**: enables the three-stage LLM flow (script → director plan → per-shot HTML) vs legacy single-stage. Premium+ uses the director.
+- **`director_max_tokens`**: output cap for the Director call. Bumped from 8k/12k/14k → 20k/32k/40k to handle 50+ shot plans without truncation.
+- **`shot_pack_enabled`**: injects a shared design-token pack (colors, fonts, spacing, eases, layout grid) into every shot prompt. Kills cross-shot drift. See §3.8.
+- **`director_emphasis_map`**: computes audio-derived silence gaps + long-word peaks + sentence starts and injects them into the Director prompt so it can anchor shot boundaries on real pacing signals. See §3.7.
+- **`director_few_shot`**: appends `SUPER_ULTRA_DIRECTOR_EXTENSION` (two hand-written worked examples — portrait travel reel + landscape physics explainer) to the Director system prompt.
+- **`director_shot_density`**: requires the Director to emit `shot_density` ("fast"/"medium"/"slow") + `pacing_rationale` fields. Pipeline compares self-report to actual avg shot duration and logs a mismatch warning.
+- **`director_two_pass`**: runs the Act Planner (pass 1) before the Shot Planner (pass 2). The Act Planner divides the video into 2-5 acts with `style_direction` + `emotional_beat` + `transition_out`. The shot planner expands each act. Writes `act_plan.json` to the run dir. See §3.7.
+- **`shot_animation_validator`**: post-generation scan that counts GSAP tweens in the shot HTML and checks sync-point honoring. Fires ONE corrective regeneration if the shot is thin. See §3.8.
+- **`stock_video_ranking`**: fetches 5-6 Pexels candidates per shot, dedupes against `_used_pexels_video_ids`, and runs a small LLM ranker against the shot's narration/visual direction to pick the best clip. See §3.10.
+- **`skill_library_enabled`**: injects a filtered skill catalog into the per-shot system prompt and runs the skill composer on the returned HTML. Ultra and super_ultra only. See §3.13.
+- **`kinetic_text_shots`**: pipeline builds `KINETIC_TEXT` shots deterministically (word-by-word sync) instead of asking the LLM. Super_ultra only.
+- **`director_motion_bias`**: director is instructed to target reel-pace (2–4s shots, 50%+ motion-graphics types). Super_ultra only.
 - **`crossfade_duration`**: pipeline inserts 0.35s crossfade transitions between shots on `premium`+.
 
-### 3.4 `visual_style` — pipeline modes
+### 3.4 Visual style — Director-owned per-shot (2026-04)
 
-Three modes, all independent of `quality_tier`:
+**The old mental model** (pre-2026-04): user picks `visual_style` mode, pipeline locks the whole video into one style with global background/palette/shot-type restrictions.
 
-#### 3.4.1 `standard`
+**The new mental model**: the Director LLM gets the full shot-type catalog and all relevant CSS utilities, and decides per-beat which visual family to draw from. A single video can open with a cinematic `VIDEO_HERO`, cut to an `INFOGRAPHIC_SVG` for a data moment, shift to a `PRODUCT_HERO` for a brand callout, and close with a `KINETIC_TITLE` — all in one timeline, all coherent because the Director plans the transitions.
 
-Default. Mixed photos + stock video + motion graphics. No mode overrides. The Director picks from the full shot-type catalog based on `subject_domain`.
+#### 3.4.1 What changed in the pipeline
 
-#### 3.4.2 `illustrated_svg`
+- **`_generate_style_guide`** no longer has `if visual_style == "illustrated_svg"` / `"product_showcase"` branches. One palette, one base background, end of mode dispatch. The style guide provides brand colors and a base surface; individual shots can override their root background via shot-type classes (`.svg-canvas`, `.product-stage`).
+- **`_run_director`** no longer restricts the shot-type catalog or injects mode-specific "ABSOLUTE RULES" system prompts. The Director sees the full catalog of 14 shot types and picks freely. The super_ultra motion-bias extension still applies.
+- **`_shot_task`** mode branches were rewritten to fire on **shot type**, not global mode:
+  - `PRODUCT_HERO` shots get the layered-stage composition constraints ([automation_pipeline.py:3980](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3980))
+  - `INFOGRAPHIC_SVG` / `KINETIC_TITLE` shots get the pure-SVG constraints ([automation_pipeline.py:3999](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3999))
+  - All other shot types run with just their shot-type card
+- **`_ensure_fonts`** now always injects all CSS (Bebas Neue + `.svg-canvas` + `.product-stage` + `.paper-texture` + `.flat-badge` + `.tech-annotation` + all other professional utilities). No more conditional gating — the Director may pick any shot type at any time and the CSS must be there.
+- **Image/video skip** is driven per-shot by whether the Director emits `image_prompt`/`video_query` for that shot. The old global `no_photos` flag was removed along with the mode branches.
 
-Pure SVG infographic mode. Think "How to Play Volleyball" explainer or MacBook Neo blueprint.
+#### 3.4.2 Director system prompt — shot catalog
 
-**Style guide overrides** ([automation_pipeline.py:2836](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L2836)):
-- Background → `#f5f0e8` (cream)
-- `grid_pattern` → `True`
-- `no_photos` → `True`
-- `background_type` → `"white"` (closest preset for CSS defaults)
+The Director sees all 14 shot types in one flat catalog (see [director_prompts.py](../../ai_service/app/ai-video-gen-main/director_prompts.py) `DIRECTOR_SYSTEM_PROMPT`). Two former-mode-gated shot types are now freely available:
 
-**Director override** ([automation_pipeline.py:3290](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3290)):
-- Restricted shot types: `INFOGRAPHIC_SVG`, `KINETIC_TITLE`, `KINETIC_TEXT` only
-- `image_prompt: null`, `video_query: null` on every shot
-- First shot must be `KINETIC_TITLE`
+- **`INFOGRAPHIC_SVG`** — pure SVG diagram that draws itself on screen via `stroke-dashoffset`. Uses its own cream+grid canvas via the `.svg-canvas` root class. Pick when the beat is better drawn than photographed (courts, anatomy, process flows, maps, how-to mechanics).
+- **`KINETIC_TITLE`** — full-screen bold typography, word-wipe reveal, one accent-color word. Hooks, section intros, outros. Also works as a **hard cut between style worlds** — e.g. from a photo-hero act into an illustrated infographic act.
 
-**Per-shot HTML constraints** ([automation_pipeline.py:3638](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3638)):
-- Root: `<div class='svg-canvas paper-texture'><div class='stage-drift'>...</div></div>`
-- No `<img>`, `<video>`, or external URLs
-- Palette: `var(--brand-primary)`, `var(--brand-accent)` only (plus red `.tech-annotation` as utility color)
-- All line art wrapped in `<g filter='url(#roughen)'>`
-- Multi-node diagrams must use the **blueprint-draft two-phase pattern** (dashed guide → solid overlay)
-- Mandatory `.stage-drift` hold-drift tween (12s loop)
-- Scene exit must use zoom-through OR vignette pattern — never static
+#### 3.4.3 Director Rule 12 (updated)
 
-**CSS utilities available** (injected by `_ensure_fonts`):
-`.svg-canvas`, `.paper-texture` (+`.strong`), `.flat-badge` (+`.light`/`.dark`), `.slam-wrapper`, `.slam-text`, `.tracking-label`, `.display-xl`, `.display-lg`, `.accent-word`, `.bg-watermark`, `.stage-drift`, `.draft-guide`, `.solid-overlay`, `.tech-annotation` (+`-label`/`-caption`), `.vignette-overlay`, `.halftone` (+`-light`), `.product-stage`.
+The old Rule 12 said *"never mix dark and cream backgrounds in a single video."* The new Rule 12 says:
 
-**SVG filters** (in global defs block prepended by `_ensure_fonts`): `#roughen`, `#roughen-strong`.
+> **You own the visual style.** You decide the theme, background, and animation language for each shot — and whether they stay consistent or shift across the timeline. Coherence is usually good (matching shot families within an act), but a long video CAN change worlds between acts (e.g. photo hero → illustrated infographic → product hero outro) as long as each transition feels intentional. Use KINETIC_TITLE or a hard cut between shots to mark act changes.
 
-**Fonts**: Bebas Neue is conditionally loaded when `style_guide.visual_style == "illustrated_svg"`.
+#### 3.4.4 Shot-type visual families (reference)
 
-#### 3.4.3 `product_showcase`
+For quick mental mapping, the shot-type catalog groups into these visual families (not enforced — just how a Director might think about them):
 
-Single hero product/subject stays fixed center-stage while background layers crossfade behind. Think Converse Chuck Taylor brand reel.
+| Family | Shot types | Root surface | When the Director picks it |
+|--------|-----------|--------------|----------------------------|
+| **Cinematic photo** | `VIDEO_HERO`, `IMAGE_HERO`, `IMAGE_SPLIT` | Stage bg from style_guide | Real-world hooks, location establishers, hero openers |
+| **Pure SVG infographic** | `INFOGRAPHIC_SVG`, `KINETIC_TITLE` | `.svg-canvas` (cream + grid + paper grain) | Diagrams, sports, blueprints, mechanical how-to, concept-first openers |
+| **Product stage** | `PRODUCT_HERO` | `.product-stage` (layered bg acts) | Brand reels, product stories, origin stories |
+| **Motion graphics** | `TEXT_DIAGRAM`, `PROCESS_STEPS`, `DATA_STORY`, `EQUATION_BUILD`, `ANIMATED_ASSET`, `KINETIC_TEXT` | Varies (dark / palette-driven) | Core explanations, stats, formulas, stepped workflows |
+| **Overlay** | `LOWER_THIRD`, `ANNOTATION_MAP` | Floats over other shots | Vocabulary callouts, labeled diagrams |
 
-**Style guide overrides** ([automation_pipeline.py:2820](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L2820)):
-- Background → `#f2f0ec` (warm off-white stage)
-- Enforces brand palette
+A well-planned Director output often concentrates shots within one family for an **act**, then uses a KINETIC_TITLE as a hard cut into the next family. This is the mechanism by which a single video can legitimately span multiple visual worlds without feeling incoherent.
 
-**Director override**: Primary shot type is `PRODUCT_HERO`. Never uses `VIDEO_HERO` / `IMAGE_HERO` / `IMAGE_SPLIT` / `ANNOTATION_MAP`. Mix in `KINETIC_TITLE`, `DATA_STORY`, `LOWER_THIRD` for variety. All shots share the same hero subject image.
+#### 3.4.5 CSS utilities reference (always-on)
 
-**Per-shot HTML constraints** ([automation_pipeline.py:3618](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3618)):
-- Root: `<div class='product-stage'>` containing stacked z-indexed layers
-- Subject image: `data-cutout='true'`, centered, bottom 22%, z-index 10
-- 3 background layers at z-index 0/1/2, crossfading via GSAP opacity tweens
-- Text group wrapped in `.stage-drift` for subtle parallax (subject stays anchored)
-- Badge: `<div class='flat-badge'>` with Bebas Neue, zero border-radius
-- Bottom tagline: `<div class='slam-wrapper'><div class='slam-text'>` with `translateY:100%→0%` + `expo.out`
+All injected by `_ensure_fonts` regardless of tier or shot type. The Director can reach for any of them at any moment:
+
+`.full-screen-center`, `.layout-split`, `.layout-bento`, `.highlight`, `.emphasis`, `.product-stage`, `.halftone` (+`-light`), `.flat-badge` (+`.light`/`.dark`), `.slam-wrapper`/`.slam-text`, `.tracking-label`, `.display-xl`/`.display-lg`, `.accent-word`, `.bg-watermark`, `.stage-drift`, `.svg-canvas`, `.paper-texture` (+`.strong`), `.draft-guide`/`.solid-overlay`, `.tech-annotation` (+`-label`/`-caption`), `.vignette-overlay`.
+
+**SVG filters** in the global `<defs>` block: `#roughen`, `#roughen-strong`.
+
+**Fonts** always loaded: Montserrat (headings), Inter (body), Fira Code (code), **Bebas Neue** (display — no longer gated on illustrated mode).
 
 ### 3.5 Script generation — `_generate_script_plan()`
 
 - Uses `prompts.py::get_script_system_prompt()` and `SCRIPT_USER_PROMPT_TEMPLATE`.
 - Returns structured JSON: `title`, `audience`, `target_grade`, `subject_domain`, `visual_style` (LLM-picked image style — not mode), `script`, `key_takeaway`, `common_mistake`, `beat_outline[]`, `cta`, `questions[]`.
 - Each beat carries: `label`, `narration`, `summary`, `visual_type`, `visual_idea`, `image_prompt_hint`, `key_terms[]`, `emotion`, `pacing`, `transition_hint`, `complexity_level`, `needs_recap`.
-- The pipeline appends a **narrative-tone hint** to the user prompt when `_current_visual_style != "standard"` ([automation_pipeline.py:1697](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L1697)) so the LLM writes a script that matches the chosen mode (e.g. step-based/drawable for illustrated, hero-subject-orbit for product_showcase).
 - On `premium`+, a second LLM call (`SCRIPT_REVIEW_SYSTEM_PROMPT`) reviews and improves the draft.
 - MCQ questions are generated for each substantive beat (skipping Hook and CTA).
 
@@ -374,11 +404,11 @@ LLM call that designs a palette, background type, font pairing, and motion strat
   },
   "background_type": "dark",  # or "white", "whiteboard", "chalkboard", "glamour", "diorama", "neon", "blueprint", "minimal", "cerulean"
   "layout_theme": "...",
-  "motion_strategy": "...",
-  "visual_style": "illustrated_svg",  # injected by pipeline if mode is illustrated_svg
-  "no_photos": True,  # injected by pipeline if mode is illustrated_svg
+  "motion_strategy": "..."
 }
 ```
+
+**No mode dispatch** (2026-04 change): `_generate_style_guide` no longer has `if _visual_style == "illustrated_svg"` / `"product_showcase"` branches. It produces one base palette and background; per-shot styling comes from the shot-type's own root class (`.svg-canvas`, `.product-stage`) injected by `_ensure_fonts`.
 
 The palette is resolved to CSS custom properties in `_ensure_fonts`:
 - `--brand-primary`, `--brand-accent`, `--brand-text`, `--brand-text-secondary`, `--brand-bg`, `--brand-svg-stroke`, `--brand-svg-fill`, `--brand-annotation`
@@ -388,10 +418,11 @@ Institute-level brand overrides (from Institute Settings → AI Style) take prec
 
 ### 3.7 Director — `_run_director()`
 
-LLM call that takes the script + beat outline + word timestamps and produces a **shot-by-shot plan**. This is the "film director" stage.
+LLM call that takes the script + beat outline + word timestamps and produces a **shot-by-shot plan**. The Director is the architect of the video — it decides how many shots, which shot types, timing, animation strategy, sync points, and per-shot visual world.
 
-Input: full script + beat outline + key word timestamps + subject domain + style guide + audio duration + visual_style.
-Output: JSON with `shots[]`, each carrying:
+**Inputs**: full script + full beat outline (no truncation) + densified word timestamps (up to 200 entries) + subject domain + style guide + audio duration. Plus, when enabled by tier: reference images, emphasis map, act plan.
+
+**Output**: JSON with `shots[]`, each carrying:
 ```json
 {
   "shot_index": 0,
@@ -414,45 +445,204 @@ Output: JSON with `shots[]`, each carrying:
 }
 ```
 
-**Validation** ([automation_pipeline.py:3319](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3319)):
-- `shot_type` must be in the valid_types whitelist
+Super_ultra also requires top-level `shot_density` (`"fast"`|`"medium"`|`"slow"`) and `pacing_rationale` fields. Two-pass mode also carries `overall_arc` from the Act Planner.
+
+#### 3.7.1 Structured JSON output
+
+The chat client now supports `response_format={"type": "json_object"}` ([automation_pipeline.py:559](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L559)) and the Director call passes it ([automation_pipeline.py:3504](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3504)). OpenRouter enforces valid JSON at the transport level, eliminating "bare single shot object" envelope drift.
+
+#### 3.7.2 Shot count is the Director's call
+
+There is **no hard min/max shot count** injected into the prompt. The Director decides based on content and pacing. The prompt surfaces a pacing reference (`~3s/shot portrait, ~4s/shot landscape` as a non-binding hint) but the actual count comes from the Director's creative judgment. See `build_director_user_prompt()` in [director_prompts.py](../../ai_service/app/ai-video-gen-main/director_prompts.py).
+
+#### 3.7.3 Single-shot rejection + post-retry fallback
+
+The pipeline still catches obvious Director failures ([automation_pipeline.py:3260-3284](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3260)):
+
+- `_normalize_director_plan`: if the LLM returns a single flat shot object for a video >15s and the shot doesn't already cover ≥60% of the audio duration, **reject and force retry** instead of silently stretching `end_time` to cover the gap. Without this check, a broken 2.9s response becomes a static 154s video.
+- Post-retry sanity: after the retry loop, if `non_overlay_count <= 1` for a video >15s, return `None` so the pipeline **falls back to the segment-based flow** ([automation_pipeline.py:3603-3618](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3603)). Produces a varied video instead of shipping a dud. Writes `director_debug.json` with the raw response for post-mortem.
+
+#### 3.7.4 Emphasis map (ultra + super_ultra)
+
+`build_emphasis_map(words)` in [director_prompts.py](../../ai_service/app/ai-video-gen-main/director_prompts.py) post-processes the Whisper word timestamps to find:
+
+- **Silence breakpoints** (≥0.4s pauses between words — natural shot boundaries)
+- **Stress peaks** (words ≥7 chars or all-caps ≥4 chars — likely narrator emphasis)
+- **Sentence starts** (words following `.`/`!`/`?`)
+
+These are injected into the Director user prompt as a short markdown block:
+
+```
+EMPHASIS MAP (anchor key shots here):
+- Silence breakpoints (≥0.4s pauses): 3.5s 'Neon', 12.3s 'Specifically', 34.8s 'Therefore'
+- Stress peaks (long/emphatic words): 2.3s 'different', 5.0s 'specifically', ...
+- Sentence starts: 3.5s 'Neon', 12.3s 'Specifically', ...
+```
+
+The Director can anchor key shots on real pacing signals instead of guessing timing from word lists.
+
+#### 3.7.5 Reference images (all Director tiers)
+
+When a user uploads reference files (logos, product photos, diagrams), the pipeline attaches them as OpenAI-vision multimodal parts to the Director's user message ([automation_pipeline.py:3287](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3287)):
+
+```python
+[{"type": "text", "text": user_prompt},
+ {"type": "image_url", "image_url": {"url": s3_url_1}},
+ {"type": "image_url", "image_url": {"url": s3_url_2}}]
+```
+
+Capped at 6 images to control context size. The Director can now plan shots that actually feature user-uploaded assets. Same block is attached to the Act Planner (pass 1) when two-pass is enabled.
+
+#### 3.7.6 Few-shot examples (super_ultra only)
+
+`SUPER_ULTRA_DIRECTOR_EXTENSION` in [director_prompts.py](../../ai_service/app/ai-video-gen-main/director_prompts.py) appends two hand-written worked examples to the Director system prompt:
+
+1. **Travel reel** — 30s portrait, fast density, 6 shots mixing VIDEO_HERO + KINETIC_TEXT + KINETIC_TITLE
+2. **Physics explainer** — 45s landscape, medium density, 9 shots mixing IMAGE_HERO + EQUATION_BUILD + ANIMATED_ASSET + TEXT_DIAGRAM + KINETIC_TEXT + VIDEO_HERO + DATA_STORY + KINETIC_TITLE
+
+Each example shows exact shot plan JSON including `shot_density`, `pacing_rationale`, and `continuity_notes`. ~5.8KB (~1.5k tokens).
+
+#### 3.7.7 Self-reported `shot_density` (super_ultra only)
+
+Super_ultra Director must emit top-level `shot_density` (`"fast"`|`"medium"`|`"slow"`) + `pacing_rationale` (one-sentence justification). After planning, the pipeline compares the self-report to the actual average shot duration:
+
+```
+avg_shot ≤ 2.5s  → expected "fast"
+2.5s < avg_shot < 4.0s → expected "medium"
+avg_shot ≥ 4.0s  → expected "slow"
+```
+
+Mismatches log a `⚠️ MISMATCH` warning. Free telemetry for catching plan-vs-execution drift. See [automation_pipeline.py:3805-3818](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3805).
+
+#### 3.7.8 Two-pass — Act Planner → Shot Planner (super_ultra only)
+
+When `director_two_pass` is set, `_run_director` first calls `_run_act_planner` ([automation_pipeline.py:3315](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3315)) which divides the video into 2-5 acts. Each act has:
+
+```json
+{
+  "label": "Opening Hook",
+  "start_time": 0.0,
+  "end_time": 5.0,
+  "narration_excerpt": "...",
+  "style_direction": "cinematic_photo",
+  "emotional_beat": "awe",
+  "estimated_shot_count": 2,
+  "transition_out": "hard_cut"
+}
+```
+
+`style_direction` is one of `cinematic_photo` / `illustrated_infographic` / `product_stage` / `kinetic_text` / `mixed`. Different acts can pick different directions — this is how long videos shift visual worlds between acts.
+
+Pass 2 (the Shot Planner) receives the act plan as additional context and expands each act into shots that respect its `style_direction` and `emotional_beat`. The act plan is written to `act_plan.json` in the run directory for debugging.
+
+Pass 1 failure degrades gracefully — the Shot Planner just runs without an act plan.
+
+#### 3.7.9 Validation (post-normalization)
+
+[automation_pipeline.py:3626](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3626):
+- `shot_type` must be in the valid_types whitelist (14 types including `INFOGRAPHIC_SVG`, `KINETIC_TITLE`, `PRODUCT_HERO`)
 - Shots must cover 100% of the narration with no gaps (shot N's `end_time` == shot N+1's `start_time`)
 - First shot starts at 0.0, last shot ends at `audio_duration`
+- Post-retry: at least 2 non-overlay shots for videos >15s, else fall back
 
-**Mode overrides**: `illustrated_svg` restricts to `INFOGRAPHIC_SVG` / `KINETIC_TITLE` / `KINETIC_TEXT`. `product_showcase` primary is `PRODUCT_HERO`. `super_ultra` adds reel-pace + motion-density bias.
+**Shot type restrictions are gone.** The Director picks freely from the full catalog. What used to be "illustrated_svg mode" is now "the Director picked INFOGRAPHIC_SVG for this shot." What used to be "product_showcase mode" is now "the Director picked PRODUCT_HERO for this shot."
 
 ### 3.8 Per-shot HTML — `_shot_task()`
 
-For each shot in the director plan, run a parallel LLM call that produces the HTML/CSS/JS for that single shot. The prompt contains only the shot-type card relevant to `shot.shot_type` (not the whole catalog), which keeps token counts manageable.
+For each shot in the director plan, run a parallel LLM call that produces the HTML/CSS/JS for that single shot. The prompt contains only the shot-type card relevant to `shot.shot_type`, which keeps token counts manageable. Parallelism capped at 8 workers.
 
-**`_shot_task()` flow**:
-1. Build a focused system prompt via `build_filtered_system_prompt()` — includes `CORE_PREAMBLE` + only the cards for shot types used in this shot
-2. Build a user prompt with narration excerpt, duration, animation strategy, sync points, visual description
-3. Append mode-specific constraints if `_current_visual_style` is not `standard`
-4. Call the HTML LLM
-5. Post-process the result: `_ensure_fonts()` (CSS + SVG defs injection), stock video fetch, image generation
-6. Return the entry (start, end, html, box, z-index)
+**`_shot_task()` full flow** (per-shot):
+1. Build focused system prompt via `build_per_shot_system_prompt(shot_type)` — just one card + core preamble
+2. (ultra/super_ultra) Append the **filtered skill catalog** for this shot type / tier / canvas (§3.13)
+3. Build user prompt with narration excerpt, duration, animation strategy, sync points, visual description
+4. (premium/ultra/super_ultra) Append the **shared shot pack** block (§3.8.1)
+5. (super_ultra) Append motion-density + reel-pace + brand-palette requirements
+6. Append per-shot-type constraints when `shot_type == PRODUCT_HERO` or `shot_type in ("INFOGRAPHIC_SVG", "KINETIC_TITLE")`
+7. KINETIC_TEXT bypass — pipeline-builds the HTML directly from words without an LLM call (super_ultra only)
+8. Call the HTML LLM
+9. `_sanitize_html_content(html)` — strip markdown fences, normalize escapes
+10. **Skill composer pass** (ultra/super_ultra) — substitute `<skill>` tags with rendered snippets (§3.13)
+11. **Animation density validator + regen** (super_ultra) — scan for GSAP tween count + sync-point honoring; fire ONE corrective regen if thin (§3.8.2)
+12. `_ensure_fonts(html)` — CSS + SVG defs injection
+13. Stock video fetch (`_process_stock_videos`) — LLM-ranked for super_ultra (§3.10)
+14. Image generation (`_process_generated_images`) — Gemini or Pexels, post-LLM
+15. Return the entry `{start, end, html, box, z-index, _narration_excerpt, _visual_description, _shot_type}` (stashed fields stripped before serialization)
 
-**Shot-type catalog** (`shot_type_cards.py::SHOT_TYPE_CARDS`):
+#### 3.8.1 Shared shot pack (premium / ultra / super_ultra)
 
-| Type | Category | Use for |
-|------|----------|---------|
-| `IMAGE_HERO` | hero | Full-screen image with Ken Burns + text overlay |
-| `VIDEO_HERO` | hero | Full-screen stock video + text overlay (preferred over IMAGE_HERO for real-world topics) |
-| `IMAGE_SPLIT` | hero | Image on one side, text on other |
-| `TEXT_DIAGRAM` | default | Text + SVG/Mermaid diagram on clean bg |
-| `LOWER_THIRD` | overlay | Vocabulary banner at bottom |
-| `ANNOTATION_MAP` | illustration | Full-screen image + animated SVG arrows (anatomy, geography) |
-| `DATA_STORY` | data | Animated bar/line chart with ONE accent bar + stat callout |
-| `PROCESS_STEPS` | data | Sequential numbered nodes with animated connectors |
-| `EQUATION_BUILD` | data | KaTeX formula revealing term-by-term |
-| `ANIMATED_ASSET` | illustration | Cutout images with GSAP animation |
-| `KINETIC_TEXT` | text | Word-by-word sync (pipeline-built in `super_ultra`, 100% sync accuracy) |
-| `PRODUCT_HERO` | product | Fixed hero subject with crossfading background layers |
-| `INFOGRAPHIC_SVG` | illustration | Pure SVG with hand-drawn wobble, paper texture, blueprint-draft pattern |
-| `KINETIC_TITLE` | text | Full-screen bold typography, word-wipe reveal |
+Built once per run by `_build_shot_pack(style_guide, width, height)` ([automation_pipeline.py:3296](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3296)) and injected into every shot's user prompt. Eliminates cross-shot drift (shot 1 uses `#0f172a` text, shot 2 uses `#1e293b`, shot 3 picks Inter at 1.8rem, shot 4 picks Montserrat at 2.2rem — all gone).
 
-**`DOMAIN_SHOT_TYPES`** maps subject domains to preferred types. Entries like `"illustrated_svg": ["KINETIC_TITLE", "INFOGRAPHIC_SVG", "KINETIC_TEXT"]` and `"product_showcase": ["PRODUCT_HERO", "KINETIC_TITLE", "DATA_STORY", "LOWER_THIRD"]` whitelist the allowed shot types per mode.
+Pack contents:
+
+```json
+{
+  "color_tokens": {
+    "primary": "var(--brand-primary)",
+    "accent": "var(--brand-accent)",
+    "text": "var(--brand-text)",
+    "text_secondary": "var(--brand-text-secondary)",
+    "bg": "...", "svg_stroke": "...", "svg_fill": "...", "annotation": "..."
+  },
+  "font_family": {"display": "'Bebas Neue', ...", "heading": "Montserrat", "body": "Inter", "mono": "'Fira Code', monospace"},
+  "font_scale": {"display": "9rem", "h1": "5.5rem", "h2": "3.25rem", "body": "1.9rem", "caption": "1.35rem", "micro": "1.05rem"},
+  "spacing": {"xs": "8px", "sm": "16px", "md": "24px", "lg": "40px", "xl": "64px", "2xl": "96px", "safe_area": "4%"},
+  "ease": {"entry": "power3.out", "exit": "power2.in", "emphasis": "back.out(1.6)", "bg_crossfade": "power2.inOut", "snappy": "expo.out", "settle": "power4.out"},
+  "timing": {"entry_stagger": 0.12, "title_delay": 0.3, "subtitle_delay": 0.8, "bg_crossfade_sec": 1.2, "word_wipe_per_word": 0.15},
+  "layout": {"aspect": "9:16", "canvas_w": 1080, "canvas_h": 1920, "grid_columns": 6, "gutter": "24px"},
+  "id_prefix": "s3_"
+}
+```
+
+Portrait vs landscape adjusts `font_scale` and `spacing.safe_area`. The `id_prefix` placeholder is substituted per shot so every shot's element IDs (`s0_title`, `s1_title`, ...) are namespaced and never collide.
+
+Prompt rules injected alongside the pack:
+
+- Use only `color_tokens` CSS vars — never hardcode hex
+- Use `font_scale` values (e.g. `font-size: 9rem` for display) — never pick your own size
+- Use `spacing` tokens for padding/margin/gap; `safe_area` for outer padding
+- Use `ease` tokens in GSAP tweens
+- Prefix every element id with `s{shot_idx}_`
+
+#### 3.8.2 Animation density validator (super_ultra only)
+
+After `_sanitize_html_content` and before `_ensure_fonts`, super_ultra shots are scanned by `_validate_shot_animation_density(html, shot, start, end)` ([automation_pipeline.py:3296](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3296)):
+
+1. **Tween count**: regex matches `gsap.(to|from|fromTo|timeline)` + chained `.to/.from/.fromTo/.set(` calls. Must be ≥ `min_animated_elements` (6 on super_ultra).
+2. **Sync point honoring**: regex extracts all `delay: <float>` values from the HTML. For each Director sync_point, check a matching delay exists within ±0.2s of the expected shot-relative time.
+3. **Zero-motion sanity**: if no GSAP calls AND no `@keyframes` animation, flag the shot as fully static.
+
+On failure, fires ONE corrective regeneration call that includes the original prompts, the previous assistant output, and a specific list of issues. If regen still fails, ships the best attempt and logs the residual issues. No infinite loops. Usage tokens from both calls accumulate.
+
+Console output:
+```
+⚠️ Shot 3 failed animation density check: found 2 GSAP tweens, need at least 6; sync points not honored (1/2): 1.40s (Rome)
+✅ Shot 3 regen passed animation density check
+```
+
+KINETIC_TEXT and KINETIC_TITLE shots are exempt (they have their own specialized logic).
+
+#### 3.8.3 Shot type catalog
+
+`shot_type_cards.py::SHOT_TYPE_CARDS`:
+
+| Type | Use for |
+|------|---------|
+| `IMAGE_HERO` | Full-screen image with Ken Burns + text overlay |
+| `VIDEO_HERO` | Full-screen stock video + text overlay (preferred over IMAGE_HERO for real-world topics) |
+| `IMAGE_SPLIT` | Image on one side, text on other |
+| `TEXT_DIAGRAM` | Text + SVG/Mermaid diagram on clean bg |
+| `LOWER_THIRD` | Vocabulary banner at bottom (overlay) |
+| `ANNOTATION_MAP` | Full-screen image + animated SVG arrows (anatomy, geography) |
+| `DATA_STORY` | Animated bar/line chart with ONE accent bar + stat callout |
+| `PROCESS_STEPS` | Sequential numbered nodes with animated connectors |
+| `EQUATION_BUILD` | KaTeX formula revealing term-by-term |
+| `ANIMATED_ASSET` | Cutout images with GSAP animation |
+| `KINETIC_TEXT` | Word-by-word sync (pipeline-built in `super_ultra`, 100% sync accuracy) |
+| `PRODUCT_HERO` | Fixed hero subject with crossfading background layers |
+| `INFOGRAPHIC_SVG` | Pure SVG with hand-drawn wobble, paper texture, blueprint-draft pattern |
+| `KINETIC_TITLE` | Full-screen bold typography, word-wipe reveal |
+
+Every shot type is always available — the Director picks freely. `DOMAIN_SHOT_TYPES` still exists as a hint map for subject domains but no longer gates availability at the mode level.
 
 ### 3.9 Image generation — `_process_generated_images()`
 
@@ -460,15 +650,36 @@ Scans every shot's HTML for `<img data-img-prompt="...">` tags and generates the
 
 **Cutout handling**: If `data-cutout='true'`, the image is run through `rembg` (u2netp model, singleton session) to remove the background, producing a transparent PNG.
 
-**Image style prefix**: The LLM-picked `_current_image_style` (e.g., "realistic cinematic photograph") is prepended to every image prompt to maintain visual consistency across the video. This is **separate** from the pipeline mode.
+**Image style prefix**: The LLM-picked `_current_image_style` (e.g., "realistic cinematic photograph") is prepended to every image prompt to maintain visual consistency across the video.
 
-**In `illustrated_svg` mode**, this stage is effectively a no-op because `style_guide.no_photos == True` and the Director emits zero shots with image_prompts.
+**Per-shot driven**: with the mode dispatch removed, image generation is gated purely by whether individual shots have `image_prompt` set. A Director that picks `INFOGRAPHIC_SVG` for a beat simply leaves `image_prompt: null` for that shot — no photo is generated. The old global `no_photos` flag has been removed.
 
 ### 3.10 Stock videos — `_process_stock_videos()`
 
-For each shot with `data-video-query="...search terms"`, calls Pexels API to find a matching stock video, downloads it, stores in S3, and rewrites the shot HTML to reference the S3 URL.
+For each shot with `data-video-query="...search terms"`, calls Pexels API to find a matching stock video, downloads it, stores in S3, and rewrites the shot HTML to reference the S3 URL. Supports multiple Pexels API keys (round-robin with rate-limit detection).
 
-Supports multiple Pexels API keys (round-robin with rate-limit detection).
+#### 3.10.1 Legacy path (premium / ultra / free)
+
+Calls `PexelsService.search_videos(query, orientation)` which returns the first usable HD video meeting the minimum duration. No ranking, no dedup.
+
+#### 3.10.2 LLM-ranked path (super_ultra only)
+
+When `stock_video_ranking` tier flag is set:
+
+1. Calls `PexelsService.search_video_candidates(query, orientation, per_page=6)` which returns **up to 6 candidate videos** with `{id, url, image, duration, alt, photographer, pexels_url}`.
+2. Filters out any video ID already in `self._used_pexels_video_ids` (dedup across shots — no two shots in one run get the same clip).
+3. If more than one candidate remains, calls `_rank_pexels_candidates_with_llm(candidates, query, narration, visual_description)` ([automation_pipeline.py:6074](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L6074)). This is a small LLM call that sees:
+   - The shot's narration excerpt
+   - The shot's visual description (from the Director plan)
+   - The original video query
+   - A compact candidate list: `id | duration | alt`
+   and returns `{"best_index": N, "reason": "..."}`.
+4. The winning candidate's ID is added to `self._used_pexels_video_ids` so subsequent shots can't reuse it.
+5. Falls back to first candidate on any ranker failure.
+
+Requires shot entries to carry `_narration_excerpt` and `_visual_description` fields, which `_shot_task` stashes on every entry and `_process_stock_videos` strips before serialization.
+
+Console output: `🎬 Stock video [ranked]: aerial tokyo shibuya... → https://...` (the `[ranked]` marker confirms the LLM ranker ran).
 
 ### 3.11 `_ensure_fonts()` — the CSS injection stage
 
@@ -476,7 +687,7 @@ Supports multiple Pexels API keys (round-robin with rate-limit detection).
 
 1. A hidden `<svg width="0" height="0">` element with `<defs>` containing `#roughen` and `#roughen-strong` filters (SVG filter URL references resolve within the same shadow-root / iframe, so every shot carries its own copy).
 2. A single `<style>` block with:
-   - `@import` for Google Fonts (Montserrat + Inter + Fira Code, plus Bebas Neue if `illustrated_svg`)
+   - `@import` for Google Fonts — **always** Montserrat + Inter + Fira Code + **Bebas Neue**
    - CSS custom properties (`--brand-*`)
    - Layout utilities (`.full-screen-center`, `.layout-split`, `.layout-bento`, `.highlight`, `.emphasis`)
    - Typography (`.text-display`, `.text-h2`, `.text-body`, `.text-label`, `.display-xl`, `.display-lg`, `.tracking-label`)
@@ -484,7 +695,9 @@ Supports multiple Pexels API keys (round-robin with rate-limit detection).
    - Paper texture (`.paper-texture` + `.strong` variant, using inline SVG noise data-URI)
    - Technical annotations (`.tech-annotation`, `.tech-annotation-label`, `.tech-annotation-caption`)
    - Scene transitions (`.vignette-overlay`)
-   - Conditional `.svg-canvas` cream + grid background (only when `illustrated_svg`)
+   - **`.svg-canvas`** cream + grid background (**always** injected, not gated on mode)
+
+**2026-04 change**: Bebas Neue and `.svg-canvas` CSS are now unconditional. The Director may pick `INFOGRAPHIC_SVG`, `KINETIC_TITLE`, or `PRODUCT_HERO` at any time and the required CSS must be present regardless of the run's style guide. The old `_is_illustrated` conditional gating was removed.
 
 The `_ensure_fonts` call is what makes the **same HTML renderable in both the server renderer (shadow DOM in Playwright) and the browser player (iframe srcdoc)**. All CSS and SVG filters are baked in at generation time — no per-playback library loading is required for these utilities.
 
@@ -502,8 +715,7 @@ Final `time_based_frame.json` shape (varies slightly by content type):
     "total_duration": 142.3,
     "dimensions": {"width": 1920, "height": 1080},
     "audio_tracks": [{"id":"track-1","label":"BG Music","url":"..."}],
-    "palette": {...},  // from style_guide
-    "visual_style": "illustrated_svg"  // pipeline mode
+    "palette": {...}  // from style_guide
   },
   "entries": [
     {
@@ -522,6 +734,117 @@ Final `time_based_frame.json` shape (varies slightly by content type):
 ```
 
 This is the single artifact consumed by both the render server and the browser player.
+
+### 3.13 Skill library — motion primitives (Phase 1, ultra + super_ultra)
+
+The pipeline ships a **filesystem-discovered skill registry** that lets the Director reference reusable, pre-built, version-controlled motion primitives. The shot LLM drops `<skill>` tags into its HTML; the composer resolves them into validated GSAP/CSS code. Adding a new skill = dropping a folder, no pipeline changes.
+
+#### 3.13.1 The architecture
+
+```
+skills/
+  motion_primitives/
+    bar_chart_grow/
+      skill.py           ← METADATA + PARAMS_SCHEMA + render(params, ctx)
+    number_counter/
+      skill.py
+    typewriter_text/
+      skill.py
+    equation_term_reveal/
+      skill.py
+    stagger_list/
+      skill.py
+    ring_progress/
+      skill.py
+
+skill_registry.py   ← discovers skills/, loads each skill.py via importlib,
+                      validates METADATA, caches once per process
+skill_composer.py   ← pure compose(shot_html, ctx) → substitutes <skill> tags
+```
+
+Every skill is a single Python file that exports:
+
+- **`METADATA`** — `id`, `version`, `category`, `title`, `description`, `use_when`, `compatible_shot_types`, `requires_tier`, `requires_plugins`, `requires_canvas`, `example_params`
+- **`PARAMS_SCHEMA`** — loose JSON Schema (required + properties.type)
+- **`render(params, ctx) -> dict`** — returns `{"html": str, "css": str, "js": str, "plugins": List[str]}`
+
+`ctx` carries `{shot_index, canvas_w, canvas_h, tier, shot_type}` so skills can produce shot-indexed element IDs (`bcg3-fill-0`, `rp3-arc`) that never collide across parallel shots.
+
+#### 3.13.2 The 6 starter skills
+
+| Skill | Use case | Output |
+|---|---|---|
+| `bar_chart_grow` | Revealing 2-8 numeric categories with bars + value counters | HTML + CSS + GSAP width/counter tweens |
+| `number_counter` | Hero stat reveals ("75 BPM", "$2.3M") with prefix/suffix/decimals | HTML + CSS + GSAP number roll |
+| `typewriter_text` | Char-by-char text reveal with blinking caret, duration-synced | HTML + CSS + vanilla rAF loop |
+| `equation_term_reveal` | Math formulas with term-by-term scale-in + labeled annotations | HTML + CSS + GSAP staggered scale tweens |
+| `stagger_list` | Bullet/feature/step lists with tight stagger | HTML + CSS + GSAP y-translate stagger |
+| `ring_progress` | Circular SVG arc with synced center number counter | SVG + CSS + GSAP stroke-dashoffset tween |
+
+#### 3.13.3 How the LLM uses a skill
+
+The per-shot system prompt (ultra/super_ultra only) gets a **filtered skill catalog** appended — only skills whose `compatible_shot_types` includes the current `shot_type`, whose `requires_tier` ≤ current tier, and whose `requires_canvas` matches. Example:
+
+```markdown
+## 🧩 SKILL CATALOG — reusable motion primitives
+
+You have access to pre-built, tested motion primitives. Drop a <skill> tag
+anywhere in your HTML and the pipeline will replace it with validated,
+production-quality HTML + CSS + GSAP code. ...
+
+### Available skills for this shot:
+
+**`bar_chart_grow`** — Bar Chart Grow-in
+  Horizontal bars growing from 0 with staggered entry and number counter per row.
+  *Use when*: Revealing numeric data across 2-8 categories (rankings, comparisons).
+  *Example*: <skill data-skill-id="bar_chart_grow" data-params='{"bars":[...]}'></skill>
+...
+```
+
+The LLM then drops a tag like:
+
+```html
+<div class="shot">
+  <h1>Quarterly Results</h1>
+  <skill data-skill-id="bar_chart_grow" data-params='{"bars":[{"label":"Jan","value":45}]}'></skill>
+  <p>Strongest quarter yet.</p>
+</div>
+```
+
+After `_sanitize_html_content` and before the animation validator, `_shot_task` calls `skill_composer.compose(html, ctx)` which:
+
+1. Regex-scans for `<skill data-skill-id="..." data-params='...'></skill>` tags
+2. Parses each `data-params` JSON
+3. Looks up the skill in the registry
+4. Validates params against `PARAMS_SCHEMA` (required keys + top-level types)
+5. Calls `skill.render(params, ctx)` which returns HTML/CSS/JS fragments
+6. Substitutes the rendered HTML inline
+7. Aggregates all CSS into a `<style data-skill-css>` block in `<head>`
+8. Aggregates all JS into a scoped IIFE `<script data-skill-js>` block before `</body>`
+9. Returns a report: `{html, invocations, plugins, succeeded, failed}`
+
+Invalid params or unknown skills are replaced with HTML comments (`<!-- skill X: invalid params -->`) and logged — the pipeline never crashes on a malformed skill reference.
+
+Console output:
+```
+🧩 Shot 4 skills: 2 rendered, 0 failed [bar_chart_grow,ring_progress]
+```
+
+#### 3.13.4 Why this design scales
+
+- **Drop-in**: new skill = new folder + `skill.py`. Zero edits to `skill_registry.py`, `skill_composer.py`, or `automation_pipeline.py`. The next run sees it in the catalog.
+- **Versioned**: every skill has `version: "1.0.0"`. When you ship v2, add a new folder — don't delete v1. Old videos that referenced v1 stay reproducible.
+- **Filtered catalog**: the Director catalog for a given shot is always compact (only relevant skills), so scaling to 50+ skills never blows the context window.
+- **Pure rendering**: `compose()` is deterministic — same input gives the same output. Enables caching, diffing, regression testing.
+- **Escape hatch**: the LLM can always write custom HTML alongside skills. Skills are a toolbox, not a cage. Shot-type cards still carry their own generic examples for when no skill fits.
+- **One code path**: all skill rendering goes through `compose()`. One place to log, test, optimize. Skill bugs are isolated — a broken `render()` gets caught in a try/except and the shot ships with a comment stub instead of crashing.
+
+#### 3.13.5 Roadmap beyond Phase 1
+
+- **Phase 2 — Director-aware**: Director plan schema gains `skills: [...]` per shot; per-shot prompt tells the LLM which skill IDs will render into which placeholder element IDs; telemetry logs which skills fire, which fail validation, which are ignored entirely.
+- **Phase 3 — Transitions as skills**: new `transitions/` subdirectory (`zoom_through`, `vignette_fade`, `whip_pan`, `hard_cut`, `kinetic_title_interstitial`). The Director picks `transition_out` per shot from this catalog and the composer wires shot N's exit tween into shot N+1's entry.
+- **Phase 4 — Shot templates**: `shot_templates/` with `split_comparison`, `stat_block_with_context`, `three_up_grid`, `quote_callout`. Full shot compositions the Director can invoke instead of writing custom HTML.
+- **Phase 5 (ongoing)**: `camera_moves/`, `filters/`, `audio_cues/`, per-institute `brand_packs/`. Each new category is a new subdirectory with its own loader, same base protocol.
 
 ---
 
@@ -618,8 +941,10 @@ export type ContentType = 'VIDEO' | 'QUIZ' | 'STORYBOOK' | 'INTERACTIVE_GAME' | 
   | 'TIMELINE' | 'CONVERSATION' | 'SLIDES';
 
 export type QualityTier = 'free' | 'standard' | 'premium' | 'ultra' | 'super_ultra';
-export type VisualStyle = 'standard' | 'illustrated_svg' | 'product_showcase';
 export type VideoOrientation = 'landscape' | 'portrait';
+// Deprecated: the Director now picks theme/background/animation per-shot.
+// Type kept for reading historical metadata from past runs.
+export type VisualStyle = 'standard' | 'illustrated_svg' | 'product_showcase';
 
 export interface GenerateVideoRequest {
   prompt: string;
@@ -637,9 +962,11 @@ export interface GenerateVideoRequest {
   video_id?: string;
   reference_files?: ReferenceFile[];
   orientation?: VideoOrientation;
-  visual_style?: VisualStyle;
+  visual_style?: VisualStyle;  // deprecated — accepted for back-compat, ignored by pipeline
 }
 ```
+
+**`VISUAL_STYLES` array removed**: the catalog constant that drove the old Visual Style selector UI is gone. The `VisualStyle` type still exists so `getRemoteHistory()` can deserialize the `visual_style` field from past runs' metadata (old videos still show their historical mode in the history sidebar).
 
 ### 5.3 PromptInput.tsx structure
 
@@ -647,7 +974,6 @@ export interface GenerateVideoRequest {
 - "OptionBubble" popover row:
   - Content type (`ContentSelector`)
   - Quality tier (Free / Standard / Premium / Ultra / Super Ultra badges)
-  - **Visual Style** (Standard / Illustrated / Product Showcase) — VIDEO-only
   - Language (grouped: Global / Indian)
   - Voice gender + TTS provider + voice ID (with sample playback)
   - Target audience (grade level)
@@ -658,6 +984,8 @@ export interface GenerateVideoRequest {
   - Model picker (filtered to tier-appropriate models)
 - Style preview chip shows institute-level branding (palette + layout_theme) from `GET /institute-settings/video-style`
 - Credit balance indicator
+
+**Visual Style selector removed (2026-04)**: the old `<OptionBubble label="Style">` that let users pick `standard` / `illustrated` / `product_showcase` has been removed from the UI. The Director now picks per-shot style automatically based on content. See §3.4.
 
 ### 5.4 History reconstruction
 
@@ -778,28 +1106,37 @@ Because the HTML is pre-generated with all CSS/SVG-defs inline, the browser play
 
 ---
 
-## 7. Visual style modes — deep reference
+## 7. Shot visual families — deep reference
 
-### 7.1 Mode comparison table
+> **Legacy note**: This section used to describe three user-selectable global modes (`standard` / `illustrated_svg` / `product_showcase`). As of 2026-04 those modes are removed from the UI and deprecated in the API. The Director picks shot types freely from the full catalog on every run. The **visual characteristics** below still describe how each shot family looks, but they're now per-shot not per-video.
 
-| Feature | `standard` | `illustrated_svg` | `product_showcase` |
-|---------|-----------|------------------|-------------------|
-| Background | Palette-driven (dark/white/whiteboard/etc.) | Cream `#f5f0e8` + CSS grid + paper grain | Warm off-white `#f2f0ec` stage |
-| Photos | ✅ (stock + generated) | ❌ Zero photos | ✅ One hero subject, reused everywhere |
-| Videos | ✅ (Pexels stock) | ❌ | ❌ |
-| Palette | 2-color brand + text/bg | 2-color brand + red utility | 2-color brand + texture layers |
-| Typography | Montserrat + Inter | Bebas Neue + Inter + italic serif captions | Bebas Neue + Inter tracking labels |
-| Shot types | All | `INFOGRAPHIC_SVG`, `KINETIC_TITLE`, `KINETIC_TEXT` | `PRODUCT_HERO` (primary), `KINETIC_TITLE`, `DATA_STORY`, `LOWER_THIRD` |
-| Animation character | Varies | Hand-drawn wobble via `#roughen` filter, stroke-dashoffset draw-on, blueprint-draft | Fixed-subject + crossfading bg layers + slam text outros |
-| Continuous motion | Per-shot | `.stage-drift` (mandatory) | `.stage-drift` on text group only |
-| Scene transitions | Cut / crossfade | Zoom-through OR vignette exit (mandatory at shot end) | Background layer crossfades |
-| Director rules | Balanced mix | Restricted + first shot must be `KINETIC_TITLE` | Restricted + first shot must be `PRODUCT_HERO` |
-| Use case | General explainers | Diagrams, sports, anatomy, blueprints, infographics | Brand reels, product stories, origin stories |
-| Reference video | — | "How to Play Volleyball" / MacBook Neo blueprint | Converse Chuck Taylor origin reel |
+### 7.1 Shot visual families at a glance
 
-### 7.2 Professional CSS utilities reference
+Any Director plan can freely mix shots from these families, and a long video often shifts families between acts (e.g. cinematic photo opener → pure SVG middle act → product stage outro).
 
-All injected by `_ensure_fonts`. Available in every generated shot HTML regardless of mode (conditional loading only gates `.svg-canvas` and Bebas Neue).
+| Family | Shot types | Root surface | Photos/videos | Palette | Typography | Animation character | Use the family for |
+|--------|-----------|--------------|---------------|---------|-----------|--------------------|--------------------|
+| **Cinematic photo** | `VIDEO_HERO`, `IMAGE_HERO`, `IMAGE_SPLIT`, `ANNOTATION_MAP`, `ANIMATED_ASSET` | Palette-driven dark/white stage | ✅ Stock + AI-gen | Brand palette + text/bg | Montserrat + Inter | Ken Burns on image/video + text overlays | Real-world hooks, establishers, hero openers |
+| **Pure SVG infographic** | `INFOGRAPHIC_SVG`, `KINETIC_TITLE` | `.svg-canvas` (cream `#f5f0e8` + CSS grid + paper grain) | ❌ Zero | 2-color brand + red `.tech-annotation` utility | Bebas Neue + Inter + italic serif captions | Hand-drawn wobble via `#roughen`, `stroke-dashoffset` draw-on, blueprint-draft pattern | Diagrams, sports, anatomy, blueprints, how-to mechanics, concept-first openers |
+| **Product stage** | `PRODUCT_HERO` | `.product-stage` (layered bg acts) | ✅ One hero subject reused | 2-color brand + texture layers | Bebas Neue + Inter tracking labels | Fixed subject + crossfading bg layers + slam-text outros | Brand reels, product stories, origin stories |
+| **Motion graphics** | `TEXT_DIAGRAM`, `PROCESS_STEPS`, `DATA_STORY`, `EQUATION_BUILD`, `KINETIC_TEXT` | Varies (dark / palette-driven) | ❌ Usually none | Brand palette | Mixed | GSAP-heavy — chart growths, term reveals, stepped flows | Core explanations, stats, formulas, workflows |
+| **Overlay** | `LOWER_THIRD` | Floats over previous shot | ❌ | Brand palette | Bebas Neue + tracking label | Slide-in from edge | Vocabulary callouts, speaker labels, key terms |
+
+Reference video per family: *Cinematic* — typical travel reel. *Pure SVG* — "How to Play Volleyball" / MacBook Neo blueprint. *Product stage* — Converse Chuck Taylor origin reel.
+
+### 7.2 How the Director mixes families
+
+The Director's Rule 12 (see §3.4.3) explicitly permits cross-family mixing. In practice:
+
+- **Short videos (<30s)**: usually one family throughout — easier to keep coherent.
+- **Medium videos (30s-90s)**: one primary family with 1-2 contrast shots (e.g. a KINETIC_TITLE interstitial between two VIDEO_HERO shots).
+- **Long videos (90s+)** with `director_two_pass` (super_ultra): the Act Planner divides into 2-5 acts, each with its own `style_direction`. The Shot Planner respects each act's direction. This is when you get multi-world videos like *cinematic opener → illustrated infographic middle → product hero outro*.
+
+The **transitions between families** matter more than which families are used. Use `KINETIC_TITLE` as a hard cut between worlds, or a vignette fade, or a zoom-through. Never just drop from dark cinematic photo to cream infographic without a beat of intentional punctuation.
+
+### 7.3 Professional CSS utilities reference
+
+All injected by `_ensure_fonts`. Available in **every** generated shot HTML — no conditional gating. Bebas Neue and `.svg-canvas` are now always loaded (change from 2026-04; see §3.11).
 
 | Class | Purpose | Documented in |
 |-------|---------|---------------|
@@ -815,7 +1152,7 @@ All injected by `_ensure_fonts`. Available in every generated shot HTML regardle
 | `.accent-word` | Color swap to `var(--brand-accent)` | CORE_PREAMBLE |
 | `.bg-watermark` | Position-absolute watermark slot | CORE_PREAMBLE |
 | `.stage-drift` | Continuous-motion wrapper for holds ≥4s | CORE_PREAMBLE |
-| `.svg-canvas` | Cream + grid canvas (illustrated_svg only) | INFOGRAPHIC_SVG card |
+| `.svg-canvas` | Cream + grid canvas (always available; used by `INFOGRAPHIC_SVG` / `KINETIC_TITLE`) | INFOGRAPHIC_SVG card |
 | `.paper-texture` (+`.strong`) | Parchment grain overlay via SVG-noise data-URI | INFOGRAPHIC_SVG / CORE_PREAMBLE |
 | `.draft-guide` / `.solid-overlay` | Two-phase blueprint reveal (dashed → solid) | INFOGRAPHIC_SVG card |
 | `.tech-annotation` (+`-label`/`-caption`) | Red dashed dimension lines, caps label, italic serif caption | INFOGRAPHIC_SVG / CORE_PREAMBLE |
@@ -836,14 +1173,13 @@ Usage: `<g filter="url(#roughen)">...</g>` wraps any SVG elements that should lo
 
 ## 8. Key invariants & gotchas
 
-### 8.1 `_current_visual_style` vs `_current_image_style`
+### 8.1 Director owns style — never re-introduce global mode dispatch
 
-**They are not the same.** The pipeline **mode** lives in `_current_visual_style`. The LLM-picked **image style** lives in `_current_image_style`. Do not collapse them.
+**Historical context**: until 2026-04 the pipeline had a `self._current_visual_style` attribute holding one of `standard` / `illustrated_svg` / `product_showcase`, and that attribute gated behavior in `_generate_style_guide`, `_run_director`, `_shot_task`, and `_ensure_fonts`. It was removed because long/multi-act videos need per-shot style decisions, not a global lock.
 
-- `_current_visual_style`: `standard` / `illustrated_svg` / `product_showcase`. Set once at `run()` from the user API request. Read by mode dispatch in `_generate_style_guide`, `_run_director`, `_shot_task`.
-- `_current_image_style`: `"realistic cinematic photograph"` / `"flat vector illustration"` / `"watercolor painting"` / etc. Set after script generation from `plan_data.get("visual_style")`. Read by image-generation prompt prefixing (`_process_generated_images`, `_enhance_image_prompt`, `_generate_image`).
+**The current invariant**: there is no pipeline-level "style mode." The Director picks shot types freely, each shot type carries its own visual family (cinematic photo / pure SVG / product stage / motion graphics / overlay), and per-shot-type constraints fire in `_shot_task` based on `shot_type == "PRODUCT_HERO"` or `shot_type in ("INFOGRAPHIC_SVG", "KINETIC_TITLE")`. **Do not re-introduce any `if self._current_visual_style == "..."` dispatch.** If you need to change Director behavior, edit the system prompt or add a tier flag — never a global mode.
 
-History: these were the same attribute until [this fix](https://github.com/...) — the collision silently broke `illustrated_svg` and `product_showcase` modes after the script stage ran. Do not re-introduce.
+The one remaining related attribute is `self._current_image_style` (LLM-picked image style — `"realistic cinematic photograph"` / `"flat vector illustration"` / etc.). This is **just a prefix for AI image generation prompts** at [`_enhance_image_prompt`](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L5782) and is shot-agnostic. It does not gate anything else.
 
 ### 8.2 SVG filter scoping in shadow DOM
 
@@ -940,17 +1276,23 @@ Every shot uses exactly 2 text levels:
 
 When making changes that touch the pipeline or render engine:
 
-1. **Parse check** — `python -c "import ast; ast.parse(open('X').read())"` on all edited Python files.
+1. **Parse check** — `python -c "import ast; ast.parse(open('X').read())"` on all edited Python files (pipeline + `skill_registry.py` + `skill_composer.py` + any new skill modules).
 2. **Admin typecheck** — `cd frontend-admin-dashboard && pnpm run typecheck` must exit 0.
 3. **Learner typecheck** — `cd frontend-learner-dashboard-app && pnpm run typecheck` must exit 0.
-4. **Smoke test generation** — send a short prompt via the Video API Studio, verify all 4 stages (SCRIPT/TTS/WORDS/HTML) complete.
-5. **Mode tests** — regenerate the same prompt with each `visual_style` value and confirm:
-   - `standard`: mixed shots with photos/videos
-   - `illustrated_svg`: cream bg, zero `<img>` tags, Bebas Neue headlines, `.svg-canvas` root, blueprint draft / roughen filter visible
-   - `product_showcase`: single hero subject, crossfading bg layers, flat badge slams in, slam-text outro
-6. **Render test** — trigger `POST /render/{video_id}` for each mode and verify the MP4 matches the browser player output frame-for-frame (modulo timing precision).
-7. **History round-trip** — generate a video, refresh the page, verify history entry shows the correct `visual_style`, `orientation`, `quality_tier` (pulled from `item.metadata`).
-8. **Frame regen** — edit a frame via `/frame/regenerate` and verify the new HTML still has `_ensure_fonts` CSS classes available (it doesn't go through `_ensure_fonts` again, so it relies on the CSS baked into the full timeline — broken cross-frame CSS is a known gap).
+4. **Skill registry dry-run** — `python -c "from skill_registry import get_registry; print(get_registry().keys())"` should list all 6 starter skills without import errors.
+5. **Skill composer dry-run** — feed a sample HTML with 2-3 `<skill>` tags through `skill_composer.compose()` and verify the output substitutes them, aggregates CSS/JS, and returns `succeeded > 0, failed == 0`.
+6. **Smoke test generation** — send a short prompt via the Video API Studio, verify all 4 stages (SCRIPT/TTS/WORDS/HTML) complete.
+7. **Director tier tests** — regenerate the same prompt at premium, ultra, and super_ultra; confirm:
+   - **Premium**: `shot_pack_enabled` only, shots use consistent design tokens
+   - **Ultra**: adds emphasis map + skill catalog injection; skills actually get picked for data-heavy shots
+   - **Super ultra**: adds two-pass act planner + few-shot examples + shot_density self-report + animation validator + LLM-ranked stock video. Check for `🎭 Running Act Planner (pass 1)`, `🧩 Shot N skills: X rendered`, `🎯 Density: self-reported='fast' | actual avg=...`, `🎬 Stock video [ranked]:` log lines.
+8. **Shot diversity check** — for a long (>60s) super_ultra video, confirm the Director picks shots from multiple visual families (not all VIDEO_HERO, not all TEXT_DIAGRAM).
+9. **Skill adoption check** — for a super_ultra data-heavy prompt (e.g. "Q3 sales report"), confirm at least one shot uses `bar_chart_grow` or `number_counter` (via the `🧩 Shot N skills:` log line).
+10. **Regression catch** — force a thin shot (short narration, no sync points) at super_ultra and confirm the animation validator fires a regen log line.
+11. **Broken-Director recovery** — mock a single-shot response for a >15s video and confirm `_normalize_director_plan` rejects it and triggers retry or segment-flow fallback (see §3.7.3).
+12. **Render test** — trigger `POST /render/{video_id}` and verify the MP4 matches the browser player output.
+13. **History round-trip** — generate a video, refresh the page, verify history entry shows the correct `orientation`, `quality_tier` (pulled from `item.metadata`). Old videos may still carry `visual_style` in metadata; the frontend reads it for display but new videos don't surface it in the UI.
+14. **Frame regen** — edit a frame via `/frame/regenerate` and verify the new HTML still has `_ensure_fonts` CSS classes available (regen doesn't re-run `_ensure_fonts`; relies on the CSS baked into the full timeline — known gap).
 
 ---
 
@@ -958,16 +1300,25 @@ When making changes that touch the pipeline or render engine:
 
 | Symptom | Likely cause | Where to look |
 |---------|-------------|---------------|
-| Mode ignored after script stage (e.g. illustrated_svg shows dark bg) | `_current_visual_style` overwritten by image style | [automation_pipeline.py:1352](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L1352) — must use `_current_image_style` |
+| Video is one static shot for entire duration | Director returned a flat single-shot object and the old salvage path stretched it | Check [`_normalize_director_plan`](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3260) — should reject for audio >15s. Look for `⚠️ Single-shot response with end_time=... — rejecting` in logs |
+| Director timed out / truncated for long videos | `director_max_tokens` too low | Bump the tier config — premium is 20k, ultra is 32k, super_ultra is 40k |
+| Director plan broken with envelope drift (`{"shot_index": 0, ...}` instead of `{"shots": [...]}`) | Model ignoring envelope rule | Confirm `response_format={"type": "json_object"}` is being passed; structured JSON is load-bearing |
+| `🎭 Running Act Planner` doesn't appear on super_ultra | `director_two_pass` flag missing or exception in `_run_act_planner` | Check tier config; check `act_plan.json` for raw output from the failed call |
+| Two shots in one run get the same Pexels clip | `stock_video_ranking` flag off, or `_used_pexels_video_ids` not initialized | Confirm the flag on super_ultra; confirm `run()` initializes the dedup set at entry |
+| Shot HTML is thin/static in super_ultra | Animation validator not firing OR regen also failed | Look for `⚠️ Shot N failed animation density check` followed by regen result; if absent, check the `shot_animation_validator` tier flag |
+| Skill catalog missing from shot prompts | `skill_library_enabled` flag off OR `skill_registry.py` import failed at pipeline startup | Check the `[skill_registry] loaded N skills` log line at boot; check tier config |
+| `<skill>` tags appear in final HTML as literal markup | Composer didn't run or the tag regex didn't match | Verify `data-params='...'` uses single-quoted JSON (no smart quotes); check for `🧩 Shot N skills:` log line |
+| Skill renders but parameters are wrong | Loose schema validation passed but skill's `render()` received garbage | Add stricter type enforcement in `PARAMS_SCHEMA.properties`; loose check only catches missing required + top-level types |
+| Shot 1 uses `#0f172a`, shot 2 uses `#1e293b` | Shot pack not being injected OR the LLM is ignoring it | Check the `SHARED SHOT PACK` block in the shot user prompt; consider raising `shot_pack_enabled` priority in the prompt ordering |
+| `shot_density` mismatch warning fires frequently | Few-shot examples don't match actual content pacing, or the Director is bad at self-assessment | Adjust `SUPER_ULTRA_DIRECTOR_EXTENSION` examples or relax the bucket thresholds in [automation_pipeline.py:3812](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3812) |
 | SVG filter has no effect | Filter defs not in same shadow root / iframe | Check `_ensure_fonts` is prepending the defs block; check no `innerHTML` replacement is stripping them |
 | `setTimeout` animations don't fire in MP4 but work in browser | Render engine uses `gsap.globalTimeline.totalTime` | Rewrite to `gsap.delayedCall` or `_animeR` |
-| Fonts fall back to Impact/serif in illustrated_svg mode | Bebas Neue not loaded | Verify `_is_illustrated = style_guide.visual_style == "illustrated_svg"` in `_ensure_fonts` |
-| History entries default to `standard` mode | Metadata persisting not hit | Confirm generation is `visual_style != "standard"` so metadata stores it; check `getRemoteHistory` reads `item.metadata.visual_style` |
+| Fonts fall back to Impact/serif | Bebas Neue not loaded | Bebas Neue is now **always** loaded — if missing, the `_fonts_url` in `_ensure_fonts` has been mis-edited |
 | MP4 render stuck at queued | Render server unreachable / auth failing | Check `settings.render_server_url` + `settings.render_server_key`, poll `/render/status/{job_id}` |
 | Anime.js instance doesn't animate in MP4 | Missing `_animeR` registration | All `autoplay:false` instances must call `_animeR({instance, startMs})` |
 | Anime.js animates in browser but jumps in MP4 | `_animeSeek` not called per frame | Check [generate_video.py:2364](../../ai_service/app/ai-video-gen-main/generate_video.py#L2364) inside `__batchRenderFrame` |
-| Two shots visually overlap incorrectly | Shot timing gap | Director output must have `shot[N].end_time == shot[N+1].start_time`; validate at [automation_pipeline.py:3319](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3319) |
-| Frame regen breaks mode | Regen LLM doesn't know about `visual_style` | Known gap — inject mode from `metadata.visual_style` into regen system prompt (future work) |
+| Two shots visually overlap incorrectly | Shot timing gap | Director output must have `shot[N].end_time == shot[N+1].start_time`; gap-fill runs at [automation_pipeline.py:3641](../../ai_service/app/ai-video-gen-main/automation_pipeline.py#L3641) |
+| Frame regen produces inconsistent style | Regen LLM doesn't see the shot pack or skill catalog | Known gap — propagate run-level design tokens to the regen call (future work) |
 | Background task keeps running after browser closes | Intended behaviour | Reconnect via `GET /status/{video_id}` polling |
 | 402 Insufficient credits | Credit balance < reserved amount | Top up via AI credits purchase flow |
 | 429 Too many requests | Rate limit or concurrency cap | Wait / reduce concurrent requests |
@@ -976,14 +1327,32 @@ When making changes that touch the pipeline or render engine:
 
 ## 12. Future work / known gaps
 
-1. **Frame regen mode-awareness**: inject `metadata.visual_style` into the regen system prompt so mid-video edits don't break mode constraints.
-2. **Resume endpoint**: `VideoGenerationResumeRequest` schema exists but no route is wired up. `generate_till_stage(resume=True)` is only used internally.
-3. **Rough.js vs SVG filter**: the current hand-drawn wobble uses `<feTurbulence>` + `<feDisplacementMap>`. This is free, preserves `stroke-dashoffset`, and needs no new CDN dep. Rough.js would give more authentic pencil-stroke fills but requires rewriting how `INFOGRAPHIC_SVG` generates paths. Open question.
-4. **Shared AIVideoPlayer package**: admin and learner each have their own copy. Any change must be mirrored. A future refactor could extract to a shared package in `packages/ai-video-player`.
-5. **Institute branding injection**: the pipeline reads `_current_style_config` from institute settings but doesn't currently propagate per-institute font overrides. See `_TEMPLATE_EXTRA_FONT_FAMILIES` in `_ensure_fonts` for the current extension point.
-6. **Mobile playback**: the browser player works on mobile but `.stage-drift` and other transform-heavy effects can stutter on low-end devices. The render server MP4 is the recommended mobile delivery path.
-7. **Kinetic text word-sync accuracy**: the pipeline-built `KINETIC_TEXT` shots have frame-perfect sync. LLM-built kinetic text in lower tiers relies on `sync_points` from the director which are not as precise.
-8. **Stock video cache**: Pexels downloads are not cached across generations. Re-using the same stock footage for multiple shots within a video works, but across videos they re-fetch. A shared cache would cut Pexels API costs.
+### 12.1 Skill library roadmap (phases 2-5)
+
+Phase 1 (6 motion primitives, passive LLM discovery) is shipped. Next:
+
+1. **Phase 2 — Director-aware skill planning**: Director plan schema gains `skills: [...]` per shot. The per-shot HTML LLM is told explicitly which skill IDs will render into which placeholder element IDs, and it writes the surround HTML. Telemetry logs skill usage rates.
+2. **Phase 3 — Transitions as skills**: new `skills/transitions/` category (`zoom_through`, `vignette_fade`, `whip_pan`, `hard_cut`, `kinetic_title_interstitial`). Composer wires cross-shot entry/exit tweens.
+3. **Phase 4 — Shot templates**: `skills/shot_templates/` with full shot compositions the Director can invoke as a unit (`split_comparison`, `stat_block_with_context`, `three_up_grid`, `quote_callout`).
+4. **Phase 5 — Extension categories**: `camera_moves/`, `filters/`, `audio_cues/`, per-institute `brand_packs/`. Each adds a new subdirectory with the same base protocol.
+
+### 12.2 Director improvements
+
+5. **Dedicated Director model**: currently piggybacking on `html_client` (usually Gemini 3 Pro). Could route the Director to a stronger model (Claude Opus 4.6 / GPT-5) for better planning while keeping the cheaper model for per-shot HTML.
+6. **Skill usage telemetry aggregation**: weekly reports on which skills are used vs ignored vs failing. Feed into a catalog prioritization and deprecation policy.
+7. **A/B test by skill version**: pin 50% of runs to `bar_chart_grow@1.0`, 50% to `@2.0`, compare engagement metrics.
+
+### 12.3 Other known gaps
+
+8. **Frame regen carries over shot pack + skill catalog**: currently the regen LLM gets a minimal prompt without the run's design tokens or skill catalog, so regenerated frames can drift stylistically from the surrounding shots.
+9. **Resume endpoint**: `VideoGenerationResumeRequest` schema exists but no route is wired up. `generate_till_stage(resume=True)` is only used internally.
+10. **Rough.js vs SVG filter**: the current hand-drawn wobble uses `<feTurbulence>` + `<feDisplacementMap>`. This is free, preserves `stroke-dashoffset`, and needs no new CDN dep. Rough.js would give more authentic pencil-stroke fills but requires rewriting how `INFOGRAPHIC_SVG` generates paths. Open question.
+11. **Shared AIVideoPlayer package**: admin and learner each have their own copy. A future refactor could extract to a shared package in `packages/ai-video-player`.
+12. **Institute branding injection**: the pipeline reads `_current_style_config` from institute settings but doesn't currently propagate per-institute font overrides. See `_TEMPLATE_EXTRA_FONT_FAMILIES` in `_ensure_fonts` for the current extension point.
+13. **Mobile playback**: the browser player works on mobile but `.stage-drift` and other transform-heavy effects can stutter on low-end devices. The render server MP4 is the recommended mobile delivery path.
+14. **Kinetic text word-sync accuracy**: the pipeline-built `KINETIC_TEXT` shots have frame-perfect sync. LLM-built kinetic text in lower tiers relies on `sync_points` from the Director which are not as precise.
+15. **Stock video cache**: Pexels downloads are not cached across generations. Within one run the LLM-ranked dedup prevents reuse, but across runs the same clip gets re-fetched. A shared cache would cut Pexels API costs.
+16. **`visual_style` API field removal**: currently kept on the request schema as `DEPRECATED` for back-compat. Remove in next major API version.
 
 ---
 
@@ -994,16 +1363,27 @@ When making changes that touch the pipeline or render engine:
 | **Shot** | A single unit of visual content within a video. One shot = one `<div>` of HTML, one shadow root at render time, 2–6 seconds of narration coverage. |
 | **Segment** | Legacy term for multi-shot groups. Modern pipeline uses individual shots only. |
 | **Beat** | A unit of the narrative script outline. One beat → 1–4 shots. |
+| **Act** | (Super ultra two-pass only) A narrative chunk of 2-5 shots sharing a `style_direction` and `emotional_beat`. The Act Planner (pass 1 of the Director) splits a video into acts; the Shot Planner (pass 2) expands each into shots. |
 | **Timeline** | The `time_based_frame.json` output containing all shots + audio metadata. |
 | **Entry** | A single item in the timeline `entries[]` array (≈ shot for VIDEO content, ≈ question for QUIZ, ≈ page for STORYBOOK). |
 | **Stage** | Pipeline phase: PENDING → SCRIPT → TTS → WORDS → HTML → RENDER. |
-| **Director** | The shot-planning LLM call that turns a script + beat outline + word timestamps into a shot-by-shot plan. |
+| **Director** | The shot-planning LLM call that turns a script + beat outline + word timestamps into a shot-by-shot plan. **Owns all style decisions** — picks theme, background, shot type, animation language per shot. |
+| **Act Planner** | Pass 1 of the two-pass Director (super_ultra only). Produces a high-level act plan before the shot plan. |
+| **Shot Planner** | Pass 2 of the two-pass Director. Expands each act into shots. In single-pass mode (ultra/premium), this is just "the Director." |
+| **Shot pack** | A shared design-token dict (colors, fonts, spacing, eases, layout grid) built once per run and injected into every shot's user prompt. Kills cross-shot drift. Premium/ultra/super_ultra only. |
+| **Emphasis map** | A condensed list of silence gaps + stress peaks + sentence starts derived from word timestamps. Injected into the Director prompt so it can anchor shots on real pacing signals. Ultra/super_ultra only. |
+| **Skill / motion primitive** | A pre-built, parameterized HTML/CSS/JS snippet the LLM can invoke via a `<skill data-skill-id="..." data-params='...'></skill>` tag. The composer substitutes the tag with rendered code. Ultra/super_ultra only. |
+| **Skill composer** | Pure function `compose(shot_html, ctx)` that scans for `<skill>` tags, validates params, renders each skill via its `render(params, ctx)` function, and aggregates CSS/JS into the final HTML. |
+| **Skill registry** | Filesystem-discovered dict of all skills loaded from `skills/**/skill.py`. Cached once per process. |
+| **Animation density validator** | Post-generation scanner (super_ultra only) that counts GSAP tweens and checks sync-point honoring. Fires one corrective regeneration if a shot is thin. |
+| **Shot visual family** | A grouping of shot types by visual character (cinematic photo / pure SVG / product stage / motion graphics / overlay). The Director can mix families freely across a timeline. |
+| **Shot density** | Super_ultra Director's self-reported pacing label (`fast`/`medium`/`slow`). Validated against actual average shot duration. |
 | **Shadow DOM** | Browser feature used by the render server to style-isolate each shot. Not used by the browser player (which uses iframes instead). |
 | **Navigation mode** | `time_driven` (VIDEO — follows audio clock), `user_driven` (QUIZ/STORYBOOK — user clicks), `self_contained` (INTERACTIVE_GAME — HTML runs on its own). |
-| **Pipeline mode** (= `visual_style`) | `standard` / `illustrated_svg` / `product_showcase`. Determines shot types, CSS utilities, and overall visual character. |
-| **Image style** | LLM-picked photography/illustration style used as a prompt prefix for AI image generation. `"realistic cinematic photograph"` / `"flat vector illustration"` / etc. Distinct from pipeline mode. |
-| **Quality tier** | `free` / `standard` / `premium` / `ultra` / `super_ultra`. Controls feature gates (two-pass review, validation, director, kinetic text, motion bias). Independent of pipeline mode. |
+| **Visual style** (deprecated) | Legacy pipeline mode concept (`standard` / `illustrated_svg` / `product_showcase`). Removed from UI and no longer gates pipeline behavior. Still accepted on the request schema for back-compat. |
+| **Image style** | LLM-picked photography/illustration style used as a prompt prefix for AI image generation. `"realistic cinematic photograph"` / `"flat vector illustration"` / etc. Shot-agnostic — just a prefix. |
+| **Quality tier** | `free` / `standard` / `premium` / `ultra` / `super_ultra`. Controls feature gates (director token budget, shot pack, emphasis map, few-shot, two-pass, animation validator, stock video ranking, skill library). |
 
 ---
 
-**Maintainers**: if you change anything in `automation_pipeline.py::run()`, `_ensure_fonts()`, `shot_type_cards.py::SHOT_TYPE_CARDS`, or the external API contract, update this doc in the same commit.
+**Maintainers**: if you change anything in `automation_pipeline.py::run()`, `_ensure_fonts()`, `shot_type_cards.py::SHOT_TYPE_CARDS`, `director_prompts.py::DIRECTOR_SYSTEM_PROMPT`, `skill_registry.py`, `skill_composer.py`, `QUALITY_TIERS`, or the external API contract, update this doc in the same commit. Adding a new skill under `skills/**/skill.py` does NOT require a doc update — skills are discovered at runtime.
