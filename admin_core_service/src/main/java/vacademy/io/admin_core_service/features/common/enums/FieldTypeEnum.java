@@ -4,5 +4,12 @@ public enum FieldTypeEnum {
     TEXT,
     DROPDOWN,
     EMAIL,
-    URL
+    URL,
+    NUMBER,
+    DATE,
+    PHONE,
+    TEXTAREA,
+    CHECKBOX,
+    RADIO,
+    FILE
 }

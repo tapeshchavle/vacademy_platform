@@ -23,7 +23,7 @@ import StatusDropdown from './StatusDropdown';
 import createCampaignLink from '../../-utils/createCampaignLink';
 import CampaignLink from './CampaignLink';
 import { CampaignItem } from '../../-services/get-campaigns-list';
-import { getCampaignCustomFields, getCampaignCustomFieldsAsync } from '../../-utils/getCampaignCustomFields';
+import { getCampaignCustomFieldsAsync } from '../../-utils/getCampaignCustomFields';
 import { useGetCampaignById } from '../../-hooks/useGetCampaignById';
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
 import { OtherTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
@@ -42,20 +42,11 @@ const generateKeyFromName = (name: string): string =>
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_+|_+$/g, '');
 
-const mapApiFieldTypeToUi = (type?: string): 'text' | 'dropdown' | 'number' | 'textfield' => {
+const mapApiFieldTypeToUi = (type?: string): string => {
     const normalized = (type || '').toLowerCase();
-    switch (normalized) {
-        case 'dropdown':
-        case 'select':
-            return 'dropdown';
-        case 'number':
-            return 'number';
-        case 'textfield':
-        case 'textarea':
-            return 'textfield';
-        default:
-            return 'text';
-    }
+    if (normalized === 'select') return 'dropdown';
+    if (normalized === 'textfield') return 'text';
+    return normalized || 'text';
 };
 
 const parseFieldsInput = (fields?: any[] | string | null) => {
@@ -363,33 +354,62 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
     }, [form, initialFormValues, isEditMode, isLoadingCampaign, setValue]);
 
     // Async-load institute defaults directly from the live backend endpoint.
-    // For create mode: always loads defaults.
-    // For edit mode: only loads if the campaign has no saved custom fields.
+    //
+    // This is the SINGLE source of truth for custom_fields in create mode.
+    // Mirrors the working invite pattern:
+    //   1. Fetch fresh DEFAULT_CUSTOM_FIELD mappings from the API.
+    //   2. `getCampaignCustomFieldsAsync` guarantees Full Name / Email /
+    //      Phone Number are present (as seeded defaults) and dedupes by key
+    //      so historical duplicates in the settings blob can't leak through.
+    //   3. Store the result in `initialCreateModeCustomFields.current` so the
+    //      Reset button can restore it without re-fetching.
+    //
+    // In edit mode this effect is a no-op — initialFormValues already has the
+    // saved fields from the campaign (populated in buildInitialFormValues).
     useEffect(() => {
-        if (!isEditMode || (initialFormValues && (!initialFormValues.custom_fields || initialFormValues.custom_fields.length === 0))) {
-            const SEEDED = ['full_name', 'email', 'phone_number'];
-            getCampaignCustomFieldsAsync().then((fields) => {
-                if (fields && fields.length > 0) {
-                    const currentValues = form.getValues();
-                    const normalized = fields.map((field, index) => {
-                        const isSeeded = SEEDED.includes(field.key);
-                        return {
-                            id: field.id || String(index),
-                            type: field.type,
-                            name: field.name,
-                            oldKey: isSeeded,
-                            isRequired: field.isRequired ?? isSeeded,
-                            key: field.key,
-                            order: index,
-                            _id: field._id,
-                            options: field.options,
-                        };
-                    });
-                    form.reset({ ...currentValues, custom_fields: normalized });
-                }
+        if (isEditMode) return;
+        if (isLoadingCampaign) return;
+
+        let cancelled = false;
+        const SEEDED = ['full_name', 'email', 'phone_number'];
+
+        getCampaignCustomFieldsAsync().then((fields) => {
+            if (cancelled || !fields || fields.length === 0) return;
+
+            // Final safety dedupe by key at the form boundary
+            const seen = new Set<string>();
+            const normalized = fields
+                .filter((f) => {
+                    if (seen.has(f.key)) return false;
+                    seen.add(f.key);
+                    return true;
+                })
+                .map((field, index) => {
+                    const isSeeded = SEEDED.includes(field.key);
+                    return {
+                        id: field.id || String(index),
+                        type: field.type,
+                        name: field.name,
+                        oldKey: isSeeded, // lock Full Name / Email / Phone Number
+                        isRequired: field.isRequired ?? isSeeded,
+                        key: field.key,
+                        order: index,
+                        _id: field._id,
+                        options: field.options,
+                    };
+                });
+
+            initialCreateModeCustomFields.current = normalized;
+            setValue('custom_fields', normalized, {
+                shouldDirty: false,
+                shouldTouch: false,
             });
-        }
-    }, []);
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isEditMode, isLoadingCampaign, setValue]);
 
     // Custom fields array management
     const { fields: customFieldsArray, move: moveCustomField } = useFieldArray({
@@ -398,138 +418,19 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
     });
     const customFields = getValues('custom_fields');
 
-    /**
-     * Get initial custom fields from settings (helper function)
-     * Returns the normalized fields array without setting them in the form
-     */
-    const getInitialCustomFieldsFromSettings = useCallback(() => {
-        // Get fields from settings cache (dynamically reads from localStorage)
-        const fieldsFromSettings = getCampaignCustomFields();
-
-        // Helper to check if a field is Name or Email
-        const isNameOrEmail = (key?: string, name?: string): boolean => {
-            const normalizedKey = (key || '').toLowerCase();
-            const normalizedName = (name || '').toLowerCase();
-            return (
-                normalizedKey === 'full_name' ||
-                normalizedKey === 'name' ||
-                normalizedKey === 'email' ||
-                normalizedName === 'full name' ||
-                normalizedName === 'name' ||
-                normalizedName === 'email'
-            );
-        };
-
-        // Helper to check if a field is Phone Number
-        const isPhoneNumber = (key?: string, name?: string): boolean => {
-            const normalizedKey = (key || '').toLowerCase();
-            const normalizedName = (name || '').toLowerCase();
-            return (
-                normalizedKey === 'phone_number' ||
-                normalizedKey === 'phone' ||
-                normalizedKey === 'phone_number' ||
-                normalizedName === 'phone number' ||
-                normalizedName === 'phone'
-            );
-        };
-
-        // Separate fixed fields (Name, Email) from other fields
-        const fixedFields: any[] = [];
-        const otherFields: any[] = [];
-
-        fieldsFromSettings.forEach((field) => {
-            // Skip Phone Number - it's available via Add button
-            if (isPhoneNumber(field.key, field.name)) {
-                console.log('📋 [getInitialCustomFieldsFromSettings] Skipping Phone Number from settings (available via Add button)');
-                return;
-            }
-
-            const transformedField = {
-                id: field.id || String(fieldsFromSettings.indexOf(field)),
-                type: field.type,
-                name: field.name,
-                oldKey: isNameOrEmail(field.key, field.name), // Mark Name/Email as fixed
-                isRequired: field.isRequired ?? true,
-                key: field.key,
-                order: fieldsFromSettings.indexOf(field),
-                _id: field._id, // Store actual field ID from settings for API payload
-                options: field.options,
-            };
-
-            if (isNameOrEmail(field.key, field.name)) {
-                fixedFields.push(transformedField);
-            } else {
-                otherFields.push(transformedField);
-            }
-        });
-
-        // Ensure Name and Email are always present (even if not in settings)
-        const hasName = fixedFields.some(
-            (f) => f.key?.toLowerCase() === 'full_name' || f.key?.toLowerCase() === 'name' || f.name?.toLowerCase() === 'full name' || f.name?.toLowerCase() === 'name'
-        );
-        const hasEmail = fixedFields.some(
-            (f) => f.key?.toLowerCase() === 'email' || f.name?.toLowerCase() === 'email'
-        );
-
-        if (!hasName) {
-            fixedFields.unshift({
-                id: 'full_name_fixed',
-                type: 'text' as const,
-                name: 'Full Name',
-                oldKey: true, // Fixed field - cannot be deleted
-                isRequired: true,
-                key: 'full_name',
-                order: 0,
-            });
-        }
-
-        if (!hasEmail) {
-            const emailIndex = fixedFields.length;
-            fixedFields.push({
-                id: 'email_fixed',
-                type: 'text' as const,
-                name: 'Email',
-                oldKey: true, // Fixed field - cannot be deleted
-                isRequired: true,
-                key: 'email',
-                order: emailIndex,
-            });
-        }
-
-        // Combine: fixed fields first, then other fields from settings
-        const allFields = [...fixedFields, ...otherFields];
-
-        // Normalize order
-        const normalizedFields = allFields.map((field, index) => ({
-            ...field,
-            order: index,
-            id: field.id ?? String(index),
-            isRequired: field.isRequired ?? true,
-            oldKey: field.oldKey ?? false,
-        }));
-
-        return normalizedFields;
-    }, []);
-
-    /**
-     * Load custom fields dynamically from settings cache
-     * This function:
-     * 1. Gets fields from settings via getCampaignCustomFields() (reads from localStorage cache)
-     * 2. Ensures Name and Email are always present as fixed fields (cannot be deleted)
-     * 3. Filters out Phone Number (since it's available via Add button)
-     * 4. Transforms all fields from settings that have Campaign visibility enabled
-     * 5. Converts to form-compatible format
-     * 
-     * When settings are updated, this will automatically reflect changes on next form load
-     * Name and Email are always present as fixed fields, followed by other fields from settings
-     */
-    const applyDefaultCustomFields = useCallback(() => {
-        const normalizedFields = getInitialCustomFieldsFromSettings();
-        setValue('custom_fields', normalizedFields, {
-            shouldDirty: false,
-            shouldTouch: false,
-        });
-    }, [setValue, getInitialCustomFieldsFromSettings]);
+    // NOTE (2026-04): `getInitialCustomFieldsFromSettings` + `applyDefaultCustomFields`
+    // were removed. They read from the stale localStorage settings cache,
+    // hardcoded Full Name / Email, and explicitly filtered out Phone Number
+    // — causing three bugs:
+    //
+    //   1. Cache bled into new campaigns (showed all historical feature fields)
+    //   2. Phone Number missing on localhost (explicit filter)
+    //   3. Duplicates in prod (hardcoded seeded fields + API response both appeared)
+    //
+    // Default loading is now entirely handled by the `useEffect` above that
+    // calls `getCampaignCustomFieldsAsync`, which matches the working invite
+    // flow — single async source of truth with hardcoded fallback that
+    // includes Full Name + Email + Phone Number, deduped by key.
 
     const setCustomFieldsFromExisting = useCallback(
         (fields: any[]) => {
@@ -548,51 +449,27 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
         [setValue]
     );
 
-    // Load custom fields immediately when form opens
+    // Edit mode: ensure fields from initialFormValues land on the form if the
+    // parent `form.reset(initialFormValues)` was skipped for any reason.
+    //
+    // Create mode: no-op. The async useEffect above (`getCampaignCustomFieldsAsync`)
+    // is the single source of truth for default fields.
     useEffect(() => {
-        if (isEditMode) {
-            // In edit mode, fields should already be in initialFormValues (from buildInitialFormValues)
-            // Just ensure they're set if not already
-            if (initialFormValues) {
-                const currentFields = getValues('custom_fields');
-                
-                if (initialFormValues.custom_fields && initialFormValues.custom_fields.length > 0) {
-                    if (!currentFields || currentFields.length === 0) {
-                        console.log('📋 [CreateCampaignForm] Setting custom fields from initialFormValues:', initialFormValues.custom_fields.length, 'fields');
-                        setTimeout(() => {
-                            setValue('custom_fields', initialFormValues.custom_fields, {
-                                shouldDirty: false,
-                                shouldTouch: false,
-                            });
-                        }, 100);
-                    }
-                }
-            }
-            return undefined;
-        } else {
-            // In create mode, load fields immediately from settings
-            // This ensures Name, Email, and all custom fields appear automatically when form opens
-            console.log('📋 [CreateCampaignForm] Create mode - loading fields from settings immediately');
-            // Use setTimeout to ensure form is fully initialized
-            const timer = setTimeout(() => {
-                const normalizedFields = getInitialCustomFieldsFromSettings();
-                // Store the initial custom fields for reset functionality
-                initialCreateModeCustomFields.current = normalizedFields;
-                // Apply the fields to the form
-                setValue('custom_fields', normalizedFields, {
-                    shouldDirty: false,
-                    shouldTouch: false,
-                });
-            }, 100);
-            return () => clearTimeout(timer);
+        if (!isEditMode) return;
+        if (!initialFormValues) return;
+
+        const currentFields = getValues('custom_fields');
+        if (
+            initialFormValues.custom_fields &&
+            initialFormValues.custom_fields.length > 0 &&
+            (!currentFields || currentFields.length === 0)
+        ) {
+            setValue('custom_fields', initialFormValues.custom_fields, {
+                shouldDirty: false,
+                shouldTouch: false,
+            });
         }
-    }, [
-        getInitialCustomFieldsFromSettings,
-        isEditMode,
-        initialFormValues,
-        getValues,
-        setValue,
-    ]);
+    }, [isEditMode, initialFormValues, getValues, setValue]);
 
     const handleFormReset = () => {
         if (isEditMode && existingCustomFields && existingCustomFields.length > 0) {
@@ -601,28 +478,51 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
             setCustomFieldsFromExisting(existingCustomFields);
             setEmails(parseEmailsFromCsv(campaignData?.to_notify));
         } else {
-            // In create mode, reset form values but preserve initial custom fields
-            // Get the initial custom fields that were loaded when form opened
+            // In create mode, reset form values but preserve the initial custom
+            // fields that were loaded via getCampaignCustomFieldsAsync.
             const fieldsToRestore = initialCreateModeCustomFields.current;
-            
-            // Reset form to default values
+
             handleReset();
-            
-            // Immediately restore initial custom fields after reset
+
             setTimeout(() => {
                 if (fieldsToRestore && fieldsToRestore.length > 0) {
-                    // Restore to the initial fields from when form was opened
                     setValue('custom_fields', fieldsToRestore, {
                         shouldDirty: false,
                         shouldTouch: false,
                     });
                 } else {
-                    // If no initial fields stored yet, load from settings
-                    const normalizedFields = getInitialCustomFieldsFromSettings();
-                    initialCreateModeCustomFields.current = normalizedFields;
-                    setValue('custom_fields', normalizedFields, {
-                        shouldDirty: false,
-                        shouldTouch: false,
+                    // Fallback: re-fetch from the live API. This path should
+                    // almost never hit because the mount-time useEffect already
+                    // populated the ref — but keep it as a safety net in case
+                    // the user hits Reset before the initial fetch resolves.
+                    getCampaignCustomFieldsAsync().then((fields) => {
+                        const SEEDED = ['full_name', 'email', 'phone_number'];
+                        const seen = new Set<string>();
+                        const normalized = (fields || [])
+                            .filter((f) => {
+                                if (seen.has(f.key)) return false;
+                                seen.add(f.key);
+                                return true;
+                            })
+                            .map((field, index) => {
+                                const isSeeded = SEEDED.includes(field.key);
+                                return {
+                                    id: field.id || String(index),
+                                    type: field.type,
+                                    name: field.name,
+                                    oldKey: isSeeded,
+                                    isRequired: field.isRequired ?? isSeeded,
+                                    key: field.key,
+                                    order: index,
+                                    _id: field._id,
+                                    options: field.options,
+                                };
+                            });
+                        initialCreateModeCustomFields.current = normalized;
+                        setValue('custom_fields', normalized, {
+                            shouldDirty: false,
+                            shouldTouch: false,
+                        });
                     });
                 }
                 setEmails([]);
@@ -757,19 +657,31 @@ export const CreateCampaignForm: React.FC<CreateCampaignFormProps> = ({ onSucces
         ]);
     };
 
-    const handleCloseDialog = (type: string, name: string, oldKey: boolean) => {
+    const handleCloseDialog = (
+        type: string,
+        name: string,
+        oldKey: boolean,
+        options?: { id: number; value: string; disabled: boolean }[],
+        config?: Record<string, unknown>
+    ) => {
+        const rawOptions =
+            options ?? ((type === 'dropdown' || type === 'radio') ? getValues('dropdownOptions') : undefined);
+        const resolvedOptions = rawOptions?.map((opt) => ({
+            id: String(opt.id),
+            value: opt.value,
+        }));
         const newField = {
             id: String(customFields.length),
             type,
             name,
             oldKey,
-            ...(type === 'dropdown' && { options: getValues('dropdownOptions') }),
+            ...(resolvedOptions && { options: resolvedOptions }),
             isRequired: true,
             key: '',
             order: customFields.length,
         };
         const updatedFields = [...customFields, newField];
-        setValue('custom_fields', updatedFields);
+        setValue('custom_fields', updatedFields as typeof customFields);
         setValue('isDialogOpen', false);
         setValue('textFieldValue', '');
         setValue('dropdownOptions', []);

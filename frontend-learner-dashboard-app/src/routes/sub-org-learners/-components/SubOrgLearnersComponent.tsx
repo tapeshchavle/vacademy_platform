@@ -18,6 +18,8 @@ import { toast } from 'sonner';
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/bootstrap.css";
 import { BulkUploadModal } from './BulkUploadModal';
+import { CustomFieldRenderer } from "@/components/common/custom-fields/CustomFieldRenderer";
+import { FieldRenderType, getFieldRenderType } from "@/components/common/enroll-by-invite/-utils/custom-field-helpers";
 
 interface SubOrgLearnersComponentProps {
   adminMappings: AdminMappings[];
@@ -409,8 +411,11 @@ export function SubOrgLearnersComponent({ adminMappings, instituteDetails }: Sub
       );
     }
 
-    // Check if it looks like phone to ensure we use PhoneInput even if backend says text/number
-    if ((fieldName.toLowerCase().includes('phone') || fieldKey.includes('phone')) && !fieldName.toLowerCase().includes('type')) {
+    // Resolve the render type using shared helper (auto-detects phone by field name)
+    const renderType = getFieldRenderType(fieldName || fieldKey, fieldType);
+
+    // Phone: keep specialised PhoneInput with country-code picker
+    if (renderType === FieldRenderType.PHONE) {
       return (
         <div key={field.id}>
           <Label htmlFor={fieldKey}>{displayName} {isMandatory && '*'}</Label>
@@ -420,6 +425,7 @@ export function SubOrgLearnersComponent({ adminMappings, instituteDetails }: Sub
               value={formData[fieldKey] || ''}
               onChange={(phone) => setFormData((prev: any) => ({ ...prev, [fieldKey]: phone.startsWith('+') ? phone : `+${phone}` }))}
               enableSearch={true}
+              placeholder="+1 234 567 8900"
               inputClass="!w-full h-10 !rounded-md !border-input"
               buttonClass="!rounded-l-md !border-input"
               countryCodeEditable={false}
@@ -432,102 +438,21 @@ export function SubOrgLearnersComponent({ adminMappings, instituteDetails }: Sub
       );
     }
 
-    switch (fieldType) {
-      case 'text':
-      case 'textarea': // Render textarea as Input for now or use Textarea component if available
-        return (
-          <div key={field.id}>
-            <Label htmlFor={fieldKey}>{displayName} {isMandatory && '*'}</Label>
-            <Input
-              id={fieldKey}
-              value={formData[fieldKey] || ''}
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldKey]: e.target.value }))}
-              placeholder={`Enter ${displayName}`}
-              required={isMandatory}
-            />
-          </div>
-        );
-      case 'dropdown':
-        let options = [];
-        try {
-          options = config ? JSON.parse(config) : [];
-        } catch (e) {
-          options = [];
-        }
-        return (
-          <div key={field.id}>
-            <Label htmlFor={fieldKey}>{displayName} {isMandatory && '*'}</Label>
-            <Select
-              value={formData[fieldKey] || ''}
-              onValueChange={(value) => setFormData((prev: any) => ({ ...prev, [fieldKey]: value }))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={`Select ${displayName}`} />
-              </SelectTrigger>
-              <SelectContent className="max-h-60 z-[10000]">
-                {options.map((opt: any) => (
-                  <SelectItem key={opt.id} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        );
-      case 'number':
-        // Reuse Input type number? Or just text validation
-        return (
-          <div key={field.id}>
-            <Label htmlFor={fieldKey}>{displayName} {isMandatory && '*'}</Label>
-            <Input
-              id={fieldKey}
-              type="text" // using text to allow control over validation if needed, or numeric
-              value={formData[fieldKey] || ''}
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldKey]: e.target.value }))}
-              placeholder={`Enter ${displayName}`}
-              required={isMandatory}
-            />
-          </div>
-        );
-      // Case for phone if it comes as specific type, otherwise default text
-      default:
-        // Check if it looks like phone
-        if (fieldName.toLowerCase().includes('phone') || fieldKey.includes('phone')) {
-          return (
-            <div key={field.id}>
-              <Label htmlFor={fieldKey}>{displayName} {isMandatory && '*'}</Label>
-              <div className={formData[fieldKey] && !validatePhoneNumber(formData[fieldKey]) ? "phone-input-error" : ""}>
-                <PhoneInput
-                  country={'au'}
-                  value={formData[fieldKey] || ''}
-                  onChange={(phone) => setFormData((prev: any) => ({ ...prev, [fieldKey]: phone.startsWith('+') ? phone : `+${phone}` }))}
-                  enableSearch={true}
-                  placeholder="+1 234 567 8900"
-                  inputClass="!w-full h-10 !rounded-md !border-input"
-                  buttonClass="!rounded-l-md !border-input"
-                  countryCodeEditable={false}
-                  enableAreaCodes={true}
-                  disableCountryGuess={false}
-                  preferredCountries={["us", "gb", "in", "au"]}
-                />
-              </div>
-            </div>
-          );
-        }
-
-        return (
-          <div key={field.id}>
-            <Label htmlFor={fieldKey}>{displayName} {isMandatory && '*'}</Label>
-            <Input
-              id={fieldKey}
-              value={formData[fieldKey] || ''}
-              onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldKey]: e.target.value }))}
-              placeholder={`Enter ${displayName}`}
-              required={isMandatory}
-            />
-          </div>
-        );
-    }
+    // All other types — shared renderer handles text, number, email, url,
+    // date, textarea, checkbox, radio, dropdown, file
+    return (
+      <div key={field.id}>
+        <Label htmlFor={fieldKey}>{displayName} {isMandatory && '*'}</Label>
+        <CustomFieldRenderer
+          type={renderType}
+          name={displayName}
+          value={formData[fieldKey] || ''}
+          onChange={(val) => setFormData((prev: any) => ({ ...prev, [fieldKey]: val }))}
+          config={config}
+          required={isMandatory}
+        />
+      </div>
+    );
   };
 
   return (
