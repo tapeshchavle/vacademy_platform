@@ -16,6 +16,15 @@ export enum AccessType {
 export enum InputType {
     TEXT = 'text',
     DROPDOWN = 'dropdown',
+    NUMBER = 'number',
+    EMAIL = 'email',
+    URL = 'url',
+    PHONE = 'phone',
+    DATE = 'date',
+    TEXTAREA = 'textarea',
+    CHECKBOX = 'checkbox',
+    RADIO = 'radio',
+    FILE = 'file',
 }
 export const sessionStatusLabels: Record<SessionStatus, string> = {
     [SessionStatus.UPCOMING]: 'Upcoming',
