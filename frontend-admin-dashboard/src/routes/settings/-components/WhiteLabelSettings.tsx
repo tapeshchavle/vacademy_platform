@@ -712,14 +712,6 @@ export default function WhiteLabelSettings({ isTab }: { isTab?: boolean }) {
         const nonEmpty = formEntries.filter(e => e.domain.trim());
         if (nonEmpty.length === 0) { toast.error('Add at least one domain entry'); return; }
 
-        for (const role of ROLES) {
-            const primaries = nonEmpty.filter(e => e.role === role && e.isPrimary);
-            if (primaries.length > 1) {
-                toast.error(`Only one primary domain allowed for ${roleLabel(role)}`);
-                return;
-            }
-        }
-
         setSetupLoading(true);
         setLastSetupResult(null);
         try {
@@ -760,19 +752,7 @@ export default function WhiteLabelSettings({ isTab }: { isTab?: boolean }) {
     };
 
     const updateEntry = (id: string, field: keyof DomainFormEntry, value: any) => {
-        if (field === 'isPrimary' && value === true) {
-            setFormEntries(prev => {
-                const entry = prev.find(e => e.id === id);
-                if (!entry) return prev;
-                return prev.map(e => {
-                    if (e.id === id) return { ...e, isPrimary: true };
-                    if (e.role === entry.role && e.isPrimary) return { ...e, isPrimary: false };
-                    return e;
-                });
-            });
-        } else {
-            setFormEntries(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
-        }
+        setFormEntries(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
     };
 
     const updateEntryConfig = (id: string, field: keyof RoutingConfig, value: any) => {
