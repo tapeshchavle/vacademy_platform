@@ -784,12 +784,15 @@ public class SlideService {
                         newQ.setExplanationText(copyRichText(oldQ.getExplanationText()));
                     }
 
-                    // Deep-copy options
+                    // Deep-copy options and build old→new ID mapping
+                    Map<String, String> optionIdMap = new HashMap<>();
                     if (oldQ.getQuizSlideQuestionOptions() != null) {
                         List<QuizSlideQuestionOption> newOptions = new ArrayList<>();
                         for (QuizSlideQuestionOption oldOpt : oldQ.getQuizSlideQuestionOptions()) {
+                            String newOptId = UUID.randomUUID().toString();
+                            optionIdMap.put(oldOpt.getId(), newOptId);
                             QuizSlideQuestionOption newOpt = new QuizSlideQuestionOption();
-                            newOpt.setId(UUID.randomUUID().toString());
+                            newOpt.setId(newOptId);
                             newOpt.setQuizSlideQuestion(newQ);
                             newOpt.setMediaId(oldOpt.getMediaId());
                             if (oldOpt.getText() != null) {
@@ -801,6 +804,11 @@ public class SlideService {
                             newOptions.add(newOpt);
                         }
                         newQ.setQuizSlideQuestionOptions(newOptions);
+                    }
+
+                    // Remap option IDs in autoEvaluationJson (correctAnswers references old option IDs)
+                    if (StringUtils.hasText(newQ.getAutoEvaluationJson()) && !optionIdMap.isEmpty()) {
+                        newQ.setAutoEvaluationJson(remapOptionIdsInJson(newQ.getAutoEvaluationJson(), optionIdMap));
                     }
                     newQuestions.add(newQ);
                 }
@@ -818,6 +826,29 @@ public class SlideService {
         copy.setType(source.getType());
         copy.setContent(source.getContent());
         return copy;
+    }
+
+    /**
+     * Replaces old option IDs with new ones in autoEvaluationJson.
+     * Expected format: {"correctAnswers":["old-uuid-1","old-uuid-2"]}
+     */
+    private String remapOptionIdsInJson(String json, Map<String, String> optionIdMap) {
+        try {
+            Map<String, Object> evalMap = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+            Object correctAnswers = evalMap.get("correctAnswers");
+            if (correctAnswers instanceof List<?>) {
+                List<Object> remapped = new ArrayList<>();
+                for (Object answer : (List<?>) correctAnswers) {
+                    String answerStr = answer.toString();
+                    remapped.add(optionIdMap.getOrDefault(answerStr, answerStr));
+                }
+                evalMap.put("correctAnswers", remapped);
+            }
+            return objectMapper.writeValueAsString(evalMap);
+        } catch (Exception e) {
+            log.warn("Failed to remap option IDs in autoEvaluationJson: {}", e.getMessage());
+            return json;
+        }
     }
 
     /**
