@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import vacademy.io.admin_core_service.features.common.entity.CustomFields;
 import vacademy.io.admin_core_service.features.common.repository.CustomFieldRepository;
-import vacademy.io.admin_core_service.features.media_service.dto.FileDetailsDTO;
 import vacademy.io.admin_core_service.features.media_service.service.MediaService;
+import vacademy.io.common.media.dto.FileDetailsDTO;
 
 import java.util.*;
 
