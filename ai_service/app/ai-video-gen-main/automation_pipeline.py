@@ -300,6 +300,7 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "segment_context": True,
         "use_director": True,
         "director_max_tokens": 20000,
+        "shot_pack_enabled": True,
         "per_shot_max_tokens": 16000,
         "crossfade_duration": 0.35,
     },
@@ -316,6 +317,8 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "use_director": True,
         "director_max_tokens": 32000,
         "director_emphasis_map": True,
+        "shot_pack_enabled": True,
+        "skill_library_enabled": True,
         "per_shot_max_tokens": 24000,
         "crossfade_duration": 0.35,
     },
@@ -335,6 +338,10 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "director_two_pass": True,
         "director_few_shot": True,
         "director_shot_density": True,
+        "shot_pack_enabled": True,
+        "shot_animation_validator": True,
+        "stock_video_ranking": True,
+        "skill_library_enabled": True,
         "per_shot_max_tokens": 32000,
         "kinetic_text_shots": True,
         "crossfade_duration": 0.35,
@@ -1144,6 +1151,9 @@ class VideoGenerationPipeline:
         # visual_style is accepted for API back-compat but no longer gates behavior —
         # the Director now decides theme / background / animation per shot.
         del visual_style
+        # Dedup set for LLM-ranked stock video selection (super_ultra only).
+        # Tracks Pexels video IDs already used in this run so shots don't reuse clips.
+        self._used_pexels_video_ids: set = set()
         # Store max_segments for use in concept-aligned segmentation
         self._max_segments = max_segments
 
@@ -3288,6 +3298,155 @@ class VideoGenerationPipeline:
         # Unrecognizable shape
         return {"shots": []}
 
+    def _build_shot_pack(
+        self,
+        style_guide: Dict[str, Any],
+        width: int,
+        height: int,
+    ) -> Dict[str, Any]:
+        """Assemble a shared token pack that every shot prompt gets injected with.
+
+        Eliminates cross-shot drift on colors, typography, spacing, and easing by
+        handing the shot LLM a single source of truth instead of letting each
+        shot re-derive layout decisions locally. Computed once per run.
+        """
+        palette = style_guide.get("palette", {}) or {}
+        is_portrait = height > width
+        # Font scale — portrait pushes display type larger relative to viewport
+        # because reels hold attention on a single text block, not a layout grid.
+        if is_portrait:
+            font_scale = {
+                "display": "9rem",
+                "h1": "5.5rem",
+                "h2": "3.25rem",
+                "body": "1.9rem",
+                "caption": "1.35rem",
+                "micro": "1.05rem",
+            }
+        else:
+            font_scale = {
+                "display": "8rem",
+                "h1": "4.5rem",
+                "h2": "2.75rem",
+                "body": "1.75rem",
+                "caption": "1.2rem",
+                "micro": "0.95rem",
+            }
+        safe_area = "4%" if is_portrait else "6%"
+        return {
+            "color_tokens": {
+                "primary": "var(--brand-primary)",
+                "accent": "var(--brand-accent)",
+                "text": "var(--brand-text)",
+                "text_secondary": "var(--brand-text-secondary)",
+                "bg": palette.get("background", "var(--brand-bg)"),
+                "svg_stroke": "var(--brand-svg-stroke)",
+                "svg_fill": "var(--brand-svg-fill)",
+                "annotation": "var(--brand-annotation)",
+            },
+            "font_family": {
+                "display": "'Bebas Neue', 'Montserrat', sans-serif",
+                "heading": style_guide.get("fonts", {}).get("primary", "Montserrat"),
+                "body": style_guide.get("fonts", {}).get("secondary", "Inter"),
+                "mono": "'Fira Code', monospace",
+            },
+            "font_scale": font_scale,
+            "spacing": {
+                "xs": "8px",
+                "sm": "16px",
+                "md": "24px",
+                "lg": "40px",
+                "xl": "64px",
+                "2xl": "96px",
+                "safe_area": safe_area,
+            },
+            "ease": {
+                "entry": "power3.out",
+                "exit": "power2.in",
+                "emphasis": "back.out(1.6)",
+                "bg_crossfade": "power2.inOut",
+                "snappy": "expo.out",
+                "settle": "power4.out",
+            },
+            "timing": {
+                "entry_stagger": 0.12,
+                "title_delay": 0.3,
+                "subtitle_delay": 0.8,
+                "bg_crossfade_sec": 1.2,
+                "word_wipe_per_word": 0.15,
+            },
+            "layout": {
+                "aspect": "9:16" if is_portrait else "16:9",
+                "canvas_w": width,
+                "canvas_h": height,
+                "grid_columns": 6 if is_portrait else 12,
+                "gutter": "24px",
+            },
+            "id_prefix": "s{shot_idx}_",  # Shot code replaces {shot_idx} at inject time
+        }
+
+    def _validate_shot_animation_density(
+        self,
+        html: str,
+        shot: Dict[str, Any],
+        start_time: float,
+        end_time: float,
+    ) -> List[str]:
+        """Scan generated shot HTML for animation coverage.
+
+        Checks:
+        1. Minimum GSAP tween count against tier's `min_animated_elements`.
+        2. Each Director-specified sync_point has a corresponding GSAP `delay:`
+           within ±0.2s of the expected shot-relative time.
+
+        Returns a list of human-readable issue strings. Empty list = OK.
+        """
+        issues: List[str] = []
+        min_anim = int(self._tier_config.get("min_animated_elements", 4))
+
+        # Count distinct GSAP tween/timeline calls. Matches .to/.from/.fromTo/.timeline
+        # at both the `gsap.` top level and chained (`.to(`, `.from(`).
+        tween_pattern = re.compile(
+            r"(?:gsap\.(?:to|from|fromTo|timeline)|\.(?:to|from|fromTo|set)\s*\()",
+        )
+        tween_count = len(tween_pattern.findall(html))
+        if tween_count < min_anim:
+            issues.append(
+                f"found {tween_count} GSAP tweens, need at least {min_anim} "
+                f"independently animated elements"
+            )
+
+        # Validate sync_points — each one should translate to a shot-relative delay.
+        sync_points = shot.get("sync_points") or []
+        if sync_points:
+            # Extract all numeric `delay:` values from the HTML
+            delay_pattern = re.compile(r"delay\s*:\s*([0-9]*\.?[0-9]+)")
+            delays = [float(m) for m in delay_pattern.findall(html)]
+            unmatched: List[str] = []
+            for sp in sync_points:
+                try:
+                    abs_t = float(sp.get("time", 0))
+                except (TypeError, ValueError):
+                    continue
+                rel_t = max(0.0, abs_t - start_time)
+                if rel_t > (end_time - start_time) + 0.3:
+                    continue  # sync point outside the shot — ignore
+                if not any(abs(rel_t - d) <= 0.2 for d in delays):
+                    word = sp.get("word", "")
+                    unmatched.append(f"{rel_t:.2f}s{f' ({word})' if word else ''}")
+            if unmatched:
+                issues.append(
+                    f"sync points not honored ({len(unmatched)}/{len(sync_points)}): "
+                    + ", ".join(unmatched[:5])
+                )
+
+        # Sanity: shot shouldn't be entirely static text. If zero animations at all,
+        # flag it even if the min threshold is low.
+        if tween_count == 0 and "animation" not in html.lower():
+            issues.append("no GSAP animations or CSS @keyframes found at all")
+
+        return issues
+
     def _build_director_reference_image_block(self) -> List[Dict[str, Any]]:
         """Return OpenRouter-vision content parts for any user-uploaded reference images.
 
@@ -3683,6 +3842,18 @@ class VideoGenerationPipeline:
         from shot_type_cards import build_per_shot_system_prompt
         from prompts import PER_SHOT_USER_PROMPT_TEMPLATE, get_html_generation_safe_area
 
+        # Skill library (ultra/super_ultra) — resolved lazily below per-shot
+        _skill_enabled = bool(self._tier_config.get("skill_library_enabled"))
+        _skill_catalog_fn = None
+        _skill_compose_fn = None
+        if _skill_enabled:
+            try:
+                from skill_registry import build_catalog_for_shot as _skill_catalog_fn  # type: ignore
+                from skill_composer import compose as _skill_compose_fn  # type: ignore
+            except Exception as _e:
+                print(f"   ⚠️ Skill library failed to import ({_e}) — continuing without skills")
+                _skill_enabled = False
+
         _w = getattr(self, 'video_width', 1920)
         _h = getattr(self, 'video_height', 1080)
         _safe_area = get_html_generation_safe_area(_w, _h)
@@ -3708,6 +3879,31 @@ class VideoGenerationPipeline:
             f"Fonts: Montserrat (headings), Inter (body), Fira Code (code)\n"
         )
 
+        # ── Shared Shot Pack (premium/ultra/super_ultra) ──
+        # Computed once for the whole run and injected into every shot prompt so
+        # every shot draws from the same color/typography/spacing/easing tokens.
+        # Kills cross-shot drift (shot 1's #0f172a vs shot 2's #1e293b, etc.).
+        _shot_pack: Optional[Dict[str, Any]] = None
+        _shot_pack_block = ""
+        if self._tier_config.get("shot_pack_enabled"):
+            _shot_pack = self._build_shot_pack(style_guide, _w, _h)
+            self._current_shot_pack = _shot_pack
+            _shot_pack_block = (
+                "\n\n**🎨 SHARED SHOT PACK — single source of truth for this run**:\n"
+                "Use these tokens verbatim. Do not invent new colors, font sizes, spacings, or eases — "
+                "every shot in this video must feel like it was authored by the same designer.\n"
+                "```json\n"
+                + json.dumps(_shot_pack, indent=2)
+                + "\n```\n"
+                "Rules:\n"
+                "- COLORS: use only CSS vars from `color_tokens` (var(--brand-primary) etc.). Never hardcode hex.\n"
+                "- TYPOGRAPHY: use `font_scale` values (e.g. `font-size: 9rem` for display). Never pick your own size.\n"
+                "- SPACING: use `spacing` tokens for padding/margin/gap. Use `safe_area` for outer padding.\n"
+                "- EASES: use `ease` tokens in GSAP tweens (ease: 'power3.out' → use `ease_tokens.entry`).\n"
+                "- IDs: prefix every element id with `s{shot_idx}_` (replace {shot_idx} with this shot's index) "
+                "so IDs never collide between shots.\n"
+            )
+
         def _shot_task(shot_idx: int, shot: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
             """Generate HTML for a single shot."""
             shot_type = shot.get("shot_type", "TEXT_DIAGRAM")
@@ -3717,6 +3913,20 @@ class VideoGenerationPipeline:
 
             # Build per-shot system prompt (only the relevant shot type card)
             system_prompt = build_per_shot_system_prompt(shot_type, _w, _h)
+
+            # Inject the filtered skill catalog (ultra / super_ultra).
+            # The LLM sees a compact list of skills that match this shot type + tier
+            # and can optionally drop <skill> tags into its HTML. The composer
+            # resolves those tags after generation.
+            if _skill_enabled and _skill_catalog_fn is not None:
+                _canvas = "portrait" if _h > _w else "landscape"
+                _skill_catalog = _skill_catalog_fn(
+                    shot_type=shot_type,
+                    tier=self._quality_tier,
+                    canvas=_canvas,
+                )
+                if _skill_catalog:
+                    system_prompt = system_prompt + "\n\n" + _skill_catalog
 
             # Filter word timings to this shot's time range
             shot_words = [w for w in words if start_time <= float(w.get("start", 0)) < end_time]
@@ -3792,6 +4002,15 @@ class VideoGenerationPipeline:
                 width=_w,
                 height=_h,
             )
+
+            # Inject the shared shot pack (premium/ultra/super_ultra only).
+            # Rewrite the id_prefix placeholder with this shot's concrete index.
+            if _shot_pack_block:
+                user_prompt = user_prompt + _shot_pack_block.replace(
+                    '"s{shot_idx}_"', f'"s{shot_idx}_"'
+                ).replace(
+                    "s{shot_idx}_", f"s{shot_idx}_"
+                )
 
             # Super Ultra: append motion-density + reel-pace + brand-palette requirement
             # (skipped for KINETIC_TEXT since it's bypassed anyway)
@@ -3960,6 +4179,116 @@ class VideoGenerationPipeline:
                 return [], usage
 
             html = self._sanitize_html_content(html)
+
+            # ── Skill composer (ultra / super_ultra) ──
+            # Scan for <skill data-skill-id=... data-params=...> tags the LLM may
+            # have dropped in. Resolve each via the registry, validate params,
+            # render the skill's HTML/CSS/JS, and substitute into the shot. Also
+            # injects any needed GSAP plugin scripts. Shots that don't use any
+            # skills pass through unchanged.
+            if _skill_enabled and _skill_compose_fn is not None:
+                try:
+                    compose_result = _skill_compose_fn(
+                        html,
+                        ctx={
+                            "shot_index": shot_idx,
+                            "canvas_w": _w,
+                            "canvas_h": _h,
+                            "tier": self._quality_tier,
+                            "shot_type": shot_type,
+                        },
+                    )
+                    invocations = compose_result.get("invocations", []) or []
+                    if invocations:
+                        html = compose_result.get("html", html)
+                        succeeded = compose_result.get("succeeded", 0)
+                        failed = compose_result.get("failed", 0)
+                        plugins = compose_result.get("plugins", []) or []
+                        skill_ids_used = sorted({
+                            i["skill_id"] for i in invocations if i.get("valid")
+                        })
+                        tag = f"[{','.join(skill_ids_used)}]" if skill_ids_used else ""
+                        print(
+                            f"   🧩 Shot {shot_idx + 1} skills: "
+                            f"{succeeded} rendered, {failed} failed {tag}"
+                        )
+                        if failed:
+                            for inv in invocations:
+                                if not inv.get("valid"):
+                                    issues_str = "; ".join(inv.get("issues", []))
+                                    print(
+                                        f"      ✗ {inv.get('skill_id', '?')}: {issues_str}"
+                                    )
+                        # Ensure any required plugin CDNs are loaded.
+                        # `gsap` is already global via generate_video.py's boilerplate,
+                        # but other plugins may need <script> injection in the future.
+                        if "gsap-motionpath" in plugins and "MotionPathPlugin" not in html:
+                            html = html.replace(
+                                "</head>",
+                                '<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js"></script>\n</head>',
+                                1,
+                            )
+                except Exception as _sc_err:
+                    print(f"   ⚠️ Skill composer error on shot {shot_idx + 1}: {_sc_err}")
+
+            # ── Animation density validator + targeted regen (super_ultra only) ──
+            # Scans the generated HTML for GSAP tweens and sync-point delays. If the
+            # count is below the tier threshold OR the sync points weren't honored,
+            # fire ONE corrective regeneration call. Doesn't loop forever.
+            if (
+                self._tier_config.get("shot_animation_validator")
+                and shot_type != "KINETIC_TEXT"
+                and shot_type != "KINETIC_TITLE"
+            ):
+                issues = self._validate_shot_animation_density(
+                    html=html,
+                    shot=shot,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+                if issues:
+                    print(f"   ⚠️ Shot {shot_idx + 1} failed animation density check: {'; '.join(issues)}")
+                    corrective = (
+                        "Your previous output did not meet the motion requirements for this shot. "
+                        "Problems:\n"
+                        + "\n".join(f"- {i}" for i in issues)
+                        + "\n\nRegenerate the shot HTML. The animation_strategy and sync_points from "
+                        "the Director are non-negotiable this time — every sync_point delay must appear "
+                        "as a GSAP `delay:` value within ±0.2s, and the total number of independently "
+                        "animated DOM elements must meet the min_animated_elements target. Keep the "
+                        "same shot pack tokens. Return only the JSON shot object."
+                    )
+                    try:
+                        raw2, usage2 = self.html_client.chat(
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt},
+                                {"role": "assistant", "content": raw[:4000]},
+                                {"role": "user", "content": corrective},
+                            ],
+                            temperature=0.4,  # lower for more faithful regen
+                            max_tokens=self._tier_config.get("per_shot_max_tokens", 16000),
+                        )
+                        data2 = _extract_json_blob(raw2)
+                        html2 = data2.get("html", "")
+                        if html2:
+                            html = self._sanitize_html_content(html2)
+                            if usage2:
+                                usage["prompt_tokens"] = usage.get("prompt_tokens", 0) + usage2.get("prompt_tokens", 0)
+                                usage["completion_tokens"] = usage.get("completion_tokens", 0) + usage2.get("completion_tokens", 0)
+                                usage["total_tokens"] = usage.get("total_tokens", 0) + usage2.get("total_tokens", 0)
+                            # Re-validate; if still failing, ship what we have and log it
+                            post_issues = self._validate_shot_animation_density(
+                                html=html, shot=shot,
+                                start_time=start_time, end_time=end_time,
+                            )
+                            if post_issues:
+                                print(f"   ⚠️ Shot {shot_idx + 1} still failed after regen — shipping anyway: {'; '.join(post_issues)}")
+                            else:
+                                print(f"   ✅ Shot {shot_idx + 1} regen passed animation density check")
+                    except Exception as e:
+                        print(f"   ⚠️ Shot {shot_idx + 1} regen failed ({e}) — shipping original")
+
             html = self._ensure_fonts(html)
 
             entry = {
@@ -3972,6 +4301,10 @@ class VideoGenerationPipeline:
                 "html": html,
                 "id": f"shot-{shot_idx}",
                 "index": shot_idx,
+                # Stashed for downstream stock-video ranking — not rendered.
+                "_shot_type": shot_type,
+                "_narration_excerpt": shot.get("narration_excerpt", ""),
+                "_visual_description": shot.get("visual_description", ""),
             }
             if "z" in data:
                 try:
@@ -5817,33 +6150,114 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
             print(f"    ⚠️ Image prompt enhancement failed: {e}")
         return raw_prompt
 
+    def _rank_pexels_candidates_with_llm(
+        self,
+        candidates: List[Dict[str, Any]],
+        query: str,
+        narration_excerpt: str,
+        visual_description: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Score Pexels candidates against the shot's narration via a small LLM call.
+
+        Returns the top-ranked candidate, or None if the ranker fails. Each
+        candidate's `alt`, `duration`, and `id` are surfaced to the LLM so it
+        can judge semantic fit.
+        """
+        if not candidates:
+            return None
+        if len(candidates) == 1:
+            return candidates[0]
+
+        # Build a compact candidate list for the LLM
+        lines = []
+        for i, c in enumerate(candidates):
+            lines.append(
+                f"{i}. id={c.get('id')} | {c.get('duration', 0)}s | "
+                f"{(c.get('alt') or '')[:120]}"
+            )
+        ctx = (
+            f"Shot query: {query}\n"
+            f"Narration: {narration_excerpt[:200]}\n"
+            f"Visual direction: {visual_description[:200]}\n\n"
+            "Candidate stock clips:\n" + "\n".join(lines) + "\n\n"
+            "Pick the candidate that best matches the narration and visual direction. "
+            "Return JSON: {\"best_index\": N, \"reason\": \"short\"}."
+        )
+        try:
+            raw, _usage = self.html_client.chat(
+                messages=[
+                    {"role": "system", "content": "You score stock video candidates for a video production pipeline. Return JSON only."},
+                    {"role": "user", "content": ctx},
+                ],
+                temperature=0.3,
+                max_tokens=200,
+                response_format={"type": "json_object"},
+            )
+            parsed = _extract_json_blob(raw)
+            if isinstance(parsed, dict):
+                idx = parsed.get("best_index")
+                if isinstance(idx, int) and 0 <= idx < len(candidates):
+                    return candidates[idx]
+        except Exception as e:
+            print(f"    ⚠️ Candidate ranker failed ({e}) — falling back to first candidate")
+        return candidates[0]
+
     def _process_stock_videos(self, html_segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Scan HTML for <video data-video-query='...'> tags, search Pexels, inject URLs."""
+        """Scan HTML for <video data-video-query='...'> tags, search Pexels, inject URLs.
+
+        When `stock_video_ranking` is enabled (super_ultra), fetches 5-6 candidates,
+        dedupes against `self._used_pexels_video_ids`, and picks the best match via
+        a tiny LLM scoring call. Otherwise uses the legacy first-match path.
+        """
         if not self._pexels_service or not self._pexels_service.is_available:
             return html_segments
 
         orientation = "portrait" if getattr(self, 'video_width', 1920) < getattr(self, 'video_height', 1080) else "landscape"
         VIDEO_TAG_RE = re.compile(r'(<video[^>]+data-video-query=(["\'])(.*?)\2[^>]*>)', re.DOTALL)
         replacements_count = 0
+        use_ranking = bool(self._tier_config.get("stock_video_ranking"))
+        used_ids: set = getattr(self, "_used_pexels_video_ids", None) or set()
 
         for entry in html_segments:
             html = entry.get("html", "")
             if "data-video-query" not in html:
                 continue
 
+            shot_narration = entry.get("_narration_excerpt", "")
+            shot_visual = entry.get("_visual_description", "")
+
             for match in VIDEO_TAG_RE.finditer(html):
                 full_tag = match.group(1)
                 query = match.group(3)
 
-                result = self._pexels_service.search_videos(query, orientation=orientation)
-                if not result:
+                picked: Optional[Dict[str, Any]] = None
+                if use_ranking:
+                    candidates = self._pexels_service.search_video_candidates(
+                        query, orientation=orientation, per_page=6
+                    )
+                    # Dedup against videos already placed in this run
+                    fresh = [c for c in candidates if c.get("id") not in used_ids]
+                    pool = fresh if fresh else candidates
+                    if pool:
+                        picked = self._rank_pexels_candidates_with_llm(
+                            candidates=pool,
+                            query=query,
+                            narration_excerpt=shot_narration,
+                            visual_description=shot_visual,
+                        )
+                        if picked and picked.get("id") is not None:
+                            used_ids.add(picked["id"])
+                else:
+                    picked = self._pexels_service.search_videos(query, orientation=orientation)
+
+                if not picked:
                     print(f"    ⚠️ No Pexels video for: {query[:50]}")
                     continue
 
-                video_url = result.get("url", "")
+                video_url = picked.get("url", "")
                 if not video_url:
                     continue
-                poster_url = result.get("image", "")
+                poster_url = picked.get("image", "")
 
                 # Build enriched tag with src, poster, and playback attributes
                 new_tag = full_tag
@@ -5859,9 +6273,18 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
 
                 html = html.replace(full_tag, new_tag)
                 replacements_count += 1
-                print(f"    🎬 Stock video: {query[:40]}... → {video_url[:60]}...")
+                rank_tag = " [ranked]" if use_ranking else ""
+                print(f"    🎬 Stock video{rank_tag}: {query[:40]}... → {video_url[:60]}...")
 
             entry["html"] = html
+
+        # Strip the shot-context fields from every entry so timeline JSON stays clean.
+        for entry in html_segments:
+            for k in ("_shot_type", "_narration_excerpt", "_visual_description"):
+                entry.pop(k, None)
+
+        # Persist updated used-id set
+        self._used_pexels_video_ids = used_ids
 
         if replacements_count > 0:
             print(f"    📝 Applied {replacements_count} stock video replacement(s)")
