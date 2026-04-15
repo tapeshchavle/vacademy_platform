@@ -2051,6 +2051,16 @@ export const SlideMaterial = ({
 
             const totalPages = estimatePageCount(processedHtmlString);
 
+            // Guard against empty/broken serialization wiping out the slide.
+            // An empty Yoopta document serializes to the wrapper-only HTML
+            // produced by formatHTMLString(''), so we detect both literal
+            // emptiness and that empty wrapper before clobbering the slide.
+            if (!processedHtmlString || checkIsHtmlEmpty(processedHtmlString)) {
+                console.warn('⚠️ Skipping SaveDraft for DOC — editor returned empty content');
+                toast.error('Could not read editor content. Please try again.');
+                return;
+            }
+
             try {
                 await addUpdateDocumentSlide({
                     id: slide?.id || '',
@@ -2065,8 +2075,13 @@ export const SlideMaterial = ({
                         title: slide?.document_slide?.title || '',
                         cover_file_id: '',
                         total_pages: totalPages,
-                        published_data: null,
-                        published_document_total_pages: 1,
+                        // Preserve the existing published snapshot so a draft
+                        // save on a PUBLISHED slide does not wipe out the
+                        // last-published content. setEditorContent reads from
+                        // published_data whenever status === 'PUBLISHED'.
+                        published_data: slide?.document_slide?.published_data || null,
+                        published_document_total_pages:
+                            slide?.document_slide?.published_document_total_pages || 1,
                     },
                     status: status,
                     new_slide: false,
