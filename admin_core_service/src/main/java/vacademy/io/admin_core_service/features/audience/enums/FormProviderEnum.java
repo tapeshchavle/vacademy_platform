@@ -6,7 +6,9 @@ package vacademy.io.admin_core_service.features.audience.enums;
 public enum FormProviderEnum {
     ZOHO_FORMS("ZOHO_FORMS", "Zoho Forms"),
     GOOGLE_FORMS("GOOGLE_FORMS", "Google Forms"),
-    MICROSOFT_FORMS("MICROSOFT_FORMS", "Microsoft Forms");
+    MICROSOFT_FORMS("MICROSOFT_FORMS", "Microsoft Forms"),
+    META_LEAD_ADS("META_LEAD_ADS", "Meta Lead Ads"),
+    GOOGLE_LEAD_ADS("GOOGLE_LEAD_ADS", "Google Lead Form Extensions");
 
     private final String code;
     private final String displayName;
