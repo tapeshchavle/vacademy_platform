@@ -77,8 +77,20 @@ export const handlePublishSlide = async (
     }
 
     if (activeItem?.source_type === 'DOCUMENT') {
-        // if (activeItem?.document_slide?.type === 'DOC') await SaveDraft(activeItem);
-        const publishedData = activeItem.document_slide?.data;
+        // itemToPublish (the caller-built activeItem for DOC slides) has
+        // document_slide.data set to the latest editor HTML. Fall back to
+        // published_data so we never accidentally publish nothing.
+        const publishedData =
+            activeItem.document_slide?.data || activeItem.document_slide?.published_data;
+
+        // Guard: refuse to publish if we can't resolve the latest content.
+        // Without this, an empty serialization would send
+        // data:null, published_data:null and clobber the slide on the server.
+        if (!publishedData) {
+            toast.error('Could not read editor content. Please try again.');
+            return;
+        }
+
         try {
             await addUpdateDocumentSlide({
                 id: activeItem?.id || '',
@@ -89,11 +101,14 @@ export const handlePublishSlide = async (
                 document_slide: {
                     id: activeItem?.document_slide?.id || '',
                     type: activeItem?.document_slide?.type || '',
-                    data: null,
+                    // Keep data in sync with published_data so that
+                    // setEditorContent has a fallback if it ever reads
+                    // from the data field on a PUBLISHED slide.
+                    data: publishedData,
                     title: activeItem?.document_slide?.title || '',
                     cover_file_id: activeItem?.document_slide?.cover_file_id || '',
                     total_pages: activeItem?.document_slide?.total_pages || 0,
-                    published_data: publishedData || null,
+                    published_data: publishedData,
                     published_document_total_pages: activeItem?.document_slide?.total_pages || 0,
                 },
                 status: status,

@@ -33,6 +33,7 @@ import { TableOfContentsPlugin } from '@/routes/study-library/courses/course-det
 import { FlashcardPlugin } from '@/routes/study-library/courses/course-details/subjects/modules/chapters/slides/-components/yoopta-editor-customizations/flashcard-editor';
 import { FillBlanksPlugin } from '@/routes/study-library/courses/course-details/subjects/modules/chapters/slides/-components/yoopta-editor-customizations/fill-blanks-editor';
 import { TabsPlugin } from '@/routes/study-library/courses/course-details/subjects/modules/chapters/slides/-components/yoopta-editor-customizations/tabs-editor';
+import { PdfViewerPlugin } from '@/routes/study-library/courses/course-details/subjects/modules/chapters/slides/-components/yoopta-editor-customizations/pdf-viewer';
 
 /** Extract userId from JWT token */
 function getUserIdFromToken(): string {
@@ -198,6 +199,7 @@ export const plugins: YooptaPlugin<Record<string, SlateElement>, Record<string, 
     FlashcardPlugin as unknown as YooptaPlugin<Record<string, SlateElement>, Record<string, unknown>>,
     FillBlanksPlugin as unknown as YooptaPlugin<Record<string, SlateElement>, Record<string, unknown>>,
     TabsPlugin as unknown as YooptaPlugin<Record<string, SlateElement>, Record<string, unknown>>,
+    PdfViewerPlugin as unknown as YooptaPlugin<Record<string, SlateElement>, Record<string, unknown>>,
 ];
 
 export const TOOLS = {
