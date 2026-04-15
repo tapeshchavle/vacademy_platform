@@ -11,6 +11,7 @@ import vacademy.io.admin_core_service.features.chapter.entity.Chapter;
 import vacademy.io.admin_core_service.features.chapter.entity.ChapterToSlides;
 import vacademy.io.admin_core_service.features.chapter.repository.ChapterRepository;
 import vacademy.io.admin_core_service.features.chapter.repository.ChapterToSlidesRepository;
+import vacademy.io.admin_core_service.features.common.entity.RichTextData;
 import vacademy.io.admin_core_service.features.common.enums.StatusEnum;
 import vacademy.io.admin_core_service.features.learner_tracking.service.LearnerTrackingAsyncService;
 import vacademy.io.admin_core_service.features.common.constants.ValidStatusListConstants;
@@ -46,6 +47,7 @@ public class SlideService {
     private final VideoSlideQuestionRepository videoSlideQuestionRepository;
     private final HtmlVideoSlideRepository htmlVideoSlideRepository;
     private final ScormSlideRepository scormSlideRepository;
+    private final QuizSlideQuestionRepository quizSlideQuestionRepository;
     private final SlideNotificationService slideNotificationService;
     private final ObjectMapper objectMapper;
     private final LearnerTrackingAsyncService learnerTrackingAsyncService;
@@ -747,10 +749,75 @@ public class SlideService {
             newQuizSlide.setTimeLimitInMinutes(quizSlide.getTimeLimitInMinutes());
             newQuizSlide.setMarksPerQuestion(quizSlide.getMarksPerQuestion() != null ? quizSlide.getMarksPerQuestion() : 1.0);
             newQuizSlide.setNegativeMarking(quizSlide.getNegativeMarking() != null ? quizSlide.getNegativeMarking() : 0.0);
+            newQuizSlide.setPassPercentage(quizSlide.getPassPercentage());
+            newQuizSlide.setReAttemptCount(quizSlide.getReAttemptCount());
+            if (quizSlide.getDescriptionRichText() != null) {
+                newQuizSlide.setDescriptionRichText(copyRichText(quizSlide.getDescriptionRichText()));
+            }
+
+            // Deep-copy questions and their options
+            List<QuizSlideQuestion> oldQuestions = quizSlideQuestionRepository.findByQuizSlideId(sourceId);
+            if (oldQuestions != null && !oldQuestions.isEmpty()) {
+                List<QuizSlideQuestion> newQuestions = new ArrayList<>();
+                for (QuizSlideQuestion oldQ : oldQuestions) {
+                    QuizSlideQuestion newQ = new QuizSlideQuestion();
+                    newQ.setId(UUID.randomUUID().toString());
+                    newQ.setQuizSlide(newQuizSlide);
+                    newQ.setMediaId(oldQ.getMediaId());
+                    newQ.setStatus(oldQ.getStatus());
+                    newQ.setQuestionResponseType(oldQ.getQuestionResponseType());
+                    newQ.setQuestionType(oldQ.getQuestionType());
+                    newQ.setAccessLevel(oldQ.getAccessLevel());
+                    newQ.setAutoEvaluationJson(oldQ.getAutoEvaluationJson());
+                    newQ.setEvaluationType(oldQ.getEvaluationType());
+                    newQ.setQuestionOrder(oldQ.getQuestionOrder());
+                    newQ.setCanSkip(oldQ.getCanSkip());
+                    newQ.setMarks(oldQ.getMarks());
+                    newQ.setNegativeMarking(oldQ.getNegativeMarking());
+                    if (oldQ.getParentRichText() != null) {
+                        newQ.setParentRichText(copyRichText(oldQ.getParentRichText()));
+                    }
+                    if (oldQ.getText() != null) {
+                        newQ.setText(copyRichText(oldQ.getText()));
+                    }
+                    if (oldQ.getExplanationText() != null) {
+                        newQ.setExplanationText(copyRichText(oldQ.getExplanationText()));
+                    }
+
+                    // Deep-copy options
+                    if (oldQ.getQuizSlideQuestionOptions() != null) {
+                        List<QuizSlideQuestionOption> newOptions = new ArrayList<>();
+                        for (QuizSlideQuestionOption oldOpt : oldQ.getQuizSlideQuestionOptions()) {
+                            QuizSlideQuestionOption newOpt = new QuizSlideQuestionOption();
+                            newOpt.setId(UUID.randomUUID().toString());
+                            newOpt.setQuizSlideQuestion(newQ);
+                            newOpt.setMediaId(oldOpt.getMediaId());
+                            if (oldOpt.getText() != null) {
+                                newOpt.setText(copyRichText(oldOpt.getText()));
+                            }
+                            if (oldOpt.getExplanationText() != null) {
+                                newOpt.setExplanationText(copyRichText(oldOpt.getExplanationText()));
+                            }
+                            newOptions.add(newOpt);
+                        }
+                        newQ.setQuizSlideQuestionOptions(newOptions);
+                    }
+                    newQuestions.add(newQ);
+                }
+                newQuizSlide.setQuestions(newQuestions);
+            }
+
             newQuizSlide = quizSlideRepository.save(newQuizSlide);
             return newQuizSlide.getId();
         }
         return sourceId;
+    }
+
+    private RichTextData copyRichText(RichTextData source) {
+        RichTextData copy = new RichTextData();
+        copy.setType(source.getType());
+        copy.setContent(source.getContent());
+        return copy;
     }
 
     /**
