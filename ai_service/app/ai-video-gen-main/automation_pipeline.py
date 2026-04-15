@@ -6249,11 +6249,18 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
         try:
             raw, _usage = self.html_client.chat(
                 messages=[
-                    {"role": "system", "content": "You score stock video candidates for a video production pipeline. Return JSON only."},
+                    {"role": "system", "content": (
+                        "You score stock video candidates for a video production pipeline. "
+                        "Respond with ONE JSON object and nothing else. No preamble, no code "
+                        "fences, no explanation before or after. Start your response with `{`."
+                    )},
                     {"role": "user", "content": ctx},
                 ],
                 temperature=0.3,
-                max_tokens=200,
+                # 200 tokens wasn't enough — some models burn that on a preamble
+                # ("Here is the JSON requested:") and truncate before emitting
+                # the JSON body. 400 is safely above the observed failure mode.
+                max_tokens=400,
                 response_format={"type": "json_object"},
             )
             parsed = _extract_json_blob(raw)
