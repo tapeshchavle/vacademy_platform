@@ -95,7 +95,27 @@ def render(params: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
         )
     js = "\n".join(js_parts)
 
-    return {"html": html, "css": css, "js": js, "plugins": ["gsap"]}
+    # Audio events: one ui_click as each bar starts growing, final ui_positive
+    # when the last bar lands. Skip entirely for >5 bars to avoid clutter.
+    audio_events = []
+    if bars and len(bars) <= 5:
+        for i, _ in enumerate(bars):
+            bar_delay = entry_delay + i * 0.12
+            audio_events.append({
+                "role": "ui_click",
+                "t": round(bar_delay, 3),
+                "volume_mul": 0.75,
+                "skill_id": "bar_chart_grow",
+            })
+        last_delay = entry_delay + (len(bars) - 1) * 0.12 + 0.9  # 0.9 = bar grow duration
+        audio_events.append({
+            "role": "ui_positive",
+            "t": round(last_delay, 3),
+            "volume_mul": 0.85,
+            "skill_id": "bar_chart_grow",
+        })
+
+    return {"html": html, "css": css, "js": js, "plugins": ["gsap"], "audio_events": audio_events}
 
 
 def json_str(s: str) -> str:

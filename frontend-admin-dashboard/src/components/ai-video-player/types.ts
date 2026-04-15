@@ -42,6 +42,7 @@ export interface Entry {
     htmlEndX?: number;
     htmlEndY?: number;
     audio_url?: string; // Optional per-entry audio (for user_driven)
+    sound_cues?: SoundCue[]; // Sound Planner cues — scheduled via useSoundScheduler
     entry_meta?: {
         text?: string;
         audio_text?: string;
@@ -90,6 +91,32 @@ export interface AudioTrack {
     delay: number; // seconds to wait before starting, default 0
     fadeIn: number; // fade-in duration in seconds, default 0
     fadeOut: number; // fade-out duration in seconds, default 0
+}
+
+/**
+ * A scheduled sound effect cue produced by the Sound Planner in the backend.
+ * Played live by `useSoundScheduler` during playback — NOT baked into any MP4.
+ *
+ * Cues are stored per timeline entry. `t` is the shot-relative time (seconds
+ * after the entry's `inTime`) and `absolute_time` is the global-clock time
+ * (already offset by any branding intro) pre-computed by the backend so the
+ * scheduler can fire against the player's master clock without recomputing.
+ */
+export interface SoundCue {
+    /** e.g. "sfx_2_signature" — stable across runs */
+    id: string;
+    /** Shot-relative seconds (debug/inspection). */
+    t: number;
+    /** Global timeline seconds — preferred for scheduling. */
+    absolute_time?: number;
+    /** S3 URL of the sound file. */
+    url: string;
+    /** 0.0–1.0 */
+    volume: number;
+    /** Semantic role (e.g. "transition_whoosh", "impact"). */
+    role: string;
+    /** Clip duration in seconds (informational). */
+    duration?: number;
 }
 
 /**

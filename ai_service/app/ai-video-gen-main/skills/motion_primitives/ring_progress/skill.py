@@ -98,4 +98,11 @@ def render(params: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
         f'}}'
     )
 
-    return {"html": html, "css": css, "js": js, "plugins": ["gsap"]}
+    # Audio events: whoosh-like start as the arc begins filling, positive
+    # chime as it completes at the target percent.
+    audio_events = [
+        {"role": "data_reveal", "t": round(delay, 3),            "volume_mul": 0.90, "skill_id": "ring_progress"},
+        {"role": "ui_positive", "t": round(delay + duration, 3), "volume_mul": 0.95, "skill_id": "ring_progress"},
+    ]
+
+    return {"html": html, "css": css, "js": js, "plugins": ["gsap"], "audio_events": audio_events}

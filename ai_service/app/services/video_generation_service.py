@@ -98,6 +98,7 @@ class VideoGenerationService:
         reference_files: Optional[list] = None,
         orientation: str = "landscape",
         visual_style: str = "standard",
+        sound_effects_enabled: bool = True,
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         Generate video up to a specific stage with SSE progress updates.
@@ -226,6 +227,7 @@ class VideoGenerationService:
                     reference_files=reference_files,
                     orientation=orientation,
                     visual_style=visual_style,
+                    sound_effects_enabled=sound_effects_enabled,
                 ):
                     # If we get an error event, refund credits and stop
                     if event.get("type") == "error":
@@ -305,6 +307,7 @@ class VideoGenerationService:
         reference_files: Optional[list] = None,
         orientation: str = "landscape",
         visual_style: str = "standard",
+        sound_effects_enabled: bool = True,
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         Run the video generation pipeline stages with real-time DB updates.
@@ -667,6 +670,7 @@ class VideoGenerationService:
                     video_width=_vid_width,
                     video_height=_vid_height,
                     visual_style=visual_style,
+                    sound_effects_enabled=sound_effects_enabled,
                 )
                 
                 with ThreadPoolExecutor() as executor:

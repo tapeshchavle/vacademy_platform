@@ -303,6 +303,9 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "shot_pack_enabled": True,
         "per_shot_max_tokens": 16000,
         "crossfade_duration": 0.35,
+        "sound_enabled": True,
+        "sound_max_cues_per_shot": 1,
+        "sound_max_cues_per_video": 10,
     },
     "ultra": {
         "script_temperature": 0.6,
@@ -321,6 +324,9 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "skill_library_enabled": True,
         "per_shot_max_tokens": 24000,
         "crossfade_duration": 0.35,
+        "sound_enabled": True,
+        "sound_max_cues_per_shot": 2,
+        "sound_max_cues_per_video": 20,
     },
     "super_ultra": {
         "script_temperature": 0.6,
@@ -348,6 +354,9 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "motion_density_enforcement": True,
         "director_motion_bias": True,
         "min_animated_elements": 6,
+        "sound_enabled": True,
+        "sound_max_cues_per_shot": 3,
+        "sound_max_cues_per_video": 40,
     },
 }
 
@@ -1143,6 +1152,7 @@ class VideoGenerationPipeline:
         video_width: int = 1920,
         video_height: int = 1080,
         visual_style: str = "standard",  # deprecated: Director now picks styles per-shot
+        sound_effects_enabled: bool = True,
     ) -> Dict[str, Any]:
         # Store video dimensions (landscape 1920x1080 or portrait 1080x1920)
         self.video_width = video_width
@@ -1151,6 +1161,10 @@ class VideoGenerationPipeline:
         # visual_style is accepted for API back-compat but no longer gates behavior —
         # the Director now decides theme / background / animation per shot.
         del visual_style
+        # Sound-effects kill switch. When False, the Sound Planner is bypassed
+        # regardless of tier config. Stored on the instance so _generate_html_per_shot
+        # can read it alongside self._tier_config.
+        self._sound_effects_enabled = bool(sound_effects_enabled)
         # Dedup set for LLM-ranked stock video selection (super_ultra only).
         # Tracks Pexels video IDs already used in this run so shots don't reuse clips.
         self._used_pexels_video_ids: set = set()
@@ -4142,6 +4156,13 @@ class VideoGenerationPipeline:
                     "id": f"shot-{shot_idx}",
                     "index": shot_idx,
                     "z": shot.get("z", 10),
+                    # Tag with shot_type so the Sound Planner's family logic
+                    # treats back-to-back KINETIC_TITLE/KINETIC_TEXT as same
+                    # family (no transition whoosh between them).
+                    "_shot_type": shot_type,
+                    "_narration_excerpt": shot.get("narration_excerpt", ""),
+                    "_visual_description": shot.get("visual_description", ""),
+                    "_skill_audio_events": [],
                 }
                 print(f"   ✅ Shot {shot_idx + 1} KINETIC_TEXT built ({len(shot_words)} words, no LLM)")
                 if on_segment_done:
@@ -4186,6 +4207,7 @@ class VideoGenerationPipeline:
             # render the skill's HTML/CSS/JS, and substitute into the shot. Also
             # injects any needed GSAP plugin scripts. Shots that don't use any
             # skills pass through unchanged.
+            _shot_skill_audio_events: List[Dict[str, Any]] = []
             if _skill_enabled and _skill_compose_fn is not None:
                 try:
                     compose_result = _skill_compose_fn(
@@ -4199,6 +4221,9 @@ class VideoGenerationPipeline:
                         },
                     )
                     invocations = compose_result.get("invocations", []) or []
+                    # Always collect skill audio events (even when the composer
+                    # matched zero tags the list is empty — safe to assign).
+                    _shot_skill_audio_events = compose_result.get("audio_events", []) or []
                     if invocations:
                         html = compose_result.get("html", html)
                         succeeded = compose_result.get("succeeded", 0)
@@ -4305,6 +4330,8 @@ class VideoGenerationPipeline:
                 "_shot_type": shot_type,
                 "_narration_excerpt": shot.get("narration_excerpt", ""),
                 "_visual_description": shot.get("visual_description", ""),
+                # Stashed for the Sound Planner — stripped before serialization.
+                "_skill_audio_events": _shot_skill_audio_events,
             }
             if "z" in data:
                 try:
@@ -4353,6 +4380,42 @@ class VideoGenerationPipeline:
         for i in range(len(all_entries) - 1):
             if all_entries[i]["end"] > all_entries[i + 1]["start"]:
                 all_entries[i]["end"] = all_entries[i + 1]["start"]
+
+        # ── Sound Planner (tier-gated + request kill switch) ──
+        # Deterministic rule-based cue placement. Reads shot types, sync
+        # points, skill audio events, and the emphasis map; mutates entries
+        # in place by setting `sound_cues: [...]`. Runs after skills compose
+        # so it has everything it needs in one pass.
+        _sound_tier_on = bool(self._tier_config.get("sound_enabled"))
+        _sound_user_on = bool(getattr(self, "_sound_effects_enabled", True))
+        if _sound_tier_on and _sound_user_on:
+            try:
+                from sound_planner import plan_sounds
+                video_id = getattr(self, "_current_video_id", "") or str(run_dir.name)
+                plan_sounds(
+                    entries=all_entries,
+                    shots=shots,
+                    words=words,
+                    tier_config=self._tier_config,
+                    video_id=video_id,
+                )
+                total_cues = sum(len(e.get("sound_cues") or []) for e in all_entries)
+                shots_with_cues = sum(1 for e in all_entries if e.get("sound_cues"))
+                print(
+                    f"   🔊 Sound Planner placed {total_cues} cues across "
+                    f"{shots_with_cues}/{len(all_entries)} shots"
+                )
+            except Exception as _sp_err:
+                print(f"   ⚠️ Sound Planner error ({_sp_err}) — shipping without sound cues")
+                for e in all_entries:
+                    e.setdefault("sound_cues", [])
+        else:
+            # Ensure every entry has an empty sound_cues list for a stable
+            # payload shape (player can always read it).
+            for e in all_entries:
+                e.setdefault("sound_cues", [])
+            if not _sound_user_on and _sound_tier_on:
+                print("   🔇 Sound effects disabled by request flag")
 
         print(f"   ✅ Per-shot generation complete: {len(all_entries)} entries")
         return all_entries, total_usage
@@ -6208,8 +6271,19 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
         When `stock_video_ranking` is enabled (super_ultra), fetches 5-6 candidates,
         dedupes against `self._used_pexels_video_ids`, and picks the best match via
         a tiny LLM scoring call. Otherwise uses the legacy first-match path.
+
+        Always strips internal shot-context fields before returning, even on the
+        Pexels-unavailable early-return path, so the timeline JSON stays clean.
         """
+
+        def _strip_internal_fields() -> None:
+            for entry in html_segments:
+                for k in ("_shot_type", "_narration_excerpt", "_visual_description",
+                          "_skill_audio_events"):
+                    entry.pop(k, None)
+
         if not self._pexels_service or not self._pexels_service.is_available:
+            _strip_internal_fields()
             return html_segments
 
         orientation = "portrait" if getattr(self, 'video_width', 1920) < getattr(self, 'video_height', 1080) else "landscape"
@@ -6280,7 +6354,8 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
 
         # Strip the shot-context fields from every entry so timeline JSON stays clean.
         for entry in html_segments:
-            for k in ("_shot_type", "_narration_excerpt", "_visual_description"):
+            for k in ("_shot_type", "_narration_excerpt", "_visual_description",
+                      "_skill_audio_events"):
                 entry.pop(k, None)
 
         # Persist updated used-id set
@@ -6967,11 +7042,17 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
                     "htmlEndY": int(entry.get("htmlEndY", VIDEO_HEIGHT)),
                     "z": int(entry.get("z", 1))
                 }
-                
+
                 # Pass through critical metadata (quiz answers, game state etc)
                 if "entry_meta" in entry:
                     clean_entry["entry_meta"] = entry["entry_meta"]
-                
+
+                # Pass through sound cues (Sound Planner output).
+                # Interactive content has no global time clock so cues fire
+                # relative to each entry's own open — no intro offset needed.
+                if entry.get("sound_cues"):
+                    clean_entry["sound_cues"] = entry["sound_cues"]
+
                 timeline_entries.append(clean_entry)
             
             content_max_end = 0.0
@@ -7011,6 +7092,25 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
                 # Add entry_meta if present
                 if "entry_meta" in entry:
                     timeline_entry["entry_meta"] = entry["entry_meta"]
+
+                # Pass through sound cues from the Sound Planner. The cue `t`
+                # values are shot-relative (0 = segment start). We ALSO emit an
+                # `absolute_time` field that's offset by `content_starts_at`
+                # (intro branding duration) so the live player can schedule
+                # against the global master clock without recomputing.
+                raw_cues = entry.get("sound_cues") or []
+                if raw_cues:
+                    offset_cues: List[Dict[str, Any]] = []
+                    for cue in raw_cues:
+                        try:
+                            cue_t = float(cue.get("t", 0.0))
+                        except (TypeError, ValueError):
+                            cue_t = 0.0
+                        enriched = dict(cue)
+                        enriched["absolute_time"] = round(adjusted_in_time + cue_t, 3)
+                        offset_cues.append(enriched)
+                    timeline_entry["sound_cues"] = offset_cues
+
                 timeline_entries.append(timeline_entry)
                 
                 # Track the maximum end time for content

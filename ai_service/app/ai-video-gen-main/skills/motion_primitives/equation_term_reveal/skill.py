@@ -5,7 +5,6 @@ where showing each term one-at-a-time helps comprehension. Each term gets a
 labeled annotation that fades in shortly after the term appears.
 """
 from typing import Dict, Any
-import json
 
 METADATA = {
     "id": "equation_term_reveal",
@@ -95,4 +94,17 @@ def render(params: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
             )
     js = "\n".join(js_parts)
 
-    return {"html": html, "css": css, "js": js, "plugins": ["gsap"]}
+    # Audio events: one ui_chime as each term scales in. Skip entirely for
+    # equations with >6 terms to avoid sonic clutter.
+    audio_events = []
+    if terms and len(terms) <= 6:
+        for i, _t in enumerate(terms):
+            d = entry_delay + i * stagger
+            audio_events.append({
+                "role": "ui_chime",
+                "t": round(d, 3),
+                "volume_mul": 0.75,
+                "skill_id": "equation_term_reveal",
+            })
+
+    return {"html": html, "css": css, "js": js, "plugins": ["gsap"], "audio_events": audio_events}
