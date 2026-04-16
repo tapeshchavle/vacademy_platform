@@ -39,6 +39,8 @@ import {
     FileText,
     Play,
     Pause,
+    Monitor,
+    Smartphone,
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { useFileUpload } from '@/hooks/use-file-upload';
@@ -66,6 +68,7 @@ import {
     ContentType,
     QualityTier,
     TtsVoice,
+    VideoOrientation,
     fetchTtsVoices,
 } from '../-services/video-generation';
 import { useAIModelsList } from '@/hooks/useAiModels';
@@ -80,6 +83,8 @@ interface PromptInputProps {
     onPromptChange: (value: string) => void;
     options: Omit<GenerateVideoRequest, 'prompt'>;
     onOptionsChange: (options: Omit<GenerateVideoRequest, 'prompt'>) => void;
+    reviewModeEnabled?: boolean;
+    onReviewModeChange?: (enabled: boolean) => void;
 }
 
 interface OptionBubbleProps {
@@ -121,6 +126,8 @@ export function PromptInput({
     onPromptChange,
     options,
     onOptionsChange,
+    reviewModeEnabled,
+    onReviewModeChange,
 }: PromptInputProps) {
     const [showPreview, setShowPreview] = useState(false);
     const [isPdfProcessing, setIsPdfProcessing] = useState(false);
@@ -497,6 +504,33 @@ export function PromptInput({
                         </Select>
                     </OptionBubble>
 
+                    {/* Orientation Selector */}
+                    <OptionBubble
+                        icon={(options.orientation || 'landscape') === 'landscape' ? <Monitor className="size-3" /> : <Smartphone className="size-3" />}
+                        label="Orientation"
+                        value={(options.orientation || 'landscape') === 'landscape' ? 'Landscape' : 'Portrait'}
+                    >
+                        <div className="inline-flex w-full rounded-lg border bg-muted p-0.5">
+                            {([
+                                { value: 'landscape' as VideoOrientation, label: 'Landscape', icon: Monitor },
+                                { value: 'portrait' as VideoOrientation, label: 'Portrait', icon: Smartphone },
+                            ] as const).map(({ value, label, icon: Icon }) => (
+                                <button
+                                    key={value}
+                                    onClick={() => updateOption('orientation', value)}
+                                    className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                                        (options.orientation || 'landscape') === value
+                                            ? 'bg-background text-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                >
+                                    <Icon className="size-3.5" />
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </OptionBubble>
+
                     {/* Quality Tier Selector */}
                     <OptionBubble
                         icon={<Sparkles className="size-3" />}
@@ -848,6 +882,45 @@ export function PromptInput({
                             </div>
                         </PopoverContent>
                     </Popover>
+
+                    {/* Review Script Toggle */}
+                    {onReviewModeChange && (
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 gap-1.5 bg-background text-xs font-normal hover:bg-muted"
+                                >
+                                    <FileText className="size-3" />
+                                    <span className="hidden text-muted-foreground lg:inline">
+                                        Review:
+                                    </span>
+                                    <Badge
+                                        variant={reviewModeEnabled ? 'default' : 'secondary'}
+                                        className="h-4 px-1 text-[10px]"
+                                    >
+                                        {reviewModeEnabled ? 'On' : 'Off'}
+                                    </Badge>
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56 p-3" align="start">
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs">Review script first</Label>
+                                        <Switch
+                                            checked={reviewModeEnabled}
+                                            onCheckedChange={onReviewModeChange}
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground">
+                                        When enabled, you can review and edit the AI-generated
+                                        script before audio and visuals are created.
+                                    </p>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    )}
 
                     {/* Style Preview Chip */}
                     <Popover>

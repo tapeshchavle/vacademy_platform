@@ -35,6 +35,8 @@ import {
 } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 // Shadcn UI Components
 import { Button } from '@/components/ui/button';
@@ -65,6 +67,8 @@ import {
     getCustomFieldSettings,
     saveCustomFieldSettings,
     createTempCustomField,
+    CUSTOM_FIELD_TYPES,
+    type CustomFieldType,
     type CustomFieldSettingsData,
     type CustomField as ServiceCustomField,
     type FixedField as ServiceFixedField,
@@ -91,11 +95,15 @@ type SystemField = ServiceSystemField;
 // Campaign, Enquiry) is now controlled by the picker inside each feature's
 // own create/edit dialog and is persisted as institute_custom_fields rows
 // with the matching `type` and `type_id`.
-const visibilityLabels = [
-    { key: 'learnersList', label: "Learner's List", icon: Users },
-    { key: 'learnerEnrollment', label: "Learner's Enrollment", icon: Users },
-    { key: 'learnerProfile', label: 'Learner Profile', icon: User },
-];
+const getVisibilityLabels = () => {
+    const learnerLabel = getTerminology(RoleTerms.Learner, SystemTerms.Learner);
+    return [
+        { key: 'learnersList', label: `${learnerLabel}'s List`, icon: Users },
+        { key: 'learnerEnrollment', label: `${learnerLabel}'s Enrollment`, icon: Users },
+        { key: 'learnerProfile', label: `${learnerLabel} Profile`, icon: User },
+    ];
+};
+const visibilityLabels = getVisibilityLabels();
 
 // Sortable Item Components
 interface SortableItemProps {
@@ -214,6 +222,8 @@ const CustomFieldsSettings: React.FC = () => {
         name: '',
         type: 'text',
         options: [],
+        defaultValue: '',
+        fieldConfig: undefined,
         required: false,
         visibility: {
             learnersList: false,
@@ -452,7 +462,7 @@ const CustomFieldsSettings: React.FC = () => {
         );
     };
 
-    const handleInstituteFieldTypeChange = (fieldId: string, newType: 'text' | 'dropdown') => {
+    const handleInstituteFieldTypeChange = (fieldId: string, newType: CustomFieldType) => {
         setInstituteFields((prev) =>
             prev.map((field) =>
                 field.id === fieldId
@@ -508,7 +518,7 @@ const CustomFieldsSettings: React.FC = () => {
         );
     };
 
-    const handleCustomFieldTypeChange = (fieldId: string, newType: 'text' | 'dropdown') => {
+    const handleCustomFieldTypeChange = (fieldId: string, newType: CustomFieldType) => {
         setCustomFields((prev) =>
             prev.map((field) =>
                 field.id === fieldId
@@ -661,7 +671,9 @@ const CustomFieldsSettings: React.FC = () => {
             const field = createTempCustomField(
                 newField.name,
                 newField.type,
-                newField.type === 'dropdown' ? newField.options : undefined
+                newField.type === 'dropdown' || newField.type === 'radio' ? newField.options : undefined,
+                newField.defaultValue,
+                newField.fieldConfig
             );
 
             // Set visibility and required status
@@ -673,6 +685,8 @@ const CustomFieldsSettings: React.FC = () => {
                 name: '',
                 type: 'text',
                 options: [],
+                defaultValue: '',
+                fieldConfig: undefined,
                 required: false,
                 visibility: {
                     learnersList: false,
@@ -902,7 +916,9 @@ const CustomFieldsSettings: React.FC = () => {
             const field = createTempCustomField(
                 newField.name,
                 newField.type,
-                newField.type === 'dropdown' ? newField.options : undefined
+                newField.type === 'dropdown' || newField.type === 'radio' ? newField.options : undefined,
+                newField.defaultValue,
+                newField.fieldConfig
             );
 
             // Set visibility and required status
@@ -950,6 +966,8 @@ const CustomFieldsSettings: React.FC = () => {
                 name: '',
                 type: 'text',
                 options: [],
+                defaultValue: '',
+                fieldConfig: undefined,
                 required: false,
                 visibility: {
                     learnersList: false,
@@ -1616,7 +1634,7 @@ const CustomFieldsSettings: React.FC = () => {
                                                                 onValueChange={(value) =>
                                                                     handleInstituteFieldTypeChange(
                                                                         field.id,
-                                                                        value as 'text' | 'dropdown'
+                                                                        value as CustomFieldType
                                                                     )
                                                                 }
                                                             >
@@ -1624,12 +1642,11 @@ const CustomFieldsSettings: React.FC = () => {
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    <SelectItem value="text">
-                                                                        Text Field
-                                                                    </SelectItem>
-                                                                    <SelectItem value="dropdown">
-                                                                        Dropdown
-                                                                    </SelectItem>
+                                                                    {CUSTOM_FIELD_TYPES.map((ft) => (
+                                                                        <SelectItem key={ft.value} value={ft.value}>
+                                                                            {ft.label}
+                                                                        </SelectItem>
+                                                                    ))}
                                                                 </SelectContent>
                                                             </Select>
                                                         </div>
@@ -1758,8 +1775,8 @@ const CustomFieldsSettings: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* Dropdown Options Manager */}
-                                                {field.type === 'dropdown' && (
+                                                {/* Dropdown / Radio Options Manager */}
+                                                {(field.type === 'dropdown' || field.type === 'radio') && (
                                                     <DropdownOptionsManager field={field} />
                                                 )}
                                             </div>
@@ -1806,7 +1823,7 @@ const CustomFieldsSettings: React.FC = () => {
                                                                 onValueChange={(value) =>
                                                                     handleCustomFieldTypeChange(
                                                                         field.id,
-                                                                        value as 'text' | 'dropdown'
+                                                                        value as CustomFieldType
                                                                     )
                                                                 }
                                                             >
@@ -1814,12 +1831,11 @@ const CustomFieldsSettings: React.FC = () => {
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    <SelectItem value="text">
-                                                                        Text Field
-                                                                    </SelectItem>
-                                                                    <SelectItem value="dropdown">
-                                                                        Dropdown
-                                                                    </SelectItem>
+                                                                    {CUSTOM_FIELD_TYPES.map((ft) => (
+                                                                        <SelectItem key={ft.value} value={ft.value}>
+                                                                            {ft.label}
+                                                                        </SelectItem>
+                                                                    ))}
                                                                 </SelectContent>
                                                             </Select>
                                                         </div>
@@ -1948,8 +1964,8 @@ const CustomFieldsSettings: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* Dropdown Options Manager */}
-                                                {field.type === 'dropdown' && (
+                                                {/* Dropdown / Radio Options Manager */}
+                                                {(field.type === 'dropdown' || field.type === 'radio') && (
                                                     <DropdownOptionsManager field={field} />
                                                 )}
                                             </div>
@@ -2076,11 +2092,9 @@ const CustomFieldsSettings: React.FC = () => {
                                                             onValueChange={(value) =>
                                                                 setNewField((prev) => ({
                                                                     ...prev,
-                                                                    type: value as
-                                                                        | 'text'
-                                                                        | 'dropdown',
+                                                                    type: value as CustomFieldType,
                                                                     options:
-                                                                        value === 'dropdown'
+                                                                        value === 'dropdown' || value === 'radio'
                                                                             ? ['Option 1']
                                                                             : undefined,
                                                                 }))
@@ -2090,12 +2104,11 @@ const CustomFieldsSettings: React.FC = () => {
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="text">
-                                                                    Text Field
-                                                                </SelectItem>
-                                                                <SelectItem value="dropdown">
-                                                                    Dropdown
-                                                                </SelectItem>
+                                                                {CUSTOM_FIELD_TYPES.map((ft) => (
+                                                                    <SelectItem key={ft.value} value={ft.value}>
+                                                                        {ft.label}
+                                                                    </SelectItem>
+                                                                ))}
                                                             </SelectContent>
                                                         </Select>
                                                         <div className="flex items-center gap-2">
@@ -2237,9 +2250,9 @@ const CustomFieldsSettings: React.FC = () => {
                                         onValueChange={(value) =>
                                             setNewField((prev) => ({
                                                 ...prev,
-                                                type: value as 'text' | 'dropdown',
+                                                type: value as CustomFieldType,
                                                 options:
-                                                    value === 'dropdown' ? ['Option 1'] : undefined,
+                                                    value === 'dropdown' || value === 'radio' ? ['Option 1'] : undefined,
                                             }))
                                         }
                                     >
@@ -2247,8 +2260,11 @@ const CustomFieldsSettings: React.FC = () => {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="text">Text Field</SelectItem>
-                                            <SelectItem value="dropdown">Dropdown</SelectItem>
+                                            {CUSTOM_FIELD_TYPES.map((ft) => (
+                                                <SelectItem key={ft.value} value={ft.value}>
+                                                    {ft.label}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                     <div className="flex items-center gap-2">
@@ -2271,9 +2287,11 @@ const CustomFieldsSettings: React.FC = () => {
                                                 const field = createTempCustomField(
                                                     newField.name,
                                                     newField.type,
-                                                    newField.type === 'dropdown'
+                                                    newField.type === 'dropdown' || newField.type === 'radio'
                                                         ? newField.options
-                                                        : undefined
+                                                        : undefined,
+                                                    newField.defaultValue,
+                                                    newField.fieldConfig
                                                 );
 
                                                 // Set visibility and required status
@@ -2294,6 +2312,8 @@ const CustomFieldsSettings: React.FC = () => {
                                                     name: '',
                                                     type: 'text',
                                                     options: [],
+                                                    defaultValue: '',
+                                                    fieldConfig: undefined,
                                                     required: false,
                                                     visibility: {
                                                         learnersList: false,
@@ -2310,8 +2330,8 @@ const CustomFieldsSettings: React.FC = () => {
                                         <Plus className="size-4" />
                                     </Button>
                                 </div>{' '}
-                                {/* Initial Options for Dropdown */}
-                                {newField.type === 'dropdown' && (
+                                {/* Initial Options for Dropdown / Radio */}
+                                {(newField.type === 'dropdown' || newField.type === 'radio') && (
                                     <div className="space-y-2">
                                         <Label className="text-sm font-medium text-gray-700">
                                             Initial Options
@@ -2446,9 +2466,11 @@ const CustomFieldsSettings: React.FC = () => {
                                     onValueChange={(value) =>
                                         setNewField((prev) => ({
                                             ...prev,
-                                            type: value as 'text' | 'dropdown',
+                                            type: value as CustomFieldType,
                                             options:
-                                                value === 'dropdown' ? ['Option 1'] : undefined,
+                                                value === 'dropdown' || value === 'radio' ? ['Option 1'] : undefined,
+                                            defaultValue: '',
+                                            fieldConfig: value === 'file' ? { allowedFileTypes: [], maxSizeMB: 5 } : undefined,
                                         }))
                                     }
                                 >
@@ -2456,10 +2478,11 @@ const CustomFieldsSettings: React.FC = () => {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="text">Text Field</SelectItem>
-                                        <SelectItem value="dropdown">
-                                            Dropdown with options
-                                        </SelectItem>
+                                        {CUSTOM_FIELD_TYPES.map((ft) => (
+                                            <SelectItem key={ft.value} value={ft.value}>
+                                                {ft.label}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -2485,8 +2508,8 @@ const CustomFieldsSettings: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Initial Options for Dropdown */}
-                            {newField.type === 'dropdown' && (
+                            {/* Initial Options for Dropdown / Radio */}
+                            {(newField.type === 'dropdown' || newField.type === 'radio') && (
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium text-gray-700">
                                         Initial Options
@@ -2542,6 +2565,162 @@ const CustomFieldsSettings: React.FC = () => {
                                             <Plus className="size-3" />
                                             Add Option
                                         </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Default Value — varies by field type */}
+                            {newField.type && newField.type !== 'file' && (
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-gray-700">
+                                        Default Value (Optional)
+                                    </Label>
+                                    {newField.type === 'checkbox' ? (
+                                        <div className="flex items-center gap-3">
+                                            <Switch
+                                                checked={newField.defaultValue === 'true'}
+                                                onCheckedChange={(checked) =>
+                                                    setNewField((prev) => ({
+                                                        ...prev,
+                                                        defaultValue: checked ? 'true' : 'false',
+                                                    }))
+                                                }
+                                            />
+                                            <span className="text-sm text-gray-700">
+                                                {newField.defaultValue === 'true' ? 'Checked' : 'Unchecked'}
+                                            </span>
+                                        </div>
+                                    ) : newField.type === 'dropdown' || newField.type === 'radio' ? (
+                                        <Select
+                                            value={newField.defaultValue || ''}
+                                            onValueChange={(value) =>
+                                                setNewField((prev) => ({
+                                                    ...prev,
+                                                    defaultValue: value,
+                                                }))
+                                            }
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select default option" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {(newField.options || []).filter((o) => o.trim().length > 0).map((opt, i) => (
+                                                    <SelectItem key={`${opt}-${i}`} value={opt}>
+                                                        {opt}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    ) : newField.type === 'date' ? (
+                                        <Input
+                                            type="date"
+                                            value={newField.defaultValue || ''}
+                                            onChange={(e) =>
+                                                setNewField((prev) => ({
+                                                    ...prev,
+                                                    defaultValue: e.target.value,
+                                                }))
+                                            }
+                                            className="w-full"
+                                        />
+                                    ) : newField.type === 'textarea' ? (
+                                        <textarea
+                                            value={newField.defaultValue || ''}
+                                            onChange={(e) =>
+                                                setNewField((prev) => ({
+                                                    ...prev,
+                                                    defaultValue: e.target.value,
+                                                }))
+                                            }
+                                            rows={3}
+                                            placeholder="Enter default value"
+                                            className="min-h-[60px] w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                                        />
+                                    ) : (
+                                        <Input
+                                            type={
+                                                newField.type === 'number'
+                                                    ? 'number'
+                                                    : newField.type === 'email'
+                                                        ? 'email'
+                                                        : newField.type === 'url'
+                                                            ? 'url'
+                                                            : newField.type === 'phone'
+                                                                ? 'tel'
+                                                                : 'text'
+                                            }
+                                            value={newField.defaultValue || ''}
+                                            onChange={(e) =>
+                                                setNewField((prev) => ({
+                                                    ...prev,
+                                                    defaultValue: e.target.value,
+                                                }))
+                                            }
+                                            placeholder="Enter default value"
+                                            className="w-full"
+                                        />
+                                    )}
+                                </div>
+                            )}
+
+                            {/* File Upload Configuration */}
+                            {newField.type === 'file' && (
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-medium text-gray-700">
+                                        Allowed File Types (select at least one, or leave empty for all)
+                                    </Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv',
+                                            'png', 'jpg', 'jpeg', 'gif', 'svg',
+                                            'mp4', 'mp3', 'zip', 'txt',
+                                        ].map((ext) => {
+                                            const allowed = newField.fieldConfig?.allowedFileTypes || [];
+                                            const isSelected = allowed.includes(ext);
+                                            return (
+                                                <label key={ext} className="flex cursor-pointer items-center gap-1 rounded border border-gray-200 px-2 py-1 text-xs">
+                                                    <Checkbox
+                                                        checked={isSelected}
+                                                        onCheckedChange={() =>
+                                                            setNewField((prev) => {
+                                                                const current = prev.fieldConfig?.allowedFileTypes || [];
+                                                                const next = current.includes(ext)
+                                                                    ? current.filter((t) => t !== ext)
+                                                                    : [...current, ext];
+                                                                return {
+                                                                    ...prev,
+                                                                    fieldConfig: {
+                                                                        ...(prev.fieldConfig || {}),
+                                                                        allowedFileTypes: next,
+                                                                    },
+                                                                };
+                                                            })
+                                                        }
+                                                    />
+                                                    <span>{ext.toUpperCase()}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-sm font-medium text-gray-700">
+                                            Max File Size (MB)
+                                        </Label>
+                                        <Input
+                                            type="number"
+                                            value={newField.fieldConfig?.maxSizeMB ?? 5}
+                                            onChange={(e) =>
+                                                setNewField((prev) => ({
+                                                    ...prev,
+                                                    fieldConfig: {
+                                                        ...(prev.fieldConfig || {}),
+                                                        maxSizeMB: Number(e.target.value) || 5,
+                                                    },
+                                                }))
+                                            }
+                                            className="w-32"
+                                            min={1}
+                                        />
                                     </div>
                                 </div>
                             )}

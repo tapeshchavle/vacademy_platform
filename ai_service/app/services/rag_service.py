@@ -41,17 +41,22 @@ class RAGService:
 
         try:
             # pgvector cosine distance: 1 - (a <=> b) gives similarity
+            # Use CAST(... AS vector) instead of `::vector` — the `::` cast
+            # operator collides with SQLAlchemy's `:name` bind-param parser
+            # (double-colon after a bind name gets mis-parsed as a second
+            # named param), which surfaces as `syntax error at or near ":"`
+            # from PostgreSQL. CAST is unambiguous.
             stmt = text("""
                 SELECT
                     content_text,
                     source_type,
                     source_id,
                     meta_data,
-                    1 - (embedding <=> :query_vec::vector) as similarity
+                    1 - (embedding <=> CAST(:query_vec AS vector)) as similarity
                 FROM content_embeddings
                 WHERE institute_id = :institute_id
-                AND 1 - (embedding <=> :query_vec::vector) > :threshold
-                ORDER BY embedding <=> :query_vec::vector
+                AND 1 - (embedding <=> CAST(:query_vec AS vector)) > :threshold
+                ORDER BY embedding <=> CAST(:query_vec AS vector)
                 LIMIT :top_k
             """)
 
@@ -101,9 +106,10 @@ class RAGService:
                 continue
 
             try:
+                # Use CAST(...) not `::vector` — see search() for rationale.
                 stmt = text("""
                     INSERT INTO content_embeddings (id, institute_id, source_type, source_id, content_text, chunk_index, embedding, meta_data, created_at, updated_at)
-                    VALUES (gen_random_uuid(), :institute_id, :source_type, :source_id, :content_text, :chunk_index, :embedding::vector, :meta_data::jsonb, NOW(), NOW())
+                    VALUES (gen_random_uuid(), :institute_id, :source_type, :source_id, :content_text, :chunk_index, CAST(:embedding AS vector), CAST(:meta_data AS jsonb), NOW(), NOW())
                     ON CONFLICT (id) DO NOTHING
                 """)
                 import json

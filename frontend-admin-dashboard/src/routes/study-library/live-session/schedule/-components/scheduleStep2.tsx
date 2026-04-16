@@ -31,6 +31,8 @@ import { Sortable, SortableDragHandle, SortableItem } from '@/components/ui/sort
 import { Switch } from '@/components/ui/switch';
 import { MyDialog } from '@/components/design-system/dialog';
 import SelectField from '@/components/design-system/select-field';
+import { AddCustomFieldDialog as SharedAddCustomFieldDialog } from '@/components/common/custom-fields/AddCustomFieldDialog';
+import { CustomFieldRenderer } from '@/components/common/custom-fields/CustomFieldRenderer';
 import { FieldErrors } from 'react-hook-form';
 import { transformFormToDTOStep2 } from '../../-constants/helper';
 import { createLiveSessionStep2, createProviderMeeting } from '../-services/utils';
@@ -424,16 +426,28 @@ export default function ScheduleStep2() {
                     const allFields = defaults.map((entry) => {
                         const cf = entry.custom_field;
                         const nameLC = cf.fieldName.toLowerCase();
+                        // Multi-input revamp: forward the real field type so the
+                        // form schema / learner registration renders date pickers,
+                        // file upload, checkboxes, etc. Options are parsed for
+                        // both dropdown and radio.
+                        const rawType = (cf.fieldType || 'text').toLowerCase();
+                        const resolvedType = (rawType === 'textfield' ? 'text' : rawType) as InputType;
+                        const hasOptions =
+                            resolvedType === InputType.DROPDOWN || resolvedType === InputType.RADIO;
                         return {
                             label: cf.fieldName,
                             required: cf.isMandatory || SEEDED.includes(nameLC),
                             isDefault: SEEDED.includes(nameLC),
-                            type: cf.fieldType === 'dropdown' ? InputType.DROPDOWN : InputType.TEXT,
-                            ...(cf.fieldType === 'dropdown' && cf.config ? (() => {
+                            type: resolvedType,
+                            ...(hasOptions && cf.config ? (() => {
                                 try {
                                     const parsed = JSON.parse(cf.config);
                                     if (Array.isArray(parsed)) {
                                         return { options: parsed.map((o: any) => ({ label: o.value || o.label, name: o.value || o.name })) };
+                                    }
+                                    // New object-format config: { options: [...], defaultValue, ... }
+                                    if (Array.isArray(parsed?.options)) {
+                                        return { options: parsed.options.map((o: any) => ({ label: o.value || o.label, name: o.value || o.name })) };
                                     }
                                     if (parsed.coommaSepartedOptions) {
                                         return { options: parsed.coommaSepartedOptions.split(',').map((v: string) => ({ label: v.trim(), name: v.trim() })) };
@@ -678,7 +692,7 @@ export default function ScheduleStep2() {
                             <MyDropdown
                                 currentValue={currentSession ?? undefined}
                                 dropdownList={sessionList}
-                                placeholder="Select Session"
+                                placeholder={`Select ${getTerminology(ContentTerms.Session, SystemTerms.Session)}`}
                                 handleChange={handleSessionChange}
                             />
                         </div>
@@ -761,16 +775,46 @@ export default function ScheduleStep2() {
 
                                 {/* adding customs fields and new registration form options */}
                                 <div className="flex flex-col gap-4 p-3 sm:flex-row">
-                                    <MyButton
-                                        buttonType="secondary"
-                                        type="button"
-                                        onClick={() => {
-                                            setAddCustomFieldDialog(!addCustomFieldDialog);
+                                    <SharedAddCustomFieldDialog
+                                        trigger={
+                                            <MyButton
+                                                buttonType="secondary"
+                                                type="button"
+                                                className="w-full sm:w-auto"
+                                            >
+                                                <Plus></Plus> Add Custom Field
+                                            </MyButton>
+                                        }
+                                        onAddField={(type, name, _oldKey, options) => {
+                                            // Multi-input revamp (2026-04): forward the actual
+                                            // field type instead of collapsing to TEXT/DROPDOWN so
+                                            // the learner-facing live session registration form
+                                            // can render date pickers, file upload, checkboxes,
+                                            // etc. InputType was broadened to include all 11 types.
+                                            const normalized = (type || 'text').toLowerCase();
+                                            const resolvedType =
+                                                normalized === 'textfield'
+                                                    ? InputType.TEXT
+                                                    : (normalized as InputType);
+                                            const hasOptions =
+                                                (resolvedType === InputType.DROPDOWN ||
+                                                    resolvedType === InputType.RADIO) &&
+                                                !!options;
+                                            append({
+                                                label: name,
+                                                isDefault: false,
+                                                required: true,
+                                                type: resolvedType,
+                                                options: hasOptions
+                                                    ? options!.map((opt) => ({
+                                                          name: opt.value,
+                                                          label: opt.value,
+                                                      }))
+                                                    : [],
+                                            });
                                         }}
-                                        className="w-full sm:w-auto"
-                                    >
-                                        <Plus></Plus> Add Custom Field
-                                    </MyButton>
+                                        existingFieldNames={fields.map((f) => f.label)}
+                                    />
                                     <MyButton
                                         buttonType="secondary"
                                         type="button"
@@ -1096,43 +1140,26 @@ export default function ScheduleStep2() {
                     {fields?.map((testInputFields, idx) => {
                         return (
                             <div className="flex flex-col items-start gap-4" key={idx}>
-                                {testInputFields.type === 'dropdown' ? (
-                                    <SelectField
-                                        label={testInputFields.label}
-                                        labelStyle="font-normal"
+                                <div className="flex w-full flex-col gap-[0.4rem]">
+                                    <h1 className="text-sm">
+                                        {testInputFields.label}
+                                        {testInputFields.required && (
+                                            <span className="text-subtitle text-danger-600">
+                                                *
+                                            </span>
+                                        )}
+                                    </h1>
+                                    <CustomFieldRenderer
+                                        type={testInputFields.type}
                                         name={testInputFields.label}
-                                        options={
-                                            testInputFields?.options?.map((option, index) => ({
-                                                value: option.name,
-                                                label: option.label,
-                                                _id: index,
-                                            })) || []
-                                        }
-                                        control={form.control}
-                                        className="w-full font-thin"
-                                        required={testInputFields.required ? true : false}
+                                        value=""
+                                        disabled={true}
+                                        options={testInputFields.options?.map(
+                                            (o) => o.name ?? o.label
+                                        )}
+                                        required={testInputFields.required}
                                     />
-                                ) : (
-                                    <div className="flex w-full flex-col gap-[0.4rem]">
-                                        <h1 className="text-sm">
-                                            {testInputFields.label}
-                                            {testInputFields.required && (
-                                                <span className="text-subtitle text-danger-600">
-                                                    *
-                                                </span>
-                                            )}
-                                        </h1>
-                                        <MyInput
-                                            inputType="text"
-                                            inputPlaceholder={testInputFields.label}
-                                            input=""
-                                            onChangeFunction={() => { }}
-                                            size="large"
-                                            disabled
-                                            className="!min-w-full"
-                                        />
-                                    </div>
-                                )}
+                                </div>
                             </div>
                         );
                     })}
@@ -1150,114 +1177,7 @@ export default function ScheduleStep2() {
                     </div>
                 </MyDialog>
             </FormProvider>
-            {/* Add Custom Field Dialog */}
-            <MyDialog
-                open={addCustomFieldDialog}
-                onOpenChange={setAddCustomFieldDialog}
-                heading="Custom Field Fields"
-            >
-                <FormProvider {...addCustomFieldform}>
-                    <form onSubmit={handleCustomSubmit(onCustomSubmit, onError)}>
-                        <div className="p-2">
-                            <div className="flex flex-col gap-4">
-                                <div>Select the type of custom field you want to add:</div>
-                                <FormField
-                                    control={customControl}
-                                    name="fieldType"
-                                    render={({ field }) => (
-                                        <MyRadioButton
-                                            name="meetingType"
-                                            value={field.value ?? ''}
-                                            onChange={field.onChange}
-                                            options={[
-                                                {
-                                                    label: 'Text Field',
-                                                    value: 'text',
-                                                },
-                                                {
-                                                    label: 'DropDown',
-                                                    value: 'dropdown',
-                                                },
-                                            ]}
-                                            className="flex flex-row gap-4"
-                                        />
-                                    )}
-                                />
-                            </div>
-                            <div className="mt-4 flex flex-col gap-4">
-                                <div>
-                                    {filedType === 'text' ? 'Text Field Name' : 'Dropdown Name'}
-                                </div>
-                                <FormField
-                                    control={customControl}
-                                    name="fieldName"
-                                    render={({ field: { ...field } }) => (
-                                        <FormItem>
-                                            <FormControl>
-                                                <MyInput
-                                                    inputType="text"
-                                                    inputPlaceholder="Enter Name"
-                                                    input={field.value}
-                                                    onChangeFunction={field.onChange}
-                                                    error={
-                                                        addCustomFieldform.formState.errors
-                                                            .fieldName?.message
-                                                    }
-                                                    size="large"
-                                                    {...field}
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                            {filedType === 'dropdown' && (
-                                <div>
-                                    <Sortable
-                                        value={customOptionsFields}
-                                        onMove={({ activeIndex, overIndex }) =>
-                                            customMove(activeIndex, overIndex)
-                                        }
-                                    >
-                                        {customOptionsFields.map((field, index) => (
-                                            <SortableItem key={field.id} value={field.id} asChild>
-                                                <div className="flex items-center gap-6 rounded  p-3">
-                                                    <div className="flex w-3/4 items-center justify-between rounded-md border bg-neutral-50 p-2 shadow">
-                                                        <input
-                                                            className="w-full border-none bg-transparent outline-none"
-                                                            {...register(
-                                                                `options.${index}.optionField`
-                                                            )} // <-- use register here
-                                                        />
-                                                        <SortableDragHandle className="cursor-grab border-none shadow-none">
-                                                            <DotsSixVertical />
-                                                        </SortableDragHandle>
-                                                    </div>
-                                                </div>
-                                            </SortableItem>
-                                        ))}
-                                    </Sortable>
-                                    <div>
-                                        <MyButton
-                                            buttonType="text"
-                                            className="m-0 p-0 text-primary-500"
-                                            type="button"
-                                            onClick={() => customAppend({ optionField: '' })}
-                                        >
-                                            <Plus></Plus> Add
-                                        </MyButton>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="mt-2 flex w-full items-center justify-center">
-                            <MyButton buttonType="primary" className="m-auto" type="submit">
-                                Done
-                            </MyButton>
-                        </div>
-                    </form>
-                </FormProvider>
-            </MyDialog>
+            {/* Add Custom Field Dialog is now embedded inline via SharedAddCustomFieldDialog */}
         </>
     );
 }

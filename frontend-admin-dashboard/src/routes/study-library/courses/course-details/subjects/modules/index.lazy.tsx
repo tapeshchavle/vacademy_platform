@@ -11,6 +11,8 @@ import { SubjectType } from '@/stores/study-library/use-study-library-store';
 import { getSubjectsByLevelAndSession } from '@/utils/courseUtils';
 import { useStudyLibraryStore } from '@/stores/study-library/use-study-library-store';
 import { ModuleMaterial } from './-components/module-material';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 const routeApi = getRouteApi('/study-library/courses/course-details/subjects/modules/');
 
@@ -64,7 +66,7 @@ function RouteComponent() {
                     id: subject.id,
                 };
             })}
-            sideBarData={{ title: 'Subjects', listIconText: 'S', searchParam: 'subjectId' }}
+            sideBarData={{ title: getTerminologyPlural(ContentTerms.Subjects, SystemTerms.Subjects), listIconText: 'S', searchParam: 'subjectId' }}
         >
             <InitStudyLibraryProvider courseId={courseId}>
                 <ModulesWithChaptersProvider>

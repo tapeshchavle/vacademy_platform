@@ -160,7 +160,7 @@ export const CourseEnrollment = ({
                                             onValueChange={onSessionChange}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select Session" />
+                                                <SelectValue placeholder={`Select ${getTerminology(ContentTerms.Session, SystemTerms.Session)}`} />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {sessionOptions.map((option) => (
@@ -194,7 +194,7 @@ export const CourseEnrollment = ({
                                             disabled={!selectedSession}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select Level" />
+                                                <SelectValue placeholder={`Select ${getTerminology(ContentTerms.Level, SystemTerms.Level)}`} />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {levelOptions.map((option) => (

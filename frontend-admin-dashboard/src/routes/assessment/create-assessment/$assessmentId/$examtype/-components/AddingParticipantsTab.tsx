@@ -17,6 +17,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { convertCapitalToTitleCase } from '@/lib/utils';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 type TestAccessFormType = z.infer<typeof testAccessSchema>;
 
@@ -192,7 +194,7 @@ const Step3BatchList = ({
     return (
         <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2">
-                <span>Session</span>
+                <span>{getTerminology(ContentTerms.Session, SystemTerms.Session)}</span>
                 <Select value={selectedSection} onValueChange={setSelectedSection}>
                     <SelectTrigger className="w-[180px] text-[1rem]">
                         <SelectValue placeholder="Select Section" />

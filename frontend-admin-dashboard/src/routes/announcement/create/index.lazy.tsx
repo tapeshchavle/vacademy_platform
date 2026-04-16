@@ -151,7 +151,7 @@ function CreateAnnouncementPage() {
         Array<{
             id: string;
             name: string;
-            type: 'text' | 'dropdown' | 'number';
+            type: string;
             options?: string[];
         }>
     >([]);
@@ -161,7 +161,7 @@ function CreateAnnouncementPage() {
             Array<{
                 fieldId: string;
                 fieldName: string;
-                fieldType: 'text' | 'dropdown' | 'number';
+                fieldType: string;
                 filterValue?: string | string[];
                 operator?: 'equals' | 'contains' | 'starts_with' | 'ends_with';
             }>
@@ -273,7 +273,7 @@ function CreateAnnouncementPage() {
                     const allFields: Array<{
                         id: string;
                         name: string;
-                        type: 'text' | 'dropdown' | 'number';
+                        type: string;
                         options?: string[];
                     }> = [];
 
@@ -876,7 +876,7 @@ function CreateAnnouncementPage() {
         updates: Partial<{
             fieldId: string;
             fieldName: string;
-            fieldType: 'text' | 'dropdown' | 'number';
+            fieldType: string;
             filterValue: string | string[];
             operator: 'equals' | 'contains' | 'starts_with' | 'ends_with';
         }>

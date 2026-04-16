@@ -12,6 +12,8 @@ import { AssessmentDetailsSearchComponent } from './SearchComponent';
 import { useInstituteQuery } from '@/services/student-list-section/getInstituteDetails';
 import { useFilterDataForAssesment } from '@/routes/assessment/assessment-list/-utils.ts/useFiltersData';
 import { ScheduleTestFilters } from '@/routes/assessment/assessment-list/-components/ScheduleTestFilters';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import { MyFilterOption } from '@/types/assessments/my-filter';
 import { DashboardLoader } from '@/components/core/dashboard-loader';
 import AssessmentSubmissionsFilterButtons from './AssessmentSubmissionsFilterButtons';
@@ -583,7 +585,7 @@ const AssessmentSubmissionsTab = ({ type }: { type: string }) => {
                             clearSearch={clearSearch}
                         />
                         <ScheduleTestFilters
-                            label="Batches"
+                            label={getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}
                             data={BatchesFilterData}
                             selectedItems={selectedFilter['batches'] || []}
                             onSelectionChange={(items) => handleFilterChange('batches', items)}

@@ -23,6 +23,8 @@ import { MyButton } from "@/components/design-system/button";
 import { EnrollmentSuccessDialog } from "./EnrollmentSuccessDialog";
 import { EnrollmentPendingDialog } from "./EnrollmentPendingDialog";
 import { EnrollmentPendingApprovalDialog } from "./EnrollmentPendingApprovalDialog";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 interface FreeEnrollmentConfirmationDialogProps {
   open: boolean;
@@ -44,7 +46,7 @@ export const FreeEnrollmentConfirmationDialog: React.FC<
   packageSessionId,
   instituteId,
   token,
-  courseTitle = "Course",
+  courseTitle = getTerminology(ContentTerms.Course, SystemTerms.Course),
   inviteCode = "default",
   onNavigateToSlides,
 }) => {

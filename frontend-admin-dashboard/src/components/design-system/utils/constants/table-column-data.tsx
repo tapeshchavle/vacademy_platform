@@ -14,7 +14,7 @@ import { useState, useRef } from 'react';
 import { LogDetailsDialog } from '@/components/common/student-slide-tracking/log-details-dialog';
 import { useStudentSidebar } from '@/routes/manage-students/students-list/-context/selected-student-sidebar-context';
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
-import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
+import { ContentTerms, OtherTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import { EnrollRequestsStudentMenuOptions } from '@/routes/manage-students/enroll-requests/-components/bulk-actions/enroll-request-individual-options';
 import { generateCustomFieldColumns } from './custom-field-columns';
 import { processColumnsWithSystemFields } from './system-field-columns';
@@ -350,7 +350,7 @@ export const myColumns: ColumnDef<StudentTable>[] = [
         size: 180,
         minSize: 120,
         maxSize: 280,
-        header: 'Invite',
+        header: getTerminology(OtherTerms.Invite, SystemTerms.Invite),
         cell: ({ row }) => <CreateClickableCell row={row} columnId="enroll_invite_name" />,
         enableHiding: true,
     },
@@ -800,7 +800,7 @@ export const enrollRequestColumns: ColumnDef<StudentTable>[] = [
         size: 150,
         minSize: 100,
         maxSize: 250,
-        header: 'Level ID',
+        header: `${getTerminology(ContentTerms.Level, SystemTerms.Level)} ID`,
         cell: ({ row }) => <CreateClickableCell row={row} columnId="level_id" />,
     },
     {

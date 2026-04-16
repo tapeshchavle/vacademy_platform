@@ -236,6 +236,10 @@ export default defineConfig({
                         if (id.includes('/@excalidraw/') || id.includes('/roughjs/') || id.includes('/perfect-freehand/'))
                             return 'excalidraw-vendor';
 
+                        // Audio - Howler (sound effect scheduler for AI videos)
+                        if (id.includes('/howler/'))
+                            return 'audio-vendor';
+
                         // Heavy Libraries - GrapesJS (email editor)
                         if (id.includes('/grapesjs/'))
                             return 'grapes-vendor';

@@ -7,17 +7,49 @@ import { convertToUpperCase } from '@/utils/customFields';
 /**
  * Component to render custom field cell value
  */
+const formatCustomFieldValue = (value: string, fieldType?: string): string => {
+    if (!value || value === '-') return '-';
+    switch (fieldType) {
+        case 'checkbox':
+            return value === 'true' ? 'Yes' : 'No';
+        case 'date':
+            try {
+                return new Date(value).toLocaleDateString();
+            } catch {
+                return value;
+            }
+        default:
+            return value;
+    }
+};
+
 const CustomFieldCell = ({
     row,
     customFieldId,
+    fieldType,
 }: {
     row: Row<StudentTable>;
     customFieldId: string;
+    fieldType?: string;
 }) => {
     const { handleClick, handleDoubleClick } = useClickHandlers();
 
-    // Get the value from custom_fields object using the customFieldId as key
-    const value = row.original.custom_fields?.[customFieldId] ?? '-';
+    const rawValue = row.original.custom_fields?.[customFieldId] ?? '-';
+    const displayValue = formatCustomFieldValue(String(rawValue), fieldType);
+
+    if (fieldType === 'file' && rawValue && rawValue !== '-') {
+        return (
+            <a
+                href={String(rawValue)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="cursor-pointer text-primary-500 underline"
+                onClick={(e) => e.stopPropagation()}
+            >
+                View File
+            </a>
+        );
+    }
 
     return (
         <div
@@ -25,7 +57,7 @@ const CustomFieldCell = ({
             onDoubleClick={(e) => handleDoubleClick(e, customFieldId, row)}
             className="cursor-pointer"
         >
-            {value}
+            {displayValue}
         </div>
     );
 };
@@ -61,7 +93,7 @@ export const generateCustomFieldColumns = (): ColumnDef<StudentTable>[] => {
                 maxSize: 300,
                 header: convertToUpperCase(field.name), // Use the field name from settings as the column header
                 cell: ({ row }: { row: Row<StudentTable> }) => (
-                    <CustomFieldCell row={row} customFieldId={field.id} />
+                    <CustomFieldCell row={row} customFieldId={field.id} fieldType={field.type} />
                 ),
                 enableHiding: true,
                 // Add metadata to help identify custom field columns

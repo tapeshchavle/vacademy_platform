@@ -41,6 +41,22 @@ from ..services.s3_service import S3Service
 # Render settings (optional body for POST /render/{video_id})
 # ---------------------------------------------------------------------------
 
+class ResumeRequest(BaseModel):
+    """Body for POST /resume/{video_id} — resume generation after script review."""
+    target_stage: str = Field("HTML", description="Stage to resume up to (e.g. HTML)")
+    modified_script: Optional[str] = Field(None, description="User-edited script text. If provided, overwrites the existing script in S3 before resuming.")
+    # Generation options (forwarded to pipeline so resume uses the same settings as the original /generate call)
+    voice_gender: str = Field("female", description="Voice gender for TTS")
+    tts_provider: str = Field("standard", description="TTS provider: standard or premium")
+    voice_id: Optional[str] = Field(None, description="Specific voice ID for premium TTS")
+    captions_enabled: bool = Field(True, description="Whether captions are enabled")
+    html_quality: str = Field("advanced", description="HTML quality: classic or advanced")
+    target_audience: str = Field("General/Adult", description="Target audience")
+    target_duration: str = Field("2-3 minutes", description="Target content duration")
+    model: Optional[str] = Field(None, description="LLM model override")
+    sound_effects_enabled: bool = Field(True, description="Whether sound effects are enabled")
+
+
 class RenderOptionsBody(BaseModel):
     resolution: Optional[str] = Field(None, description="720p or 1080p")
     fps: Optional[int] = Field(None, description="15, 20, 25, or 30")
@@ -209,6 +225,7 @@ async def generate_video_external(
                         reference_files=[rf.model_dump() for rf in p.reference_files] if p.reference_files else None,
                         orientation=p.orientation,
                         visual_style=p.visual_style,
+                        sound_effects_enabled=p.sound_effects_enabled,
                     ):
                         await q.put(json.dumps(event))
             except Exception as exc:
@@ -276,6 +293,146 @@ async def generate_video_external(
     )
 
 
+# ---------------------------------------------------------------------------
+# Resume generation after script review
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/resume/{video_id}",
+    summary="Resume video generation after script review (External)",
+    response_class=StreamingResponse,
+)
+async def resume_video_external(
+    video_id: str,
+    payload: ResumeRequest,
+    institute_id: str = Depends(get_institute_from_api_key),
+    _credits_check=Depends(require_credits("video", estimated_tokens=3000)),
+    db: Session = Depends(db_dependency),
+) -> StreamingResponse:
+    """
+    Resume a video generation that was paused after the SCRIPT stage.
+
+    If ``modified_script`` is provided, the existing script in S3 is
+    overwritten before resuming so the pipeline picks up the user's edits.
+
+    Authentication: Requires 'X-Institute-Key' header.
+    """
+    repo = AiVideoRepository(session=db)
+    video_record = repo.get_by_video_id(video_id)
+    if not video_record:
+        raise HTTPException(status_code=404, detail=f"Video {video_id} not found")
+
+    # Overwrite script in S3 if the user edited it
+    if payload.modified_script is not None:
+        s3_svc = S3Service()
+        script_key = f"ai-videos/{video_id}/script/script.txt"
+        s3_svc.upload_file_content(
+            content=payload.modified_script.encode("utf-8"),
+            filename="script.txt",
+            s3_key=script_key,
+            content_type="text/plain; charset=utf-8",
+        )
+        logger.info(f"[Resume] Overwrote script in S3 for {video_id}")
+
+    # Build SSE queue + background task (same pattern as /generate)
+    queue: asyncio.Queue = asyncio.Queue()
+
+    # Reuse existing task if still running
+    if video_id in _generation_tasks and not _generation_tasks[video_id].done():
+        existing_queue = _generation_queues.get(video_id)
+        if existing_queue is not None:
+            queue = existing_queue
+            logger.info(f"[Resume] Re-connecting to existing task for {video_id}")
+    else:
+        _generation_queues[video_id] = queue
+
+        async def _run_resume(q: asyncio.Queue, vid: str, ts: str, inst_id: str,
+                             p: ResumeRequest) -> None:
+            try:
+                with make_db_session() as bg_session:
+                    bg_svc = VideoGenerationService(
+                        repository=AiVideoRepository(session=bg_session),
+                        s3_service=S3Service(),
+                    )
+                    # Retrieve the original record to get prompt + settings
+                    rec = bg_svc.repository.get_by_video_id(vid)
+                    if not rec:
+                        await q.put(json.dumps({"type": "error", "message": f"Video {vid} not found", "video_id": vid}))
+                        return
+                    if not rec.prompt:
+                        await q.put(json.dumps({"type": "error", "message": "Original prompt not found", "video_id": vid}))
+                        return
+
+                    _meta = rec.extra_metadata or {}
+                    async for event in bg_svc.generate_till_stage(
+                        video_id=vid,
+                        prompt=rec.prompt,
+                        target_stage=ts,
+                        language=rec.language or "English",
+                        resume=True,
+                        content_type=rec.content_type or "VIDEO",
+                        db_session=bg_session,
+                        institute_id=inst_id,
+                        orientation=_meta.get("orientation", "landscape"),
+                        visual_style=_meta.get("visual_style", "standard"),
+                        quality_tier=_meta.get("quality_tier", "ultra"),
+                        voice_gender=p.voice_gender,
+                        tts_provider=p.tts_provider,
+                        voice_id=p.voice_id,
+                        captions_enabled=p.captions_enabled,
+                        html_quality=p.html_quality,
+                        target_audience=p.target_audience,
+                        target_duration=p.target_duration,
+                        model=p.model or "",
+                        sound_effects_enabled=p.sound_effects_enabled,
+                    ):
+                        await q.put(json.dumps(event))
+            except Exception as exc:
+                logger.error(f"[Resume] Background task error for {vid}: {exc}")
+                try:
+                    with make_db_session() as refund_session:
+                        from ..services.token_usage_service import TokenUsageService
+                        TokenUsageService(refund_session).refund_video_credits(vid, inst_id)
+                except Exception as refund_err:
+                    logger.error(f"[Resume] Failed to refund credits for {vid}: {refund_err}")
+                await q.put(json.dumps({"type": "error", "message": str(exc), "video_id": vid}))
+            finally:
+                await q.put(None)
+                _generation_tasks.pop(vid, None)
+                _generation_queues.pop(vid, None)
+                _institute_active_tasks.get(inst_id, set()).discard(vid)
+                logger.info(f"[Resume] Background task finished for {vid}")
+
+        task = asyncio.create_task(_run_resume(queue, video_id, payload.target_stage, institute_id, payload))
+        _generation_tasks[video_id] = task
+        _institute_active_tasks[institute_id].add(video_id)
+        logger.info(f"[Resume] Started background task for {video_id}")
+
+    async def sse_stream():
+        try:
+            while True:
+                try:
+                    event_json = await asyncio.wait_for(queue.get(), timeout=60.0)
+                except asyncio.TimeoutError:
+                    yield ": heartbeat\n\n"
+                    continue
+                if event_json is None:
+                    break
+                yield f"data: {event_json}\n\n"
+        except (GeneratorExit, asyncio.CancelledError):
+            logger.info(f"[Resume] SSE client disconnected for {video_id}; background task continues")
+
+    return StreamingResponse(
+        sse_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Video-ID": video_id,
+        },
+    )
+
+
 @router.get(
     "/history",
     response_model=List[VideoStatusResponse],
@@ -283,6 +440,7 @@ async def generate_video_external(
 )
 async def get_institute_generations_external(
     limit: int = 10,
+    offset: int = 0,
     service: VideoGenerationService = Depends(get_video_service),
     db: Session = Depends(db_dependency),
     institute_id: str = Depends(get_institute_from_api_key)
@@ -290,12 +448,15 @@ async def get_institute_generations_external(
     """
     Get list of last N content generations for the authenticated institute.
     Authentication: Requires 'X-Institute-Key' header.
+    Supports pagination via `offset` query parameter.
     """
     if limit > 50:
         limit = 50 # Cap limit
-    
+    if offset < 0:
+        offset = 0
+
     # Get returned dicts and validate with schema
-    generations = service.get_institute_generations(institute_id, limit)
+    generations = service.get_institute_generations(institute_id, limit, offset)
     return [VideoStatusResponse(**gen) for gen in generations]
 
 

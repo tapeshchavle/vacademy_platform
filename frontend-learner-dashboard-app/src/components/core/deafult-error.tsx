@@ -1,9 +1,33 @@
 import { useRouter } from "@tanstack/react-router";
 import { Helmet } from "react-helmet";
+import { useEffect } from "react";
+import * as Sentry from "@sentry/react";
 import { Button } from "../ui/button";
+import { isChunkLoadError, reloadForChunkError } from "@/lib/chunk-reload";
 
-function RootErrorComponent() {
+function RootErrorComponent({ error }: { error?: unknown }) {
     const router = useRouter();
+    const chunkError = isChunkLoadError(error);
+
+    useEffect(() => {
+        if (chunkError) {
+            // Stale tab after a new deploy — fetch a fresh index.html instead
+            // of reporting to Sentry or showing the 500 page.
+            reloadForChunkError();
+            return;
+        }
+        if (error && import.meta.env.VITE_ENABLE_SENTRY === "true") {
+            Sentry.captureException(error);
+        }
+    }, [error, chunkError]);
+
+    if (chunkError) {
+        return (
+            <div className="flex h-screen w-screen select-none items-center justify-center bg-base-primary px-4 text-gray-700">
+                <p className="text-lg font-semibold">Updating application...</p>
+            </div>
+        );
+    }
 
     return (
         <>
@@ -30,7 +54,7 @@ function RootErrorComponent() {
 
                     <div className="mt-8 flex justify-center gap-5 text-base-white">
                         <Button asChild variant="default" className="h-10 min-w-32">
-                            <div>Return Home</div>
+                            <div onClick={() => window.location.reload()}>Reload Page</div>
                         </Button>
                         <Button asChild variant="default" className="h-10 min-w-32">
                             <div onClick={() => router.history.back()}>Go Back</div>

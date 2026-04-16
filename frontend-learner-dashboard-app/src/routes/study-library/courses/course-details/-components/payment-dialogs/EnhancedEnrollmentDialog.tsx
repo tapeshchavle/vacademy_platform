@@ -9,6 +9,8 @@ import { PaymentFailedDialog } from "./PaymentFailedDialog";
 import { EnrollmentPendingApprovalDialog } from "./EnrollmentPendingApprovalDialog";
 import { ApprovalStatusPollingDialog } from "./ApprovalStatusPollingDialog";
 import { ApprovalSuccessDialog } from "./ApprovalSuccessDialog";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 interface EnhancedEnrollmentDialogProps {
   open: boolean;
@@ -29,7 +31,7 @@ export const EnhancedEnrollmentDialog: React.FC<EnhancedEnrollmentDialogProps> =
   packageSessionId,
   instituteId,
   token,
-  courseTitle = "Course",
+  courseTitle = getTerminology(ContentTerms.Course, SystemTerms.Course),
   inviteCode = "default",
   paymentType,
   onEnrollmentSuccess,

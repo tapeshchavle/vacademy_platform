@@ -8,6 +8,10 @@ export interface InstituteBranding {
   instituteLogoFileId: string | null;
   instituteThemeCode: string | null;
   homeIconClickRoute?: string | null;
+  // White-label display overrides. When unset, defaults apply.
+  hideInstituteName?: boolean | null;
+  logoWidthPx?: number | null;
+  logoHeightPx?: number | null;
 }
 
 interface InstituteBrandingProps {
@@ -23,6 +27,26 @@ export const InstituteBrandingComponent: React.FC<InstituteBrandingProps> = ({
   showName = true,
   className = "",
 }) => {
+  // Explicit hideInstituteName on the branding record overrides the showName
+  // prop (which is set by parents based on context). This lets white-label
+  // settings take effect without every caller threading the flag manually.
+  const effectiveShowName =
+    branding.hideInstituteName === true ? false : showName;
+  const hasCustomLogoDims =
+    typeof branding.logoWidthPx === "number" ||
+    typeof branding.logoHeightPx === "number";
+  const customLogoStyle: React.CSSProperties | undefined = hasCustomLogoDims
+    ? {
+        width:
+          typeof branding.logoWidthPx === "number"
+            ? branding.logoWidthPx
+            : undefined,
+        height:
+          typeof branding.logoHeightPx === "number"
+            ? branding.logoHeightPx
+            : undefined,
+      }
+    : undefined;
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isClickable = Boolean(branding.homeIconClickRoute);
@@ -81,25 +105,34 @@ export const InstituteBrandingComponent: React.FC<InstituteBrandingProps> = ({
         initial={{ scale: 0.8 }}
         animate={{ scale: 1 }}
         transition={{ duration: 0.3, delay: 0.1 }}
-        className={`relative ${sizeClasses[size]} flex-shrink-0 my-2${isClickable ? " cursor-pointer" : ""}`}
+        className={`relative ${hasCustomLogoDims ? "" : sizeClasses[size]} flex-shrink-0 my-2${isClickable ? " cursor-pointer" : ""}`}
+        style={customLogoStyle}
         onClick={isClickable ? handleLogoClick : undefined}
       >
         {isLoading ? (
-          <div className={`${sizeClasses[size]} bg-gray-200 rounded-lg animate-pulse`} />
+          <div
+            className={`${hasCustomLogoDims ? "" : sizeClasses[size]} bg-gray-200 rounded-lg animate-pulse`}
+            style={customLogoStyle}
+          />
         ) : logoUrl ? (
           <img
-            src={logoUrl}            className={`${sizeClasses[size]} object-contain rounded-lg`}
+            src={logoUrl}
+            className={`${hasCustomLogoDims ? "" : sizeClasses[size]} object-contain rounded-lg`}
+            style={customLogoStyle}
             onError={() => setLogoUrl(null)}
           />
         ) : (
-          <div className={`${sizeClasses[size]} bg-gray-100 rounded-lg flex items-center justify-center`}>
+          <div
+            className={`${hasCustomLogoDims ? "" : sizeClasses[size]} bg-gray-100 rounded-lg flex items-center justify-center`}
+            style={customLogoStyle}
+          >
             <div className="w-1/2 h-1/2 bg-gray-200 rounded animate-pulse" />
           </div>
         )}
       </motion.div>
 
       {/* Institute Name */}
-      {showName && (
+      {effectiveShowName && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

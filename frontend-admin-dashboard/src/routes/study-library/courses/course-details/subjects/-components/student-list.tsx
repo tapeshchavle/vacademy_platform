@@ -18,6 +18,8 @@ import { StudentListHeader } from '@/routes/manage-students/students-list/-compo
 import { DropdownItemType } from '@/components/common/students/enroll-manually/dropdownTypesForPackageItems';
 import { StudentFilters } from '@/routes/manage-students/students-list/-components/students-list/student-list-section/student-filters';
 import { GetFilterData } from '@/routes/manage-students/students-list/-constants/all-filters';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { OtherTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import { BulkActions } from '@/routes/manage-students/students-list/-components/students-list/student-list-section/bulk-actions/bulk-actions';
 import { useQuery } from '@tanstack/react-query';
 import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
@@ -110,7 +112,7 @@ const Students = ({
             (filter) => filter.id !== 'batch'
         ),
         ...(invitesForFilter && invitesForFilter.length > 0
-            ? [{ id: 'enroll_invite_ids', title: 'Invite', filterList: invitesForFilter }]
+            ? [{ id: 'enroll_invite_ids', title: getTerminology(OtherTerms.Invite, SystemTerms.Invite), filterList: invitesForFilter }]
             : []),
     ];
     const currentPageSelection = rowSelections[page] || {};

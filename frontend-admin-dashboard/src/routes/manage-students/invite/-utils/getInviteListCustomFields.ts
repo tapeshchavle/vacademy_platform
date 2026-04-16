@@ -6,7 +6,7 @@ import { getInstituteId } from '@/constants/helper';
  */
 export interface InviteFormCustomField {
     id: string; // Form-level ID (can be numeric string or UUID)
-    type: 'text' | 'dropdown' | 'number';
+    type: string;
     name: string;
     oldKey: boolean;
     isRequired: boolean;
@@ -20,14 +20,10 @@ export interface InviteFormCustomField {
 /**
  * Map custom field types to invite form field types
  */
-const mapFieldType = (type: string): 'text' | 'dropdown' | 'number' => {
-    if (type === 'dropdown' || type === 'select') {
-        return 'dropdown';
-    }
-    if (type === 'number') {
-        return 'number';
-    }
-    return 'text';
+const mapFieldType = (type: string): string => {
+    if (type === 'select') return 'dropdown';
+    if (type === 'textfield') return 'text';
+    return type || 'text';
 };
 
 /**
@@ -151,7 +147,7 @@ export const getInviteListCustomFieldsAsync = async (): Promise<InviteFormCustom
                     status: 'ACTIVE',
                 };
 
-                if (fieldType === 'dropdown' && cf.config) {
+                if ((fieldType === 'dropdown' || fieldType === 'radio') && cf.config) {
                     try {
                         const parsed = JSON.parse(cf.config);
                         if (Array.isArray(parsed)) {

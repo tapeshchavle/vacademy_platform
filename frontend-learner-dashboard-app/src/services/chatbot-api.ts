@@ -4,6 +4,8 @@ import axios from "axios";
 import { getUserBasicDetails } from "./getBasicUserDetails";
 import { QuizSubmission } from "@/components/chatbot/types";
 import { AI_SERVICE_URL } from "@/constants/urls";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { RoleTerms, SystemTerms } from "@/types/naming-settings";
 
 export type ContextType = "slide" | "course_details" | "general";
 export type SessionMode = "text" | "voice_interview" | "voice_doubt" | "voice_oral_test";
@@ -159,7 +161,8 @@ class ChatbotAPIService {
       user_id: userId,
       institute_id: instituteId,
       initial_message: initialMessage,
-      user_name: name || "Learner",
+      user_name:
+        name || getTerminology(RoleTerms.Learner, SystemTerms.Learner),
       context_type: contextType,
       context_meta: contextMeta,
       session_mode: sessionMode || "text",

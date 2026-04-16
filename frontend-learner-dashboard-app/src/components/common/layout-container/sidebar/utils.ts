@@ -15,7 +15,11 @@ import {
   UserCircleMinus,
 } from "phosphor-react";
 import { NamingSettingsType } from "@/services/fetchAndStoreInstituteDetails";
-import { NAMING_SETTINGS_KEY } from "@/types/naming-settings";
+import {
+  ContentTerms,
+  NAMING_SETTINGS_KEY,
+  SystemTerms,
+} from "@/types/naming-settings";
 
 const getNamingSettings = (): NamingSettingsType[] => {
   try {
@@ -32,6 +36,56 @@ export const getTerminology = (key: string, defaultValue: string): string => {
   const settings = getNamingSettings();
   const setting = settings.find((item) => item.key === key);
   return setting?.customValue || defaultValue;
+};
+
+// Utility function to get pluralized terminology.
+// Handles two storage formats:
+//  1. Raw backend format (learner): separate { key: "X_plural", customValue } entry
+//  2. Admin merged format: single entry with customPluralValue field
+// Falls back to naive pluralization of the singular custom value / default.
+export const getTerminologyPlural = (
+  key: string,
+  defaultValue: string
+): string => {
+  const settings = getNamingSettings();
+
+  // Format 1: explicit _plural entry from backend
+  const pluralEntry = settings.find((item) => item.key === `${key}_plural`);
+  if (pluralEntry?.customValue) {
+    return pluralEntry.customValue;
+  }
+
+  const setting = settings.find((item) => item.key === key);
+
+  // Format 2: merged entry with customPluralValue field
+  if (setting?.customPluralValue) {
+    return setting.customPluralValue;
+  }
+
+  // Fallback: naive pluralize the singular value
+  const singular = setting?.customValue || defaultValue;
+  return naivePluralize(singular);
+};
+
+const naivePluralize = (word: string): string => {
+  if (
+    word.endsWith("s") ||
+    word.endsWith("x") ||
+    word.endsWith("z") ||
+    word.endsWith("ch") ||
+    word.endsWith("sh")
+  ) {
+    return `${word}es`;
+  }
+  if (
+    word.endsWith("y") &&
+    !["a", "e", "i", "o", "u"].includes(
+      word.charAt(word.length - 2).toLowerCase()
+    )
+  ) {
+    return `${word.slice(0, -1)}ies`;
+  }
+  return `${word}s`;
 };
 
 export const SidebarItemsData: SidebarItemsType[] = [
@@ -53,7 +107,10 @@ export const SidebarItemsData: SidebarItemsType[] = [
         subItemLink: "/learning-centre/attendance",
       },
       {
-        subItem: "Live Class",
+        subItem: getTerminologyPlural(
+          ContentTerms.LiveSession,
+          SystemTerms.LiveSession
+        ),
         subItemLink: "/study-library/live-class",
       },
     ],

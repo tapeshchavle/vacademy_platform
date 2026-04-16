@@ -4,6 +4,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useGetStudentBatch } from '@/routes/manage-students/students-list/-hooks/useGetStudentBatch';
 import { MyDropdown } from '@/components/design-system/dropdown';
 import { StudentTable } from '@/types/student-table-types';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 interface CustomTableMeta {
     onSort?: (columnId: string, direction: string) => void;
@@ -62,7 +64,7 @@ export const myAssessmentColumns: ColumnDef<StudentTable>[] = [
     },
     {
         accessorKey: 'package_session_id',
-        header: 'Batch',
+        header: getTerminology(ContentTerms.Batch, SystemTerms.Batch),
         cell: ({ row }) => <BatchCell package_session_id={row.original.package_session_id} />,
     },
     {

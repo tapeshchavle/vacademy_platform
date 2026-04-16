@@ -24,6 +24,10 @@ export interface DomainRoutingState {
   error: string | null;
   homeIconClickRoute: string | null;
   convertUsernamePasswordToLowercase: boolean | null;
+  // White-label display overrides. Null = use defaults.
+  hideInstituteName: boolean | null;
+  logoWidthPx: number | null;
+  logoHeightPx: number | null;
 }
 
 // Global state to prevent multiple simultaneous domain routing calls
@@ -54,6 +58,9 @@ export const useDomainRouting = () => {
       error: null,
       homeIconClickRoute: null,
       convertUsernamePasswordToLowercase: null,
+      hideInstituteName: null,
+      logoWidthPx: null,
+      logoHeightPx: null,
     };
   });
 
@@ -92,6 +99,14 @@ export const useDomainRouting = () => {
           macAppLink: data.macAppLink ?? null,
           learnerPortalUrl: data.learnerPortalUrl ?? null,
           instructorPortalUrl: data.instructorPortalUrl ?? null,
+          hideInstituteName:
+            typeof data.hideInstituteName === "boolean"
+              ? data.hideInstituteName
+              : null,
+          logoWidthPx:
+            typeof data.logoWidthPx === "number" ? data.logoWidthPx : null,
+          logoHeightPx:
+            typeof data.logoHeightPx === "number" ? data.logoHeightPx : null,
         }),
       });
 
@@ -156,6 +171,14 @@ export const useDomainRouting = () => {
         instituteLogoFileId: data.instituteLogoFileId,
         instituteThemeCode: data.instituteThemeCode,
         homeIconClickRoute: data.homeIconClickRoute ?? null,
+        hideInstituteName:
+          typeof data.hideInstituteName === "boolean"
+            ? data.hideInstituteName
+            : null,
+        logoWidthPx:
+          typeof data.logoWidthPx === "number" ? data.logoWidthPx : null,
+        logoHeightPx:
+          typeof data.logoHeightPx === "number" ? data.logoHeightPx : null,
       });
 
       // Cache preferred countries for synchronous access by phone inputs
@@ -236,7 +259,7 @@ export const useDomainRouting = () => {
         await storeInstituteData(apiResult);
         applyInstituteTheme(apiResult.instituteThemeCode);
 
-        const newState = {
+        const newState: DomainRoutingState = {
           isLoading: false,
           instituteId: apiResult.instituteId,
           instituteName: apiResult.instituteName,
@@ -246,6 +269,18 @@ export const useDomainRouting = () => {
           error: null,
           homeIconClickRoute: apiResult.homeIconClickRoute ?? null,
           convertUsernamePasswordToLowercase: apiResult.convertUsernamePasswordToLowercase ?? null,
+          hideInstituteName:
+            typeof apiResult.hideInstituteName === "boolean"
+              ? apiResult.hideInstituteName
+              : null,
+          logoWidthPx:
+            typeof apiResult.logoWidthPx === "number"
+              ? apiResult.logoWidthPx
+              : null,
+          logoHeightPx:
+            typeof apiResult.logoHeightPx === "number"
+              ? apiResult.logoHeightPx
+              : null,
         };
 
         // Cache the result globally
@@ -261,7 +296,7 @@ export const useDomainRouting = () => {
 
       if (fallbackInstituteId) {
         // Using fallback institute ID
-        const newState = {
+        const newState: DomainRoutingState = {
           isLoading: false,
           instituteId: fallbackInstituteId,
           instituteName: null,
@@ -271,6 +306,9 @@ export const useDomainRouting = () => {
           error: null,
           homeIconClickRoute: null,
           convertUsernamePasswordToLowercase: null,
+          hideInstituteName: null,
+          logoWidthPx: null,
+          logoHeightPx: null,
         };
 
         globalDomainRoutingState = newState;
@@ -281,7 +319,7 @@ export const useDomainRouting = () => {
 
       // No institute found anywhere
       const isInvitationRoute = window.location.pathname.startsWith("/learner-invitation-response");
-      const newState = {
+      const newState: DomainRoutingState = {
         isLoading: false,
         instituteId: null,
         instituteName: null,
@@ -292,6 +330,9 @@ export const useDomainRouting = () => {
         error: null,
         homeIconClickRoute: null,
         convertUsernamePasswordToLowercase: null,
+        hideInstituteName: null,
+        logoWidthPx: null,
+        logoHeightPx: null,
       };
 
       globalDomainRoutingState = newState;
@@ -306,7 +347,7 @@ export const useDomainRouting = () => {
 
         if (fallbackInstituteId) {
           // Using fallback after API error
-          const newState = {
+          const newState: DomainRoutingState = {
             isLoading: false,
             instituteId: fallbackInstituteId,
             instituteName: null,
@@ -316,6 +357,9 @@ export const useDomainRouting = () => {
             error: null,
             homeIconClickRoute: null,
             convertUsernamePasswordToLowercase: null,
+            hideInstituteName: null,
+            logoWidthPx: null,
+            logoHeightPx: null,
           };
 
           globalDomainRoutingState = newState;
@@ -329,7 +373,7 @@ export const useDomainRouting = () => {
 
       // All fallbacks failed
       const isInvitationRoute = window.location.pathname.startsWith("/learner-invitation-response");
-      const newState = {
+      const newState: DomainRoutingState = {
         isLoading: false,
         instituteId: null,
         instituteName: null,
@@ -340,6 +384,9 @@ export const useDomainRouting = () => {
         error: error instanceof Error ? error.message : "Unknown error",
         homeIconClickRoute: null,
         convertUsernamePasswordToLowercase: null,
+        hideInstituteName: null,
+        logoWidthPx: null,
+        logoHeightPx: null,
       };
 
       globalDomainRoutingState = newState;

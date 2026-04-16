@@ -36,6 +36,7 @@ import {
 } from "./navigation-controller";
 import { processHtmlContent, fixHtmlContent } from "./html-processor";
 import { useWebAudioMixer } from "./hooks/useWebAudioMixer";
+import { useSoundScheduler, collectCuesFromEntries } from "./hooks/useSoundScheduler";
 
 // Re-export types for backward compatibility
 export type { Frame, TimelineMeta, TimelineData, ContentType, NavigationType };
@@ -134,6 +135,16 @@ export const AIVideoPlayer: React.FC<AIVideoPlayerProps> = ({
     audioRef: audioRef as React.RefObject<HTMLAudioElement>,
     isPlaying,
     currentTime,
+  });
+
+  // Sound Planner cues — per-shot transition/chime/impact sound effects.
+  // `currentTime` is the master clock (same value that drives engagement,
+  // MCQ triggers, and active-frame selection).
+  const soundCues = useMemo(() => collectCuesFromEntries(frames), [frames]);
+  const { resetPlayed: resetSoundCues } = useSoundScheduler({
+    cues: soundCues,
+    masterClockSec: currentTime,
+    isPlaying,
   });
 
   // Stable navigation callback with re-entrancy guard
@@ -615,11 +626,13 @@ export const AIVideoPlayer: React.FC<AIVideoPlayerProps> = ({
       setActiveQuestion(null);
       setSelectedAnswer(null);
       answeredQuestionsRef.current.clear();
+      // Allow sound cues to fire again from the beginning
+      resetSoundCues();
     } else {
       setCurrentEntryIndex(0);
       navigationRef.current?.goTo(0);
     }
-  }, [isTimeDriven]);
+  }, [isTimeDriven, resetSoundCues]);
 
   const handleSeek = useCallback((value: number[]) => {
     if (!isTimeDriven) return;

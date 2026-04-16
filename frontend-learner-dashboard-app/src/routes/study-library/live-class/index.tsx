@@ -47,7 +47,7 @@ import {
 } from "@/utils/timezone";
 import { getUserTimezone } from "@/hooks/use-server-time";
 import { DefaultClassCard } from "./-components/DefaultClassCard";
-import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { getTerminology, getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
 import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 import { SessionFilter, FilterChangePayload } from "@/components/common/session-filter";
 export const Route = createFileRoute("/study-library/live-class/")({
@@ -897,7 +897,7 @@ function RouteComponent() {
               <div className="text-center py-8">
                 <Clock size={48} className="mx-auto text-neutral-400 mb-3" />
                 <p className="text-neutral-600 dark:text-neutral-300">
-                  No classes scheduled for this day
+                  No {getTerminologyPlural(ContentTerms.LiveSession, SystemTerms.LiveSession).toLowerCase()} scheduled for this day
                 </p>
               </div>
             )}
@@ -1017,9 +1017,9 @@ function RouteComponent() {
             {hasDefaultClass && sessionCount === 0 && (
               <div
                 className="text-xs p-1 rounded truncate transition-all duration-200 bg-green-100 text-green-700 border border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900"
-                title={(sessions as any)?.defaultDayConfig?.defaultClassName || "Session"}
+                title={(sessions as any)?.defaultDayConfig?.defaultClassName || getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession)}
               >
-                {(sessions as any)?.defaultDayConfig?.defaultClassName || "Session"}
+                {(sessions as any)?.defaultDayConfig?.defaultClassName || getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession)}
               </div>
             )}
 
@@ -1281,8 +1281,8 @@ function RouteComponent() {
                   return (
                     <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
                       {filteredUpcomingSessions.length > 0
-                        ? `${filteredUpcomingSessions.length} session${filteredUpcomingSessions.length !== 1 ? "s" : ""} found`
-                        : "No sessions found"}
+                        ? `${filteredUpcomingSessions.length} ${getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession).toLowerCase()}${filteredUpcomingSessions.length !== 1 ? "s" : ""} found`
+                        : `No ${getTerminologyPlural(ContentTerms.LiveSession, SystemTerms.LiveSession).toLowerCase()} found`}
                       {activeFilterType !== "none" && (
                         <span className="ml-1 text-primary-500 font-medium">
                           · {activeFilterType === "custom" && startDateFilter && endDateFilter

@@ -45,8 +45,25 @@ const getNamingSettings = (): NamingSettingsType[] => {
     }
 };
 
+// When true, getTerminology/getTerminologyPlural bypass localStorage and
+// always return the system default. Used by withSystemDefaults() so callers
+// can compute what a label WOULD be without any user customization.
+let useSystemDefaultsFlag = false;
+
+export const withSystemDefaults = <T>(fn: () => T): T => {
+    const prev = useSystemDefaultsFlag;
+    useSystemDefaultsFlag = true;
+    try {
+        return fn();
+    } finally {
+        useSystemDefaultsFlag = prev;
+    }
+};
+
 // Utility function to get custom terminology with fallback to default
 export const getTerminology = (key: string, defaultValue: string): string => {
+    if (useSystemDefaultsFlag) return defaultValue;
+
     const settings = getNamingSettings();
 
     // Double-check that settings is an array before calling find
@@ -61,6 +78,8 @@ export const getTerminology = (key: string, defaultValue: string): string => {
 
 // Utility function to get pluralized terminology — uses stored customPluralValue
 export const getTerminologyPlural = (key: string, defaultValue: string): string => {
+    if (useSystemDefaultsFlag) return naivePluralize(defaultValue);
+
     const settings = getNamingSettings();
 
     if (!Array.isArray(settings)) {

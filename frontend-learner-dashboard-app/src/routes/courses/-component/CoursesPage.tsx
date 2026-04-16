@@ -5,6 +5,8 @@ import CourseCard from "./CourseCards.tsx";
 import Pagination from "./Pagination.tsx";
 import { useCatalogStore } from "../-store/catalogStore.ts";
 import { toTitleCase } from "@/lib/utils";
+import { getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 interface CoursesPageProps {
   searchTerm: string;
@@ -128,10 +130,10 @@ const CoursesPage: React.FC<CoursesPageProps> = ({
                 </svg>
               </div>
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
-                No courses available
+                No {getTerminologyPlural(ContentTerms.Course, SystemTerms.Course).toLowerCase()} available
               </h3>
               <p className="text-gray-600 text-sm max-w-md mx-auto">
-                Try adjusting your search criteria or check back later for new courses.
+                Try adjusting your search criteria or check back later for new {getTerminologyPlural(ContentTerms.Course, SystemTerms.Course).toLowerCase()}.
               </p>
             </div>
           ) : (

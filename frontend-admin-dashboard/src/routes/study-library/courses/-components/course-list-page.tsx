@@ -166,10 +166,10 @@ const CourseListPage = ({
                         }
                     >
                         <SelectTrigger className="w-full">
-                            <SelectValue placeholder="All Sessions" />
+                            <SelectValue placeholder={`All ${getTerminologyPlural(ContentTerms.Session, SystemTerms.Session)}`} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Sessions</SelectItem>
+                            <SelectItem value="all">{`All ${getTerminologyPlural(ContentTerms.Session, SystemTerms.Session)}`}</SelectItem>
                             {sessions.map((s) => (
                                 <SelectItem key={s.id} value={s.id}>
                                     {s.session_name}

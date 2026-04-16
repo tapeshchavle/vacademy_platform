@@ -21,6 +21,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 interface SubjectType {
   id: string;
@@ -142,7 +144,7 @@ export const CourseStructureDetails: React.FC<CourseStructureDetailsProps> = ({
     }
 
     // Default fallback
-    return { Icon: PresentationChart, color: "text-gray-500", label: "Slide" };
+    return { Icon: PresentationChart, color: "text-gray-500", label: getTerminology(ContentTerms.Slides, SystemTerms.Slides) };
   };
 
   // Step 1: Fetch subjects from init-details API

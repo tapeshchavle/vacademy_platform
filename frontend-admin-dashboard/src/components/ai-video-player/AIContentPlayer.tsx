@@ -56,6 +56,7 @@ import {
 import { initializeLibraries } from './library-loader';
 import { useCaptions } from './hooks/useCaptions';
 import { useWebAudioMixer } from './hooks/useWebAudioMixer';
+import { useSoundScheduler, collectCuesFromEntries } from './hooks/useSoundScheduler';
 import { CaptionDisplay, CaptionSettingsPopover } from './components';
 import '@/components/ai-course-builder/components/styles/AIVideoComponents.css';
 
@@ -212,6 +213,16 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
         audioRef,
         isPlaying,
         currentTime,
+    });
+
+    // Sound Planner cues — per-shot transition/chime/impact sound effects.
+    // `currentTime` is the master clock (shared with captions, engagement,
+    // and mermaid video sync) so we feed it directly into the scheduler.
+    const soundCues = useMemo(() => collectCuesFromEntries(entries), [entries]);
+    const { resetPlayed: resetSoundCues } = useSoundScheduler({
+        cues: soundCues,
+        masterClockSec: currentTime,
+        isPlaying,
     });
 
     // Map page index to audio time range {start, end}
@@ -777,13 +788,15 @@ export const AIContentPlayer: React.FC<AIContentPlayerProps> = ({
             setActiveQuestion(null);
             setSelectedAnswer(null);
             answeredQuestionsRef.current.clear();
+            // Allow sound cues to fire again from the beginning
+            resetSoundCues();
         } else {
             setCurrentIndex(0);
             if (entries[0]) {
                 onEntryChange?.(0, entries[0]);
             }
         }
-    }, [navigationMode, entries, onEntryChange]);
+    }, [navigationMode, entries, onEntryChange, resetSoundCues]);
 
     const handleFullscreenToggle = useCallback(() => {
         if (!playerRef.current) return;

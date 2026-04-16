@@ -13,6 +13,8 @@ import { MyButton } from '@/components/design-system/button';
 import { getQuestionPaperDataWithFilters } from '../-utils/question-paper-services';
 import { DashboardLoader } from '@/components/core/dashboard-loader';
 import { useRefetchStore } from '../-global-states/refetch-store';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import { useFilterDataForAssesment } from '../../assessment-list/-utils.ts/useFiltersData';
 import { z } from 'zod';
 import sectionDetailsSchema from '../../create-assessment/$assessmentId/$examtype/-utils/section-details-schema';
@@ -273,7 +275,7 @@ export const QuestionPapersTabs = ({
                         onSelectionChange={(items) => handleFilterChange('level_ids', items)}
                     />
                     <QuestionPapersFilter
-                        label="Subject"
+                        label={getTerminology(ContentTerms.Subjects, SystemTerms.Subjects)}
                         data={SubjectFilterData}
                         selectedItems={selectedQuestionPaperFilters['subject_ids'] || []}
                         onSelectionChange={(items) => handleFilterChange('subject_ids', items)}

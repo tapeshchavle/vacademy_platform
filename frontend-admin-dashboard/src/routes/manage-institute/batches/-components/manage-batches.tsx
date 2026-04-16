@@ -91,7 +91,7 @@ export const ManageBatches = () => {
                         <MyDropdown
                             currentValue={currentSession}
                             dropdownList={sessionList}
-                            placeholder="Select Session"
+                            placeholder={`Select ${getTerminology(ContentTerms.Session, 'Session')}`}
                             handleChange={handleSessionChange}
                         />
                     )}

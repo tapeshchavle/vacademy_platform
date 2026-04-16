@@ -142,11 +142,20 @@ export default function SessionListPage() {
 
             case SessionStatus.LIVE:
                 baseRequest.statuses = ['LIVE'];
-                // baseRequest.time_status = 'LIVE'; // Removed as per requirement to fix filtering
-                // Live Now uses default sorting or backend logic
-                // Respect user date filters if provided, otherwise let backend handle "Current" logic
-                baseRequest.start_date = startDate ? format(startDate, 'yyyy-MM-dd') : todayFormatted;
-                baseRequest.end_date = endDate ? format(endDate, 'yyyy-MM-dd') : todayFormatted;
+                // Intentionally do NOT default start_date / end_date here. When both are
+                // omitted and statuses=['LIVE'], the backend applies a timezone-aware
+                // "currently in progress" filter (meeting_date = today AND
+                // start_time <= now <= last_entry_time). Sending an explicit date range
+                // pushes the backend out of that smart-default branch and into a plain
+                // date filter, which returns every scheduled session for the day
+                // regardless of whether it's in progress — breaking pagination for the
+                // Live tab. See LiveSessionRepositoryCustomImpl.searchSessions.
+                if (startDate) {
+                    baseRequest.start_date = format(startDate, 'yyyy-MM-dd');
+                }
+                if (endDate) {
+                    baseRequest.end_date = format(endDate, 'yyyy-MM-dd');
+                }
                 break;
         }
 
@@ -559,7 +568,7 @@ export default function SessionListPage() {
                         options={batchOptions}
                         selected={selectedBatches}
                         onChange={handleBatchChange}
-                        placeholder="Select Batches"
+                        placeholder={`Select ${getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}`}
                         multiSelect={true}
                         hasClearFilter={false}
                         className="h-9"
@@ -601,27 +610,29 @@ export default function SessionListPage() {
             );
         }
 
-        if (!searchResponse?.sessions || searchResponse.sessions.length === 0) {
-            const tabLabel =
-                selectedTab === SessionStatus.LIVE
-                    ? 'Live'
-                    : selectedTab === SessionStatus.UPCOMING
-                        ? 'Upcoming'
-                        : selectedTab === SessionStatus.PAST
-                            ? 'Past'
-                            : 'Draft';
+        const tabLabel =
+            selectedTab === SessionStatus.LIVE
+                ? 'Live'
+                : selectedTab === SessionStatus.UPCOMING
+                    ? 'Upcoming'
+                    : selectedTab === SessionStatus.PAST
+                        ? 'Past'
+                        : 'Draft';
 
-            return (
-                <div className="flex h-[300px] flex-col items-center justify-center gap-4 text-center">
-                    <VideoCameraSlash size={64} className="text-neutral-300" />
-                    <h2 className="text-2xl font-bold text-neutral-600">No {tabLabel} Sessions</h2>
-                    <p className="max-w-xs text-sm text-neutral-500">
-                        {tabLabel === 'Draft'
-                            ? 'No draft sessions found. Create a new session to get started.'
-                            : 'Schedule your first live class to engage with learners in real time.'}
-                    </p>
-                </div>
-            );
+        const renderBigEmpty = () => (
+            <div className="flex h-[300px] flex-col items-center justify-center gap-4 text-center">
+                <VideoCameraSlash size={64} className="text-neutral-300" />
+                <h2 className="text-2xl font-bold text-neutral-600">No {tabLabel} Sessions</h2>
+                <p className="max-w-xs text-sm text-neutral-500">
+                    {tabLabel === 'Draft'
+                        ? 'No draft sessions found. Create a new session to get started.'
+                        : 'Schedule your first live class to engage with learners in real time.'}
+                </p>
+            </div>
+        );
+
+        if (!searchResponse?.sessions || searchResponse.sessions.length === 0) {
+            return renderBigEmpty();
         }
 
 
@@ -667,6 +678,12 @@ export default function SessionListPage() {
                 }
                 return true;
             });
+        }
+
+        // If the timezone filter removed every session on this page, show the big
+        // empty state for the current tab instead of a confusing inline fallback.
+        if (filteredSessions.length === 0) {
+            return renderBigEmpty();
         }
 
         return (
@@ -725,7 +742,7 @@ export default function SessionListPage() {
                         })
                     ) : (
                         <div className="flex h-[200px] items-center justify-center text-neutral-500">
-                            No {selectedTab === SessionStatus.UPCOMING ? 'upcoming' : 'past'} sessions on this page.
+                            No {tabLabel.toLowerCase()} sessions on this page.
                         </div>
                     )}
                 </div>

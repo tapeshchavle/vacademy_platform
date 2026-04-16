@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { getTerminology, getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, RoleTerms, SystemTerms } from "@/types/naming-settings";
 
 // Internal reusable component for individual filter sections
 interface FilterListProps {
@@ -106,7 +108,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     type LevelItem = { id: string; level_name?: string };
     const levels = (instituteData?.levels || []).map((level: LevelItem) => ({
         id: level.id,
-        name: toTitleCase(level.level_name || "Unnamed Level"),
+        name: toTitleCase(level.level_name || `Unnamed ${getTerminology(ContentTerms.Level, SystemTerms.Level)}`),
     }));
 
     const tags = React.useMemo(() => {
@@ -126,7 +128,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     type InstructorItem = { id: string; full_name?: string; username?: string };
     const instructors = (instructor || []).map((inst: InstructorItem) => ({
         id: inst.id,
-        name: inst.full_name || inst.username || "Unnamed Instructor",
+        name: inst.full_name || inst.username || `Unnamed ${getTerminology(RoleTerms.Teacher, SystemTerms.Teacher)}`,
     }));
 
     if (isLoading) {
@@ -201,7 +203,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                     <Accordion type="multiple" defaultValue={["levels", "tags", "instructors"]} className="w-full">
                         <AccordionItem value="levels" className="border-b-0">
                             <AccordionTrigger className="hover:no-underline py-3">
-                                <span className="text-sm font-semibold">Level</span>
+                                <span className="text-sm font-semibold">{getTerminology(ContentTerms.Level, SystemTerms.Level)}</span>
                                 {selectedLevels.length > 0 && (
                                     <Badge variant="secondary" className="ml-2 text-[10px] h-5 px-1.5">
                                         {selectedLevels.length}
@@ -222,7 +224,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
                         <AccordionItem value="tags" className="border-b-0">
                             <AccordionTrigger className="hover:no-underline py-3">
-                                <span className="text-sm font-semibold">Popular Tags</span>
+                                <span className="text-sm font-semibold">{getTerminologyPlural(ContentTerms.PopularTag, SystemTerms.PopularTag)}</span>
                                 {selectedTags.length > 0 && (
                                     <Badge variant="secondary" className="ml-2 text-[10px] h-5 px-1.5">
                                         {selectedTags.length}
@@ -243,7 +245,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
                         <AccordionItem value="instructors" className="border-b-0">
                             <AccordionTrigger className="hover:no-underline py-3">
-                                <span className="text-sm font-semibold">Instructors</span>
+                                <span className="text-sm font-semibold">{getTerminologyPlural(RoleTerms.Teacher, SystemTerms.Teacher)}</span>
                                 {selectedInstructors.length > 0 && (
                                     <Badge variant="secondary" className="ml-2 text-[10px] h-5 px-1.5">
                                         {selectedInstructors.length}
@@ -342,7 +344,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                             <Accordion type="multiple" defaultValue={["levels", "tags"]} className="w-full">
                                 <AccordionItem value="levels" className="border-b-0 mb-4">
                                     <h4 className="font-semibold mb-3 text-sm flex items-center justify-between">
-                                        Level
+                                        {getTerminology(ContentTerms.Level, SystemTerms.Level)}
                                         {selectedLevels.length > 0 && (
                                             <Badge variant="secondary" className="text-[10px]">{selectedLevels.length}</Badge>
                                         )}
@@ -359,7 +361,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
                                 <AccordionItem value="tags" className="border-b-0 mb-4">
                                     <h4 className="font-semibold mb-3 text-sm flex items-center justify-between">
-                                        Tags
+                                        {getTerminologyPlural(ContentTerms.PopularTag, SystemTerms.PopularTag)}
                                         {selectedTags.length > 0 && (
                                             <Badge variant="secondary" className="text-[10px]">{selectedTags.length}</Badge>
                                         )}
@@ -376,7 +378,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
                                 <AccordionItem value="instructors" className="border-b-0">
                                     <h4 className="font-semibold mb-3 text-sm flex items-center justify-between">
-                                        Instructors
+                                        {getTerminologyPlural(RoleTerms.Teacher, SystemTerms.Teacher)}
                                         {selectedInstructors.length > 0 && (
                                             <Badge variant="secondary" className="text-[10px]">{selectedInstructors.length}</Badge>
                                         )}

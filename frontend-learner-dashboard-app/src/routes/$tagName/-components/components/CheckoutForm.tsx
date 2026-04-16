@@ -18,6 +18,8 @@ import {
     VERIFY_WHATSAPP_OTP,
     INSTITUTE_ID,
 } from "@/constants/urls";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { RoleTerms, SystemTerms } from "@/types/naming-settings";
 import { getBooksPreferenceFieldId } from "../../-services/custom-fields-service";
 import { toast } from "sonner";
 import axios from "axios";
@@ -293,7 +295,9 @@ export const CheckoutForm: React.FC<CheckoutFormProps> = ({
 
             // Common user payload
             const userPayload = {
-                full_name: fullName.trim() || "Student",
+                full_name:
+                    fullName.trim() ||
+                    getTerminology(RoleTerms.Learner, SystemTerms.Learner),
                 email: email.trim() || "student@example.com",
                 mobileNumber: phone,
                 address_line: address,

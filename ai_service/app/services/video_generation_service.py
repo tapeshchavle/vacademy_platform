@@ -98,6 +98,7 @@ class VideoGenerationService:
         reference_files: Optional[list] = None,
         orientation: str = "landscape",
         visual_style: str = "standard",
+        sound_effects_enabled: bool = True,
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         Generate video up to a specific stage with SSE progress updates.
@@ -226,6 +227,7 @@ class VideoGenerationService:
                     reference_files=reference_files,
                     orientation=orientation,
                     visual_style=visual_style,
+                    sound_effects_enabled=sound_effects_enabled,
                 ):
                     # If we get an error event, refund credits and stop
                     if event.get("type") == "error":
@@ -305,6 +307,7 @@ class VideoGenerationService:
         reference_files: Optional[list] = None,
         orientation: str = "landscape",
         visual_style: str = "standard",
+        sound_effects_enabled: bool = True,
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         Run the video generation pipeline stages with real-time DB updates.
@@ -667,6 +670,7 @@ class VideoGenerationService:
                     video_width=_vid_width,
                     video_height=_vid_height,
                     visual_style=visual_style,
+                    sound_effects_enabled=sound_effects_enabled,
                 )
                 
                 with ThreadPoolExecutor() as executor:
@@ -1786,20 +1790,21 @@ class VideoGenerationService:
             self._save_timeline(data, file_path, bucket, key)
             return {"status": "success", "video_id": video_id, "track_id": track_id, "message": "Audio track deleted."}
 
-    def get_institute_generations(self, institute_id: str, limit: int = 10) -> list[Dict[str, Any]]:
+    def get_institute_generations(self, institute_id: str, limit: int = 10, offset: int = 0) -> list[Dict[str, Any]]:
         """
         Get the last N content generations for an institute.
-        
+
         Args:
             institute_id: Institute identifier
             limit: Maximum number of records to return
-            
+            offset: Number of records to skip (for pagination)
+
         Returns:
             List of video generation records as dictionaries
         """
         records = self.repository.get_history_by_institute(
-            institute_id=institute_id, 
+            institute_id=institute_id,
             limit=limit,
-            offset=0
+            offset=offset
         )
         return [record.to_dict() for record in records]

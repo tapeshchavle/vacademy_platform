@@ -106,6 +106,16 @@ class VideoGenerationRequest(BaseModel):
             "timeline. Kept on the request schema so existing clients don't break."
         )
     )
+    sound_effects_enabled: bool = Field(
+        default=True,
+        description=(
+            "Enable automatic sound effects (transitions, chimes, impacts) baked "
+            "into the video timeline. When True (default at premium+), the Sound "
+            "Planner derives cues from shot types, sync points, skill audio events "
+            "and narration emphasis — no extra Director burden. When False, all "
+            "cues are suppressed regardless of tier."
+        )
+    )
 
     class Config:
         json_schema_extra = {

@@ -384,7 +384,7 @@ export default function PreviousSessionCard({ session }: PreviousSessionCardProp
                         });
                     }}
                 >
-                    <span>View Session Details</span>
+                    <span>View {getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession)} Details</span>
                 </button>
                 <span className="hidden text-gray-300 sm:inline">|</span>
                 <button

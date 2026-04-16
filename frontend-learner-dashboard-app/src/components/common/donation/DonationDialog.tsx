@@ -10,6 +10,8 @@ import { useDonationDialog } from "./useDonationDialog";
 import { InstituteBrandingComponent, type InstituteBranding } from "@/components/common/institute-branding";
 import { fetchAndStoreInstituteDetails, type InstituteDetails } from "@/services/fetchAndStoreInstituteDetails";
 import { getUserId } from "@/utils/study-library/get-list-from-stores/getPackageSessionId";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 export interface DonationDialogProps {
   open: boolean;
@@ -38,7 +40,7 @@ export const DonationDialog: React.FC<DonationDialogProps> = ({
   packageSessionId,
   instituteId,
   token,
-  courseTitle = "Course",
+  courseTitle = getTerminology(ContentTerms.Course, SystemTerms.Course),
   inviteCode = "default",
   mode,
   isUserEnrolled = false,
