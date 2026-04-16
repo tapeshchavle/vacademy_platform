@@ -21,15 +21,18 @@ import {
     ContentType,
     VideoOrientation,
     generateVideo,
+    resumeVideo,
+    fetchScriptText,
     getVideoUrls,
     getRemoteHistory,
+    DEFAULT_OPTIONS,
 } from '../-services/video-generation';
 import { HistorySidebar } from '../-components/HistorySidebar';
 import { PromptInput } from '../-components/PromptInput';
 import { GenerationProgress } from '../-components/GenerationProgress';
 import { VideoResult } from '../-components/VideoResult';
 import { ContentSelector } from '../-components/ContentSelector';
-import { DEFAULT_OPTIONS } from '../-services/video-generation';
+import { ScriptReview } from '../-components/ScriptReview';
 
 export const Route = createLazyFileRoute('/video-api-studio/console/')({
     component: VideoConsole,
@@ -49,7 +52,15 @@ function friendlyStage(stage: string): string {
     return STAGE_LABELS[stage] || stage;
 }
 
-type ConsoleState = 'idle' | 'generating' | 'complete';
+/** Estimate overall percentage from the current pipeline stage (used during polling) */
+function stageToPercentage(stage: string): number {
+    const map: Record<string, number> = {
+        PENDING: 5, SCRIPT: 25, TTS: 50, WORDS: 70, HTML: 90, AVATAR: 95, RENDER: 98,
+    };
+    return map[stage] ?? 0;
+}
+
+type ConsoleState = 'idle' | 'generating' | 'reviewing' | 'complete';
 
 interface CurrentGeneration {
     videoId: string;
@@ -90,10 +101,16 @@ function VideoConsole() {
     const [isLoadingKeys, setIsLoadingKeys] = useState(true);
     const [isAutoGenerating, setIsAutoGenerating] = useState(false);
     const [history, setHistory] = useState<HistoryItem[]>([]);
+    const [historyHasMore, setHistoryHasMore] = useState(true);
+    const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
     const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
     const [consoleState, setConsoleState] = useState<ConsoleState>('idle');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
+
+    // Review mode state
+    const [reviewModeEnabled, setReviewModeEnabled] = useState(false);
+    const [reviewScript, setReviewScript] = useState('');
 
     // Lifted state for prompt and options
     const [prompt, setPrompt] = useState(() => localStorage.getItem('video-studio-prompt') || '');
@@ -171,29 +188,74 @@ function VideoConsole() {
     // Get the full API key from localStorage (stored when key was generated)
     const activeApiKey = getFirstAvailableFullKey(apiKeys);
 
-    // Load history
+    const HISTORY_PAGE_SIZE = 20;
+
+    // Load history (first page) and poll for updates
     useEffect(() => {
-        const fetchHistory = async () => {
+        const fetchFirstPage = async () => {
             if (!activeApiKey) return;
             try {
-                const remoteHistory = await getRemoteHistory(activeApiKey);
-                setHistory(remoteHistory);
+                const freshItems = await getRemoteHistory(activeApiKey, HISTORY_PAGE_SIZE, 0);
+                setHistory((prev) => {
+                    if (prev.length <= HISTORY_PAGE_SIZE) {
+                        // No pagination yet — just replace
+                        return freshItems;
+                    }
+                    // Merge: update existing items from fresh page, prepend new ones, keep older paginated items
+                    const freshMap = new Map(freshItems.map((i) => [i.video_id, i]));
+                    const olderItems = prev.slice(HISTORY_PAGE_SIZE); // items loaded via "load more"
+                    const merged = freshItems.map((fi) => fi); // start with fresh first page
+                    // Append older paginated items, deduplicating
+                    for (const item of olderItems) {
+                        if (!freshMap.has(item.video_id)) {
+                            merged.push(item);
+                        }
+                    }
+                    return merged;
+                });
+                if (freshItems.length < HISTORY_PAGE_SIZE) {
+                    setHistoryHasMore(false);
+                }
             } catch (error) {
                 console.error('Failed to load history:', error);
-                // Fallback to local if remote fails needed? For now just log error
-                // setHistory(getHistory());
             }
         };
 
-        fetchHistory();
+        fetchFirstPage();
 
-        // Poll for updates every 10 seconds if there are pending items
+        // Poll for updates every 10 seconds (first page only)
         const interval = setInterval(() => {
-            fetchHistory();
+            fetchFirstPage();
         }, 10000);
 
         return () => clearInterval(interval);
     }, [activeApiKey]);
+
+    // Load more history (infinite scroll)
+    // Use a ref to track the current offset to avoid stale closure issues with history.length
+    const historyOffsetRef = useRef(0);
+    useEffect(() => { historyOffsetRef.current = history.length; }, [history.length]);
+
+    const loadMoreHistory = useCallback(async () => {
+        if (!activeApiKey || isLoadingMoreHistory || !historyHasMore) return;
+        setIsLoadingMoreHistory(true);
+        try {
+            const offset = historyOffsetRef.current;
+            const moreItems = await getRemoteHistory(activeApiKey, HISTORY_PAGE_SIZE, offset);
+            if (moreItems.length < HISTORY_PAGE_SIZE) setHistoryHasMore(false);
+            if (moreItems.length > 0) {
+                setHistory((prev) => {
+                    const existingIds = new Set(prev.map((h) => h.video_id));
+                    const newItems = moreItems.filter((m) => !existingIds.has(m.video_id));
+                    return [...prev, ...newItems];
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load more history:', error);
+        } finally {
+            setIsLoadingMoreHistory(false);
+        }
+    }, [activeApiKey, isLoadingMoreHistory, historyHasMore]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -304,8 +366,22 @@ function VideoConsole() {
                             urls.error_message ||
                             `Generation stopped at "${friendlyStage(urls.current_stage)}" step without producing visual content. Please try again.`
                         );
+                    } else {
+                        // Still IN_PROGRESS — update stage progress so UI shows real stages
+                        setCurrentGeneration((prev) =>
+                            prev
+                                ? {
+                                      ...prev,
+                                      stage: (urls.current_stage as VideoStage) || prev.stage,
+                                      percentage: stageToPercentage(urls.current_stage),
+                                      message: `${friendlyStage(urls.current_stage)}...`,
+                                      htmlUrl: urls.html_url ?? prev.htmlUrl,
+                                      audioUrl: urls.audio_url ?? prev.audioUrl,
+                                      wordsUrl: urls.words_url ?? prev.wordsUrl,
+                                  }
+                                : null
+                        );
                     }
-                    // Otherwise still IN_PROGRESS — keep polling
                 } catch (err) {
                     console.warn('[Polling] Error fetching video URLs:', err);
                 }
@@ -394,8 +470,13 @@ function VideoConsole() {
                 });
             };
 
+            // When review mode is on, stop at SCRIPT stage
+            const finalRequest = reviewModeEnabled
+                ? { ...request, target_stage: 'SCRIPT' as const }
+                : request;
+
             const { abort, videoId } = generateVideo(
-                request,
+                finalRequest,
                 activeApiKey,
                 (event: SSEEvent) => {
                     if (event.type === 'progress') {
@@ -482,8 +563,36 @@ function VideoConsole() {
                                 : null;
                         });
                     } else if (event.type === 'completed') {
-                        // Content is complete
                         localStorage.removeItem(PENDING_GENERATION_KEY);
+
+                        // Review mode: if we stopped at SCRIPT, transition to reviewing
+                        if (reviewModeEnabled && finalRequest.target_stage === 'SCRIPT') {
+                            setCurrentGeneration((prev) =>
+                                prev ? { ...prev, stage: 'SCRIPT', percentage: 100 } : null
+                            );
+                            // Fetch script text outside setState to avoid side effects
+                            // In CompletedEvent, files.script is a direct URL string
+                            const scriptUrl = event.files?.script;
+                            if (scriptUrl) {
+                                fetchScriptText(scriptUrl)
+                                    .then((text) => {
+                                        setReviewScript(text);
+                                        setConsoleState('reviewing');
+                                        toast.success('Script ready for review!');
+                                    })
+                                    .catch((err) => {
+                                        console.error('Failed to fetch script:', err);
+                                        toast.error('Failed to load script for review');
+                                        setConsoleState('idle');
+                                    });
+                            } else {
+                                toast.error('Script URL not available');
+                                setConsoleState('idle');
+                            }
+                            return;
+                        }
+
+                        // Normal flow: content is complete
                         setConsoleState('complete');
                         toast.success('Content generated successfully!');
 
@@ -655,7 +764,7 @@ function VideoConsole() {
                 },
             });
         },
-        [activeApiKey]
+        [activeApiKey, reviewModeEnabled]
     );
 
     const handleSelectHistory = useCallback(
@@ -822,6 +931,111 @@ function VideoConsole() {
         localStorage.removeItem(PENDING_GENERATION_KEY);
         setSelectedHistoryId(null);
         setCurrentGeneration(null);
+        setReviewScript('');
+        setConsoleState('idle');
+    }, []);
+
+    // Resume generation after script review
+    const handleResumeFromReview = useCallback(() => {
+        if (!activeApiKey || !currentGeneration) return;
+
+        // Capture values from currentGeneration before entering the closure
+        const resumeVideoId = currentGeneration.videoId;
+        const resumePrompt = currentGeneration.prompt;
+        const resumeContentType = currentGeneration.contentType;
+        const resumeOptions = currentGeneration.options;
+
+        setConsoleState('generating');
+
+        const { abort } = resumeVideo(
+            {
+                videoId: resumeVideoId,
+                modifiedScript: reviewScript,
+                targetStage: 'HTML',
+                options: resumeOptions,
+            },
+            activeApiKey,
+            (event: SSEEvent) => {
+                if (event.type === 'progress') {
+                    const audioUrl = event.files?.audio?.s3_url;
+                    const timelineUrl = event.files?.timeline?.s3_url;
+                    const wordsUrl = event.files?.words?.s3_url;
+
+                    setCurrentGeneration((prev) =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  stage: event.stage,
+                                  percentage: event.percentage,
+                                  message: event.message,
+                                  htmlUrl: timelineUrl || prev.htmlUrl,
+                                  audioUrl: audioUrl || prev.audioUrl,
+                                  wordsUrl: wordsUrl || prev.wordsUrl,
+                              }
+                            : null
+                    );
+
+                    // Update history state during resume
+                    setHistory((prev) =>
+                        prev.map((h) =>
+                            h.video_id === resumeVideoId
+                                ? {
+                                      ...h,
+                                      status: 'generating' as const,
+                                      stage: event.stage,
+                                      html_url: timelineUrl || h.html_url,
+                                      audio_url: audioUrl || h.audio_url,
+                                      words_url: wordsUrl || h.words_url,
+                                  }
+                                : h
+                        )
+                    );
+
+                    // When HTML stage is complete, show the result
+                    // Use functional check via setCurrentGeneration to avoid stale closure
+                    setCurrentGeneration((prev) => {
+                        if (
+                            event.stage === 'HTML' &&
+                            (timelineUrl || prev?.htmlUrl) &&
+                            (audioUrl || prev?.audioUrl || !needsAudio(resumeContentType))
+                        ) {
+                            setConsoleState('complete');
+                            toast.success('Content generated successfully!');
+                        }
+                        return prev;
+                    });
+                } else if (event.type === 'completed') {
+                    setConsoleState('complete');
+                    toast.success('Content generated successfully!');
+                    setCurrentGeneration((prev) =>
+                        prev ? { ...prev, stage: 'HTML', percentage: 100 } : null
+                    );
+                    // Update history
+                    setHistory((prev) =>
+                        prev.map((h) =>
+                            h.video_id === resumeVideoId
+                                ? { ...h, status: 'completed', stage: 'HTML' }
+                                : h
+                        )
+                    );
+                } else if (event.type === 'error') {
+                    toast.error(event.message || 'Generation failed');
+                    setConsoleState('idle');
+                    setCurrentGeneration(null);
+                }
+            },
+            (error) => {
+                toast.error(`Resume failed: ${error.message}`);
+                setConsoleState('reviewing'); // go back to review state
+            }
+        );
+
+        abortRef.current = abort;
+    }, [activeApiKey, currentGeneration, reviewScript]);
+
+    const handleDiscardReview = useCallback(() => {
+        setReviewScript('');
+        setCurrentGeneration(null);
         setConsoleState('idle');
     }, []);
 
@@ -888,6 +1102,9 @@ function VideoConsole() {
                         }}
                         isCollapsed={false}
                         onToggleCollapse={() => setIsMobileHistoryOpen(false)}
+                        onLoadMore={loadMoreHistory}
+                        isLoadingMore={isLoadingMoreHistory}
+                        hasMore={historyHasMore}
                     />
                 </SheetContent>
             </Sheet>
@@ -909,6 +1126,9 @@ function VideoConsole() {
                     onNewVideo={handleNewVideo}
                     isCollapsed={!isSidebarOpen}
                     onToggleCollapse={() => setIsSidebarOpen((prev) => !prev)}
+                    onLoadMore={loadMoreHistory}
+                    isLoadingMore={isLoadingMoreHistory}
+                    hasMore={historyHasMore}
                 />
             </div>
 
@@ -1002,6 +1222,16 @@ function VideoConsole() {
                         </div>
                     )}
 
+                    {consoleState === 'reviewing' && currentGeneration && (
+                        <ScriptReview
+                            script={reviewScript}
+                            prompt={currentGeneration.prompt}
+                            onScriptChange={setReviewScript}
+                            onResume={handleResumeFromReview}
+                            onDiscard={handleDiscardReview}
+                        />
+                    )}
+
                     {consoleState === 'complete' &&
                         currentGeneration?.htmlUrl &&
                         (currentGeneration?.audioUrl || !needsAudio(currentGeneration?.contentType)) &&
@@ -1029,6 +1259,8 @@ function VideoConsole() {
                         onPromptChange={setPrompt}
                         options={options}
                         onOptionsChange={setOptions}
+                        reviewModeEnabled={reviewModeEnabled}
+                        onReviewModeChange={setReviewModeEnabled}
                     />
                 </div>
             </div>

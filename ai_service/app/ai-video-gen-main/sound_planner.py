@@ -2,60 +2,97 @@
 Sound Planner — derives per-shot sound cues from the finished Director plan,
 skill composer output, and narration emphasis signals. No LLM calls.
 
-Input: a list of shot entries (post-HTML-generation) + the raw word list + tier
-config. Output: the same shot entries, each with an added `sound_cues` field.
-
-The rule cascade (applied in order per shot):
-
-  Rule 1 — Transition cue on shot boundaries (whoosh at t=0)
-  Rule 2 — Shot-type signature cue (KINETIC_TITLE → impact, DATA_STORY → chime, ...)
-  Rule 3 — Skill-derived cues (number_counter → data_reveal, ring_progress → chime, ...)
-  Rule 4 — Emphasis map fallback for long shots with no prior cues
-  Rule 5 — Tier cap (trim to max cues per shot / per video)
-  Rule 6 — Dedup + suppression (no two cues within 0.3s, no adjacent repeats)
-
-A shot can carry zero cues — silence is a valid design choice. The planner
-favors under-cuing over over-cuing.
+Design:
+  1. Build a SOUND PALETTE once per video — one file per role, reused
+     everywhere. This gives the video a consistent sonic identity.
+     Optionally biased by topic keywords from the script (money → coins).
+  2. Place cues at structural moments only (transitions, first reveals,
+     skill events). Most shots stay silent — silence is intentional.
+  3. Respect global budgets so even a 30-shot video never has >12 cues.
 
 The Director does NOT see sound information. Everything is derived from
 signals the Director already produced for visual reasons.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from sound_catalog import SoundCatalog, load_catalog
 
 
 # ---------------------------------------------------------------------------
+# Palette roles — the sonic vocabulary for one video
+# ---------------------------------------------------------------------------
+# Each video pre-selects ONE file for each of these roles. Every cue in the
+# video draws from this fixed set so the viewer hears the same whoosh on
+# every transition, the same chime on every reveal, etc.
+PALETTE_ROLES = [
+    "transition_whoosh",
+    "impact",
+    "ui_chime",
+    "ui_click",
+    "data_reveal",
+    "ui_positive",
+]
+
+# Synonym map: bridges natural-language words in the script to
+# tag-style words in sound descriptions. For example, a script about
+# "money management" produces the keyword "money" which alone won't
+# match description "FOLEY, COINS, DROP" — but the synonym "coin" will.
+TOPIC_SYNONYMS: Dict[str, List[str]] = {
+    "money":       ["coin", "cash", "register", "dollar"],
+    "finance":     ["coin", "cash", "money", "register"],
+    "budget":      ["coin", "cash", "money"],
+    "payment":     ["coin", "cash", "register"],
+    "sports":      ["ball", "whistle", "crowd", "stadium"],
+    "basketball":  ["basketball", "bounce", "ball"],
+    "football":    ["ball", "whistle", "crowd"],
+    "cricket":     ["ball", "bat", "crowd"],
+    "volleyball":  ["ball", "whistle"],
+    "cooking":     ["kitchen", "sizzle", "chop", "pan", "timer"],
+    "food":        ["kitchen", "chop", "bite", "chew"],
+    "science":     ["laboratory", "beaker", "bubble", "science"],
+    "chemistry":   ["laboratory", "beaker", "bubble"],
+    "physics":     ["impact", "collision", "force"],
+    "water":       ["water", "splash", "drip", "rain"],
+    "nature":      ["bird", "water", "wind", "rain", "forest"],
+    "fire":        ["fire", "flame", "blaze"],
+    "technology":  ["digital", "electronic", "computer", "click", "beep"],
+    "coding":      ["keyboard", "type", "click", "digital"],
+    "gaming":      ["arcade", "game", "8 bit", "retro"],
+    "music":       ["musical", "instrument", "melody", "chord"],
+    "bell":        ["bell", "chime", "ring"],
+    "magic":       ["magic", "spell", "wand", "sparkle"],
+    "space":       ["sci fi", "space", "laser"],
+    "military":    ["gun", "explosion", "warfare"],
+    "construction":["hammer", "drill", "saw", "construction"],
+    "office":      ["paper", "stapler", "keyboard", "mouse"],
+    "school":      ["bell", "chime", "pencil", "paper"],
+}
+
+
+# ---------------------------------------------------------------------------
 # Shot-type → signature cue table
 # ---------------------------------------------------------------------------
-# Each entry is (role, placement, volume_mul). Placement can be:
-#   - a float       — fire at that many seconds into the shot
-#   - "sync[0]"     — fire at the first sync_point time (shot-relative)
-#   - "sync[*]"     — fire at every sync_point, capped by tier max
-#   - None          — skip shot-type cue entirely (silence is intended)
-# volume_mul multiplies the role's default volume.
 _SIG = Tuple[str, Any, float]  # (role, placement, volume_mul)
 
 SHOT_TYPE_CUE: Dict[str, Optional[_SIG]] = {
     "KINETIC_TITLE":   ("impact",            0.05,      1.00),
-    "KINETIC_TEXT":    ("ui_click",          "sync[*]", 0.85),
+    "KINETIC_TEXT":    ("ui_click",          "sync[0]", 0.85),
     "VIDEO_HERO":      ("transition_whoosh", 0.00,      1.00),
     "IMAGE_HERO":      ("transition_whoosh", 0.00,      0.85),
     "IMAGE_SPLIT":     ("ui_chime",          0.10,      0.90),
     "DATA_STORY":      ("data_reveal",       "sync[0]", 1.00),
-    "EQUATION_BUILD":  ("ui_chime",          "sync[*]", 0.90),
-    "PROCESS_STEPS":   ("ui_click",          "sync[*]", 0.85),
-    "INFOGRAPHIC_SVG": None,  # silence — SVG draw-on visuals carry themselves
+    "EQUATION_BUILD":  ("ui_chime",          "sync[0]", 0.90),
+    "PROCESS_STEPS":   ("ui_click",          "sync[0]", 0.85),
+    "INFOGRAPHIC_SVG": None,
     "TEXT_DIAGRAM":    ("ui_chime",          "sync[0]", 0.85),
     "LOWER_THIRD":     ("ui_chime",          0.10,      0.85),
-    "ANNOTATION_MAP":  ("ui_click",          "sync[*]", 0.85),
+    "ANNOTATION_MAP":  ("ui_click",          "sync[0]", 0.85),
     "PRODUCT_HERO":    ("transition_whoosh", 0.00,      0.95),
 }
 
-# Visual-family grouping for transition cues. Two adjacent shots in the SAME
-# family do not get a transition whoosh between them (keeps pacing breathing).
 _FAMILY: Dict[str, str] = {
     "KINETIC_TITLE":   "title",
     "KINETIC_TEXT":    "title",
@@ -72,17 +109,9 @@ _FAMILY: Dict[str, str] = {
     "PRODUCT_HERO":    "hero",
 }
 
-# Minimum shot duration (seconds) below which we never place more than 1 cue.
 _SHORT_SHOT = 2.0
-
-# Minimum gap between any two cues in the same shot to avoid audio clutter.
 _MIN_CUE_GAP = 0.30
-
-# Silence-gap threshold for Rule 4 emphasis fallback.
 _SILENCE_GAP_MIN = 0.60
-
-# Maximum sync points we'll sound per shot under "sync[*]" placement.
-_MAX_SYNC_CUES = 3
 
 
 # ---------------------------------------------------------------------------
@@ -96,27 +125,15 @@ def plan_sounds(
     tier_config: Dict[str, Any],
     video_id: str = "",
     catalog: Optional[SoundCatalog] = None,
+    script_text: str = "",
 ) -> None:
-    """Mutate `entries` in place, adding `sound_cues` to each shot entry.
+    """Mutate `entries` in place, adding `sound_cues` to each.
 
-    Args:
-        entries: per-shot entry dicts from _generate_html_per_shot — each
-                 already has `start`, `end`, `id`, `index`, `_shot_type`,
-                 and optionally `_skill_audio_events`.
-        shots:   the Director plan's shot objects — we read `sync_points`,
-                 `shot_type`, and `start_time`/`end_time` from these.
-        words:   TTS word timings for Rule 4 emphasis fallback.
-        tier_config: QUALITY_TIERS entry for the current run. Reads:
-                     - sound_enabled (bool)
-                     - sound_max_cues_per_shot (int)
-                     - sound_max_cues_per_video (int)
-        video_id: stable identifier so the same run produces the same sound
-                  picks on regeneration.
-        catalog:  test override; production code passes None so the module
-                  loads the default metadata.
+    The palette is built once from the script topic and reused for every
+    cue in the video — same whoosh on every transition, same chime on
+    every reveal. This gives the video a consistent sonic identity.
     """
     if not tier_config.get("sound_enabled"):
-        # Tier-gated — zero out to avoid stale cues from older runs.
         for e in entries:
             e["sound_cues"] = []
         return
@@ -127,8 +144,10 @@ def plan_sounds(
             e["sound_cues"] = []
         return
 
-    # Match entries to their Director shot objects (by index). This is how we
-    # read sync_points that the HTML generator stashed alongside each entry.
+    # ── Step 1: build the video's sound palette (one file per role) ──
+    palette = _build_sound_palette(cat, video_id, script_text)
+
+    # ── Step 2: index Director shots for sync_point lookup ──
     shots_by_index: Dict[int, Dict[str, Any]] = {}
     for s in shots:
         try:
@@ -140,16 +159,13 @@ def plan_sounds(
     max_per_shot: int = int(tier_config.get("sound_max_cues_per_shot", 2))
     max_per_video: int = int(tier_config.get("sound_max_cues_per_video", 20))
 
-    used_file_ids: Set[str] = set()
     prev_shot_type: Optional[str] = None
-    prev_transition_file_id: Optional[str] = None
     total_cues = 0
 
-    # Work in start-time order so "previous shot type" and dedup apply naturally.
     ordered = sorted(entries, key=lambda e: float(e.get("start", 0)))
 
     for entry in ordered:
-        entry["sound_cues"] = []  # always initialize
+        entry["sound_cues"] = []
         if total_cues >= max_per_video:
             continue
 
@@ -167,52 +183,43 @@ def plan_sounds(
             prev_family = _FAMILY.get(prev_shot_type, "other")
             cur_family = _FAMILY.get(shot_type, "other")
             if prev_family != cur_family:
-                # The resolver already avoids repeats via used_file_ids, but we
-                # also keep track of the *last* transition file explicitly so two
-                # back-to-back transitions never land on the same file even if
-                # the pool was small and the resolver had to fall back.
-                transition = _resolve_cue(
-                    cat, "transition_whoosh",
-                    used_file_ids, video_id, shot_idx, "transition",
-                    t=0.00, volume_mul=1.0,
+                cue = _cue_from_palette(
+                    palette, "transition_whoosh",
+                    shot_idx, "transition", t=0.00, volume_mul=1.0,
                 )
-                if transition and transition.get("file_id") != prev_transition_file_id:
-                    cues.append(transition)
-                    prev_transition_file_id = transition.get("file_id")
+                if cue:
+                    cues.append(cue)
 
-        # ── Rule 2: Shot-type signature cue ──
+        # ── Rule 2: Shot-type signature cue (one per shot, at sync[0] or fixed time) ──
         sig = SHOT_TYPE_CUE.get(shot_type)
         if sig is not None:
             role, placement, volume_mul = sig
-            cues.extend(
-                _resolve_signature_cue(
-                    cat=cat,
-                    role=role,
-                    placement=placement,
-                    volume_mul=volume_mul,
-                    shot=director_shot,
-                    start_time=start_time,
-                    duration=duration,
-                    used_file_ids=used_file_ids,
-                    video_id=video_id,
-                    shot_idx=shot_idx,
-                )
+            sig_cues = _resolve_signature_cue(
+                palette=palette,
+                role=role,
+                placement=placement,
+                volume_mul=volume_mul,
+                shot=director_shot,
+                start_time=start_time,
+                duration=duration,
+                shot_idx=shot_idx,
             )
+            cues.extend(sig_cues)
 
         # ── Rule 3: Skill-derived audio events ──
         skill_events = entry.get("_skill_audio_events") or []
         for ev in skill_events:
             role = ev.get("role") or ""
             t = float(ev.get("t", 0.0))
-            volume_mul = float(ev.get("volume_mul", 1.0))
-            if not cat.has_role(role):
+            volume_mul_skill = float(ev.get("volume_mul", 1.0))
+            if role not in palette:
                 continue
             if t < 0 or t > duration:
                 continue
-            cue = _resolve_cue(
-                cat, role,
-                used_file_ids, video_id, shot_idx, f"skill:{ev.get('skill_id','?')}",
-                t=t, volume_mul=volume_mul,
+            cue = _cue_from_palette(
+                palette, role,
+                shot_idx, f"skill:{ev.get('skill_id', '?')}",
+                t=t, volume_mul=volume_mul_skill,
             )
             if cue:
                 cues.append(cue)
@@ -221,66 +228,123 @@ def plan_sounds(
         if not cues and duration >= 2.5:
             anchor_t = _find_emphasis_anchor(words, start_time, end_time)
             if anchor_t is not None:
-                cue = _resolve_cue(
-                    cat, "ui_chime",
-                    used_file_ids, video_id, shot_idx, "emphasis",
-                    t=anchor_t, volume_mul=0.80,
+                cue = _cue_from_palette(
+                    palette, "ui_chime",
+                    shot_idx, "emphasis", t=anchor_t, volume_mul=0.80,
                 )
                 if cue:
                     cues.append(cue)
 
-        # ── Rule 6: Dedup and suppression (runs BEFORE tier cap so duplicates
-        # don't eat the budget and crowd out transition cues)
+        # ── Rule 6: Dedup (same-role cues within MIN_GAP) ──
         cues = _dedup_and_space(cues, min_gap=_MIN_CUE_GAP)
 
-        # ── Rule 5: Tier caps (per-shot + global) ──
+        # ── Rule 5: Tier caps ──
         shot_cap = 1 if duration < _SHORT_SHOT else max_per_shot
-        remaining_budget = max(0, max_per_video - total_cues)
-        cap = min(shot_cap, remaining_budget)
+        remaining = max(0, max_per_video - total_cues)
+        cap = min(shot_cap, remaining)
         if len(cues) > cap:
-            # Prefer transition cues (they sell the edit) + loudness tiebreak
             def _priority(c: Dict[str, Any]) -> Tuple[int, float]:
                 is_transition = 1 if c.get("_source") == "transition" else 0
                 return (is_transition, float(c.get("volume", 0)))
             cues.sort(key=_priority, reverse=True)
             cues = cues[:cap]
 
-        # Sort by time (player consumes in chronological order)
         cues.sort(key=lambda c: float(c.get("t", 0)))
-
-        # Strip internal file_id metadata from the payload the player sees —
-        # keep id/t/url/volume/role only. file_id stays in used_file_ids.
         entry["sound_cues"] = [_public_cue(c) for c in cues]
 
         total_cues += len(cues)
         prev_shot_type = shot_type
 
+    # Log palette summary
+    _log_palette(palette, total_cues, len(ordered))
+
 
 # ---------------------------------------------------------------------------
-# Resolution helpers
+# Sound Palette — built once per video
 # ---------------------------------------------------------------------------
 
-def _resolve_cue(
+def _extract_topic_keywords(script_text: str) -> List[str]:
+    """Pull topic-signal words from the narration script.
+
+    Returns lowercased keywords including synonym expansions. For example,
+    "managing your money" → ["managing", "your", "money", "coin", "cash",
+    "register", "dollar"] so sound descriptions like "FOLEY, COINS, DROP"
+    get a match.
+    """
+    if not script_text:
+        return []
+    # Tokenize to unique lowercased words (3+ chars to skip articles)
+    raw_words = set(re.findall(r"[a-zA-Z]{3,}", script_text.lower()))
+    expanded: Set[str] = set(raw_words)
+    for word in raw_words:
+        synonyms = TOPIC_SYNONYMS.get(word, [])
+        for syn in synonyms:
+            expanded.add(syn)
+    return list(expanded)
+
+
+def _build_sound_palette(
     cat: SoundCatalog,
-    role: str,
-    used_file_ids: Set[str],
     video_id: str,
+    script_text: str,
+) -> Dict[str, Dict[str, Any]]:
+    """Pre-select ONE sound file per role for the entire video.
+
+    If the script mentions topic-specific words (money, sports, cooking),
+    the palette picker biases toward files whose descriptions match.
+    Otherwise falls back to a generic deterministic pick.
+    """
+    topic_kws = _extract_topic_keywords(script_text)
+    palette: Dict[str, Dict[str, Any]] = {}
+    for role in PALETTE_ROLES:
+        if not cat.has_role(role):
+            continue
+        seed = f"{video_id}:palette:{role}"
+        if topic_kws:
+            picked = cat.resolve_for_topic(role, topic_kws, seed_key=seed)
+        else:
+            picked = cat.resolve(role, seed_key=seed)
+        if picked:
+            palette[role] = picked
+    return palette
+
+
+def _log_palette(
+    palette: Dict[str, Dict[str, Any]],
+    total_cues: int,
+    total_shots: int,
+) -> None:
+    parts = []
+    for role in PALETTE_ROLES:
+        entry = palette.get(role)
+        if entry:
+            name = entry.get("description", "")[:35]
+            parts.append(f"{role}={name}")
+    if parts:
+        print(f"   🎵 Sound palette: {', '.join(parts)}")
+    print(
+        f"   🔊 Sound Planner placed {total_cues} cues across "
+        f"{total_shots} shots"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Cue resolution — always from the palette
+# ---------------------------------------------------------------------------
+
+def _cue_from_palette(
+    palette: Dict[str, Dict[str, Any]],
+    role: str,
     shot_idx: int,
     slot: str,
     *,
     t: float,
     volume_mul: float,
 ) -> Optional[Dict[str, Any]]:
-    """Resolve a role → concrete cue dict, marking the file as used."""
-    if not cat.has_role(role):
-        return None
-    seed_key = f"{video_id}:{shot_idx}:{slot}:{role}"
-    picked = cat.resolve(role, used_ids=used_file_ids, seed_key=seed_key)
+    """Build a cue dict using the palette's pre-picked file for this role."""
+    picked = palette.get(role)
     if not picked:
         return None
-    file_id = picked.get("file_id")
-    if file_id:
-        used_file_ids.add(file_id)
     volume = max(0.0, min(1.0, picked["volume_hint"] * volume_mul))
     return {
         "id": f"sfx_{shot_idx}_{slot}",
@@ -288,58 +352,46 @@ def _resolve_cue(
         "url": picked.get("url"),
         "volume": round(volume, 3),
         "role": role,
-        "file_id": file_id,                          # stripped before serialization
+        "file_id": picked.get("file_id"),
         "duration": round(picked.get("duration", 0.0), 3),
         "_source": slot,
     }
 
 
 def _resolve_signature_cue(
-    cat: SoundCatalog,
+    palette: Dict[str, Dict[str, Any]],
     role: str,
     placement: Any,
     volume_mul: float,
     shot: Dict[str, Any],
     start_time: float,
     duration: float,
-    used_file_ids: Set[str],
-    video_id: str,
     shot_idx: int,
 ) -> List[Dict[str, Any]]:
-    """Resolve a SHOT_TYPE_CUE entry to one or more concrete cues."""
-    if not cat.has_role(role):
+    """Resolve a SHOT_TYPE_CUE entry. Always produces at most 1 cue now
+    (sync[*] was changed to sync[0] — one event per shot, not per sync point).
+    """
+    if role not in palette:
         return []
 
-    # Fixed-time placement (e.g. 0.05)
     if isinstance(placement, (int, float)):
         t = float(placement)
         if t >= duration:
             return []
-        cue = _resolve_cue(
-            cat, role, used_file_ids, video_id, shot_idx, "signature",
-            t=t, volume_mul=volume_mul,
-        )
+        cue = _cue_from_palette(palette, role, shot_idx, "signature",
+                                t=t, volume_mul=volume_mul)
         return [cue] if cue else []
 
-    # Sync-point placement
     if isinstance(placement, str) and placement.startswith("sync["):
         sync_points = shot.get("sync_points") or []
         rel_times = _shot_relative_sync_times(sync_points, start_time, duration)
         if not rel_times:
             return []
-        if placement == "sync[0]":
-            rel_times = rel_times[:1]
-        elif placement == "sync[*]":
-            rel_times = rel_times[:_MAX_SYNC_CUES]
-        out: List[Dict[str, Any]] = []
-        for i, t in enumerate(rel_times):
-            cue = _resolve_cue(
-                cat, role, used_file_ids, video_id, shot_idx,
-                f"sync{i}", t=t, volume_mul=volume_mul,
-            )
-            if cue:
-                out.append(cue)
-        return out
+        # Always pick only the FIRST sync point — one cue per shot max.
+        t = rel_times[0]
+        cue = _cue_from_palette(palette, role, shot_idx, "sync0",
+                                t=t, volume_mul=volume_mul)
+        return [cue] if cue else []
 
     return []
 
@@ -349,7 +401,6 @@ def _shot_relative_sync_times(
     start_time: float,
     duration: float,
 ) -> List[float]:
-    """Extract shot-relative times from Director sync points."""
     out: List[float] = []
     for sp in sync_points:
         try:
@@ -357,7 +408,6 @@ def _shot_relative_sync_times(
         except (TypeError, ValueError):
             continue
         rel = abs_t - start_time
-        # Allow a tiny negative nudge (sync point slightly before shot boundary)
         if -0.05 <= rel <= duration - 0.05:
             out.append(max(0.0, rel))
     return sorted(out)
@@ -372,14 +422,8 @@ def _find_emphasis_anchor(
     shot_start: float,
     shot_end: float,
 ) -> Optional[float]:
-    """Pick a single emphasis anchor inside a shot's window.
-
-    Strategy:
-      1. Longest silence gap ≥ _SILENCE_GAP_MIN — place 80ms before speech resumes
-      2. Otherwise, first stress-peak word (≥7 chars) in the window
-      3. Otherwise, None
-    """
-    best_gap: Tuple[float, float] = (0.0, 0.0)  # (gap_duration, trigger_time)
+    """Pick a single emphasis anchor inside a shot's window."""
+    best_gap: Tuple[float, float] = (0.0, 0.0)
     prev_end = shot_start
     first_peak_rel: Optional[float] = None
 
@@ -420,47 +464,26 @@ def _dedup_and_space(
     cues: List[Dict[str, Any]],
     min_gap: float,
 ) -> List[Dict[str, Any]]:
-    """Enforce min gap between cues; drop lower-volume conflicts.
-
-    Transition cues get a co-existence exemption: when a transition at t≈0
-    lands near an impact/signature cue, they're treated as a single
-    "whoosh + slam" cinematic gesture and both are kept. Clutter only
-    arises when two non-transition cues collide within min_gap.
-
-    Also dedups exact file_id repeats — two cues pointing at the same
-    sound file within one shot would be noticed fast by listeners.
-    """
+    """Enforce min gap; transition + non-transition pairs co-exist."""
     if not cues:
         return cues
-    # Sort by time
     ordered = sorted(cues, key=lambda c: float(c.get("t", 0)))
     kept: List[Dict[str, Any]] = []
-    seen_ids: Set[str] = set()
 
     def _is_transition(c: Dict[str, Any]) -> bool:
         return c.get("_source") == "transition"
 
     for cue in ordered:
         t = float(cue.get("t", 0))
-        fid = cue.get("file_id") or ""
-        # Same file in same shot → skip
-        if fid and fid in seen_ids:
-            continue
         if kept and (t - float(kept[-1].get("t", 0))) < min_gap:
-            # Transition + non-transition pairing → keep both (cinematic
-            # whoosh-and-land). Only non-transition collisions get dedup'd.
             prev = kept[-1]
             both_non_transition = not _is_transition(prev) and not _is_transition(cue)
             if both_non_transition:
-                # Collision — keep louder cue
                 if float(cue.get("volume", 0)) > float(prev.get("volume", 0)):
-                    dropped = kept.pop()
-                    seen_ids.discard(dropped.get("file_id") or "")
+                    kept.pop()
                 else:
                     continue
         kept.append(cue)
-        if fid:
-            seen_ids.add(fid)
     return kept
 
 
@@ -469,7 +492,6 @@ def _dedup_and_space(
 # ---------------------------------------------------------------------------
 
 def _public_cue(cue: Dict[str, Any]) -> Dict[str, Any]:
-    """Strip internal fields before the cue reaches the shot payload JSON."""
     return {
         "id": cue.get("id"),
         "t": cue.get("t"),

@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -33,6 +34,9 @@ interface HistorySidebarProps {
     onNewVideo: () => void;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
+    onLoadMore?: () => void;
+    isLoadingMore?: boolean;
+    hasMore?: boolean;
 }
 
 export function HistorySidebar({
@@ -43,7 +47,31 @@ export function HistorySidebar({
     onNewVideo,
     isCollapsed,
     onToggleCollapse,
+    onLoadMore,
+    isLoadingMore,
+    hasMore,
 }: HistorySidebarProps) {
+    // Infinite scroll: use IntersectionObserver on a sentinel element at the bottom
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
+    const onLoadMoreRef = useRef(onLoadMore);
+    onLoadMoreRef.current = onLoadMore;
+
+    useEffect(() => {
+        if (!hasMore || isLoadingMore || !onLoadMore) return;
+        const sentinel = sentinelRef.current;
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    onLoadMoreRef.current?.();
+                }
+            },
+            { threshold: 0.1 }
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasMore, isLoadingMore, onLoadMore]);
 
     const getStatusIcon = (status: HistoryItem['status']) => {
         switch (status) {
@@ -232,6 +260,20 @@ export function HistorySidebar({
                                 </AlertDialog>
                             </div>
                         ))
+                    )}
+                    {/* Sentinel for IntersectionObserver infinite scroll */}
+                    {hasMore && history.length > 0 && (
+                        <div ref={sentinelRef} className="h-1" />
+                    )}
+                    {isLoadingMore && (
+                        <div className="flex items-center justify-center py-3">
+                            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                        </div>
+                    )}
+                    {!hasMore && history.length > 0 && (
+                        <p className="py-2 text-center text-[10px] text-muted-foreground/50">
+                            End of history
+                        </p>
                     )}
                 </div>
             </ScrollArea>

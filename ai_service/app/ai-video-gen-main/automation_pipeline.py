@@ -1359,6 +1359,8 @@ class VideoGenerationPipeline:
         style_guide = None  # Will be set if do_html; used later to store palette in timeline meta
         if do_html:
             print("🎨 Designing Visual Style Guide ...")
+            # Stash script text for the Sound Planner's topic-aware palette.
+            self._current_script_text = str(script_plan.get("script_text", "") or "")
             style_guide = self._generate_style_guide(script_plan["script_text"], run_dir, background_type=background_type, style_config=self._current_style_config)
             
             # CHECK FOR INTERACTIVE CONTENT TYPES
@@ -4392,12 +4394,14 @@ class VideoGenerationPipeline:
             try:
                 from sound_planner import plan_sounds
                 video_id = getattr(self, "_current_video_id", "") or str(run_dir.name)
+                _script_text = getattr(self, "_current_script_text", "") or ""
                 plan_sounds(
                     entries=all_entries,
                     shots=shots,
                     words=words,
                     tier_config=self._tier_config,
                     video_id=video_id,
+                    script_text=_script_text,
                 )
                 total_cues = sum(len(e.get("sound_cues") or []) for e in all_entries)
                 shots_with_cues = sum(1 for e in all_entries if e.get("sound_cues"))

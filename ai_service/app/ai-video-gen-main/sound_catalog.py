@@ -250,6 +250,66 @@ class SoundCatalog:
         }
 
 
+    def resolve_for_topic(
+        self,
+        role: str,
+        topic_keywords: List[str],
+        seed_key: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Pick a sound file biased toward topic keywords.
+
+        Scores every file in the role bucket by how many topic keywords
+        appear in its description. The top-scoring files form a shortlist;
+        the deterministic seed picks from the shortlist so the same video
+        always gets the same palette entry.
+
+        If no keywords match any file (topic is unrelated to the library),
+        falls back to a plain deterministic pick from the full bucket —
+        identical to resolve().
+        """
+        indices = self._by_role.get(role, [])
+        if not indices:
+            return None
+
+        if not topic_keywords:
+            return self.resolve(role, seed_key=seed_key)
+
+        lowered = [kw.lower() for kw in topic_keywords]
+        scored: List[tuple] = []  # (score, idx)
+        for idx in indices:
+            desc = str(self.sounds[idx].get("description", "") or "").lower()
+            score = sum(1 for kw in lowered if kw in desc)
+            scored.append((score, idx))
+
+        # Sort by score descending, then by index for stability.
+        scored.sort(key=lambda x: (-x[0], x[1]))
+
+        best_score = scored[0][0]
+        if best_score == 0:
+            # No topic overlap — fall back to generic pick.
+            return self.resolve(role, seed_key=seed_key)
+
+        # Shortlist = all files sharing the top score (usually 1-5 files).
+        shortlist = [idx for sc, idx in scored if sc == best_score]
+
+        if seed_key:
+            h = hashlib.md5(seed_key.encode("utf-8")).hexdigest()
+            pick = shortlist[int(h, 16) % len(shortlist)]
+        else:
+            pick = shortlist[0]
+
+        entry = self.sounds[pick]
+        return {
+            "file_id": entry.get("file_id"),
+            "url": entry.get("public_url"),
+            "duration": float(entry.get("duration_seconds", 0) or 0),
+            "category": entry.get("category", ""),
+            "description": entry.get("description", ""),
+            "role": role,
+            "volume_hint": ROLE_VOLUME_DEFAULTS.get(role, 0.5),
+        }
+
+
 def load_catalog(metadata_path: Optional[Path] = None) -> Optional[SoundCatalog]:
     """Load and classify sounds_metadata.json once per process."""
     global _CATALOG_CACHE

@@ -1790,20 +1790,21 @@ class VideoGenerationService:
             self._save_timeline(data, file_path, bucket, key)
             return {"status": "success", "video_id": video_id, "track_id": track_id, "message": "Audio track deleted."}
 
-    def get_institute_generations(self, institute_id: str, limit: int = 10) -> list[Dict[str, Any]]:
+    def get_institute_generations(self, institute_id: str, limit: int = 10, offset: int = 0) -> list[Dict[str, Any]]:
         """
         Get the last N content generations for an institute.
-        
+
         Args:
             institute_id: Institute identifier
             limit: Maximum number of records to return
-            
+            offset: Number of records to skip (for pagination)
+
         Returns:
             List of video generation records as dictionaries
         """
         records = self.repository.get_history_by_institute(
-            institute_id=institute_id, 
+            institute_id=institute_id,
             limit=limit,
-            offset=0
+            offset=offset
         )
         return [record.to_dict() for record in records]
