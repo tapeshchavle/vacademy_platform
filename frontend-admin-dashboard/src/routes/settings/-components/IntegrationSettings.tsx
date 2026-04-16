@@ -414,10 +414,15 @@ export default function IntegrationSettings() {
     }, [oauthError, sessionKeyFromUrl]);
 
     // Fetch existing connectors
-    const { data: connectors = [], isLoading } = useQuery({
+    const {
+        data: connectors = [],
+        isLoading,
+        error: connectorsError,
+    } = useQuery({
         queryKey: ['ad-connectors', instituteId],
         queryFn: () => listConnectors(instituteId),
         enabled: !!instituteId,
+        retry: false,
     });
 
     const { mutate: deleteConnector } = useMutation({
@@ -460,9 +465,13 @@ export default function IntegrationSettings() {
                             <div className="size-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
                             Loading connectors...
                         </div>
+                    ) : connectorsError ? (
+                        <div className="rounded-md border border-amber-100 bg-amber-50 p-3 text-sm text-amber-700">
+                            Could not load connectors. The integration API may not be deployed yet.
+                        </div>
                     ) : (
                         <ConnectorTable
-                            connectors={connectors}
+                            connectors={Array.isArray(connectors) ? connectors : []}
                             onDelete={(id) => deleteConnector(id)}
                         />
                     )}

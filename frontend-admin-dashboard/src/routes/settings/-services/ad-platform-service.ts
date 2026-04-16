@@ -108,7 +108,8 @@ export const listConnectors = async (instituteId: string): Promise<ConnectorList
     const res = await authenticatedAxiosInstance.get(`${BASE}/connectors`, {
         params: { instituteId },
     });
-    return res.data;
+    // Guard: API may return non-array on error or if endpoint isn't deployed yet
+    return Array.isArray(res.data) ? res.data : [];
 };
 
 /** Deactivate (soft-delete) a connector. */
