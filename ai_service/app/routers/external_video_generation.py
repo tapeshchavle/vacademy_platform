@@ -363,7 +363,7 @@ async def resume_video_external(
                         await q.put(json.dumps({"type": "error", "message": "Original prompt not found", "video_id": vid}))
                         return
 
-                    _meta = rec.metadata or {}
+                    _meta = rec.extra_metadata or {}
                     async for event in bg_svc.generate_till_stage(
                         video_id=vid,
                         prompt=rec.prompt,

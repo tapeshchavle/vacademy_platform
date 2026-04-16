@@ -3,7 +3,7 @@ import { createLazyFileRoute } from '@tanstack/react-router';
 import { LayoutContainer } from '@/components/common/layout-container/layout-container';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { Video, Loader2, History as HistoryIcon, Monitor, Smartphone } from 'lucide-react';
+import { Video, Loader2, History as HistoryIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { getInstituteId } from '@/constants/helper';
 import {
@@ -1150,43 +1150,16 @@ function VideoConsole() {
                 {/* Content Area */}
                 <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth p-2 sm:p-3">
                     {consoleState === 'idle' && !currentGeneration && !isLoadingVideoUrls && (
-                        <>
-                            <ContentSelector
-                                selectedType={options.content_type || 'VIDEO'}
-                                onSelect={(type) =>
-                                    setOptions((prev: Omit<GenerateVideoRequest, 'prompt'>) => ({
-                                        ...prev,
-                                        content_type: type,
-                                    }))
-                                }
-                                onSamplePromptSelect={(p) => setPrompt(p)}
-                            />
-                            {/* Orientation selector */}
-                            <div className="mt-3 flex items-center gap-2 px-1">
-                                <span className="text-xs font-medium text-muted-foreground">Orientation:</span>
-                                <div className="inline-flex rounded-lg border bg-muted p-0.5">
-                                    {([
-                                        { value: 'landscape' as VideoOrientation, label: 'Landscape', icon: Monitor },
-                                        { value: 'portrait' as VideoOrientation, label: 'Portrait', icon: Smartphone },
-                                    ] as const).map(({ value, label, icon: Icon }) => (
-                                        <button
-                                            key={value}
-                                            onClick={() =>
-                                                setOptions((prev) => ({ ...prev, orientation: value }))
-                                            }
-                                            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                                                (options.orientation || 'landscape') === value
-                                                    ? 'bg-background text-foreground shadow-sm'
-                                                    : 'text-muted-foreground hover:text-foreground'
-                                            }`}
-                                        >
-                                            <Icon className="size-3.5" />
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </>
+                        <ContentSelector
+                            selectedType={options.content_type || 'VIDEO'}
+                            onSelect={(type) =>
+                                setOptions((prev: Omit<GenerateVideoRequest, 'prompt'>) => ({
+                                    ...prev,
+                                    content_type: type,
+                                }))
+                            }
+                            onSamplePromptSelect={(p) => setPrompt(p)}
+                        />
                     )}
 
                     {isLoadingVideoUrls && (

@@ -39,6 +39,8 @@ import {
     FileText,
     Play,
     Pause,
+    Monitor,
+    Smartphone,
 } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { useFileUpload } from '@/hooks/use-file-upload';
@@ -66,6 +68,7 @@ import {
     ContentType,
     QualityTier,
     TtsVoice,
+    VideoOrientation,
     fetchTtsVoices,
 } from '../-services/video-generation';
 import { useAIModelsList } from '@/hooks/useAiModels';
@@ -499,6 +502,33 @@ export function PromptInput({
                                 ))}
                             </SelectContent>
                         </Select>
+                    </OptionBubble>
+
+                    {/* Orientation Selector */}
+                    <OptionBubble
+                        icon={(options.orientation || 'landscape') === 'landscape' ? <Monitor className="size-3" /> : <Smartphone className="size-3" />}
+                        label="Orientation"
+                        value={(options.orientation || 'landscape') === 'landscape' ? 'Landscape' : 'Portrait'}
+                    >
+                        <div className="inline-flex w-full rounded-lg border bg-muted p-0.5">
+                            {([
+                                { value: 'landscape' as VideoOrientation, label: 'Landscape', icon: Monitor },
+                                { value: 'portrait' as VideoOrientation, label: 'Portrait', icon: Smartphone },
+                            ] as const).map(({ value, label, icon: Icon }) => (
+                                <button
+                                    key={value}
+                                    onClick={() => updateOption('orientation', value)}
+                                    className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                                        (options.orientation || 'landscape') === value
+                                            ? 'bg-background text-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                >
+                                    <Icon className="size-3.5" />
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
                     </OptionBubble>
 
                     {/* Quality Tier Selector */}

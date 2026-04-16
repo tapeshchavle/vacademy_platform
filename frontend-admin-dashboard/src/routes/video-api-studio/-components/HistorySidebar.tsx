@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Video,
     Trash2,
@@ -51,7 +50,8 @@ export function HistorySidebar({
     isLoadingMore,
     hasMore,
 }: HistorySidebarProps) {
-    // Infinite scroll: use IntersectionObserver on a sentinel element at the bottom
+    // Infinite scroll: use IntersectionObserver on a sentinel element
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
     const sentinelRef = useRef<HTMLDivElement | null>(null);
     const onLoadMoreRef = useRef(onLoadMore);
     onLoadMoreRef.current = onLoadMore;
@@ -59,7 +59,8 @@ export function HistorySidebar({
     useEffect(() => {
         if (!hasMore || isLoadingMore || !onLoadMore) return;
         const sentinel = sentinelRef.current;
-        if (!sentinel) return;
+        const root = scrollContainerRef.current;
+        if (!sentinel || !root) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
@@ -67,7 +68,7 @@ export function HistorySidebar({
                     onLoadMoreRef.current?.();
                 }
             },
-            { threshold: 0.1 }
+            { root, threshold: 0.1 }
         );
         observer.observe(sentinel);
         return () => observer.disconnect();
@@ -172,7 +173,7 @@ export function HistorySidebar({
                 </Button>
             </div>
 
-            <ScrollArea className="flex-1">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
                 <div className="space-y-1 p-2">
                     {history.length === 0 ? (
                         <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
@@ -276,7 +277,7 @@ export function HistorySidebar({
                         </p>
                     )}
                 </div>
-            </ScrollArea>
+            </div>
         </div>
     );
 }
