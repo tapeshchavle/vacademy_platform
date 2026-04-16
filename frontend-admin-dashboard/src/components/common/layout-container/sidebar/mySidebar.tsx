@@ -246,7 +246,7 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
 
     // Logo
     const { getPublicUrl } = useFileUpload();
-    const { instituteLogo, setInstituteLogo } = useInstituteLogoStore();
+    const { instituteLogo, setInstituteLogo, brandingDisplay } = useInstituteLogoStore();
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -318,6 +318,9 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
                                 isPartnershipLinkage={isPartnershipLinkage}
                                 mainInstituteLogoUrl={mainInstituteLogoUrl}
                                 mainInstituteName={data?.institute_name || ''}
+                                hideInstituteName={brandingDisplay.hideInstituteName}
+                                logoWidthPx={brandingDisplay.logoWidthPx}
+                                logoHeightPx={brandingDisplay.logoHeightPx}
                             />
                         </div>
                     </TooltipProvider>
@@ -358,6 +361,9 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
                         isPartnershipLinkage={isPartnershipLinkage}
                         mainInstituteLogoUrl={mainInstituteLogoUrl}
                         mainInstituteName={data?.institute_name || ''}
+                        hideInstituteName={brandingDisplay.hideInstituteName}
+                        logoWidthPx={brandingDisplay.logoWidthPx}
+                        logoHeightPx={brandingDisplay.logoHeightPx}
                     />
                 </TooltipProvider>
             </SidebarContent>

@@ -4,6 +4,7 @@ import {
     type FixedField,
     type GroupField,
     type FieldVisibility,
+    type CustomFieldType,
 } from '../../services/custom-field-settings';
 
 // Location mapping for field visibility.
@@ -24,7 +25,7 @@ const LOCATION_TO_VISIBILITY_KEY: Record<string, keyof FieldVisibility> = {
 export type FieldForLocation = {
     id: string;
     name: string;
-    type?: 'text' | 'dropdown' | 'number';
+    type?: CustomFieldType;
     options?: string[];
     required: boolean;
     order: number;

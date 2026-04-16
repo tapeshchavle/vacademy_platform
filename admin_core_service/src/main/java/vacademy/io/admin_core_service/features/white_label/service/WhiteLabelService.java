@@ -13,6 +13,7 @@ import vacademy.io.admin_core_service.features.domain_routing.service.DomainRout
 import vacademy.io.admin_core_service.features.institute.repository.InstituteRepository;
 import vacademy.io.admin_core_service.features.white_label.dto.*;
 import vacademy.io.common.auth.model.CustomUserDetails;
+import vacademy.io.common.auth.repository.RoleRepository;
 import vacademy.io.common.auth.repository.UserRoleRepository;
 import vacademy.io.common.exceptions.VacademyException;
 import vacademy.io.common.institute.entity.Institute;
@@ -40,7 +41,7 @@ public class WhiteLabelService {
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_TEACHER = "TEACHER";
 
-    private static final Set<String> VALID_ROLES = Set.of(ROLE_LEARNER, ROLE_ADMIN, ROLE_TEACHER);
+    private static final Set<String> SYSTEM_ROLES = Set.of(ROLE_LEARNER, ROLE_ADMIN, ROLE_TEACHER);
 
     @Value("${cloudflare.learner.target:learner.vacademy.io}")
     private String learnerCnameTarget;
@@ -61,6 +62,7 @@ public class WhiteLabelService {
     private final DomainRoutingAdminService domainRoutingAdminService;
     private final CloudflareService cloudflareService;
     private final UserRoleRepository userRoleRepository;
+    private final RoleRepository roleRepository;
 
     // ── Setup ─────────────────────────────────────────────────────────────────
 
@@ -84,25 +86,31 @@ public class WhiteLabelService {
             throw new VacademyException("At least one domain entry is required");
         }
 
-        // Validate roles and domains
+        // Cache of valid role names for this institute (system + custom), used to validate
+        // each token in an entry's comma-separated role list.
+        Set<String> allowedRoleNames = loadAllowedRoleNames(instituteId);
+
+        // Validate domains and validate+canonicalize role strings (comma-separated lists).
+        // After this loop, each entry.role is a canonical "ROLE1,ROLE2" string with
+        // unique, sorted, upper-cased tokens — each one a known system or custom role.
         for (WhiteLabelSetupRequest.DomainEntry e : entries) {
-            if (!StringUtils.hasText(e.getRole()) || !VALID_ROLES.contains(e.getRole().toUpperCase())) {
-                throw new VacademyException("Invalid role: " + e.getRole() + ". Must be LEARNER, ADMIN, or TEACHER");
-            }
             if (!StringUtils.hasText(e.getDomain())) {
                 throw new VacademyException("Domain is required for each entry");
             }
-            e.setRole(e.getRole().toUpperCase().trim());
+            e.setRole(validateAndCanonicalizeRoles(e.getRole(), allowedRoleNames));
             e.setDomain(e.getDomain().trim().toLowerCase()
                     .replaceFirst("^https?://", "")
                     .replaceFirst("/.*$", ""));
         }
 
-        // Validate: at most one primary per role
-        Map<String, Long> primaryCounts = entries.stream()
+        // Validate: at most one primary per *individual* role token. If a user marks
+        // one entry primary with roles "ADMIN,MANAGE_LEAD" and another entry primary
+        // with "ADMIN", they collide on ADMIN.
+        Map<String, Long> primaryTokenCounts = entries.stream()
                 .filter(WhiteLabelSetupRequest.DomainEntry::isPrimary)
-                .collect(Collectors.groupingBy(WhiteLabelSetupRequest.DomainEntry::getRole, Collectors.counting()));
-        for (Map.Entry<String, Long> pc : primaryCounts.entrySet()) {
+                .flatMap(e -> splitRoleTokens(e.getRole()).stream())
+                .collect(Collectors.groupingBy(r -> r, Collectors.counting()));
+        for (Map.Entry<String, Long> pc : primaryTokenCounts.entrySet()) {
             if (pc.getValue() > 1) {
                 throw new VacademyException("At most one primary domain per role allowed. " +
                         "Role '" + pc.getKey() + "' has " + pc.getValue() + " primary entries.");
@@ -134,10 +142,14 @@ public class WhiteLabelService {
 
         String learnerUrl = null, adminUrl = null, teacherUrl = null;
 
+        // For each primary entry, iterate its role tokens and update the institute's
+        // matching portal URL columns. Custom-role tokens don't have dedicated columns,
+        // so they're silently skipped — their branding lives on the routing row only.
         for (WhiteLabelSetupRequest.DomainEntry entry : entries) {
-            if (entry.isPrimary()) {
-                String url = "https://" + entry.getDomain();
-                switch (entry.getRole()) {
+            if (!entry.isPrimary()) continue;
+            String url = "https://" + entry.getDomain();
+            for (String token : splitRoleTokens(entry.getRole())) {
+                switch (token) {
                     case ROLE_LEARNER -> {
                         institute.setLearnerPortalBaseUrl(url);
                         learnerUrl = url;
@@ -150,6 +162,7 @@ public class WhiteLabelService {
                         institute.setTeacherPortalBaseUrl(url);
                         teacherUrl = url;
                     }
+                    default -> { /* custom role: no institute column to update */ }
                 }
             }
         }
@@ -287,19 +300,28 @@ public class WhiteLabelService {
         }
     }
 
-    /** Returns the Cloudflare CNAME target for a given role. */
+    /**
+     * Returns the Cloudflare CNAME target for a role string.
+     *
+     * The role string may contain multiple comma-separated role tokens. We pick
+     * the first system-role token in priority order [LEARNER, ADMIN, TEACHER]
+     * and use its CNAME target. If the entry has only custom-role tokens
+     * (e.g. "MANAGE_LEAD"), we default to the admin target since custom roles
+     * are virtually always served from the admin-side infra.
+     */
     private String cnameTargetForRole(String role) {
-        return switch (role) {
-            case ROLE_LEARNER -> learnerCnameTarget;
-            case ROLE_ADMIN -> adminCnameTarget;
-            case ROLE_TEACHER -> teacherCnameTarget;
-            default -> throw new VacademyException("Unknown role: " + role);
-        };
+        List<String> tokens = splitRoleTokens(role);
+        if (tokens.contains(ROLE_LEARNER)) return learnerCnameTarget;
+        if (tokens.contains(ROLE_ADMIN))   return adminCnameTarget;
+        if (tokens.contains(ROLE_TEACHER)) return teacherCnameTarget;
+        // Custom-role-only entry: admin infra serves it.
+        return adminCnameTarget;
     }
 
     /**
      * Upsert a domain routing row. Looks up by institute+domain+subdomain+role
-     * (exact match). Updates if found, creates otherwise.
+     * (exact match on the full role string, so "ADMIN" and "ADMIN,MANAGE_LEAD"
+     * are separate rows). Updates if found, creates otherwise.
      */
     private void upsertRoutingRow(String instituteId, String fullDomain,
             String role, PortalRoutingConfig config) {
@@ -321,6 +343,74 @@ public class WhiteLabelService {
             InstituteDomainRouting created = domainRoutingAdminService.create(req);
             log.info("[WhiteLabel] Created routing row id={} for {}://{}.{}", created.getId(), role, subdomain, domain);
         }
+    }
+
+    // ── Role helpers ──────────────────────────────────────────────────────────
+
+    /**
+     * Loads the full set of valid role names for an institute: all system roles
+     * (roles.institute_id IS NULL) plus the institute's own custom roles
+     * (roles.institute_id = :instituteId). Uppercased for case-insensitive
+     * comparison against tokens from the request.
+     */
+    private Set<String> loadAllowedRoleNames(String instituteId) {
+        Set<String> allowed = new HashSet<>();
+        roleRepository.findAllByInstituteIdIsNull()
+                .forEach(r -> { if (r.getName() != null) allowed.add(r.getName().toUpperCase().trim()); });
+        if (StringUtils.hasText(instituteId)) {
+            roleRepository.findAllByInstituteId(instituteId)
+                    .forEach(r -> { if (r.getName() != null) allowed.add(r.getName().toUpperCase().trim()); });
+        }
+        // Always allow the hardcoded system roles as a safety net, even if the
+        // roles table is empty on a fresh deployment.
+        allowed.addAll(SYSTEM_ROLES);
+        return allowed;
+    }
+
+    /**
+     * Validates a comma-separated role string and returns its canonical form:
+     * tokens trimmed, uppercased, deduped, sorted alphabetically and rejoined
+     * with a single comma. Sorting makes "ADMIN,MANAGE_LEAD" and
+     * "MANAGE_LEAD,ADMIN" collapse to one canonical value so upserts match.
+     *
+     * Throws VacademyException with a clear message if the string is empty or
+     * contains any token that isn't a known system or institute-scoped custom
+     * role.
+     */
+    private String validateAndCanonicalizeRoles(String roleStr, Set<String> allowedRoleNames) {
+        if (!StringUtils.hasText(roleStr)) {
+            throw new VacademyException("Role is required for each entry");
+        }
+        Set<String> tokens = new TreeSet<>();
+        for (String raw : roleStr.split(",")) {
+            String token = raw == null ? "" : raw.trim().toUpperCase();
+            if (token.isEmpty()) continue;
+            if (!allowedRoleNames.contains(token)) {
+                throw new VacademyException("Unknown role '" + token + "'. "
+                        + "Allowed system roles are LEARNER, ADMIN, TEACHER. "
+                        + "Custom roles must be created first from the Manage Custom Teams page.");
+            }
+            tokens.add(token);
+        }
+        if (tokens.isEmpty()) {
+            throw new VacademyException("Role is required for each entry");
+        }
+        return String.join(",", tokens);
+    }
+
+    /**
+     * Splits a canonical role string into its role tokens. Safe for null/empty
+     * input (returns an empty list). Used by cname-target and primary-URL logic
+     * that need to inspect individual roles.
+     */
+    private List<String> splitRoleTokens(String roleStr) {
+        if (!StringUtils.hasText(roleStr)) return List.of();
+        List<String> tokens = new ArrayList<>();
+        for (String raw : roleStr.split(",")) {
+            String t = raw == null ? "" : raw.trim().toUpperCase();
+            if (!t.isEmpty()) tokens.add(t);
+        }
+        return tokens;
     }
 
     /**

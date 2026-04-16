@@ -7,7 +7,7 @@ import { getInstituteId } from '@/constants/helper';
  */
 export interface CampaignFormCustomField {
     id: string;
-    type: 'text' | 'dropdown' | 'number' | 'textfield';
+    type: string;
     name: string;
     isRequired: boolean;
     key: string;
@@ -20,11 +20,10 @@ export interface CampaignFormCustomField {
 /**
  * Map field type to UI-compatible type
  */
-const mapFieldType = (type: string): 'text' | 'dropdown' | 'number' | 'textfield' => {
-    if (type === 'dropdown' || type === 'select') return 'dropdown';
-    if (type === 'number') return 'number';
-    if (type === 'textfield') return 'textfield';
-    return 'text';
+const mapFieldType = (type: string): string => {
+    if (type === 'select') return 'dropdown';
+    if (type === 'textfield') return 'text';
+    return type || 'text';
 };
 
 /**
@@ -37,124 +36,160 @@ const generateKeyFromName = (name: string): string =>
         .replace(/^_+|_+$/g, '');
 
 /**
- * Get the institute's default custom fields, pre-selected for a brand-new
- * audience campaign create dialog.
+ * Default campaign fields used as a hardcoded fallback when:
+ *   - the institute has no DEFAULT_CUSTOM_FIELD rows saved yet
+ *   - the API fetch fails
  *
- * Custom Fields Revamp (2026-04): the previous implementation read fields
- * from a stale "Campaign" visibility checkbox. Per-feature visibility was
- * removed; admins now manage which fields are on a campaign from inside
- * the campaign create/edit dialog itself. This function returns the
- * institute's full default catalog (locked fixed fields + admin-created
- * defaults) so the picker starts with everything pre-selected. The admin
- * can untick before saving — only the ticked fields are persisted as
- * AUDIENCE_FORM mappings.
- *
- * Edit-mode pre-selection should fetch the existing ACTIVE mappings via
- * `GET /admin-core-service/common/custom-fields/feature-fields`
- * (type=AUDIENCE_FORM, typeId=<audienceId>) instead of calling this.
+ * Kept in sync with the invite fallback (`getDefaultInviteFields`) so the
+ * three seeded fields behave identically everywhere.
  */
-export const getCampaignCustomFields = (): CampaignFormCustomField[] => {
-    try {
-        const settings = getCustomFieldSettingsFromCache();
-        if (!settings) return [];
-
-        const all = [
-            ...(settings.fixedFields || []),
-            ...(settings.customFields || []),
-            ...(settings.instituteFields || []),
-        ];
-        if (all.length === 0) return [];
-
-        return all
-            .map((field, index): CampaignFormCustomField => {
-                const fieldType = mapFieldType((field.type as string) || 'text');
-                const transformed: CampaignFormCustomField = {
-                    id: String(index),
-                    type: fieldType,
-                    name: field.name,
-                    isRequired: field.required || false,
-                    key: generateKeyFromName(field.name),
-                    order: field.order ?? index,
-                    _id: field.id,
-                    status: 'ACTIVE',
-                };
-                if (
-                    fieldType === 'dropdown' &&
-                    'options' in field &&
-                    field.options &&
-                    field.options.length > 0
-                ) {
-                    transformed.options = field.options.map((opt, i) => ({
-                        id: `${index}_opt_${i}`,
-                        value: opt,
-                        disabled: true,
-                    }));
-                }
-                return transformed;
-            })
-            .sort((a, b) => a.order - b.order);
-    } catch (err) {
-        console.error('Error reading institute defaults for campaign picker:', err);
-        return [];
-    }
+const getDefaultCampaignFields = (): CampaignFormCustomField[] => {
+    return [
+        {
+            id: '0',
+            type: 'text',
+            name: 'Full Name',
+            isRequired: true,
+            key: 'full_name',
+            order: 0,
+            status: 'ACTIVE',
+        },
+        {
+            id: '1',
+            type: 'text',
+            name: 'Email',
+            isRequired: true,
+            key: 'email',
+            order: 1,
+            status: 'ACTIVE',
+        },
+        {
+            id: '2',
+            type: 'text',
+            name: 'Phone Number',
+            isRequired: true,
+            key: 'phone_number',
+            order: 2,
+            status: 'ACTIVE',
+        },
+    ];
 };
 
 /**
- * Async variant that fetches DEFAULT_CUSTOM_FIELD mappings directly from
- * the live backend endpoint. Bypasses the stale settings JSON blob.
+ * Sync variant — intentionally returns an empty array.
+ *
+ * History: this function used to read from the localStorage settings cache
+ * (`getCustomFieldSettingsFromCache().fixedFields + customFields + instituteFields`).
+ * That approach broke the campaign picker in three ways:
+ *   1. Stale cache data bled into brand-new campaigns.
+ *   2. The production settings blob contains historical duplicates of
+ *      Full Name / Email / Phone Number (see CUSTOM_FIELDS_PROD_CLEANUP.md),
+ *      so the picker showed duplicate rows.
+ *   3. The caller had to filter out Phone Number and re-seed Name/Email,
+ *      which accidentally dropped Phone Number on environments where the
+ *      cache was empty.
+ *
+ * The working invite flow (`getInviteListCustomFields`) solved this by
+ * returning `[]` and delegating ALL loading to the async variant. We do the
+ * same here — call `getCampaignCustomFieldsAsync()` in a useEffect and set
+ * the form values once it resolves.
+ */
+export const getCampaignCustomFields = (): CampaignFormCustomField[] => {
+    return [];
+};
+
+/**
+ * Async variant that fetches DEFAULT_CUSTOM_FIELD mappings directly from the
+ * live backend endpoint (`GET /common/custom-fields?instituteId=...`).
+ * Bypasses the stale settings JSON blob entirely.
+ *
+ * - Deduplicates by field key so the historical duplicate rows in the
+ *   production settings blob don't leak through.
+ * - Falls back to `getDefaultCampaignFields()` (Full Name + Email + Phone
+ *   Number) when the API returns nothing or the request fails.
  */
 export const getCampaignCustomFieldsAsync = async (): Promise<CampaignFormCustomField[]> => {
     try {
         const instId = getInstituteId();
-        if (!instId) return [];
+        if (!instId) return getDefaultCampaignFields();
 
         const defaults = await fetchInstituteDefaultFields(instId);
-        if (!defaults || defaults.length === 0) return [];
+        if (!defaults || defaults.length === 0) return getDefaultCampaignFields();
 
-        return defaults
-            .map((entry, index): CampaignFormCustomField => {
-                const cf = entry.custom_field;
-                const fieldType = mapFieldType(cf.fieldType || 'text');
-                const transformed: CampaignFormCustomField = {
-                    id: String(index),
-                    type: fieldType,
-                    name: cf.fieldName,
-                    isRequired: cf.isMandatory || false,
-                    key: generateKeyFromName(cf.fieldName),
-                    order: entry.individual_order ?? cf.formOrder ?? index,
-                    _id: cf.id,
-                    status: 'ACTIVE',
-                };
-                if (fieldType === 'dropdown' && cf.config) {
-                    try {
-                        const parsed = JSON.parse(cf.config);
-                        if (Array.isArray(parsed)) {
-                            transformed.options = parsed.map((opt: any, i: number) => ({
+        const seenKeys = new Set<string>();
+        const result: CampaignFormCustomField[] = [];
+
+        defaults.forEach((entry, index) => {
+            const cf = entry.custom_field;
+            if (!cf || !cf.fieldName) return;
+
+            const key = generateKeyFromName(cf.fieldName);
+            if (seenKeys.has(key)) return; // skip duplicate rows from the historical settings blob
+            seenKeys.add(key);
+
+            const fieldType = mapFieldType(cf.fieldType || 'text');
+            const transformed: CampaignFormCustomField = {
+                id: String(index),
+                type: fieldType,
+                name: cf.fieldName,
+                isRequired: cf.isMandatory || false,
+                key,
+                order: entry.individual_order ?? cf.formOrder ?? index,
+                _id: cf.id,
+                status: 'ACTIVE',
+            };
+
+            if ((fieldType === 'dropdown' || fieldType === 'radio') && cf.config) {
+                try {
+                    const parsed = JSON.parse(cf.config);
+                    if (Array.isArray(parsed)) {
+                        transformed.options = parsed.map((opt: any, i: number) => ({
+                            id: `${index}_opt_${i}`,
+                            value: opt.value || opt.label || opt,
+                            disabled: true,
+                        }));
+                    } else if (parsed.coommaSepartedOptions) {
+                        transformed.options = parsed.coommaSepartedOptions
+                            .split(',')
+                            .map((v: string, i: number) => ({
                                 id: `${index}_opt_${i}`,
-                                value: opt.value || opt.label || opt,
+                                value: v.trim(),
                                 disabled: true,
                             }));
-                        } else if (parsed.coommaSepartedOptions) {
-                            transformed.options = parsed.coommaSepartedOptions
-                                .split(',')
-                                .map((v: string, i: number) => ({
-                                    id: `${index}_opt_${i}`,
-                                    value: v.trim(),
-                                    disabled: true,
-                                }));
-                        }
-                    } catch { /* ignore */ }
+                    }
+                } catch {
+                    // ignore parse errors — the field still renders as its base type
                 }
-                return transformed;
-            })
-            .sort((a, b) => a.order - b.order);
-    } catch {
-        return [];
+            }
+
+            result.push(transformed);
+        });
+
+        // Ensure Full Name / Email / Phone Number are always present — add any
+        // missing ones from the fallback defaults. Preserves backend-returned
+        // fields if they exist, only fills the gaps.
+        const fallbackBySeed = new Map(
+            getDefaultCampaignFields().map((f) => [f.key, f])
+        );
+        ['full_name', 'email', 'phone_number'].forEach((seedKey) => {
+            if (!seenKeys.has(seedKey)) {
+                const fallback = fallbackBySeed.get(seedKey);
+                if (fallback) {
+                    seenKeys.add(seedKey);
+                    result.push(fallback);
+                }
+            }
+        });
+
+        return result.sort((a, b) => a.order - b.order);
+    } catch (err) {
+        console.error('[getCampaignCustomFieldsAsync] API call failed, using fallback defaults:', err);
+        return getDefaultCampaignFields();
     }
 };
 
 /**
- * Refresh campaign custom fields (call this when settings are updated)
+ * Refresh campaign custom fields (kept for API compatibility — returns [])
  */
 export const refreshCampaignCustomFields = (): CampaignFormCustomField[] => {
     return getCampaignCustomFields();

@@ -114,18 +114,48 @@ export const syncCustomToSystem = async (entityType: string, entityId: string): 
     });
 };
 
-// Helper to fetch custom fields specifically for mapping if the other service is too heavy or different structure
-// However, reusing the existing CustomFieldsSettings data in the UI might be better to avoid extra calls if we can pass it down.
-// But the guide mentions: GET /common/custom-fields?instituteId=${id}
-// Let's implement it just in case.
+/**
+ * Fetch the institute's custom field catalog as a flat {id, name, type} list
+ * for use in the System Field ↔ Custom Field mapping dropdown.
+ *
+ * The backend endpoint (`GET /admin-core-service/common/custom-fields?instituteId=...`)
+ * returns `List<InstituteCustomFieldDTO>` — wrapper rows with a nested
+ * `custom_field` object (snake_case JSON). A single custom field can have
+ * multiple rows (DEFAULT + per-feature mappings), so we deduplicate by
+ * `custom_field.id` and flatten to `{id, name, type}` for the UI.
+ */
 export const fetchSimpleCustomFields = async (): Promise<CustomField[]> => {
     const instituteId = getInstituteId();
-    // Assuming this endpoint exists as per request, otherwise we might fallback to existing service
     const response = await authenticatedAxiosInstance.get(
         `${BASE_URL}/admin-core-service/common/custom-fields`,
         {
             params: { instituteId },
         }
     );
-    return response.data;
+
+    const raw = response.data;
+    if (!Array.isArray(raw)) {
+        console.warn('fetchSimpleCustomFields: Unexpected response format', raw);
+        return [];
+    }
+
+    const seen = new Set<string>();
+    const result: CustomField[] = [];
+
+    for (const row of raw) {
+        // The backend serializes InstituteCustomFieldDTO with @JsonNaming snake_case,
+        // so the nested field comes in as `custom_field`. Accept camelCase too just in case.
+        const cf = row?.custom_field ?? row?.customField ?? row;
+        const id = cf?.id;
+        const name = cf?.field_name ?? cf?.fieldName;
+        const type = cf?.field_type ?? cf?.fieldType;
+
+        if (!id || !name) continue;
+        if (seen.has(id)) continue;
+        seen.add(id);
+
+        result.push({ id, name, type });
+    }
+
+    return result;
 };

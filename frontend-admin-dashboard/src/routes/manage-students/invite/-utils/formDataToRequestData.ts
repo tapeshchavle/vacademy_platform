@@ -141,12 +141,27 @@ export const fetchBatchOptions = (data: InviteForm): string => {
     return JSON.stringify(batchOptionsJson);
 };
 
+/**
+ * Normalize a UI field type to the uppercase backend field_type string.
+ *
+ * Multi-input custom fields revamp (2026-04): the dialog now supports 11
+ * types (text, number, email, url, phone, date, textarea, checkbox, radio,
+ * dropdown, file). We forward the actual type instead of collapsing
+ * everything to TEXT/DROPDOWN so the backend stores the right `field_type`
+ * and the learner-facing form renders the correct input.
+ */
+const toBackendFieldType = (type?: string): string => {
+    const normalized = (type || 'text').toLowerCase();
+    if (normalized === 'textfield') return 'TEXT';
+    return normalized.toUpperCase();
+};
+
 export const fetchCustomFields = (data: InviteForm): CustomFieldType[] => {
     const customFields: CustomFieldType[] =
         data.custom_fields?.map((field) => ({
             id: field._id || crypto.randomUUID(),
             field_name: field.name,
-            field_type: field.type == 'dropdown' ? 'DROPDOWN' : 'TEXT',
+            field_type: toBackendFieldType(field.type),
             default_value: null,
             description: '',
             is_mandatory: field.isRequired,
