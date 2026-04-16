@@ -10,6 +10,8 @@ import { StudentSidebarContext } from '@/routes/manage-students/students-list/-c
 import { StudentTable } from '@/types/student-table-types';
 import { ArrowCounterClockwise } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import {
     getAllColumnsForTableQuestionWise,
     getAllColumnsForTableWidthQuestionWise,
@@ -408,7 +410,7 @@ const QuestionAssessmentStatus = ({
                                 clearSearch={clearSearch}
                             />
                             <ScheduleTestFilters
-                                label="Batches"
+                                label={getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}
                                 data={BatchesFilterData}
                                 selectedItems={selectedFilter['registration_source_id'] || []}
                                 onSelectionChange={(items) =>

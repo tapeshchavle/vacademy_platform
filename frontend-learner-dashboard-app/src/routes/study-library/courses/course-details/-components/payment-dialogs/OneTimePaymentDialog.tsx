@@ -30,6 +30,8 @@ import { EnrollmentPendingApprovalDialog } from "./EnrollmentPendingApprovalDial
 import { PaymentStatusPollingDialog } from "./PaymentStatusPollingDialog";
 import { PaymentSuccessDialog } from "./PaymentSuccessDialog";
 import { PaymentFailedDialog } from "./PaymentFailedDialog";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 // TypeScript declarations for Stripe
 declare global {
@@ -56,7 +58,7 @@ export const OneTimePaymentDialog: React.FC<OneTimePaymentDialogProps> = ({
   packageSessionId,
   instituteId,
   token,
-  courseTitle = "Course",
+  courseTitle = getTerminology(ContentTerms.Course, SystemTerms.Course),
   inviteCode = "default",
   onEnrollmentSuccess,
   onNavigateToSlides,

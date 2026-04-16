@@ -13,6 +13,8 @@ import { CourseStructureDetails } from "../../-components/CourseStructureDetails
 import { EnrollmentPaymentDialog } from "../../-components/EnrollmentPaymentDialog";
 import { getBackendCourseDuration } from "@/utils/courseTime";
 import { getCurrencySymbol } from "@/utils/currency";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { RoleTerms, SystemTerms } from "@/types/naming-settings";
 
 // Helper function to check if HTML content has actual visible text
 // Returns false for empty HTML like "<p></p>", "<p> </p>", or just whitespace
@@ -445,14 +447,14 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
           instructors:
             courseResponse.sessions?.[0]?.level_with_details?.[0]?.instructors?.map(
               (inst: any) => ({
-                name: inst.full_name || "Unknown Instructor",
+                name: inst.full_name || `Unknown ${getTerminology(RoleTerms.Teacher, SystemTerms.Teacher)}`,
                 email: inst.email || "No email provided",
               })
             ) || [
               {
                 name:
                   courseResponse.sessions?.[0]?.level_with_details?.[0]
-                    ?.instructors?.[0]?.full_name || "Unknown Instructor",
+                    ?.instructors?.[0]?.full_name || `Unknown ${getTerminology(RoleTerms.Teacher, SystemTerms.Teacher)}`,
                 email:
                   courseResponse.sessions?.[0]?.level_with_details?.[0]
                     ?.instructors?.[0]?.email || "No email provided",
@@ -732,7 +734,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                       {courseData.instructor && (
                         <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
                           <span className="text-xs font-medium text-gray-700">
-                            Instructor
+                            {getTerminology(RoleTerms.Teacher, SystemTerms.Teacher)}
                           </span>
                           <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                             {courseData.instructor}
@@ -929,7 +931,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                             </svg>
                           </div>
                           <h2 className="text-base font-bold text-gray-900">
-                            Instructors
+                            {getTerminologyPlural(RoleTerms.Teacher, SystemTerms.Teacher)}
                           </h2>
                         </div>
                         <div className="space-y-2">
@@ -945,7 +947,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                               </div>
                               <div>
                                 <h3 className="text-sm font-semibold text-gray-900">
-                                  {instructor.name || "Instructor"}
+                                  {instructor.name || getTerminology(RoleTerms.Teacher, SystemTerms.Teacher)}
                                 </h3>
                                 <p className="text-xs text-gray-600">
                                   {instructor.email || "No email provided"}
@@ -1102,7 +1104,7 @@ export const CourseDetailsPage: React.FC<CourseDetailsPageProps> = ({
                       {courseData.instructor && (
                         <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
                           <span className="text-xs font-medium text-gray-700">
-                            Instructor
+                            {getTerminology(RoleTerms.Teacher, SystemTerms.Teacher)}
                           </span>
                           <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                             {courseData.instructor}

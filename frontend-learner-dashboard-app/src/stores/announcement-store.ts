@@ -9,6 +9,8 @@ import type {
   MessageRepliesState,
 } from '@/types/announcement';
 import * as announcementApi from '@/services/announcementApi';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { RoleTerms, SystemTerms } from '@/types/naming-settings';
 
 interface AnnouncementStore {
   // System Alerts
@@ -567,7 +569,9 @@ export const useAnnouncementStore = create<AnnouncementStore>()(
 
           // Try to get user ID from token first, then fallback to student details
           let userId = null;
-          let userName = student?.full_name || 'Student';
+          let userName =
+            student?.full_name ||
+            getTerminology(RoleTerms.Learner, SystemTerms.Learner);
           
           if (accessToken?.value) {
             try {

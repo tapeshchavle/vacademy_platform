@@ -13,6 +13,8 @@ import { MyFilterOption } from '@/types/assessments/my-filter';
 import ScheduleTestTabList from './ScheduleTestTabList';
 import ScheduleTestFilterButtons from './ScheduleTestFilterButtons';
 import { useNavHeadingStore } from '@/stores/layout-container/useNavHeadingStore';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import ScheduleTestLists from './ScheduleTestLists';
 import {
     getAssessmentListWithFilters,
@@ -426,7 +428,7 @@ export const ScheduleTestMainComponent = () => {
                     <div className="my-6 flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <ScheduleTestFilters
-                                label="Batches"
+                                label={getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}
                                 data={BatchesFilterData}
                                 selectedItems={selectedQuestionPaperFilters['batch_ids'] || []}
                                 onSelectionChange={(items) =>
@@ -434,7 +436,7 @@ export const ScheduleTestMainComponent = () => {
                                 }
                             />
                             <ScheduleTestFilters
-                                label="Subjects"
+                                label={getTerminologyPlural(ContentTerms.Subjects, SystemTerms.Subjects)}
                                 data={SubjectFilterData}
                                 selectedItems={selectedQuestionPaperFilters['subjects_ids'] || []}
                                 onSelectionChange={(items) =>

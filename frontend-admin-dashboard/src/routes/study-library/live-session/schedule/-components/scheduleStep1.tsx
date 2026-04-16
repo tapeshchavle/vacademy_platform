@@ -2803,7 +2803,7 @@ export default function ScheduleStep1() {
                         className="flex flex-col gap-5"
                     >
                         <div className="z-[9] m-0 flex items-center justify-between border-b border-neutral-200 bg-white p-0 py-2 text-lg font-semibold">
-                            <h1>Live Session Information</h1>
+                            <h1>{getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession)} Information</h1>
                             <MyButton
                                 type="submit"
                                 scale="large"

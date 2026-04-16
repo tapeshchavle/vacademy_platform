@@ -31,6 +31,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
 import { computeAttendanceStats } from "@/services/attendance/useAttendanceStats";
+import { getTerminology, getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 export const Route = createFileRoute("/learning-centre/attendance/")({
   component: RouteComponent,
@@ -49,7 +51,7 @@ function RouteComponent() {
   // Extract batch options for dropdown
   const batchOptions = useMemo(() => {
     if (!batches || !Array.isArray(batches))
-      return [{ label: "All Batches", value: null }];
+      return [{ label: `All ${getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}`, value: null }];
 
     const extractedBatches = batches.flatMap((batchData: BatchData) =>
       batchData.batches.map((batch: BatchType) => ({
@@ -58,13 +60,13 @@ function RouteComponent() {
       }))
     );
 
-    return [{ label: "All Batches", value: null }, ...extractedBatches];
+    return [{ label: `All ${getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}`, value: null }, ...extractedBatches];
   }, [batches]);
 
   // Set the first batch as default when batches are loaded
   useEffect(() => {
     if (batchOptions.length > 1 && selectedBatchId === null) {
-      // Set the first actual batch (skip "All Batches" option)
+      // Set the first actual batch (skip `All ${getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}` option)
       const firstBatch = batchOptions[1];
       if (firstBatch && firstBatch.value) {
         setSelectedBatchId(firstBatch.value);
@@ -153,11 +155,11 @@ function RouteComponent() {
   };
 
   const selectedBatchLabel = useMemo(() => {
-    if (!selectedBatchId) return "All Batches";
+    if (!selectedBatchId) return `All ${getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}`;
     const selectedBatch = batchOptions.find(
       (option) => option.value === selectedBatchId
     );
-    return selectedBatch?.label || "All Batches";
+    return selectedBatch?.label || `All ${getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}`;
   }, [selectedBatchId, batchOptions]);
 
   const attendanceStats = useMemo(() => {
@@ -247,7 +249,7 @@ function RouteComponent() {
 
             {/* Batch */}
             <BatchDropdown
-              label="Batch"
+              label={getTerminology(ContentTerms.Batch, SystemTerms.Batch)}
               value={selectedBatchLabel}
               options={batchOptions}
               onSelect={(batchId) => setSelectedBatchId(batchId)}
@@ -532,7 +534,7 @@ function BatchDropdown({
         <PopoverTrigger asChild>
           <button
             className={`flex h-11 w-full items-center justify-between rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm ${
-              value !== "All Batches" ? "text-neutral-900" : "text-neutral-500"
+              value !== `All ${getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}` ? "text-neutral-900" : "text-neutral-500"
             } focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500`}
           >
             {value || label}

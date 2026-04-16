@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CalendarCheck,
@@ -80,7 +82,7 @@ export function InterviewAssessmentModule({
                 className="mx-auto text-muted-foreground/40 mb-3"
               />
               <p className="text-sm font-medium text-muted-foreground">
-                No sessions scheduled yet
+                No {getTerminologyPlural(ContentTerms.LiveSession, SystemTerms.LiveSession).toLowerCase()} scheduled yet
               </p>
               <p className="text-xs text-muted-foreground/60 mt-1">
                 Details will appear here once the admissions team schedules an

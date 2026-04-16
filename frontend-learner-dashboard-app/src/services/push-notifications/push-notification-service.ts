@@ -1,6 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications, Token, ActionPerformed, PushNotificationSchema } from '@capacitor/push-notifications';
 import { Preferences } from '@capacitor/preferences';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { RoleTerms, SystemTerms } from '@/types/naming-settings';
 
 export interface NotificationPayload {
   title: string;
@@ -392,7 +394,7 @@ class PushNotificationService {
         // Could update document title or show in UI
         const baseTitle = document.title && !document.title.toLowerCase().includes('vacademy')
           ? document.title
-          : 'Learner';
+          : getTerminology(RoleTerms.Learner, SystemTerms.Learner);
         document.title = count > 0 ? `(${count}) ${baseTitle}` : baseTitle;
       }
     } catch (error) {

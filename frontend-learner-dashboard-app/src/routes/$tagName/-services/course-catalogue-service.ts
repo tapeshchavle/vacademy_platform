@@ -1,6 +1,8 @@
 import axios from "axios";
 import { BASE_URL } from "@/constants/urls";
 import { CourseCatalogueData } from "../-types/course-catalogue-types";
+import { getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 // Create a public axios instance that doesn't require authentication
 const publicAxios = axios.create({
@@ -591,14 +593,14 @@ export class CourseCatalogueService {
         {
           id: "empty",
           route: "empty",
-          title: "No Courses Found",
+          title: `No ${getTerminologyPlural(ContentTerms.Course, SystemTerms.Course)} Found`,
           components: [
             {
               id: "empty-1",
               type: "banner",
               enabled: true,
               props: {
-                title: "No courses found for this tag",
+                title: `No ${getTerminologyPlural(ContentTerms.Course, SystemTerms.Course).toLowerCase()} found for this tag`,
                 media: { type: "image", url: "/api/placeholder/800/400" },
                 alignment: "center"
               }

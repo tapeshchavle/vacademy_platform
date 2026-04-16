@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useCatalogStore } from "../-store/catalogStore";
-import { ContentTerms, SystemTerms } from "@/types/naming-settings";
-import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, RoleTerms, SystemTerms } from "@/types/naming-settings";
+import { getTerminology, getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
 import { toTitleCase } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Filter, ChevronDown, ChevronUp } from "lucide-react";
@@ -125,7 +125,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   //   eslint-disable-next-line @typescript-eslint/no-explicit-any
   const levels = (instituteData?.levels || []).map((level: any) => ({
     id: level.id,
-    name: toTitleCase(level.level_name || "Unnamed Level"),
+    name: toTitleCase(level.level_name || `Unnamed ${getTerminology(ContentTerms.Level, SystemTerms.Level)}`),
   }));
 
   const tags = useMemo(() => {
@@ -147,7 +147,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   //   eslint-disable-next-line @typescript-eslint/no-explicit-any
   const instructors = (instructor || []).map((inst: any) => ({
     id: inst.id,
-    name: inst.full_name || inst.username || "Unnamed Instructor",
+    name: inst.full_name || inst.username || `Unnamed ${getTerminology(RoleTerms.Teacher, SystemTerms.Teacher)}`,
   }));
 
   return (
@@ -227,7 +227,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         />
 
         <FilterSection
-          title="Popular Tags"
+          title={getTerminologyPlural(ContentTerms.PopularTag, SystemTerms.PopularTag)}
           items={tags}
           selectedItems={selectedTags}
           handleChange={onTagChange}
@@ -235,7 +235,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         />
 
         <FilterSection
-          title="Authors"
+          title={getTerminologyPlural(RoleTerms.Teacher, SystemTerms.Teacher)}
           items={instructors}
           selectedItems={selectedInstructors}
           handleChange={onInstructorChange}

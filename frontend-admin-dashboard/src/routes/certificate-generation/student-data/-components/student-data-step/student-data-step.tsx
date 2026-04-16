@@ -35,7 +35,7 @@ const studentColumns: ColumnDef<CertificateStudentData>[] = [
     },
     {
         accessorKey: 'full_name',
-        header: 'Student Name',
+        header: `${getTerminology(RoleTerms.Learner, SystemTerms.Learner)} Name`,
         size: 200,
     },
     {

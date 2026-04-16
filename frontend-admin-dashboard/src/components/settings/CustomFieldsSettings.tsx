@@ -35,6 +35,8 @@ import {
 } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 // Shadcn UI Components
 import { Button } from '@/components/ui/button';
@@ -93,11 +95,15 @@ type SystemField = ServiceSystemField;
 // Campaign, Enquiry) is now controlled by the picker inside each feature's
 // own create/edit dialog and is persisted as institute_custom_fields rows
 // with the matching `type` and `type_id`.
-const visibilityLabels = [
-    { key: 'learnersList', label: "Learner's List", icon: Users },
-    { key: 'learnerEnrollment', label: "Learner's Enrollment", icon: Users },
-    { key: 'learnerProfile', label: 'Learner Profile', icon: User },
-];
+const getVisibilityLabels = () => {
+    const learnerLabel = getTerminology(RoleTerms.Learner, SystemTerms.Learner);
+    return [
+        { key: 'learnersList', label: `${learnerLabel}'s List`, icon: Users },
+        { key: 'learnerEnrollment', label: `${learnerLabel}'s Enrollment`, icon: Users },
+        { key: 'learnerProfile', label: `${learnerLabel} Profile`, icon: User },
+    ];
+};
+const visibilityLabels = getVisibilityLabels();
 
 // Sortable Item Components
 interface SortableItemProps {

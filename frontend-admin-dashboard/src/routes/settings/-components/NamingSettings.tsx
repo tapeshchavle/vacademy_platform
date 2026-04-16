@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Save, RotateCcw, Settings } from 'lucide-react';
 import { MyButton } from '@/components/design-system/button';
 import useLocalStorage from '@/hooks/use-local-storage';
+import { notifyNamingSettingsUpdated } from '@/hooks/useNamingSettingsVersion';
 import {
     createNamingSettings,
     updateNamingSettings,
@@ -82,7 +83,7 @@ export enum SystemTerms {
     AssessmentCreator = 'Assessment Creator',
     Evaluator = 'Evaluator',
     Learner = 'Learner',
-    PopularTag = 'Popular',
+    PopularTag = 'Popular Tag',
     AudienceList = 'Audience List',
     Invite = 'Invite',
     Inventory = 'Inventory',
@@ -262,6 +263,7 @@ export default function NamingSettings() {
 
             // Save to localStorage
             setNamingSettingsStorage(settings);
+            notifyNamingSettingsUpdated();
             setHasChanges(false);
             toast.success('Settings saved');
         } catch (error) {
