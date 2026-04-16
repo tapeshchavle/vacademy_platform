@@ -60,9 +60,7 @@ const queryClient = new QueryClient({
 
 // Lazy load push notification hook to avoid Firebase initialization blocking render
 const LazyNotificationInitializer = lazy(() =>
-  import("./components/lazy/NotificationInitializer").then(mod => ({
-    default: mod.NotificationInitializer
-  }))
+  import("./components/lazy/NotificationInitializer")
 );
 
 // Fallback wrapper for notifications
