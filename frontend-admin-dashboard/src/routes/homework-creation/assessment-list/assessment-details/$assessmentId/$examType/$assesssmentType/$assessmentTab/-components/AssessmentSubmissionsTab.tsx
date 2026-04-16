@@ -13,6 +13,8 @@ import {
 } from '../-utils/helper';
 import { Route } from '..';
 import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import { getInstituteId } from '@/constants/helper';
 import {
     getAdminParticipants,
@@ -978,7 +980,7 @@ const AssessmentSubmissionsTab = ({ type }: { type: string }) => {
                             clearSearch={clearSearch}
                         />
                         <ScheduleTestFilters
-                            label="Batches"
+                            label={getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}
                             data={BatchesFilterData}
                             selectedItems={selectedFilter['batches'] || []}
                             onSelectionChange={(items) => handleFilterChange('batches', items)}

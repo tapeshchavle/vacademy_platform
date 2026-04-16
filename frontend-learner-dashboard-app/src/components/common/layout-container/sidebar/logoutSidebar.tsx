@@ -6,7 +6,9 @@ import { SidebarItem } from "./sidebar-item";
 import {
   HamBurgerSidebarItemsData,
   filterHamburgerMenuItemsWithPermissions,
+  getTerminology,
 } from "./utils";
+import { RoleTerms, SystemTerms } from "@/types/naming-settings";
 import "./scrollbarStyle.css";
 import useStore from "./useSidebar";
 import { isNullOrEmptyOrUndefined } from "@/lib/utils";
@@ -189,7 +191,8 @@ export const LogoutSidebar = ({
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate leading-tight">
-                  {studentData.full_name || "Student"}
+                  {studentData.full_name ||
+                    getTerminology(RoleTerms.Learner, SystemTerms.Learner)}
                 </h3>
                 <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 truncate">
                   @{studentData.email || studentData.username}

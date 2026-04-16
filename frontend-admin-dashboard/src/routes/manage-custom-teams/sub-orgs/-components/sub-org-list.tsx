@@ -14,6 +14,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { OtherTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import { MyButton } from '@/components/design-system/button';
 import { Plus, Building2, Copy, Link2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -58,7 +60,7 @@ export function SubOrgList() {
                             <TableHead>Phone</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Seats</TableHead>
-                            <TableHead>Invite</TableHead>
+                            <TableHead>{getTerminology(OtherTerms.Invite, SystemTerms.Invite)}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

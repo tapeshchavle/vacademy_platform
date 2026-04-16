@@ -23,6 +23,8 @@ import {
 import { MyButton } from "@/components/design-system/button";
 import { EnrollmentSuccessDialog } from "./EnrollmentSuccessDialog";
 import { EnrollmentPendingDialog } from "./EnrollmentPendingDialog";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 interface FreePlanDialogProps {
   open: boolean;
@@ -41,7 +43,7 @@ export const FreePlanDialog: React.FC<FreePlanDialogProps> = ({
   packageSessionId,
   instituteId,
   token,
-  courseTitle = "Course",
+  courseTitle = getTerminology(ContentTerms.Course, SystemTerms.Course),
   inviteCode = "default",
   onEnrollmentSuccess,
 }) => {

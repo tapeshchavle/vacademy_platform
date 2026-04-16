@@ -12,6 +12,8 @@ import { CustomFieldSetupItem } from '@/routes/audience-manager/list/-services/g
 import { CounsellorNameCell } from './CounsellorNameCell';
 import { LeadScoreBadge } from '@/components/shared/lead-score-badge';
 import { DuplicateBadge } from '@/components/shared/duplicate-badge';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 // Helper function to generate key from name
 const generateKeyFromName = (name: string): string =>
@@ -130,7 +132,7 @@ export const generateDynamicColumns = (
     // === STUDENT DETAILS GROUP ===
     columns.push({
         accessorKey: 'studentName',
-        header: 'Student Name',
+        header: `${getTerminology(RoleTerms.Learner, SystemTerms.Learner)} Name`,
         size: 180,
         minSize: 150,
         maxSize: 250,

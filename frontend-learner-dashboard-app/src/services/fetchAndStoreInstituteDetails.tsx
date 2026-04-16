@@ -51,6 +51,8 @@ export interface NamingSettingsType {
   key: string;
   systemValue: string | null;
   customValue: string;
+  systemPluralValue?: string | null;
+  customPluralValue?: string;
 }
 
 export const fetchAndStoreInstituteDetails = async (

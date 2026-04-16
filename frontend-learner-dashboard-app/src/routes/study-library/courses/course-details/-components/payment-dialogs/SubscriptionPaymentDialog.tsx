@@ -28,6 +28,8 @@ import { EnrollmentPendingApprovalDialog } from "./EnrollmentPendingApprovalDial
 import { PaymentStatusPollingDialog } from "./PaymentStatusPollingDialog";
 import { PaymentSuccessDialog } from "./PaymentSuccessDialog";
 import { PaymentFailedDialog } from "./PaymentFailedDialog";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 // TypeScript declarations for Stripe
 declare global {
@@ -61,6 +63,11 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
     token,
     inviteCode,
   });
+
+  const courseTitleFallback = getTerminology(
+    ContentTerms.Course,
+    SystemTerms.Course
+  );
 
   const [step, setStep] = useState<"plans" | "email" | "payment">("plans");
   const [email, setEmail] = useState("");
@@ -378,7 +385,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
       // Call the enrollment API with payment
       console.log("SubscriptionPaymentDialog - Calling enrollment API", {
         packageSessionId,
-        courseTitle: enrollmentData?.name || "Course",
+        courseTitle: enrollmentData?.name || courseTitleFallback,
         userEmail: userProfileEmail,
         receiptEmail: sanitizedEmail,
         amount: selectedPlan.actual_price,
@@ -408,7 +415,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
         "SubscriptionPaymentDialog - Enrollment API call successful, starting payment status polling",
         {
           packageSessionId,
-          courseTitle: enrollmentData?.name || "Course",
+          courseTitle: enrollmentData?.name || courseTitleFallback,
         }
       );
 
@@ -454,7 +461,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
   const handlePaymentSuccess = (approvalRequired: boolean) => {
     console.log("SubscriptionPaymentDialog - Payment success received", {
       packageSessionId,
-      courseTitle: enrollmentData?.name || "Course",
+      courseTitle: enrollmentData?.name || courseTitleFallback,
       approvalRequired,
     });
     setShowPaymentStatusDialog(false);
@@ -477,7 +484,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
   const handlePaymentFailed = () => {
     console.log("SubscriptionPaymentDialog - Payment failed received", {
       packageSessionId,
-      courseTitle: enrollmentData?.name || "Course",
+      courseTitle: enrollmentData?.name || courseTitleFallback,
     });
     setShowPaymentStatusDialog(false);
     setShowPaymentFailedDialog(true);
@@ -486,7 +493,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
   const handlePaymentStatusClose = () => {
     console.log("SubscriptionPaymentDialog - Payment status dialog closed", {
       packageSessionId,
-      courseTitle: enrollmentData?.name || "Course",
+      courseTitle: enrollmentData?.name || courseTitleFallback,
     });
     setShowPaymentStatusDialog(false);
   };
@@ -494,7 +501,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
   const handlePaymentSuccessClose = () => {
     console.log("SubscriptionPaymentDialog - Payment success dialog closed", {
       packageSessionId,
-      courseTitle: enrollmentData?.name || "Course",
+      courseTitle: enrollmentData?.name || courseTitleFallback,
       approvalRequired,
     });
     setShowPaymentSuccessDialog(false);
@@ -504,7 +511,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
   const handlePaymentFailedClose = () => {
     console.log("SubscriptionPaymentDialog - Payment failed dialog closed", {
       packageSessionId,
-      courseTitle: enrollmentData?.name || "Course",
+      courseTitle: enrollmentData?.name || courseTitleFallback,
     });
     setShowPaymentFailedDialog(false);
   };
@@ -512,7 +519,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
   const handleTryAgain = () => {
     console.log("SubscriptionPaymentDialog - Try again clicked", {
       packageSessionId,
-      courseTitle: enrollmentData?.name || "Course",
+      courseTitle: enrollmentData?.name || courseTitleFallback,
     });
     setShowPaymentFailedDialog(false);
     // Reopen the main enrollment dialog
@@ -1101,7 +1108,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
       <EnrollmentSuccessDialog
         open={showSuccessDialog}
         onOpenChange={setShowSuccessDialog}
-        courseTitle={enrollmentData?.name || "Course"}
+        courseTitle={enrollmentData?.name || courseTitleFallback}
         onExploreCourse={handleExploreCourse}
       />
 
@@ -1109,14 +1116,14 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
       <EnrollmentPendingDialog
         open={showPendingDialog}
         onOpenChange={setShowPendingDialog}
-        courseTitle={enrollmentData?.name || "Course"}
+        courseTitle={enrollmentData?.name || courseTitleFallback}
       />
 
       {/* Pending Approval Dialog */}
       <EnrollmentPendingApprovalDialog
         open={showPendingApprovalDialog}
         onOpenChange={setShowPendingApprovalDialog}
-        courseTitle={enrollmentData?.name || "Course"}
+        courseTitle={enrollmentData?.name || courseTitleFallback}
         onClose={() => setShowPendingApprovalDialog(false)}
       />
 
@@ -1125,7 +1132,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
         open={showPaymentStatusDialog}
         onOpenChange={setShowPaymentStatusDialog}
         packageSessionId={packageSessionId}
-        courseTitle={enrollmentData?.name || "Course"}
+        courseTitle={enrollmentData?.name || courseTitleFallback}
         onPaymentSuccess={handlePaymentSuccess}
         onPaymentFailed={handlePaymentFailed}
         onClose={handlePaymentStatusClose}
@@ -1135,7 +1142,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
       <PaymentSuccessDialog
         open={showPaymentSuccessDialog}
         onOpenChange={setShowPaymentSuccessDialog}
-        courseTitle={enrollmentData?.name || "Course"}
+        courseTitle={enrollmentData?.name || courseTitleFallback}
         approvalRequired={approvalRequired}
         onExploreCourse={onNavigateToSlides}
         onClose={handlePaymentSuccessClose}
@@ -1145,7 +1152,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
       <PaymentFailedDialog
         open={showPaymentFailedDialog}
         onOpenChange={setShowPaymentFailedDialog}
-        courseTitle={enrollmentData?.name || "Course"}
+        courseTitle={enrollmentData?.name || courseTitleFallback}
         onTryAgain={handleTryAgain}
         onClose={handlePaymentFailedClose}
       />

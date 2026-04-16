@@ -10,6 +10,8 @@ import { Filter, ChevronDown, ChevronUp, Search, SortAsc, ShoppingCart, Plus, Mi
 import { toTitleCase } from "@/lib/utils";
 import { useCartStore, CartItem } from "../../-stores/cart-store";
 import { toast } from "sonner";
+import { getTerminology, getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 // EnrollmentPaymentDialog import removed - not used in catalog
 
 type PriceRangeState = { min?: number; max?: number } | null;
@@ -911,7 +913,7 @@ export const CourseCatalogComponent: React.FC<CourseCatalogComponentProps> = ({
 
                     {shouldShowLevelFilter && (
                       <FilterSection
-                        title={filtersConfig?.find((filter) => filter.id === "level")?.label ?? "Level"}
+                        title={filtersConfig?.find((filter) => filter.id === "level")?.label ?? getTerminology(ContentTerms.Level, SystemTerms.Level)}
                         items={levels}
                         selectedItems={selectedLevels}
                         handleChange={(id) => toggleItem(id, selectedLevels, setSelectedLevels)}
@@ -921,7 +923,7 @@ export const CourseCatalogComponent: React.FC<CourseCatalogComponentProps> = ({
 
                     {shouldShowTagsFilter && (
                       <FilterSection
-                        title={filtersConfig?.find((filter) => filter.id === "tags")?.label ?? "Popular Tags"}
+                        title={filtersConfig?.find((filter) => filter.id === "tags")?.label ?? getTerminologyPlural(ContentTerms.PopularTag, SystemTerms.PopularTag)}
                         items={tags}
                         selectedItems={selectedTags}
                         handleChange={(id) => toggleItem(id, selectedTags, setSelectedTags)}
