@@ -80,13 +80,26 @@ if (import.meta.env.VITE_ENABLE_SENTRY === "true") {
           branding?.instituteId ?? storeDetails?.id ?? null;
         const instituteName =
           branding?.instituteName ?? storeDetails?.institute_name ?? null;
-        if (instituteId || instituteName) {
-          event.tags = {
-            ...(event.tags ?? {}),
-            "institute.id": instituteId ?? "unknown",
-            "institute.name": instituteName ?? "unknown",
-          };
-        }
+
+        // Domain context
+        const domain = typeof window !== "undefined" ? window.location.hostname : "unknown";
+        const fullUrl = typeof window !== "undefined" ? window.location.href : "unknown";
+
+        event.tags = {
+          ...(event.tags ?? {}),
+          "institute.id": instituteId ?? "unknown",
+          "institute.name": instituteName ?? "unknown",
+          "domain": domain,
+          "app": "learner-dashboard",
+        };
+
+        event.contexts = {
+          ...(event.contexts ?? {}),
+          navigation: {
+            url: fullUrl,
+            domain,
+          },
+        };
 
         const username =
           tokenData?.username ?? tokenData?.email ?? "unknown";
@@ -154,9 +167,7 @@ const queryClient = new QueryClient({
 
 // Lazy load push notification hook to avoid Firebase initialization blocking render
 const LazyNotificationInitializer = lazy(() =>
-  import("./components/lazy/NotificationInitializer").then(mod => ({
-    default: mod.NotificationInitializer
-  }))
+  import("./components/lazy/NotificationInitializer")
 );
 
 // Fallback wrapper for notifications
