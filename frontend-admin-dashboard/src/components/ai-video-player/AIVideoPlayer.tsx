@@ -2,8 +2,10 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Maximize2, Minimize2, Subtitles } from 'lucide-react';
 import '@/components/ai-course-builder/components/styles/AIVideoComponents.css';
 import { useCaptions } from './hooks/useCaptions';
+import { useSoundScheduler, collectCuesFromEntries } from './hooks/useSoundScheduler';
 import { CaptionDisplay, CaptionSettingsPopover } from './components';
 import { processHtmlContent } from './html-processor';
+import type { SoundCue } from './types';
 
 /**
  * Frame interface matching the time_based_frame.json structure
@@ -18,6 +20,8 @@ export interface Frame {
     htmlStartY?: number;
     htmlEndX?: number;
     htmlEndY?: number;
+    /** Sound Planner cues — scheduled live via useSoundScheduler. */
+    sound_cues?: SoundCue[];
 }
 
 /**
@@ -169,6 +173,16 @@ export const AIVideoPlayer: React.FC<AIVideoPlayerProps> = ({
         wordsUrl,
         currentTime,
         audioStartAt: timelineMeta.audio_start_at,
+    });
+
+    // Sound Planner cues — per-shot transition/chime/impact sound effects.
+    // `currentTime` is already in timeline-global seconds (includes intro
+    // offset), so it's the right clock for the scheduler.
+    const soundCues = useMemo(() => collectCuesFromEntries(frames), [frames]);
+    const { resetPlayed: resetSoundCues } = useSoundScheduler({
+        cues: soundCues,
+        masterClockSec: currentTime,
+        isPlaying,
     });
 
     // Load timeline data
@@ -411,6 +425,8 @@ export const AIVideoPlayer: React.FC<AIVideoPlayerProps> = ({
         audioStartedRef.current = false;
         setCurrentTime(0);
         setIsPlaying(false);
+        // Allow sound cues to fire again from the beginning
+        resetSoundCues();
     };
 
     const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {

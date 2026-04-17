@@ -97,6 +97,8 @@ class VideoGenerationService:
         quality_tier: str = "ultra",
         reference_files: Optional[list] = None,
         orientation: str = "landscape",
+        visual_style: str = "standard",
+        sound_effects_enabled: bool = True,
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         Generate video up to a specific stage with SSE progress updates.
@@ -152,6 +154,12 @@ class VideoGenerationService:
                 gen_metadata["user_id"] = user_id
             if orientation and orientation != "landscape":
                 gen_metadata["orientation"] = orientation
+            # Persist visual_style mode so history, resume, and frame regeneration
+            # can look up which pipeline mode the video was originally generated with.
+            if visual_style and visual_style != "standard":
+                gen_metadata["visual_style"] = visual_style
+            if quality_tier and quality_tier != "ultra":
+                gen_metadata["quality_tier"] = quality_tier
 
             video_record = self.repository.create(
                 video_id=video_id,
@@ -171,9 +179,10 @@ class VideoGenerationService:
         
         # Determine starting stage
         if resume:
-            start_stage_idx = self.STAGES.index(video_record.current_stage)
+            # Start from the stage AFTER the current completed one
+            start_stage_idx = self.STAGES.index(video_record.current_stage) + 1
             # If already at or past target, just return current state
-            if start_stage_idx >= self.STAGES.index(target_stage):
+            if start_stage_idx > self.STAGES.index(target_stage):
                 yield {
                     "type": "info",
                     "message": f"Video already at stage {video_record.current_stage}",
@@ -218,6 +227,8 @@ class VideoGenerationService:
                     quality_tier=quality_tier,
                     reference_files=reference_files,
                     orientation=orientation,
+                    visual_style=visual_style,
+                    sound_effects_enabled=sound_effects_enabled,
                 ):
                     # If we get an error event, refund credits and stop
                     if event.get("type") == "error":
@@ -296,6 +307,8 @@ class VideoGenerationService:
         quality_tier: str = "ultra",
         reference_files: Optional[list] = None,
         orientation: str = "landscape",
+        visual_style: str = "standard",
+        sound_effects_enabled: bool = True,
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         Run the video generation pipeline stages with real-time DB updates.
@@ -657,6 +670,8 @@ class VideoGenerationService:
                     reference_context=reference_context.to_dict() if reference_context else None,
                     video_width=_vid_width,
                     video_height=_vid_height,
+                    visual_style=visual_style,
+                    sound_effects_enabled=sound_effects_enabled,
                 )
                 
                 with ThreadPoolExecutor() as executor:
@@ -1776,20 +1791,21 @@ class VideoGenerationService:
             self._save_timeline(data, file_path, bucket, key)
             return {"status": "success", "video_id": video_id, "track_id": track_id, "message": "Audio track deleted."}
 
-    def get_institute_generations(self, institute_id: str, limit: int = 10) -> list[Dict[str, Any]]:
+    def get_institute_generations(self, institute_id: str, limit: int = 10, offset: int = 0) -> list[Dict[str, Any]]:
         """
         Get the last N content generations for an institute.
-        
+
         Args:
             institute_id: Institute identifier
             limit: Maximum number of records to return
-            
+            offset: Number of records to skip (for pagination)
+
         Returns:
             List of video generation records as dictionaries
         """
         records = self.repository.get_history_by_institute(
-            institute_id=institute_id, 
+            institute_id=institute_id,
             limit=limit,
-            offset=0
+            offset=offset
         )
         return [record.to_dict() for record in records]

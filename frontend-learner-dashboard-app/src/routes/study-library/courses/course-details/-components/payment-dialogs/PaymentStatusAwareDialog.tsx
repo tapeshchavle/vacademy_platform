@@ -8,6 +8,8 @@ import { OneTimePaymentDialog } from "./OneTimePaymentDialog";
 import { FreePlanDialog } from "./FreePlanDialog";
 import { FreeEnrollmentConfirmationDialog } from "./FreeEnrollmentConfirmationDialog";
 import { EnrollmentPendingApprovalDialog } from "./EnrollmentPendingApprovalDialog";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 interface PaymentStatusAwareDialogProps {
   open: boolean;
@@ -30,7 +32,7 @@ export const PaymentStatusAwareDialog: React.FC<PaymentStatusAwareDialogProps> =
   packageSessionId,
   instituteId,
   token,
-  courseTitle = "Course",
+  courseTitle = getTerminology(ContentTerms.Course, SystemTerms.Course),
   inviteCode = "default",
   onEnrollmentSuccess,
 }) => {

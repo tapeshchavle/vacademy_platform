@@ -4,6 +4,8 @@ import { X } from "lucide-react";
 import { Preferences } from "@capacitor/preferences";
 import { useEffect, useState } from "react";
 import type { ListPlanningLogsRequest, IntervalType } from "../-types/types";
+import { getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 interface PlanningFiltersProps {
   filters: ListPlanningLogsRequest;
@@ -128,7 +130,7 @@ export default function PlanningFilters({
       {/* Batch Filter */}
       {localBatches && localBatches.length > 0 && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">{"Batches"}</label>
+          <label className="text-sm font-medium">{getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}</label>
           <div className="flex flex-wrap gap-2">
             {localBatches.map((batch) => {
               const batchId = batch.id;

@@ -58,4 +58,10 @@ public class UserLeadProfileDTO {
 
     @JsonProperty("created_at")
     private Timestamp createdAt;
+
+    @JsonProperty("assigned_counselor_id")
+    private String assignedCounselorId;
+
+    @JsonProperty("assigned_counselor_name")
+    private String assignedCounselorName;
 }

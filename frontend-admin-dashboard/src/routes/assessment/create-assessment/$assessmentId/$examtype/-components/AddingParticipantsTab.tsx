@@ -17,6 +17,9 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn, convertCapitalToTitleCase } from '@/lib/utils';
+import { convertCapitalToTitleCase } from '@/lib/utils';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 type TestAccessFormType = z.infer<typeof testAccessSchema>;
 
@@ -191,11 +194,9 @@ const Step3BatchList = ({
     }, [checkedState, setValue, selectedSection]);
 
     return (
-        <div className="flex flex-col gap-5">
-            <div className="flex items-center gap-3">
-                <label className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                    Session
-                </label>
+        <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+                <span>{getTerminology(ContentTerms.Session, SystemTerms.Session)}</span>
                 <Select value={selectedSection} onValueChange={setSelectedSection}>
                     <SelectTrigger className="h-9 w-[200px] rounded-lg border-neutral-200 bg-white text-sm font-medium shadow-sm">
                         <SelectValue placeholder="Select Section" />

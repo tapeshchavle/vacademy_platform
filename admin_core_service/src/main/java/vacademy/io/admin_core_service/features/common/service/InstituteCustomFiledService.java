@@ -215,32 +215,40 @@ public class InstituteCustomFiledService {
             addOrUpdateCustomField(toUpsert);
         }
 
-        // 3. Soft-delete mappings that were ACTIVE before step 2 but are NOT
-        //    in the incoming set. We only consider rows that existed *before*
-        //    the upsert — anything created by step 2 (new ad-hoc fields) is
-        //    safe because it wasn't in the pre-upsert snapshot.
-        //
-        //    For the incoming set we build the id list from the DTOs. New
-        //    fields had an empty custom_field.id in the DTO, so after the
-        //    upsert they now have a real id in the DB but not in the DTO.
-        //    That's fine — they weren't in existingFieldIdsBefore either,
-        //    so they won't be considered for deletion.
+        // 3. Soft-delete pre-existing mappings that the admin removed.
+        //    Compare the pre-upsert snapshot against the incoming DTOs.
+        //    For new ad-hoc fields (empty custom_field.id in DTO), they
+        //    won't be in the pre-upsert snapshot so they're safe.
         if (existingBeforeUpsert.isEmpty()) {
             return;
         }
 
-        Set<String> incomingFieldIds = toUpsert.stream()
-                .map(dto -> dto.getCustomField() != null ? dto.getCustomField().getId() : dto.getFieldId())
-                .filter(StringUtils::hasText)
-                .collect(Collectors.toSet());
+        // Build the "wanted" set from incoming DTOs. For DTOs with a
+        // custom_field.id, use that. For DTOs without one (new fields),
+        // look up the generated key to find the master row that was just
+        // created by addOrUpdateCustomField.
+        Set<String> wantedFieldIds = new HashSet<>();
+        for (InstituteCustomFieldDTO dto : toUpsert) {
+            String cfId = dto.getCustomField() != null ? dto.getCustomField().getId() : null;
+            if (StringUtils.hasText(cfId)) {
+                wantedFieldIds.add(cfId);
+            } else if (dto.getCustomField() != null && StringUtils.hasText(dto.getCustomField().getFieldName())) {
+                // New field — find the master row that was just created by key
+                String generatedKey = keyGenerator.generateFieldKey(dto.getCustomField().getFieldName(), instituteId);
+                Optional<CustomFields> created = customFieldRepository.findTopByFieldKeyAndStatusOrderByCreatedAtDesc(
+                        generatedKey, StatusEnum.ACTIVE.name());
+                created.ifPresent(cf -> wantedFieldIds.add(cf.getId()));
+            }
+            if (StringUtils.hasText(dto.getFieldId())) {
+                wantedFieldIds.add(dto.getFieldId());
+            }
+        }
 
         List<InstituteCustomField> toDelete = existingBeforeUpsert.stream()
-                .filter(row -> !incomingFieldIds.contains(row.getCustomFieldId()))
+                .filter(row -> !wantedFieldIds.contains(row.getCustomFieldId()))
                 .collect(Collectors.toList());
 
         if (!toDelete.isEmpty()) {
-            // Re-fetch the rows to get their latest state (step 2 may have
-            // reactivated some of them).
             List<InstituteCustomField> freshRows = instituteCustomFieldRepository
                     .findAllById(toDelete.stream().map(InstituteCustomField::getId).collect(Collectors.toList()));
             freshRows.forEach(row -> row.setStatus(StatusEnum.DELETED.name()));
@@ -815,6 +823,8 @@ public class InstituteCustomFiledService {
                                 .isDefault(false)
                                 .enrollInviteCount(0)
                                 .audienceCount(0)
+                                .sessionCount(0)
+                                .assessmentCount(0)
                                 .build();
                     });
 
@@ -824,6 +834,10 @@ public class InstituteCustomFiledService {
                 usageDTO.setEnrollInviteCount(usageDTO.getEnrollInviteCount() + count);
             } else if (CustomFieldTypeEnum.AUDIENCE_FORM.name().equals(type)) {
                 usageDTO.setAudienceCount(usageDTO.getAudienceCount() + count);
+            } else if (CustomFieldTypeEnum.SESSION.name().equals(type)) {
+                usageDTO.setSessionCount(usageDTO.getSessionCount() + count);
+            } else if (CustomFieldTypeEnum.ASSESSMENT.name().equals(type)) {
+                usageDTO.setAssessmentCount(usageDTO.getAssessmentCount() + count);
             }
         }
 

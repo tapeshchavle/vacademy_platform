@@ -9,6 +9,8 @@ import { TypeCell } from '../-components/doubt-table/type-cell';
 import { AssigneeCell } from '../-components/doubt-table/assignee-cell';
 import { ActionsCell } from '../-components/doubt-table/actions-cell';
 import { NavigateCell } from '../-components/doubt-table/navigate-cell';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 export const useDoubtTableColumns = () => {
     const { refetch } = useDoubtTable();
@@ -42,12 +44,12 @@ export const useDoubtTableColumns = () => {
         },
         {
             accessorKey: 'learner',
-            header: 'Learner',
+            header: getTerminology(RoleTerms.Learner, SystemTerms.Learner),
             cell: ({ row }) => <p>{userDetailsRecord[row.original.user_id]?.name}</p>,
         },
         {
             accessorKey: 'batch',
-            header: 'Batch',
+            header: getTerminology(ContentTerms.Batch, SystemTerms.Batch),
             cell: ({ row }) => <BatchCell batch_id={row.original.batch_id} />,
         },
         {

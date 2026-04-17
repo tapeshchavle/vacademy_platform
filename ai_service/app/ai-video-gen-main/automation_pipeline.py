@@ -299,9 +299,13 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "shot_diversity_enforcement": True,
         "segment_context": True,
         "use_director": True,
-        "director_max_tokens": 8000,
+        "director_max_tokens": 20000,
+        "shot_pack_enabled": True,
         "per_shot_max_tokens": 16000,
         "crossfade_duration": 0.35,
+        "sound_enabled": True,
+        "sound_max_cues_per_shot": 1,
+        "sound_max_cues_per_video": 10,
     },
     "ultra": {
         "script_temperature": 0.6,
@@ -314,9 +318,15 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "shot_diversity_enforcement": True,
         "segment_context": True,
         "use_director": True,
-        "director_max_tokens": 12000,
+        "director_max_tokens": 32000,
+        "director_emphasis_map": True,
+        "shot_pack_enabled": True,
+        "skill_library_enabled": True,
         "per_shot_max_tokens": 24000,
         "crossfade_duration": 0.35,
+        "sound_enabled": True,
+        "sound_max_cues_per_shot": 2,
+        "sound_max_cues_per_video": 20,
     },
     "super_ultra": {
         "script_temperature": 0.6,
@@ -329,13 +339,24 @@ QUALITY_TIERS: dict[str, dict[str, Any]] = {
         "shot_diversity_enforcement": True,
         "segment_context": True,
         "use_director": True,
-        "director_max_tokens": 14000,
+        "director_max_tokens": 40000,
+        "director_emphasis_map": True,
+        "director_two_pass": True,
+        "director_few_shot": True,
+        "director_shot_density": True,
+        "shot_pack_enabled": True,
+        "shot_animation_validator": True,
+        "stock_video_ranking": True,
+        "skill_library_enabled": True,
         "per_shot_max_tokens": 32000,
         "kinetic_text_shots": True,
         "crossfade_duration": 0.35,
         "motion_density_enforcement": True,
         "director_motion_bias": True,
         "min_animated_elements": 6,
+        "sound_enabled": True,
+        "sound_max_cues_per_shot": 3,
+        "sound_max_cues_per_video": 40,
     },
 }
 
@@ -562,19 +583,22 @@ class OpenRouterClient:
         model: Optional[str] = None,
         temperature: float = 0.6,
         max_tokens: int = 2000,
+        response_format: Optional[Dict[str, Any]] = None,
     ) -> Tuple[str, Dict[str, Any]]:
         # If using free models, try them in order with fallback
         models_to_try = self.model_chain if model is None and self.default_model in self.FREE_MODELS else [model or self.default_model]
-        
+
         last_error = None
         for model_to_use in models_to_try:
             try:
-                payload = {
+                payload: Dict[str, Any] = {
                     "model": model_to_use,
                     "messages": list(messages),
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                 }
+                if response_format is not None:
+                    payload["response_format"] = response_format
                 request = urllib.request.Request(
                     self.base_url,
                     data=json.dumps(payload).encode("utf-8"),
@@ -1127,11 +1151,23 @@ class VideoGenerationPipeline:
         reference_context: Optional[Dict[str, Any]] = None,
         video_width: int = 1920,
         video_height: int = 1080,
+        visual_style: str = "standard",  # deprecated: Director now picks styles per-shot
+        sound_effects_enabled: bool = True,
     ) -> Dict[str, Any]:
         # Store video dimensions (landscape 1920x1080 or portrait 1080x1920)
         self.video_width = video_width
         self.video_height = video_height
         self.aspect_label = "9:16 portrait" if video_width < video_height else "16:9 landscape"
+        # visual_style is accepted for API back-compat but no longer gates behavior —
+        # the Director now decides theme / background / animation per shot.
+        del visual_style
+        # Sound-effects kill switch. When False, the Sound Planner is bypassed
+        # regardless of tier config. Stored on the instance so _generate_html_per_shot
+        # can read it alongside self._tier_config.
+        self._sound_effects_enabled = bool(sound_effects_enabled)
+        # Dedup set for LLM-ranked stock video selection (super_ultra only).
+        # Tracks Pexels video IDs already used in this run so shots don't reuse clips.
+        self._used_pexels_video_ids: set = set()
         # Store max_segments for use in concept-aligned segmentation
         self._max_segments = max_segments
 
@@ -1323,6 +1359,8 @@ class VideoGenerationPipeline:
         style_guide = None  # Will be set if do_html; used later to store palette in timeline meta
         if do_html:
             print("🎨 Designing Visual Style Guide ...")
+            # Stash script text for the Sound Planner's topic-aware palette.
+            self._current_script_text = str(script_plan.get("script_text", "") or "")
             style_guide = self._generate_style_guide(script_plan["script_text"], run_dir, background_type=background_type, style_config=self._current_style_config)
             
             # CHECK FOR INTERACTIVE CONTENT TYPES
@@ -1347,9 +1385,13 @@ class VideoGenerationPipeline:
                 if subject_domain not in TOPIC_SHOT_PROFILES:
                     subject_domain = "general"
                 self._current_subject_domain = subject_domain
-                self._current_visual_style = plan_data.get("visual_style", "realistic cinematic photograph")
+                # `_current_image_style` is the LLM-picked IMAGE STYLE used as a prefix
+                # for AI image generation prompts ("realistic cinematic photograph",
+                # "flat vector illustration", etc.). Shot style (cream infographic vs
+                # dark stage vs product hero) is now chosen per-shot by the Director.
+                self._current_image_style = plan_data.get("visual_style", "realistic cinematic photograph")
                 print(f"📘 Subject domain: {subject_domain} ({TOPIC_SHOT_PROFILES[subject_domain]['description']})")
-                print(f"🎨 Visual style: {self._current_visual_style}")
+                print(f"🎨 Image style: {self._current_image_style}")
                 
                 print("🧠 Building concept-aligned segments ...")
                 # Use beat_outline for concept-aligned segmentation if available
@@ -1463,10 +1505,11 @@ class VideoGenerationPipeline:
                             prompt_e = m.group(3)
                             if _SVG_KW_RE_PIPE.search(prompt_e):
                                 continue
-                            visual_style_e = getattr(
-                                self, '_current_visual_style', 'realistic cinematic photograph')
-                            if visual_style_e.lower() not in prompt_e.lower():
-                                prompt_e = f"{visual_style_e}, {prompt_e}"
+                            # Use IMAGE STYLE (LLM-picked), not the pipeline visual mode
+                            image_style_e = getattr(
+                                self, '_current_image_style', 'realistic cinematic photograph')
+                            if image_style_e.lower() not in prompt_e.lower():
+                                prompt_e = f"{image_style_e}, {prompt_e}"
 
                             img_source_e = "generate"  # default for backwards compat
                             source_match_e = re.search(r'data-img-source=["\'](\w+)["\']', full_tag)
@@ -3186,6 +3229,323 @@ class VideoGenerationPipeline:
     # Director Stage — produces shot-by-shot plan (premium/ultra tiers)
     # ------------------------------------------------------------------
 
+    def _normalize_director_plan(
+        self,
+        parsed: Any,
+        audio_duration: float,
+    ) -> Dict[str, Any]:
+        """Coerce a variety of LLM response shapes into the canonical
+        `{"shots": [...], "continuity_notes": "..."}` envelope.
+
+        Handles the following common LLM failure modes without losing data:
+
+        1. Already correct → `{"shots": [...], ...}` — pass through unchanged
+        2. Bare list → `[{shot}, {shot}]` — wrap in `{"shots": <list>}`
+        3. Flat single shot → `{"shot_index": 0, "shot_type": "VIDEO_HERO", ...}`
+           (LLM emitted a shot object directly, dropping the envelope) — wrap
+           in `{"shots": [<parsed>]}` and extend `end_time` to `audio_duration`
+           if it falls short so the shot covers the full video.
+        4. Wrong envelope key → `{"shot": {...}}` / `{"plan": [...]}` /
+           `{"shots_plan": [...]}` — unwrap and re-wrap with the correct key.
+
+        If the shape is unrecognizable, returns `{"shots": []}` so the caller
+        can trigger a corrective retry.
+        """
+        # Case 1: already correct
+        if isinstance(parsed, dict) and isinstance(parsed.get("shots"), list):
+            return parsed
+
+        # Case 2: bare list of shots
+        if isinstance(parsed, list):
+            if parsed and isinstance(parsed[0], dict) and "shot_type" in parsed[0]:
+                print("   🔧 Salvage: wrapping bare list of shots in envelope")
+                return {"shots": parsed, "continuity_notes": ""}
+            return {"shots": []}
+
+        if not isinstance(parsed, dict):
+            return {"shots": []}
+
+        # Case 4a: wrong envelope key pointing at a list
+        for alt_key in ("shot_list", "shots_plan", "plan", "shot_plan", "planned_shots"):
+            if isinstance(parsed.get(alt_key), list):
+                print(f"   🔧 Salvage: re-wrapping under '{alt_key}' → 'shots'")
+                salvaged = {
+                    "shots": parsed[alt_key],
+                    "continuity_notes": parsed.get("continuity_notes", ""),
+                }
+                for meta_key in ("shot_density", "pacing_rationale", "overall_arc"):
+                    if meta_key in parsed:
+                        salvaged[meta_key] = parsed[meta_key]
+                return salvaged
+
+        # Case 4b: wrong envelope key pointing at a single shot dict
+        for alt_key in ("shot", "single_shot"):
+            inner = parsed.get(alt_key)
+            if isinstance(inner, dict) and "shot_type" in inner:
+                print(f"   🔧 Salvage: wrapping single shot under '{alt_key}'")
+                inner.setdefault("start_time", 0.0)
+                inner.setdefault("end_time", audio_duration)
+                return {"shots": [inner], "continuity_notes": parsed.get("continuity_notes", "")}
+
+        # Case 3: flat single shot (has shot-level keys at top level)
+        shot_level_markers = {"shot_type", "shot_index", "narration_excerpt", "animation_strategy"}
+        if shot_level_markers & set(parsed.keys()):
+            # For videos longer than ~15s, a single-shot response is almost
+            # certainly a broken LLM output (not a legitimate one-shot plan).
+            # Accepting and stretching it produces a static video. Force a
+            # corrective retry instead.
+            end = float(parsed.get("end_time", 0.0) or 0.0)
+            shot_duration_ok = end >= max(10.0, audio_duration * 0.6)
+            if audio_duration > 15.0 and not shot_duration_ok:
+                print(
+                    f"   ⚠️ Single-shot response with end_time={end:.2f}s for "
+                    f"{audio_duration:.1f}s audio — rejecting (will trigger retry)"
+                )
+                return {"shots": []}
+            print("   🔧 Salvage: top-level object looks like a single shot — wrapping in envelope")
+            if audio_duration > 0 and end < audio_duration - 0.5:
+                print(f"       extending end_time {end:.2f}s → {audio_duration:.2f}s to cover full audio")
+                parsed["end_time"] = audio_duration
+            parsed.setdefault("shot_index", 0)
+            parsed.setdefault("beat_index", 0)
+            parsed.setdefault("start_time", 0.0)
+            return {"shots": [parsed], "continuity_notes": ""}
+
+        # Unrecognizable shape
+        return {"shots": []}
+
+    def _build_shot_pack(
+        self,
+        style_guide: Dict[str, Any],
+        width: int,
+        height: int,
+    ) -> Dict[str, Any]:
+        """Assemble a shared token pack that every shot prompt gets injected with.
+
+        Eliminates cross-shot drift on colors, typography, spacing, and easing by
+        handing the shot LLM a single source of truth instead of letting each
+        shot re-derive layout decisions locally. Computed once per run.
+        """
+        palette = style_guide.get("palette", {}) or {}
+        is_portrait = height > width
+        # Font scale — portrait pushes display type larger relative to viewport
+        # because reels hold attention on a single text block, not a layout grid.
+        if is_portrait:
+            font_scale = {
+                "display": "9rem",
+                "h1": "5.5rem",
+                "h2": "3.25rem",
+                "body": "1.9rem",
+                "caption": "1.35rem",
+                "micro": "1.05rem",
+            }
+        else:
+            font_scale = {
+                "display": "8rem",
+                "h1": "4.5rem",
+                "h2": "2.75rem",
+                "body": "1.75rem",
+                "caption": "1.2rem",
+                "micro": "0.95rem",
+            }
+        safe_area = "4%" if is_portrait else "6%"
+        return {
+            "color_tokens": {
+                "primary": "var(--brand-primary)",
+                "accent": "var(--brand-accent)",
+                "text": "var(--brand-text)",
+                "text_secondary": "var(--brand-text-secondary)",
+                "bg": palette.get("background", "var(--brand-bg)"),
+                "svg_stroke": "var(--brand-svg-stroke)",
+                "svg_fill": "var(--brand-svg-fill)",
+                "annotation": "var(--brand-annotation)",
+            },
+            "font_family": {
+                "display": "'Bebas Neue', 'Montserrat', sans-serif",
+                "heading": style_guide.get("fonts", {}).get("primary", "Montserrat"),
+                "body": style_guide.get("fonts", {}).get("secondary", "Inter"),
+                "mono": "'Fira Code', monospace",
+            },
+            "font_scale": font_scale,
+            "spacing": {
+                "xs": "8px",
+                "sm": "16px",
+                "md": "24px",
+                "lg": "40px",
+                "xl": "64px",
+                "2xl": "96px",
+                "safe_area": safe_area,
+            },
+            "ease": {
+                "entry": "power3.out",
+                "exit": "power2.in",
+                "emphasis": "back.out(1.6)",
+                "bg_crossfade": "power2.inOut",
+                "snappy": "expo.out",
+                "settle": "power4.out",
+            },
+            "timing": {
+                "entry_stagger": 0.12,
+                "title_delay": 0.3,
+                "subtitle_delay": 0.8,
+                "bg_crossfade_sec": 1.2,
+                "word_wipe_per_word": 0.15,
+            },
+            "layout": {
+                "aspect": "9:16" if is_portrait else "16:9",
+                "canvas_w": width,
+                "canvas_h": height,
+                "grid_columns": 6 if is_portrait else 12,
+                "gutter": "24px",
+            },
+            "id_prefix": "s{shot_idx}_",  # Shot code replaces {shot_idx} at inject time
+        }
+
+    def _validate_shot_animation_density(
+        self,
+        html: str,
+        shot: Dict[str, Any],
+        start_time: float,
+        end_time: float,
+    ) -> List[str]:
+        """Scan generated shot HTML for animation coverage.
+
+        Checks:
+        1. Minimum GSAP tween count against tier's `min_animated_elements`.
+        2. Each Director-specified sync_point has a corresponding GSAP `delay:`
+           within ±0.2s of the expected shot-relative time.
+
+        Returns a list of human-readable issue strings. Empty list = OK.
+        """
+        issues: List[str] = []
+        min_anim = int(self._tier_config.get("min_animated_elements", 4))
+
+        # Count distinct GSAP tween/timeline calls. Matches .to/.from/.fromTo/.timeline
+        # at both the `gsap.` top level and chained (`.to(`, `.from(`).
+        tween_pattern = re.compile(
+            r"(?:gsap\.(?:to|from|fromTo|timeline)|\.(?:to|from|fromTo|set)\s*\()",
+        )
+        tween_count = len(tween_pattern.findall(html))
+        if tween_count < min_anim:
+            issues.append(
+                f"found {tween_count} GSAP tweens, need at least {min_anim} "
+                f"independently animated elements"
+            )
+
+        # Validate sync_points — each one should translate to a shot-relative delay.
+        sync_points = shot.get("sync_points") or []
+        if sync_points:
+            # Extract all numeric `delay:` values from the HTML
+            delay_pattern = re.compile(r"delay\s*:\s*([0-9]*\.?[0-9]+)")
+            delays = [float(m) for m in delay_pattern.findall(html)]
+            unmatched: List[str] = []
+            for sp in sync_points:
+                try:
+                    abs_t = float(sp.get("time", 0))
+                except (TypeError, ValueError):
+                    continue
+                rel_t = max(0.0, abs_t - start_time)
+                if rel_t > (end_time - start_time) + 0.3:
+                    continue  # sync point outside the shot — ignore
+                if not any(abs(rel_t - d) <= 0.2 for d in delays):
+                    word = sp.get("word", "")
+                    unmatched.append(f"{rel_t:.2f}s{f' ({word})' if word else ''}")
+            if unmatched:
+                issues.append(
+                    f"sync points not honored ({len(unmatched)}/{len(sync_points)}): "
+                    + ", ".join(unmatched[:5])
+                )
+
+        # Sanity: shot shouldn't be entirely static text. If zero animations at all,
+        # flag it even if the min threshold is low.
+        if tween_count == 0 and "animation" not in html.lower():
+            issues.append("no GSAP animations or CSS @keyframes found at all")
+
+        return issues
+
+    def _build_director_reference_image_block(self) -> List[Dict[str, Any]]:
+        """Return OpenRouter-vision content parts for any user-uploaded reference images.
+
+        Output format matches the multimodal OpenAI content schema:
+        `[{"type": "image_url", "image_url": {"url": "..."}}, ...]`
+        Returns [] when no reference context is attached to this run.
+        """
+        ref_ctx = getattr(self, "_reference_context", None)
+        if not ref_ctx:
+            return []
+        ref_images = ref_ctx.get("embeddable_images", []) or []
+        parts: List[Dict[str, Any]] = []
+        for ri in ref_images[:6]:  # hard cap — don't flood the context
+            url = ri.get("s3_url") or ri.get("url")
+            if not url:
+                continue
+            parts.append({"type": "image_url", "image_url": {"url": url}})
+        return parts
+
+    def _run_act_planner(
+        self,
+        script_text: str,
+        beat_outline: List[Dict[str, Any]],
+        subject_domain: str,
+        width: int,
+        height: int,
+        audio_duration: float,
+        run_dir: Path,
+        system_prompt: str,
+        user_prompt: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Pass 1 of two-pass Director (super_ultra only).
+
+        Produces a high-level 'act plan' that the downstream shot planner
+        expands into shots. Returns None on failure — the shot planner then
+        runs without an act plan (graceful degradation).
+        """
+        # Unused knobs kept for signature stability / future logging hooks.
+        del script_text, beat_outline, subject_domain, width, height, audio_duration
+
+        print("🎭 Running Act Planner (pass 1)...")
+        ref_image_parts = self._build_director_reference_image_block()
+
+        # Build user message (attach reference images if present)
+        if ref_image_parts:
+            user_content: Any = [{"type": "text", "text": user_prompt}] + ref_image_parts
+        else:
+            user_content = user_prompt
+
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ]
+
+        try:
+            raw, _usage = self.html_client.chat(
+                messages=messages,
+                temperature=0.55,
+                max_tokens=min(8000, self._tier_config.get("director_max_tokens", 20000)),
+                response_format={"type": "json_object"},
+            )
+        except Exception as exc:
+            print(f"   ⚠️ Act Planner failed: {exc} — shot planner will run without an act plan")
+            return None
+
+        try:
+            parsed = _extract_json_blob(raw)
+        except Exception as exc:
+            print(f"   ⚠️ Act Planner JSON parse failed: {exc}")
+            return None
+
+        if not isinstance(parsed, dict) or not isinstance(parsed.get("acts"), list) or not parsed["acts"]:
+            print("   ⚠️ Act Planner returned no acts — shot planner will run without an act plan")
+            return None
+
+        # Save for debugging
+        try:
+            (run_dir / "act_plan.json").write_text(json.dumps(parsed, indent=2, ensure_ascii=False))
+        except Exception:
+            pass
+        print(f"   ✅ Act Planner produced {len(parsed['acts'])} acts")
+        return parsed
+
     def _run_director(
         self,
         script_plan: Dict[str, Any],
@@ -3200,7 +3560,14 @@ class VideoGenerationPipeline:
         Returns the parsed director plan dict, or None if the call fails
         (the pipeline will fall back to the segment-based flow).
         """
-        from director_prompts import DIRECTOR_SYSTEM_PROMPT, build_director_user_prompt
+        from director_prompts import (
+            DIRECTOR_SYSTEM_PROMPT,
+            SUPER_ULTRA_DIRECTOR_EXTENSION,
+            ACT_PLANNER_SYSTEM_PROMPT,
+            build_director_user_prompt,
+            build_act_planner_user_prompt,
+            build_emphasis_map,
+        )
 
         plan_data = script_plan.get("plan", script_plan)
         script_text = str(plan_data.get("script") or script_plan.get("script_text", "")).strip()
@@ -3213,6 +3580,33 @@ class VideoGenerationPipeline:
             print("⚠️ Director: missing script or beat outline — skipping")
             return None
 
+        # ── Optional Pass 1: Act Planner (super_ultra only) ────────────────
+        act_plan: Optional[Dict[str, Any]] = None
+        if self._tier_config.get("director_two_pass"):
+            act_plan = self._run_act_planner(
+                script_text=script_text,
+                beat_outline=beat_outline,
+                subject_domain=subject_domain,
+                width=_w,
+                height=_h,
+                audio_duration=audio_duration,
+                run_dir=run_dir,
+                system_prompt=ACT_PLANNER_SYSTEM_PROMPT,
+                user_prompt=build_act_planner_user_prompt(
+                    script_text=script_text,
+                    beat_outline=beat_outline,
+                    subject_domain=subject_domain,
+                    width=_w,
+                    height=_h,
+                    audio_duration=audio_duration,
+                ),
+            )
+
+        # ── Emphasis map (ultra / super_ultra) ─────────────────────────────
+        emphasis_map = ""
+        if self._tier_config.get("director_emphasis_map"):
+            emphasis_map = build_emphasis_map(words)
+
         user_prompt = build_director_user_prompt(
             script_text=script_text,
             beat_outline=beat_outline,
@@ -3223,10 +3617,15 @@ class VideoGenerationPipeline:
             height=_h,
             language=language,
             audio_duration=audio_duration,
+            act_plan=act_plan,
+            emphasis_map=emphasis_map,
+            require_shot_density=bool(self._tier_config.get("director_shot_density")),
         )
 
         # Super Ultra: bias the Director toward motion-graphics shot types
         director_system = DIRECTOR_SYSTEM_PROMPT
+        if self._tier_config.get("director_few_shot"):
+            director_system = director_system + SUPER_ULTRA_DIRECTOR_EXTENSION
         if self._tier_config.get("director_motion_bias"):
             _is_portrait = _h > _w
             _target_shot_dur = "2-3.5 seconds" if _is_portrait else "2-4 seconds"
@@ -3262,39 +3661,99 @@ class VideoGenerationPipeline:
             )
 
         print("🎬 Running Director stage (shot planning)...")
+        # Attach any user-uploaded reference images to the Director's user message
+        # so it can plan shots that actually feature those assets (multimodal call).
+        _ref_image_parts = self._build_director_reference_image_block()
+        if _ref_image_parts:
+            print(f"   🖼️  Attaching {len(_ref_image_parts)} reference image(s) to Director call")
+
+        def _build_user_content(text: str) -> Any:
+            if _ref_image_parts:
+                return [{"type": "text", "text": text}] + _ref_image_parts
+            return text
+
         max_attempts = 3
         last_error = None
+        director_plan: Dict[str, Any] = {}
+        raw: str = ""
+        correction_message: Optional[str] = None
         for attempt in range(max_attempts):
             try:
+                # On retry after a malformed response, prepend a corrective message
+                # that shows the LLM what it returned and what the correct shape is.
+                messages: List[Dict[str, Any]] = [
+                    {"role": "system", "content": director_system},
+                    {"role": "user", "content": _build_user_content(user_prompt)},
+                ]
+                if correction_message and raw:
+                    messages.append({"role": "assistant", "content": raw[:2000]})
+                    messages.append({"role": "user", "content": correction_message})
+
                 raw, usage = self.html_client.chat(
-                    messages=[
-                        {"role": "system", "content": director_system},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.5,
-                    max_tokens=self._tier_config.get("director_max_tokens", 8000),
+                    messages=messages,
+                    temperature=0.5 if attempt == 0 else 0.3,  # lower temp on retries
+                    max_tokens=self._tier_config.get("director_max_tokens", 20000),
+                    response_format={"type": "json_object"},
                 )
                 print(f"   ℹ️  Director raw response length: {len(raw)} chars")
-                director_plan = _extract_json_blob(raw)
-                print(f"   ℹ️  Director parsed keys: {list(director_plan.keys()) if isinstance(director_plan, dict) else type(director_plan).__name__}")
-                break
+                parsed = _extract_json_blob(raw)
+                print(f"   ℹ️  Director parsed type: {type(parsed).__name__}; keys: {list(parsed.keys()) if isinstance(parsed, dict) else 'N/A'}")
+
+                # Normalize the response into the canonical {"shots": [...]} envelope.
+                # Handles several common LLM failure modes:
+                #   1. Already correct: {"shots": [...]}
+                #   2. Flat single shot: {"shot_index": 0, "shot_type": ...}  → wrap
+                #   3. Bare list: [{...}, {...}]                               → wrap
+                #   4. Wrong key: {"shot": {...}} or {"plan": [...]}           → unwrap+wrap
+                director_plan = self._normalize_director_plan(parsed, audio_duration)
+
+                if director_plan.get("shots"):
+                    break
+
+                # Empty shots after normalization — set up corrective retry
+                correction_message = (
+                    "Your previous response was not in the correct shape. "
+                    "The response MUST be a single JSON object with a top-level `shots` array, "
+                    "where each item in the array is a shot object. "
+                    "Example of CORRECT shape:\n"
+                    '{"shots": [ {"shot_index": 0, "shot_type": "VIDEO_HERO", "start_time": 0.0, ...}, '
+                    '{"shot_index": 1, ...} ], "continuity_notes": "..."}\n\n'
+                    f"Re-emit your plan covering the full {audio_duration:.1f}s audio, "
+                    "wrapped in the `shots` array. Return JSON only."
+                )
+                print(f"   ⚠️ Director attempt {attempt + 1} returned no shots after normalization — retrying with correction")
+
             except (ValueError, Exception) as e:
                 last_error = e
                 print(f"   ⚠️ Director attempt {attempt + 1}/{max_attempts} failed: {e}")
                 # Log first 500 chars of raw response if available for debugging
-                if 'raw' in dir():
-                    print(f"   ℹ️  Raw response preview: {raw[:500] if raw else '(empty)'}...")
+                if raw:
+                    print(f"   ℹ️  Raw response preview: {raw[:500]}...")
+                # On parse error, send a simpler corrective retry asking for valid JSON
+                correction_message = (
+                    "Your previous response could not be parsed as JSON. "
+                    "Return ONLY a JSON object with a top-level `shots` array. "
+                    "No markdown fences, no commentary, no prose. "
+                    "First character must be `{`, last must be `}`."
+                )
                 time.sleep(2)
         else:
             print(f"   ❌ Director failed after {max_attempts} attempts — falling back to segment flow")
             if last_error:
                 print(f"   ❌ Last error: {last_error}")
+            # Save for debugging
+            try:
+                (run_dir / "director_debug.json").write_text(
+                    json.dumps({"raw": raw, "last_error": str(last_error)}, indent=2)
+                )
+            except Exception:
+                pass
             return None
 
-        # Validate the director plan
+        # Validate the director plan (post-normalization guarantees `shots` key exists)
         shots = director_plan.get("shots", [])
         if not shots:
-            print(f"   ⚠️ Director returned empty shots list — falling back")
+            print(f"   ⚠️ Director returned empty shots list after retries — falling back")
             print(f"   ℹ️  Director plan contents: {json.dumps(director_plan, indent=2)[:1000]}")
             # Save for debugging
             try:
@@ -3304,11 +3763,29 @@ class VideoGenerationPipeline:
                 pass
             return None
 
+        # Sanity check: one shot covering a long video almost always means
+        # the LLM produced a broken/truncated plan. Falling back to the
+        # segment-based flow gives a varied video instead of a static one.
+        non_overlay_count = sum(1 for s in shots if not s.get("overlay"))
+        if non_overlay_count <= 1 and audio_duration > 15.0:
+            print(
+                f"   ⚠️ Director produced only {non_overlay_count} primary shot(s) "
+                f"for {audio_duration:.1f}s audio — falling back to segment flow"
+            )
+            try:
+                (run_dir / "director_debug.json").write_text(
+                    json.dumps({"raw": raw, "parsed": director_plan, "reason": "too_few_shots"}, indent=2)
+                )
+            except Exception:
+                pass
+            return None
+
         # Validate shot types
         valid_types = {
             "IMAGE_HERO", "VIDEO_HERO", "IMAGE_SPLIT", "TEXT_DIAGRAM",
             "LOWER_THIRD", "ANNOTATION_MAP", "DATA_STORY", "PROCESS_STEPS",
             "EQUATION_BUILD", "ANIMATED_ASSET", "KINETIC_TEXT",
+            "INFOGRAPHIC_SVG", "KINETIC_TITLE", "PRODUCT_HERO",
         }
         for i, shot in enumerate(shots):
             if shot.get("shot_type") not in valid_types:
@@ -3341,6 +3818,21 @@ class VideoGenerationPipeline:
         director_path.write_text(json.dumps(director_plan, indent=2, ensure_ascii=False))
         print(f"   ✅ Director planned {len(shots)} shots ({len(non_overlay)} primary + {len(shots) - len(non_overlay)} overlays)")
 
+        # Log / sanity-check Director's self-reported density (super_ultra only)
+        density = director_plan.get("shot_density")
+        rationale = director_plan.get("pacing_rationale")
+        if density:
+            avg_shot = audio_duration / max(1, len(non_overlay)) if non_overlay else 0.0
+            expected_bucket = (
+                "fast" if avg_shot <= 2.5 else
+                "slow" if avg_shot >= 4.0 else
+                "medium"
+            )
+            mismatch = "" if density == expected_bucket else f" ⚠️ MISMATCH — actual bucket is '{expected_bucket}'"
+            print(f"   🎯 Density: self-reported='{density}' | actual avg={avg_shot:.2f}s/shot → '{expected_bucket}'{mismatch}")
+            if rationale:
+                print(f"   📝 Rationale: {rationale}")
+
         return director_plan
 
     # ------------------------------------------------------------------
@@ -3365,6 +3857,18 @@ class VideoGenerationPipeline:
         """
         from shot_type_cards import build_per_shot_system_prompt
         from prompts import PER_SHOT_USER_PROMPT_TEMPLATE, get_html_generation_safe_area
+
+        # Skill library (ultra/super_ultra) — resolved lazily below per-shot
+        _skill_enabled = bool(self._tier_config.get("skill_library_enabled"))
+        _skill_catalog_fn = None
+        _skill_compose_fn = None
+        if _skill_enabled:
+            try:
+                from skill_registry import build_catalog_for_shot as _skill_catalog_fn  # type: ignore
+                from skill_composer import compose as _skill_compose_fn  # type: ignore
+            except Exception as _e:
+                print(f"   ⚠️ Skill library failed to import ({_e}) — continuing without skills")
+                _skill_enabled = False
 
         _w = getattr(self, 'video_width', 1920)
         _h = getattr(self, 'video_height', 1080)
@@ -3391,6 +3895,31 @@ class VideoGenerationPipeline:
             f"Fonts: Montserrat (headings), Inter (body), Fira Code (code)\n"
         )
 
+        # ── Shared Shot Pack (premium/ultra/super_ultra) ──
+        # Computed once for the whole run and injected into every shot prompt so
+        # every shot draws from the same color/typography/spacing/easing tokens.
+        # Kills cross-shot drift (shot 1's #0f172a vs shot 2's #1e293b, etc.).
+        _shot_pack: Optional[Dict[str, Any]] = None
+        _shot_pack_block = ""
+        if self._tier_config.get("shot_pack_enabled"):
+            _shot_pack = self._build_shot_pack(style_guide, _w, _h)
+            self._current_shot_pack = _shot_pack
+            _shot_pack_block = (
+                "\n\n**🎨 SHARED SHOT PACK — single source of truth for this run**:\n"
+                "Use these tokens verbatim. Do not invent new colors, font sizes, spacings, or eases — "
+                "every shot in this video must feel like it was authored by the same designer.\n"
+                "```json\n"
+                + json.dumps(_shot_pack, indent=2)
+                + "\n```\n"
+                "Rules:\n"
+                "- COLORS: use only CSS vars from `color_tokens` (var(--brand-primary) etc.). Never hardcode hex.\n"
+                "- TYPOGRAPHY: use `font_scale` values (e.g. `font-size: 9rem` for display). Never pick your own size.\n"
+                "- SPACING: use `spacing` tokens for padding/margin/gap. Use `safe_area` for outer padding.\n"
+                "- EASES: use `ease` tokens in GSAP tweens (ease: 'power3.out' → use `ease_tokens.entry`).\n"
+                "- IDs: prefix every element id with `s{shot_idx}_` (replace {shot_idx} with this shot's index) "
+                "so IDs never collide between shots.\n"
+            )
+
         def _shot_task(shot_idx: int, shot: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
             """Generate HTML for a single shot."""
             shot_type = shot.get("shot_type", "TEXT_DIAGRAM")
@@ -3400,6 +3929,20 @@ class VideoGenerationPipeline:
 
             # Build per-shot system prompt (only the relevant shot type card)
             system_prompt = build_per_shot_system_prompt(shot_type, _w, _h)
+
+            # Inject the filtered skill catalog (ultra / super_ultra).
+            # The LLM sees a compact list of skills that match this shot type + tier
+            # and can optionally drop <skill> tags into its HTML. The composer
+            # resolves those tags after generation.
+            if _skill_enabled and _skill_catalog_fn is not None:
+                _canvas = "portrait" if _h > _w else "landscape"
+                _skill_catalog = _skill_catalog_fn(
+                    shot_type=shot_type,
+                    tier=self._quality_tier,
+                    canvas=_canvas,
+                )
+                if _skill_catalog:
+                    system_prompt = system_prompt + "\n\n" + _skill_catalog
 
             # Filter word timings to this shot's time range
             shot_words = [w for w in words if start_time <= float(w.get("start", 0)) < end_time]
@@ -3476,6 +4019,15 @@ class VideoGenerationPipeline:
                 height=_h,
             )
 
+            # Inject the shared shot pack (premium/ultra/super_ultra only).
+            # Rewrite the id_prefix placeholder with this shot's concrete index.
+            if _shot_pack_block:
+                user_prompt = user_prompt + _shot_pack_block.replace(
+                    '"s{shot_idx}_"', f'"s{shot_idx}_"'
+                ).replace(
+                    "s{shot_idx}_", f"s{shot_idx}_"
+                )
+
             # Super Ultra: append motion-density + reel-pace + brand-palette requirement
             # (skipped for KINETIC_TEXT since it's bypassed anyway)
             if (
@@ -3533,6 +4085,61 @@ class VideoGenerationPipeline:
                     "`var(--brand-primary, #3b82f6)`.\n"
                 )
 
+            # ── PRODUCT_HERO shots: layered-stage composition constraints ──
+            if shot_type == "PRODUCT_HERO":
+                user_prompt = user_prompt + (
+                    "\n\n**🎬 PRODUCT HERO SHOT — NON-NEGOTIABLE CONSTRAINTS**:\n"
+                    "- Root element: `<div class='product-stage'>` — full-screen relative container.\n"
+                    "- Subject image: `position:absolute`, `data-cutout='true'`, centered, bottom 22%, width 70–80%, z-index:10.\n"
+                    "- Background layers: 3 separate `position:absolute` divs at z-index 0/1/2. "
+                    "They crossfade via GSAP opacity tweens — subject NEVER moves.\n"
+                    "- Use `.halftone` or `.halftone-light` on bg layer 1 for texture act.\n"
+                    "- Badge: `<div class='flat-badge'>` — zero border-radius, flat color, Bebas Neue.\n"
+                    "- Bottom tagline: `<div class='slam-wrapper'><div class='slam-text'>` with `gsap.to('#slam', {y:'0%', ease:'expo.out'})`.\n"
+                    "- Small word labels: `<div class='tracking-label'>`.\n"
+                    "- Subject gets slow continuous scale: `gsap.to('#subject', {scale:1.05, duration:10, ease:'none'})`.\n"
+                    "- For the text/badge group (not the subject), wrap them in `<div class='stage-drift'>` and run the hold-drift tween: "
+                    "`gsap.fromTo('.stage-drift', {x:0,y:0}, {x:15,y:-8, duration:12, ease:'none'});` "
+                    "This gives the text a subtle parallax while the subject stays anchored.\n"
+                    "- Easing: `expo.out` for snappy reveals, `power3.out` for smooth entrances, `power2.inOut` for bg crossfades.\n"
+                    "- DO NOT hard-cut backgrounds — always crossfade via GSAP opacity.\n"
+                )
+
+            # ── INFOGRAPHIC_SVG / KINETIC_TITLE shots: pure-SVG constraints ──
+            elif shot_type in ("INFOGRAPHIC_SVG", "KINETIC_TITLE"):
+                user_prompt = user_prompt + (
+                    "\n\n**🎨 PURE-SVG SHOT — NON-NEGOTIABLE CONSTRAINTS**:\n"
+                    "- NO `<img>` tags, NO `<video>` tags, NO `data-img-prompt`, NO `data-video-query`.\n"
+                    "- NO `background-image` referencing external URLs in any style attribute.\n"
+                    "- ALL visuals must be INLINE SVG. No external assets of any kind.\n"
+                    "- Root MUST be `<div class='svg-canvas paper-texture'><div class='stage-drift'>...</div></div>` — "
+                    "the outer svg-canvas gives cream #f5f0e8 + grid + parchment grain, the inner stage-drift gets the mandatory hold-drift tween.\n"
+                    "- Content palette is STRICTLY `var(--brand-primary)` and `var(--brand-accent)`. "
+                    "RED `.tech-annotation` is allowed (and encouraged) for dimension lines, crosshairs, measurement arrows — "
+                    "it reads as 'engineering markup' and doesn't count against the 2-color content rule.\n"
+                    "- **HAND-DRAWN LOOK**: Wrap all primary line-art in `<g filter='url(#roughen)'>` for architect-sketch wobble. "
+                    "This is what separates top-tier illustrated explainers (MacBook Neo blueprint style) from generic flat SVG.\n"
+                    "- Draw-on pattern: `pathLength='1' stroke-dasharray='1' stroke-dashoffset='1'` → `gsap.to(el, {strokeDashoffset:0, ...})`. "
+                    "Works perfectly with filter='url(#roughen)' — the wobble is applied after the draw animation.\n"
+                    "- **TECHNICAL DIMENSION LINES**: For diagrams with measurements, add `<line class='tech-annotation' pathLength='1' stroke-dashoffset='1'>` "
+                    "with matching `<text class='tech-annotation-label'>16-INCH</text>` labels. Makes diagrams look authored.\n"
+                    "- **FIG CAPTIONS**: Add a `<div class='tech-annotation-caption'>Fig. 1 — description</div>` "
+                    "below complex diagrams for documentary/textbook feel.\n"
+                    "- For multi-node diagrams (pipelines, agent graphs, flow charts): use the BLUEPRINT DRAFT two-phase pattern — "
+                    "`<g class='draft-guide'>` (dashed guides draw in first) then `<g class='solid-overlay'>` (solid ink lands on top), "
+                    "then node badges slam in from left with `expo.out`. See INFOGRAPHIC_SVG card for exact code.\n"
+                    "- MANDATORY hold-drift for the composition: "
+                    "`gsap.fromTo('.stage-drift', {x:0,y:0,scale:1}, {x:20,y:-10,scale:1.04, duration:12, ease:'none'});` "
+                    "This runs the whole 12s loop regardless of shot length — it's what makes the video feel alive during holds.\n"
+                    "- **SCENE TRANSITIONS** (when shot is NOT the last in the video): At shot end, add EITHER "
+                    "(a) ZOOM-THROUGH: `gsap.to('#focus-target', {scale:25, duration:0.8, delay:<end-0.8>, ease:'power3.in'});` "
+                    "where `#focus-target` is a small element (dot/badge corner) the next scene will emerge from; OR "
+                    "(b) VIGNETTE EXIT: add `<div class='vignette-overlay'></div>` + "
+                    "`gsap.to('.vignette-overlay', {opacity:1, duration:0.6, delay:<end-0.6>, ease:'power2.in'});`. "
+                    "Never end a shot with a static frame — there must be an exit motion.\n"
+                    "- For motionPath shots: guard with `if(window.MotionPathPlugin) gsap.registerPlugin(MotionPathPlugin);`.\n"
+                )
+
             # ── KINETIC_TEXT bypass — skip LLM, build exact word-sync HTML directly ──
             if shot_type == "KINETIC_TEXT" and self._tier_config.get("kinetic_text_shots", False):
                 kinetic_html = self._build_kinetic_text_html(
@@ -3551,6 +4158,13 @@ class VideoGenerationPipeline:
                     "id": f"shot-{shot_idx}",
                     "index": shot_idx,
                     "z": shot.get("z", 10),
+                    # Tag with shot_type so the Sound Planner's family logic
+                    # treats back-to-back KINETIC_TITLE/KINETIC_TEXT as same
+                    # family (no transition whoosh between them).
+                    "_shot_type": shot_type,
+                    "_narration_excerpt": shot.get("narration_excerpt", ""),
+                    "_visual_description": shot.get("visual_description", ""),
+                    "_skill_audio_events": [],
                 }
                 print(f"   ✅ Shot {shot_idx + 1} KINETIC_TEXT built ({len(shot_words)} words, no LLM)")
                 if on_segment_done:
@@ -3588,6 +4202,120 @@ class VideoGenerationPipeline:
                 return [], usage
 
             html = self._sanitize_html_content(html)
+
+            # ── Skill composer (ultra / super_ultra) ──
+            # Scan for <skill data-skill-id=... data-params=...> tags the LLM may
+            # have dropped in. Resolve each via the registry, validate params,
+            # render the skill's HTML/CSS/JS, and substitute into the shot. Also
+            # injects any needed GSAP plugin scripts. Shots that don't use any
+            # skills pass through unchanged.
+            _shot_skill_audio_events: List[Dict[str, Any]] = []
+            if _skill_enabled and _skill_compose_fn is not None:
+                try:
+                    compose_result = _skill_compose_fn(
+                        html,
+                        ctx={
+                            "shot_index": shot_idx,
+                            "canvas_w": _w,
+                            "canvas_h": _h,
+                            "tier": self._quality_tier,
+                            "shot_type": shot_type,
+                        },
+                    )
+                    invocations = compose_result.get("invocations", []) or []
+                    # Always collect skill audio events (even when the composer
+                    # matched zero tags the list is empty — safe to assign).
+                    _shot_skill_audio_events = compose_result.get("audio_events", []) or []
+                    if invocations:
+                        html = compose_result.get("html", html)
+                        succeeded = compose_result.get("succeeded", 0)
+                        failed = compose_result.get("failed", 0)
+                        plugins = compose_result.get("plugins", []) or []
+                        skill_ids_used = sorted({
+                            i["skill_id"] for i in invocations if i.get("valid")
+                        })
+                        tag = f"[{','.join(skill_ids_used)}]" if skill_ids_used else ""
+                        print(
+                            f"   🧩 Shot {shot_idx + 1} skills: "
+                            f"{succeeded} rendered, {failed} failed {tag}"
+                        )
+                        if failed:
+                            for inv in invocations:
+                                if not inv.get("valid"):
+                                    issues_str = "; ".join(inv.get("issues", []))
+                                    print(
+                                        f"      ✗ {inv.get('skill_id', '?')}: {issues_str}"
+                                    )
+                        # Ensure any required plugin CDNs are loaded.
+                        # `gsap` is already global via generate_video.py's boilerplate,
+                        # but other plugins may need <script> injection in the future.
+                        if "gsap-motionpath" in plugins and "MotionPathPlugin" not in html:
+                            html = html.replace(
+                                "</head>",
+                                '<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js"></script>\n</head>',
+                                1,
+                            )
+                except Exception as _sc_err:
+                    print(f"   ⚠️ Skill composer error on shot {shot_idx + 1}: {_sc_err}")
+
+            # ── Animation density validator + targeted regen (super_ultra only) ──
+            # Scans the generated HTML for GSAP tweens and sync-point delays. If the
+            # count is below the tier threshold OR the sync points weren't honored,
+            # fire ONE corrective regeneration call. Doesn't loop forever.
+            if (
+                self._tier_config.get("shot_animation_validator")
+                and shot_type != "KINETIC_TEXT"
+                and shot_type != "KINETIC_TITLE"
+            ):
+                issues = self._validate_shot_animation_density(
+                    html=html,
+                    shot=shot,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+                if issues:
+                    print(f"   ⚠️ Shot {shot_idx + 1} failed animation density check: {'; '.join(issues)}")
+                    corrective = (
+                        "Your previous output did not meet the motion requirements for this shot. "
+                        "Problems:\n"
+                        + "\n".join(f"- {i}" for i in issues)
+                        + "\n\nRegenerate the shot HTML. The animation_strategy and sync_points from "
+                        "the Director are non-negotiable this time — every sync_point delay must appear "
+                        "as a GSAP `delay:` value within ±0.2s, and the total number of independently "
+                        "animated DOM elements must meet the min_animated_elements target. Keep the "
+                        "same shot pack tokens. Return only the JSON shot object."
+                    )
+                    try:
+                        raw2, usage2 = self.html_client.chat(
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt},
+                                {"role": "assistant", "content": raw[:4000]},
+                                {"role": "user", "content": corrective},
+                            ],
+                            temperature=0.4,  # lower for more faithful regen
+                            max_tokens=self._tier_config.get("per_shot_max_tokens", 16000),
+                        )
+                        data2 = _extract_json_blob(raw2)
+                        html2 = data2.get("html", "")
+                        if html2:
+                            html = self._sanitize_html_content(html2)
+                            if usage2:
+                                usage["prompt_tokens"] = usage.get("prompt_tokens", 0) + usage2.get("prompt_tokens", 0)
+                                usage["completion_tokens"] = usage.get("completion_tokens", 0) + usage2.get("completion_tokens", 0)
+                                usage["total_tokens"] = usage.get("total_tokens", 0) + usage2.get("total_tokens", 0)
+                            # Re-validate; if still failing, ship what we have and log it
+                            post_issues = self._validate_shot_animation_density(
+                                html=html, shot=shot,
+                                start_time=start_time, end_time=end_time,
+                            )
+                            if post_issues:
+                                print(f"   ⚠️ Shot {shot_idx + 1} still failed after regen — shipping anyway: {'; '.join(post_issues)}")
+                            else:
+                                print(f"   ✅ Shot {shot_idx + 1} regen passed animation density check")
+                    except Exception as e:
+                        print(f"   ⚠️ Shot {shot_idx + 1} regen failed ({e}) — shipping original")
+
             html = self._ensure_fonts(html)
 
             entry = {
@@ -3600,6 +4328,12 @@ class VideoGenerationPipeline:
                 "html": html,
                 "id": f"shot-{shot_idx}",
                 "index": shot_idx,
+                # Stashed for downstream stock-video ranking — not rendered.
+                "_shot_type": shot_type,
+                "_narration_excerpt": shot.get("narration_excerpt", ""),
+                "_visual_description": shot.get("visual_description", ""),
+                # Stashed for the Sound Planner — stripped before serialization.
+                "_skill_audio_events": _shot_skill_audio_events,
             }
             if "z" in data:
                 try:
@@ -3648,6 +4382,44 @@ class VideoGenerationPipeline:
         for i in range(len(all_entries) - 1):
             if all_entries[i]["end"] > all_entries[i + 1]["start"]:
                 all_entries[i]["end"] = all_entries[i + 1]["start"]
+
+        # ── Sound Planner (tier-gated + request kill switch) ──
+        # Deterministic rule-based cue placement. Reads shot types, sync
+        # points, skill audio events, and the emphasis map; mutates entries
+        # in place by setting `sound_cues: [...]`. Runs after skills compose
+        # so it has everything it needs in one pass.
+        _sound_tier_on = bool(self._tier_config.get("sound_enabled"))
+        _sound_user_on = bool(getattr(self, "_sound_effects_enabled", True))
+        if _sound_tier_on and _sound_user_on:
+            try:
+                from sound_planner import plan_sounds
+                video_id = getattr(self, "_current_video_id", "") or str(run_dir.name)
+                _script_text = getattr(self, "_current_script_text", "") or ""
+                plan_sounds(
+                    entries=all_entries,
+                    shots=shots,
+                    words=words,
+                    tier_config=self._tier_config,
+                    video_id=video_id,
+                    script_text=_script_text,
+                )
+                total_cues = sum(len(e.get("sound_cues") or []) for e in all_entries)
+                shots_with_cues = sum(1 for e in all_entries if e.get("sound_cues"))
+                print(
+                    f"   🔊 Sound Planner placed {total_cues} cues across "
+                    f"{shots_with_cues}/{len(all_entries)} shots"
+                )
+            except Exception as _sp_err:
+                print(f"   ⚠️ Sound Planner error ({_sp_err}) — shipping without sound cues")
+                for e in all_entries:
+                    e.setdefault("sound_cues", [])
+        else:
+            # Ensure every entry has an empty sound_cues list for a stable
+            # payload shape (player can always read it).
+            for e in all_entries:
+                e.setdefault("sound_cues", [])
+            if not _sound_user_on and _sound_tier_on:
+                print("   🔇 Sound effects disabled by request flag")
 
         print(f"   ✅ Per-shot generation complete: {len(all_entries)} entries")
         return all_entries, total_usage
@@ -4658,9 +5430,27 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
         _style_cfg = getattr(self, '_current_style_config', None)
         _layout_theme = (_style_cfg or {}).get("layout_theme", "") if _style_cfg else ""
         _extra_family = self._TEMPLATE_EXTRA_FONT_FAMILIES.get(_layout_theme, "")
-        _base_families = "Montserrat:wght@700;900&family=Inter:wght@400;600&family=Fira+Code"
+        # Bebas Neue is always loaded — the Director may pick KINETIC_TITLE / INFOGRAPHIC_SVG /
+        # PRODUCT_HERO shots at any time, and they all need it for display typography.
+        _base_families = "Montserrat:wght@700;900&family=Inter:wght@400;600&family=Fira+Code&family=Bebas+Neue"
         _fonts_param = f"{_base_families}&family={_extra_family}" if _extra_family else _base_families
         _fonts_url = f"https://fonts.googleapis.com/css2?family={_fonts_param}&display=swap"
+
+        # .svg-canvas class is always injected so any shot (INFOGRAPHIC_SVG / KINETIC_TITLE)
+        # that opts into the cream+grid canvas works regardless of the document background.
+        svg_canvas_css = """
+            /* --- ILLUSTRATED SVG: cream+grid canvas --- */
+            .svg-canvas {
+                width: 100%; height: 100%;
+                position: relative;
+                background-color: #f5f0e8;
+                background-image:
+                    linear-gradient(rgba(180,170,160,0.25) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(180,170,160,0.25) 1px, transparent 1px);
+                background-size: 60px 60px;
+                overflow: hidden;
+            }
+        """
 
         global_css = f"""<style>
             @import url('{_fonts_url}');
@@ -4873,18 +5663,240 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
               font-weight: bold;
             }}
 
-            :host {{ 
-              width: 100%; height: 100%; 
-              display: flex; flex-direction: column; align-items: center; justify-content: center; 
-              font-family: 'Inter', sans-serif; 
+            :host {{
+              width: 100%; height: 100%;
+              display: flex; flex-direction: column; align-items: center; justify-content: center;
+              font-family: 'Inter', sans-serif;
               color: {text_color};
             }}
+
+            /* ═══════════════════════════════════════════════════════
+               PROFESSIONAL QUALITY UTILITIES
+               ═══════════════════════════════════════════════════════ */
+
+            /* --- PRODUCT/SUBJECT STAGE --- */
+            .product-stage {{
+              position: relative;
+              width: 100%; height: 100%;
+              overflow: hidden;
+              background: var(--brand-bg, {background_color});
+            }}
+
+            /* --- HALFTONE DOT PATTERNS --- */
+            /* Dark dots (use on light backgrounds) */
+            .halftone {{
+              background-image: radial-gradient(circle, rgba(0,0,0,0.18) 1.5px, transparent 1.5px);
+              background-size: 18px 18px;
+            }}
+            /* Light dots (use on dark / colored backgrounds) */
+            .halftone-light {{
+              background-image: radial-gradient(circle, rgba(255,255,255,0.22) 1.5px, transparent 1.5px);
+              background-size: 18px 18px;
+            }}
+
+            /* --- FLAT BADGE (year / stat callout — zero border-radius) --- */
+            .flat-badge {{
+              display: inline-block;
+              padding: 10px 36px;
+              background: var(--brand-accent, {accent_color});
+              font-family: 'Bebas Neue', Impact, sans-serif;
+              font-size: 4rem;
+              letter-spacing: 0.05em;
+              line-height: 1;
+              color: #111;
+              border-radius: 0;
+            }}
+            .flat-badge.light {{
+              background: #fff;
+              color: #111;
+            }}
+            .flat-badge.dark {{
+              background: #111;
+              color: #fff;
+            }}
+
+            /* --- SLAM TEXT (translateY reveal from bottom) --- */
+            .slam-wrapper {{
+              overflow: hidden;
+            }}
+            .slam-text {{
+              display: block;
+              transform: translateY(102%);
+              font-family: 'Bebas Neue', Impact, sans-serif;
+              font-size: 5.5rem;
+              letter-spacing: 0.06em;
+              line-height: 1;
+              color: var(--brand-text, {text_color});
+            }}
+
+            /* --- TRACKING LABEL (small ALL-CAPS below subject) --- */
+            .tracking-label {{
+              font-family: 'Inter', sans-serif;
+              font-size: 0.85rem;
+              font-weight: 700;
+              letter-spacing: 0.28em;
+              text-transform: uppercase;
+              color: var(--brand-text, {text_color});
+              opacity: 0.8;
+            }}
+
+            /* --- DISPLAY HEADLINE SCALE SIZES --- */
+            .display-xl {{
+              font-family: 'Bebas Neue', 'Montserrat', sans-serif;
+              font-size: clamp(4rem, 12vw, 9rem);
+              font-weight: 900;
+              letter-spacing: 0.04em;
+              line-height: 0.95;
+              color: var(--brand-text, {text_color});
+            }}
+            .display-lg {{
+              font-family: 'Bebas Neue', 'Montserrat', sans-serif;
+              font-size: clamp(3rem, 8vw, 6rem);
+              font-weight: 900;
+              letter-spacing: 0.03em;
+              line-height: 1;
+              color: var(--brand-text, {text_color});
+            }}
+
+            /* --- ACCENT COLOR WORD SWAP --- */
+            .accent-word {{
+              color: var(--brand-accent, {accent_color});
+            }}
+
+            /* --- BACKGROUND GEOMETRIC WATERMARK (position:absolute, z-index:2) --- */
+            .bg-watermark {{
+              position: absolute;
+              pointer-events: none;
+              z-index: 2;
+              opacity: 0;
+            }}
+
+            /* --- STAGE DRIFT (continuous hold-motion) ---
+               Wrap full shot content in <div class='stage-drift'> and tween:
+               gsap.fromTo('.stage-drift', {{x:0,y:0,scale:1}}, {{x:20,y:-10,scale:1.04, duration:12, ease:'none'}});
+               This enforces the CONTINUOUS MOTION rule — no frame is ever fully static. */
+            .stage-drift {{
+              width: 100%;
+              height: 100%;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              transform-origin: center center;
+              will-change: transform;
+            }}
+
+            /* --- DRAFT/BLUEPRINT guides (two-phase SVG reveal) ---
+               Light dashed guide layer for architect-drafting look. Solid
+               overlay lands on top. Used by INFOGRAPHIC_SVG blueprint pattern. */
+            .draft-guide {{
+              stroke: rgba(20, 20, 20, 0.32);
+              stroke-width: 1.5;
+              stroke-dasharray: 4 4;
+              fill: none;
+            }}
+            .solid-overlay {{
+              stroke: var(--brand-text, {text_color});
+              stroke-width: 2.5;
+              fill: none;
+            }}
+
+            /* --- PAPER TEXTURE (parchment / sketchbook grain) ---
+               Layer over .svg-canvas or .product-stage to get a subtle fibrous
+               noise overlay. Uses inline SVG noise filter as data-URI, no PNG. */
+            .paper-texture {{
+              position: relative;
+            }}
+            .paper-texture::before {{
+              content: "";
+              position: absolute;
+              inset: 0;
+              background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12  0 0 0 0 0.10  0 0 0 0 0.08  0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+              background-size: 240px 240px;
+              mix-blend-mode: multiply;
+              pointer-events: none;
+              opacity: 0.55;
+              z-index: 1;
+            }}
+            /* Stronger variant for darker parchment look */
+            .paper-texture.strong::before {{
+              opacity: 0.85;
+            }}
+
+            /* --- TECH ANNOTATION (red dashed dimension lines + callouts) ---
+               Utility color for architect/engineer annotations — NOT part of the
+               brand palette. Used for dimension lines, crosshairs, measurement
+               arrows. One shot may use annotations freely; they read as "technical
+               detail" and don't violate the 2-color content rule. */
+            .tech-annotation {{
+              stroke: #c4453a;
+              stroke-width: 1.4;
+              stroke-dasharray: 5 4;
+              fill: none;
+            }}
+            .tech-annotation-label {{
+              font-family: 'Inter', 'Fira Code', monospace;
+              font-size: 0.7rem;
+              font-weight: 600;
+              letter-spacing: 0.12em;
+              text-transform: uppercase;
+              color: #c4453a;
+            }}
+            .tech-annotation-caption {{
+              font-family: Georgia, 'Times New Roman', serif;
+              font-style: italic;
+              font-size: 0.85rem;
+              color: var(--brand-text, {text_color});
+              opacity: 0.75;
+            }}
+
+            /* --- VIGNETTE OVERLAY (scene-exit radial darkening transition) ---
+               Start with opacity:0, tween to opacity:1 for cinematic fade-out.
+               Combine with next-scene zoom for a seamless transition. */
+            .vignette-overlay {{
+              position: absolute;
+              inset: 0;
+              pointer-events: none;
+              z-index: 50;
+              opacity: 0;
+              background: radial-gradient(ellipse at center,
+                  transparent 15%,
+                  rgba(0,0,0,0.35) 55%,
+                  rgba(0,0,0,0.92) 100%);
+            }}
+
+            /* --- HAND-DRAWN ROUGHEN FILTER ---
+               Applied via `filter="url(#roughen)"` on any SVG <path>/<rect>/<line>.
+               Gives the blueprint-sketch wobble effect WITHOUT breaking
+               stroke-dashoffset animation. Strength tuned so small drawings
+               stay readable. See the inline <svg> defs block prepended at the
+               top of every generated HTML. */
+
+            {svg_canvas_css}
             </style>"""
-        
+
+        # Global SVG defs — hidden 0×0 SVG holding filters that any other
+        # SVG in the document can reference. Used for the hand-drawn wobble
+        # and paper grain effects in illustrated_svg / blueprint shots.
+        svg_defs = """<svg width="0" height="0" style="position:absolute;pointer-events:none;" aria-hidden="true">
+            <defs>
+                <!-- Hand-drawn wobble — apply via filter="url(#roughen)" -->
+                <filter id="roughen" x="-10%" y="-10%" width="120%" height="120%">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" seed="2" result="noise"/>
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.6"/>
+                </filter>
+                <!-- Stronger wobble for bolder sketch feel -->
+                <filter id="roughen-strong" x="-10%" y="-10%" width="120%" height="120%">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="3" seed="5" result="noise"/>
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="4.2"/>
+                </filter>
+            </defs>
+        </svg>"""
+
         # If the model already imports fonts, trust it.
         # But still inject our global helpers.
         if "fonts.googleapis.com" in html:
-            return global_css + html
+            return svg_defs + global_css + html
 
         # Fallback corporate pairing if none found
         base_style = (
@@ -4894,7 +5906,7 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
             "h1, h2, h3, h4, h5, h6 { font-family: 'Montserrat', sans-serif; }"
             "</style>"
         )
-        return global_css + base_style + html
+        return svg_defs + global_css + base_style + html
 
     def _ensure_segment_coverage(
         self, entries: List[Dict[str, Any]], seg: Dict[str, Any], base_start: float, base_end: float
@@ -5176,11 +6188,12 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
         if not self._tier_config.get("image_prompt_enhancement"):
             return raw_prompt
 
-        visual_style = getattr(self, '_current_visual_style', 'realistic cinematic photograph')
+        # Use LLM-picked IMAGE STYLE, not pipeline visual mode
+        image_style = getattr(self, '_current_image_style', 'realistic cinematic photograph')
         topic = getattr(self, '_current_topic', '')
 
         enhance_prompt = (
-            f"Enhance this image generation prompt for a {visual_style} educational video"
+            f"Enhance this image generation prompt for a {image_style} educational video"
             f"{' about ' + topic if topic else ''}.\n\n"
             f"Original prompt: \"{raw_prompt}\"\n\n"
             "Add: lighting direction, camera angle, color palette, mood, and "
@@ -5204,33 +6217,132 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
             print(f"    ⚠️ Image prompt enhancement failed: {e}")
         return raw_prompt
 
+    def _rank_pexels_candidates_with_llm(
+        self,
+        candidates: List[Dict[str, Any]],
+        query: str,
+        narration_excerpt: str,
+        visual_description: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Score Pexels candidates against the shot's narration via a small LLM call.
+
+        Returns the top-ranked candidate, or None if the ranker fails. Each
+        candidate's `alt`, `duration`, and `id` are surfaced to the LLM so it
+        can judge semantic fit.
+        """
+        if not candidates:
+            return None
+        if len(candidates) == 1:
+            return candidates[0]
+
+        # Build a compact candidate list for the LLM
+        lines = []
+        for i, c in enumerate(candidates):
+            lines.append(
+                f"{i}. id={c.get('id')} | {c.get('duration', 0)}s | "
+                f"{(c.get('alt') or '')[:120]}"
+            )
+        ctx = (
+            f"Shot query: {query}\n"
+            f"Narration: {narration_excerpt[:200]}\n"
+            f"Visual direction: {visual_description[:200]}\n\n"
+            "Candidate stock clips:\n" + "\n".join(lines) + "\n\n"
+            "Pick the candidate that best matches the narration and visual direction. "
+            "Return JSON: {\"best_index\": N, \"reason\": \"short\"}."
+        )
+        try:
+            raw, _usage = self.html_client.chat(
+                messages=[
+                    {"role": "system", "content": (
+                        "You score stock video candidates for a video production pipeline. "
+                        "Respond with ONE JSON object and nothing else. No preamble, no code "
+                        "fences, no explanation before or after. Start your response with `{`."
+                    )},
+                    {"role": "user", "content": ctx},
+                ],
+                temperature=0.3,
+                # 200 tokens wasn't enough — some models burn that on a preamble
+                # ("Here is the JSON requested:") and truncate before emitting
+                # the JSON body. 400 is safely above the observed failure mode.
+                max_tokens=400,
+                response_format={"type": "json_object"},
+            )
+            parsed = _extract_json_blob(raw)
+            if isinstance(parsed, dict):
+                idx = parsed.get("best_index")
+                if isinstance(idx, int) and 0 <= idx < len(candidates):
+                    return candidates[idx]
+        except Exception as e:
+            print(f"    ⚠️ Candidate ranker failed ({e}) — falling back to first candidate")
+        return candidates[0]
+
     def _process_stock_videos(self, html_segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Scan HTML for <video data-video-query='...'> tags, search Pexels, inject URLs."""
+        """Scan HTML for <video data-video-query='...'> tags, search Pexels, inject URLs.
+
+        When `stock_video_ranking` is enabled (super_ultra), fetches 5-6 candidates,
+        dedupes against `self._used_pexels_video_ids`, and picks the best match via
+        a tiny LLM scoring call. Otherwise uses the legacy first-match path.
+
+        Always strips internal shot-context fields before returning, even on the
+        Pexels-unavailable early-return path, so the timeline JSON stays clean.
+        """
+
+        def _strip_internal_fields() -> None:
+            for entry in html_segments:
+                for k in ("_shot_type", "_narration_excerpt", "_visual_description",
+                          "_skill_audio_events"):
+                    entry.pop(k, None)
+
         if not self._pexels_service or not self._pexels_service.is_available:
+            _strip_internal_fields()
             return html_segments
 
         orientation = "portrait" if getattr(self, 'video_width', 1920) < getattr(self, 'video_height', 1080) else "landscape"
         VIDEO_TAG_RE = re.compile(r'(<video[^>]+data-video-query=(["\'])(.*?)\2[^>]*>)', re.DOTALL)
         replacements_count = 0
+        use_ranking = bool(self._tier_config.get("stock_video_ranking"))
+        used_ids: set = getattr(self, "_used_pexels_video_ids", None) or set()
 
         for entry in html_segments:
             html = entry.get("html", "")
             if "data-video-query" not in html:
                 continue
 
+            shot_narration = entry.get("_narration_excerpt", "")
+            shot_visual = entry.get("_visual_description", "")
+
             for match in VIDEO_TAG_RE.finditer(html):
                 full_tag = match.group(1)
                 query = match.group(3)
 
-                result = self._pexels_service.search_videos(query, orientation=orientation)
-                if not result:
+                picked: Optional[Dict[str, Any]] = None
+                if use_ranking:
+                    candidates = self._pexels_service.search_video_candidates(
+                        query, orientation=orientation, per_page=6
+                    )
+                    # Dedup against videos already placed in this run
+                    fresh = [c for c in candidates if c.get("id") not in used_ids]
+                    pool = fresh if fresh else candidates
+                    if pool:
+                        picked = self._rank_pexels_candidates_with_llm(
+                            candidates=pool,
+                            query=query,
+                            narration_excerpt=shot_narration,
+                            visual_description=shot_visual,
+                        )
+                        if picked and picked.get("id") is not None:
+                            used_ids.add(picked["id"])
+                else:
+                    picked = self._pexels_service.search_videos(query, orientation=orientation)
+
+                if not picked:
                     print(f"    ⚠️ No Pexels video for: {query[:50]}")
                     continue
 
-                video_url = result.get("url", "")
+                video_url = picked.get("url", "")
                 if not video_url:
                     continue
-                poster_url = result.get("image", "")
+                poster_url = picked.get("image", "")
 
                 # Build enriched tag with src, poster, and playback attributes
                 new_tag = full_tag
@@ -5246,9 +6358,19 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
 
                 html = html.replace(full_tag, new_tag)
                 replacements_count += 1
-                print(f"    🎬 Stock video: {query[:40]}... → {video_url[:60]}...")
+                rank_tag = " [ranked]" if use_ranking else ""
+                print(f"    🎬 Stock video{rank_tag}: {query[:40]}... → {video_url[:60]}...")
 
             entry["html"] = html
+
+        # Strip the shot-context fields from every entry so timeline JSON stays clean.
+        for entry in html_segments:
+            for k in ("_shot_type", "_narration_excerpt", "_visual_description",
+                      "_skill_audio_events"):
+                entry.pop(k, None)
+
+        # Persist updated used-id set
+        self._used_pexels_video_ids = used_ids
 
         if replacements_count > 0:
             print(f"    📝 Applied {replacements_count} stock video replacement(s)")
@@ -5261,7 +6383,7 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
         """
         images_dir = run_dir / "generated_images"
         images_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Check if Gemini API key is available
         if not self.gemini_image_api_key:
             print("    ⚠️  No Gemini API key configured. Skipping image generation.")
@@ -5362,9 +6484,10 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
                 # Enhance image prompt with cinematic details (Premium+ tiers)
                 prompt = self._enhance_image_prompt(prompt)
 
-                visual_style = getattr(self, '_current_visual_style', 'realistic cinematic photograph')
-                if visual_style.lower() not in prompt.lower():
-                    prompt = f"{visual_style}, {prompt}"
+                # Use LLM-picked IMAGE STYLE, not pipeline visual mode
+                image_style = getattr(self, '_current_image_style', 'realistic cinematic photograph')
+                if image_style.lower() not in prompt.lower():
+                    prompt = f"{image_style}, {prompt}"
 
             label = f"seg={idx}" + (" (cutout)" if is_cutout else "")
             print(f"    🎨 Generating image {label}: {prompt[:60]}...")
@@ -5930,11 +7053,17 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
                     "htmlEndY": int(entry.get("htmlEndY", VIDEO_HEIGHT)),
                     "z": int(entry.get("z", 1))
                 }
-                
+
                 # Pass through critical metadata (quiz answers, game state etc)
                 if "entry_meta" in entry:
                     clean_entry["entry_meta"] = entry["entry_meta"]
-                
+
+                # Pass through sound cues (Sound Planner output).
+                # Interactive content has no global time clock so cues fire
+                # relative to each entry's own open — no intro offset needed.
+                if entry.get("sound_cues"):
+                    clean_entry["sound_cues"] = entry["sound_cues"]
+
                 timeline_entries.append(clean_entry)
             
             content_max_end = 0.0
@@ -5974,6 +7103,25 @@ gsap.to('{selectors}', {{opacity: 1, y: 0, duration: 0.5, stagger: 0.15, delay: 
                 # Add entry_meta if present
                 if "entry_meta" in entry:
                     timeline_entry["entry_meta"] = entry["entry_meta"]
+
+                # Pass through sound cues from the Sound Planner. The cue `t`
+                # values are shot-relative (0 = segment start). We ALSO emit an
+                # `absolute_time` field that's offset by `content_starts_at`
+                # (intro branding duration) so the live player can schedule
+                # against the global master clock without recomputing.
+                raw_cues = entry.get("sound_cues") or []
+                if raw_cues:
+                    offset_cues: List[Dict[str, Any]] = []
+                    for cue in raw_cues:
+                        try:
+                            cue_t = float(cue.get("t", 0.0))
+                        except (TypeError, ValueError):
+                            cue_t = 0.0
+                        enriched = dict(cue)
+                        enriched["absolute_time"] = round(adjusted_in_time + cue_t, 3)
+                        offset_cues.append(enriched)
+                    timeline_entry["sound_cues"] = offset_cues
+
                 timeline_entries.append(timeline_entry)
                 
                 # Track the maximum end time for content

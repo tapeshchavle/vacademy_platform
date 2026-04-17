@@ -84,3 +84,28 @@ export const handleFetchTimelineEvents = (
     queryFn: () => fetchTimelineEvents(type, typeId, page, size),
     enabled: !!typeId,
 });
+
+/**
+ * Fetch cross-stage timeline events for a student (all stages combined)
+ */
+export const fetchStudentTimeline = async (
+    studentUserId: string,
+    page: number = 0,
+    size: number = 20
+): Promise<TimelineEventsResponse> => {
+    const response = await authenticatedAxiosInstance.get(
+        `${TIMELINE_URL}/student/${studentUserId}`,
+        { params: { page, size } }
+    );
+    return response.data;
+};
+
+export const handleFetchStudentTimeline = (
+    studentUserId: string,
+    page: number = 0,
+    size: number = 20
+) => ({
+    queryKey: ['timeline', 'student', studentUserId, page, size],
+    queryFn: () => fetchStudentTimeline(studentUserId, page, size),
+    enabled: !!studentUserId,
+});

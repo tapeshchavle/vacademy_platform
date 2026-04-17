@@ -26,11 +26,13 @@ export const CreateCampaignDialog: React.FC<CreateCampaignDialogProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
                 <DialogHeader>
                     <DialogTitle>{heading}</DialogTitle>
                 </DialogHeader>
-                <CreateCampaignForm onSuccess={onClose} campaign={campaign} />
+                <div className="min-w-0 overflow-hidden">
+                    <CreateCampaignForm onSuccess={onClose} campaign={campaign} />
+                </div>
             </DialogContent>
         </Dialog>
     );

@@ -26,13 +26,18 @@ interface CsvColumnDef {
     systemKey?: string;
 }
 
-// Always-present core columns (not controlled by visibility)
+// Always-present core columns (not controlled by visibility).
+// address_line and pin_code are included here (not in OPTIONAL) because
+// ADDRESS_LINE and PIN_CODE don't exist in DEFAULT_SYSTEM_FIELDS, so
+// the visibility gate would permanently hide them from the CSV template.
 const CORE_COLUMNS: CsvColumnDef[] = [
     { csvKey: 'email', label: 'Email', required: true, sample: 'student@example.com' },
     { csvKey: 'full_name', label: 'Full Name', required: true, sample: 'John Doe' },
     { csvKey: 'mobile_number', label: 'Mobile Number', required: false, sample: '+91 9876543210', systemKey: 'MOBILE_NUMBER' },
     { csvKey: 'username', label: 'Username', required: false, sample: '' },
     { csvKey: 'password', label: 'Password', required: false, sample: '' },
+    { csvKey: 'address_line', label: 'Address', required: false, sample: '' },
+    { csvKey: 'pin_code', label: 'PIN Code', required: false, sample: '' },
     { csvKey: 'payment_date', label: 'Payment Date (dd/MM/yyyy)', required: false, sample: '15/01/2025' },
     { csvKey: 'transaction_id', label: 'Transaction ID', required: false, sample: '' },
 ];
@@ -41,10 +46,8 @@ const CORE_COLUMNS: CsvColumnDef[] = [
 const OPTIONAL_SYSTEM_COLUMNS: CsvColumnDef[] = [
     { csvKey: 'gender', label: 'Gender', required: false, sample: 'MALE', systemKey: 'GENDER' },
     { csvKey: 'date_of_birth', label: 'Date of Birth', required: false, sample: '2000-01-15', systemKey: 'DATE_OF_BIRTH' },
-    { csvKey: 'address_line', label: 'Address', required: false, sample: '', systemKey: 'ADDRESS_LINE' },
     { csvKey: 'city', label: 'City', required: false, sample: '', systemKey: 'CITY' },
     { csvKey: 'region', label: 'State/Region', required: false, sample: '', systemKey: 'REGION' },
-    { csvKey: 'pin_code', label: 'PIN Code', required: false, sample: '', systemKey: 'PIN_CODE' },
     { csvKey: 'linked_institute_name', label: 'College/School', required: false, sample: '', systemKey: 'LINKED_INSTITUTE_NAME' },
     { csvKey: 'fathers_name', label: "Father's Name", required: false, sample: '', systemKey: 'FATHER_NAME' },
     { csvKey: 'mothers_name', label: "Mother's Name", required: false, sample: '', systemKey: 'MOTHER_NAME' },
@@ -178,6 +181,23 @@ export const CsvUserImporter = ({ onImport, onPaymentInfoDetected }: Props) => {
                         }
                     }
 
+                    // Parse payment_date to ISO format (yyyy-MM-dd) for the backend
+                    let parsedPaymentDate: string | undefined;
+                    const rawPaymentDate = row.payment_date?.trim();
+                    if (rawPaymentDate) {
+                        const DATE_FORMATS = ['d/M/yyyy', 'dd/MM/yyyy', 'M/d/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd', 'd-M-yyyy', 'dd-MM-yyyy'];
+                        for (const fmt of DATE_FORMATS) {
+                            const pd = parse(rawPaymentDate, fmt, new Date());
+                            if (isValid(pd)) {
+                                parsedPaymentDate = `${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}-${String(pd.getDate()).padStart(2, '0')}`;
+                                break;
+                            }
+                        }
+                        if (!parsedPaymentDate) {
+                            errs.push(`Row ${rowNum}: invalid payment_date format "${rawPaymentDate}"`);
+                        }
+                    }
+
                     rows.push({
                         email: row.email.trim(),
                         full_name: row.full_name.trim(),
@@ -198,6 +218,7 @@ export const CsvUserImporter = ({ onImport, onPaymentInfoDetected }: Props) => {
                             row.parents_to_mother_mobile_number?.trim() || undefined,
                         parents_to_mother_email: row.parents_to_mother_email?.trim() || undefined,
                         linked_institute_name: row.linked_institute_name?.trim() || undefined,
+                        payment_date: parsedPaymentDate,
                         custom_field_values: customFieldValues.length > 0 ? customFieldValues : undefined,
                     });
                 });

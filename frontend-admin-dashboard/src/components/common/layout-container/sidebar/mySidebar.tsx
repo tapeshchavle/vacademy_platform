@@ -32,7 +32,8 @@ import {
     SidebarStateType,
     SidebarItemsType,
 } from '../../../../types/layout-container/layout-container-types';
-import { getSidebarItemsData } from './utils';
+import { getSidebarItemsData, withSystemDefaults } from './utils';
+import { useNamingSettingsVersion } from '@/hooks/useNamingSettingsVersion';
 import './scrollbarStyle.css';
 import { useSuspenseQuery, useQuery } from '@tanstack/react-query';
 import { useInstituteQuery, getSubOrgInstituteQuery } from '@/services/student-list-section/getInstituteDetails';
@@ -88,6 +89,10 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
     const [activeCategory, setActiveCategory] = useState<CategoryId>('CRM');
     const [roleDisplay, setRoleDisplay] = useState<DisplaySettingsData | null>(null);
     const [mainInstituteLogoUrl, setMainInstituteLogoUrl] = useState<string>('');
+
+    // Subscribe to naming-settings changes so the sidebar re-renders with
+    // the new terms the moment they are saved on the settings page.
+    useNamingSettingsVersion();
 
     const selectedSubOrgId = getSelectedSubOrgId();
     const subOrgLinkageType = getSelectedSubOrgLinkageType();
@@ -175,6 +180,13 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
             : filterMenuItems(getSidebarItemsData(), data?.id || '', isTabVisible, isSubItemVisible);
         if (!roleDisplay) return base;
 
+        // Build a lookup of what each sidebar item would look like with system
+        // defaults (no naming-settings applied). Used below to distinguish
+        // seeded cfg.label values from deliberate user customizations.
+        const defaultItemsById = new Map(
+            withSystemDefaults(() => getSidebarItemsData()).map((i) => [i.id, i])
+        );
+
         const tabVis = new Map(roleDisplay.sidebar.map((t) => [t.id, t]));
         const mapped = base
             .filter((item) => {
@@ -184,8 +196,18 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
             .map((item) => {
                 const cfg = tabVis.get(item.id);
                 if (!cfg) return item;
+                // To decide whether cfg.label is a stale seed or a real user
+                // customization, compare it to the same item rendered with
+                // system defaults (i.e. no naming-settings applied). Match =
+                // seeded, fall back to dynamic item.title. Mismatch = user
+                // explicitly customized the label, respect it.
+                const defaultItem = defaultItemsById.get(item.id);
+                const isSeededTitle = !cfg.label || cfg.label === defaultItem?.title;
                 if (item.subItems && item.subItems.length > 0) {
                     const subVis = new Map((cfg.subTabs || []).map((s) => [s.id, s]));
+                    const defaultSubsById = new Map(
+                        (defaultItem?.subItems || []).map((s) => [s.subItemId, s])
+                    );
                     const filteredSubs = item.subItems
                         .filter((s) => {
                             const c = subVis.get(s.subItemId);
@@ -198,16 +220,21 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
                         })
                         .map((s) => {
                             const c = subVis.get(s.subItemId);
+                            const defaultSub = defaultSubsById.get(s.subItemId);
+                            const isSeededSubLabel =
+                                !c?.label || c.label === defaultSub?.subItem;
                             return {
                                 ...s,
-                                subItem: c?.label ?? s.subItem,
+                                subItem: isSeededSubLabel
+                                    ? s.subItem
+                                    : (c?.label as string),
                                 subItemLink: c?.route ?? s.subItemLink,
                                 locked: c?.locked,
                             };
                         });
                     return {
                         ...item,
-                        title: cfg.label ?? item.title,
+                        title: isSeededTitle ? item.title : (cfg.label as string),
                         to: cfg.route ?? item.to,
                         subItems: filteredSubs,
                         locked: cfg.locked,
@@ -215,7 +242,7 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
                 }
                 return {
                     ...item,
-                    title: cfg.label ?? item.title,
+                    title: isSeededTitle ? item.title : (cfg.label as string),
                     to: cfg.route ?? item.to,
                     locked: cfg.locked,
                 };
@@ -246,7 +273,7 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
 
     // Logo
     const { getPublicUrl } = useFileUpload();
-    const { instituteLogo, setInstituteLogo } = useInstituteLogoStore();
+    const { instituteLogo, setInstituteLogo, brandingDisplay } = useInstituteLogoStore();
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -318,6 +345,9 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
                                 isPartnershipLinkage={isPartnershipLinkage}
                                 mainInstituteLogoUrl={mainInstituteLogoUrl}
                                 mainInstituteName={data?.institute_name || ''}
+                                hideInstituteName={brandingDisplay.hideInstituteName}
+                                logoWidthPx={brandingDisplay.logoWidthPx}
+                                logoHeightPx={brandingDisplay.logoHeightPx}
                             />
                         </div>
                     </TooltipProvider>
@@ -358,6 +388,9 @@ export const MySidebar = ({ sidebarComponent }: { sidebarComponent?: React.React
                         isPartnershipLinkage={isPartnershipLinkage}
                         mainInstituteLogoUrl={mainInstituteLogoUrl}
                         mainInstituteName={data?.institute_name || ''}
+                        hideInstituteName={brandingDisplay.hideInstituteName}
+                        logoWidthPx={brandingDisplay.logoWidthPx}
+                        logoHeightPx={brandingDisplay.logoHeightPx}
                     />
                 </TooltipProvider>
             </SidebarContent>

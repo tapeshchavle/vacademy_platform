@@ -18,6 +18,8 @@ import { STUDENT_LIST_COLUMN_WIDTHS } from '@/components/design-system/utils/con
 import { useLeadSettings } from '@/hooks/use-lead-settings';
 import { useLeadProfiles } from '@/hooks/use-lead-profiles';
 import { LeadScoreBadge } from '@/components/shared/lead-score-badge';
+import { AssignCounselorToLeadDialog } from '@/components/shared/assign-counselor-to-lead-dialog';
+import { UserCircle } from '@phosphor-icons/react';
 import { BulkActions } from './bulk-actions/bulk-actions';
 import { OnChangeFn, RowSelectionState } from '@tanstack/react-table';
 import { useQuery } from '@tanstack/react-query';
@@ -118,12 +120,17 @@ export const StudentsListSection = () => {
     );
 
     const leadSettings = useLeadSettings();
-    const showLeadScore = leadSettings.enabled && leadSettings.showScoreInStudentsTable;
+    // Don't render lead UI while settings are loading (defaults have enabled:true which would flash)
+    const leadReady = !leadSettings.isLoading && leadSettings.enabled;
+    const showLeadScore = leadReady && leadSettings.showScoreInStudentsTable;
+    const [assignDialog, setAssignDialog] = useState<{ userId: string; userName: string } | null>(null);
+
     const studentUserIds = useMemo(
         () => (studentTableData?.content ?? []).map((s) => s.user_id).filter(Boolean) as string[],
         [studentTableData]
     );
-    const { profiles: leadProfiles } = useLeadProfiles(studentUserIds, showLeadScore);
+    // Fetch lead profiles when lead system is enabled (needed for both score badge and counsellor column)
+    const { profiles: leadProfiles } = useLeadProfiles(studentUserIds, leadReady);
 
     const [allPagesData, setAllPagesData] = useState<Record<number, StudentTable[]>>({});
     useEffect(() => {
@@ -296,10 +303,13 @@ export const StudentsListSection = () => {
                                                         ].includes(s)
                                                     ) || false
                                                 );
-                                                if (!showLeadScore) return cols;
-                                                // Augment the full_name cell to show a score badge below the name
-                                                return cols.map((col) => {
-                                                    if (col.id !== 'full_name') return col;
+                                                // If lead system is entirely off, return cols unchanged
+                                                if (!leadReady) return cols;
+
+                                                // Augment full_name cell with score badge (only when score visible)
+                                                const augmented = cols.map((col) => {
+                                                    if (col.id !== 'full_name' || !showLeadScore)
+                                                        return col;
                                                     const originalCell = col.cell;
                                                     return {
                                                         ...col,
@@ -314,19 +324,73 @@ export const StudentsListSection = () => {
                                                                     'function'
                                                                         ? originalCell(props)
                                                                         : null}
-                                                                    {profile && (
-                                                                        <LeadScoreBadge
-                                                                            score={
-                                                                                profile.best_score
-                                                                            }
-                                                                            size="sm"
-                                                                        />
-                                                                    )}
+                                                                    {profile &&
+                                                                        profile.conversion_status !==
+                                                                            'CONVERTED' && (
+                                                                            <LeadScoreBadge
+                                                                                score={
+                                                                                    profile.best_score
+                                                                                }
+                                                                                size="sm"
+                                                                            />
+                                                                        )}
                                                                 </div>
                                                             );
                                                         },
                                                     };
                                                 });
+
+                                                // Counsellor column: always shown when lead system is enabled
+                                                augmented.push({
+                                                    id: 'counsellor',
+                                                    header: 'Counsellor',
+                                                    size: 160,
+                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                    cell: (props: any) => {
+                                                        const userId = props.row.original
+                                                            .user_id as string;
+                                                        const name = props.row.original
+                                                            .full_name as string;
+                                                        const profile = leadProfiles[userId];
+                                                        const counselorName =
+                                                            profile?.assigned_counselor_name;
+                                                        if (counselorName) {
+                                                            return (
+                                                                <button
+                                                                    className="flex items-center gap-1 truncate text-sm text-neutral-700 hover:text-primary-600"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setAssignDialog({
+                                                                            userId,
+                                                                            userName: name,
+                                                                        });
+                                                                    }}
+                                                                    title="Click to reassign"
+                                                                >
+                                                                    <UserCircle className="size-4 shrink-0 text-neutral-400" />
+                                                                    <span className="truncate">
+                                                                        {counselorName}
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <button
+                                                                className="rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 hover:bg-primary-50 hover:text-primary-700"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setAssignDialog({
+                                                                        userId,
+                                                                        userName: name,
+                                                                    });
+                                                                }}
+                                                            >
+                                                                Assign
+                                                            </button>
+                                                        );
+                                                    },
+                                                });
+                                                return augmented;
                                             })()}
                                             tableState={{
                                                 columnVisibility: getColumnsVisibility(),
@@ -382,6 +446,17 @@ export const StudentsListSection = () => {
                 <SendEmailDialog />
                 <AcceptRequestDialog />
                 <DeclineRequestDialog />
+                {leadReady && assignDialog && (
+                    <AssignCounselorToLeadDialog
+                        open={!!assignDialog}
+                        onOpenChange={(open) => {
+                            if (!open) setAssignDialog(null);
+                        }}
+                        userId={assignDialog.userId}
+                        userName={assignDialog.userName}
+                        invalidateKeys={[['lead-profiles-batch']]}
+                    />
+                )}
             </section>
         </ErrorBoundary>
     );

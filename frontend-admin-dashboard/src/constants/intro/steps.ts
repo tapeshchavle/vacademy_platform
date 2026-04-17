@@ -1,6 +1,6 @@
 import { Step } from '@/hooks/use-intro';
 import { getTerminology, getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
-import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
+import { ContentTerms, OtherTerms, RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 const dashboardSteps: Step[] = [
     {
@@ -11,7 +11,7 @@ const dashboardSteps: Step[] = [
     },
     {
         element: '#student-mangement',
-        title: 'Student Management',
+        title: `${getTerminologyPlural(RoleTerms.Learner, SystemTerms.Learner)} Management`,
         intro: 'Enroll, view details, update info, and assign batches. Manage all students here.',
         position: 'right',
     },
@@ -35,7 +35,7 @@ const dashboardSteps: Step[] = [
     },
     {
         element: '#first-course',
-        title: 'Create Your First Course',
+        title: `Create Your First ${getTerminology(ContentTerms.Course, SystemTerms.Course)}`,
         intro: 'Begin managing your courses by setting up your first one. It is quick and simple',
     },
     {
@@ -194,7 +194,7 @@ const createAssesmentButtonStep: Step[] = [
 const createCourseStep: Step[] = [
     {
         element: '#create-new-course',
-        title: 'Create a New Course',
+        title: `Create a New ${getTerminology(ContentTerms.Course, SystemTerms.Course)}`,
         intro: 'Start by setting up a new course in the Study Library. Define its name, description, and other details to structure your learning material efficiently.',
     },
 ];
@@ -202,7 +202,7 @@ const createCourseStep: Step[] = [
 const assignYearStep: Step[] = [
     {
         element: '#assign-year',
-        title: 'Assign Year/Class/Level',
+        title: `Assign ${getTerminology(ContentTerms.Level, SystemTerms.Level)}`,
         intro: 'Categorize the course by selecting the appropriate year, class, or level to ensure proper organization and accessibility for students.',
     },
 ];
@@ -243,7 +243,7 @@ const addSlidesStep: Step[] = [
 const publishSlideStep: Step[] = [
     {
         element: '#publish-slide',
-        title: 'Publish Slide',
+        title: `Publish ${getTerminology(ContentTerms.Slide, SystemTerms.Slide)}`,
         intro: 'Make the slide accessible to assigned batches by clicking `Publish` Once published, students can view the content.',
         position: 'right',
     },
@@ -262,7 +262,7 @@ const studyLibrarySteps = {
 const studentManagementSteps: Step[] = [
     {
         element: '#enroll-students',
-        title: 'Enroll Students',
+        title: `Enroll ${getTerminologyPlural(RoleTerms.Learner, SystemTerms.Learner)}`,
         intro: 'Enroll students manually or upload a CSV to bulk enroll. Select the course and session to get them started.',
         position: 'left',
     },
@@ -283,7 +283,7 @@ const studentManagementSteps: Step[] = [
 const addCourseStep: Step[] = [
     {
         element: '#course-name',
-        title: 'Enter Course Name',
+        title: `Enter ${getTerminology(ContentTerms.Course, SystemTerms.Course)} Name`,
         intro: 'Specify the course name offered by your institute.',
         position: 'bottom',
     },
@@ -295,25 +295,25 @@ const addCourseStep: Step[] = [
     },
     {
         element: '#course-level',
-        title: 'Level',
+        title: getTerminology(ContentTerms.Level, SystemTerms.Level),
         intro: 'Specify whether your course includes multiple levels, such as 9th or 10th standard, or if it has no levels.',
         position: 'right',
     },
     {
         element: '#add-course-level',
-        title: 'Add Level',
+        title: `Add ${getTerminology(ContentTerms.Level, SystemTerms.Level)}`,
         intro: 'Create levels linked to your course, structured by difficulty tiers such as the 10th standard.',
         position: 'right',
     },
     {
         element: '#add-course-session',
-        title: 'Add Session',
+        title: `Add ${getTerminology(ContentTerms.Session, SystemTerms.Session)}`,
         intro: 'Create sessions linked to the course, specifying a time period such as 2024-2025.',
         position: 'right',
     },
     {
         element: '#add-course-button',
-        title: 'Add Course',
+        title: `Add ${getTerminology(ContentTerms.Course, SystemTerms.Course)}`,
         intro: `Click the "Add" button to include a course in your institute.`,
         position: 'right',
     },
@@ -321,13 +321,13 @@ const addCourseStep: Step[] = [
 const inviteSteps: Step[] = [
     {
         element: '#invite-link-name',
-        title: 'Invite link Name',
+        title: `${getTerminology(OtherTerms.Invite, SystemTerms.Invite)} link Name`,
         intro: "Enter a name that clearly identifies the batch you're inviting students to. For example, 'Batch A - July 2025'",
         position: 'right',
     },
     {
         element: '#activate-link',
-        title: 'Activate Invite link',
+        title: `Activate ${getTerminology(OtherTerms.Invite, SystemTerms.Invite)} link`,
         intro: 'Turn the link on or off depending on when you want students to enroll.',
         position: 'right',
     },
@@ -339,13 +339,13 @@ const inviteSteps: Step[] = [
     },
     {
         element: '#select-batch',
-        title: 'Select Batch Enrollment Preference',
+        title: `Select ${getTerminology(ContentTerms.Batch, SystemTerms.Batch)} Enrollment Preference`,
         intro: "You can pre-select the batches you're inviting students to, or allow them to choose from the list of open batches during enrollment.",
         position: 'right',
     },
     {
         element: '#student-access-duration',
-        title: 'Set Student Access Duration',
+        title: `Set ${getTerminology(RoleTerms.Learner, SystemTerms.Learner)} Access Duration`,
         intro: 'Enter the number of days students will have access to the course after enrolling using this invite.',
         position: 'right',
     },

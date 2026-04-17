@@ -564,6 +564,32 @@ export const SlideMaterial = ({
                 }
             }
 
+            // Guard Yoopta block `value` array — this becomes the `children` of
+            // the block's internal Slate editor.  If it is empty or missing,
+            // every Slate operation (Editor.start, Editor.point, …) throws
+            // "Cannot get the start point … because it has no start text node."
+            // That error fires inside Yoopta's own selection-sync useEffect,
+            // which means our code never sees it — it just explodes on the next
+            // user click.  Inject a single empty paragraph so Slate always has
+            // a valid, non-empty document root.
+            if (newNode.value !== undefined && Array.isArray(newNode.value)) {
+                if (newNode.value.length === 0) {
+                    newNode.value = [{ type: 'paragraph', children: [{ text: '' }] }];
+                } else {
+                    newNode.value = newNode.value.map((slateEl: any) => {
+                        if (!slateEl) return { type: 'paragraph', children: [{ text: '' }] };
+                        if (
+                            !slateEl.children ||
+                            !Array.isArray(slateEl.children) ||
+                            slateEl.children.length === 0
+                        ) {
+                            return { ...slateEl, children: [{ text: '' }] };
+                        }
+                        return slateEl;
+                    });
+                }
+            }
+
             if (newNode.children && Array.isArray(newNode.children)) {
                 newNode.children = newNode.children.map(processNode);
             }
@@ -2051,6 +2077,16 @@ export const SlideMaterial = ({
 
             const totalPages = estimatePageCount(processedHtmlString);
 
+            // Guard against empty/broken serialization wiping out the slide.
+            // An empty Yoopta document serializes to the wrapper-only HTML
+            // produced by formatHTMLString(''), so we detect both literal
+            // emptiness and that empty wrapper before clobbering the slide.
+            if (!processedHtmlString || checkIsHtmlEmpty(processedHtmlString)) {
+                console.warn('⚠️ Skipping SaveDraft for DOC — editor returned empty content');
+                toast.error('Could not read editor content. Please try again.');
+                return;
+            }
+
             try {
                 await addUpdateDocumentSlide({
                     id: slide?.id || '',
@@ -2065,8 +2101,13 @@ export const SlideMaterial = ({
                         title: slide?.document_slide?.title || '',
                         cover_file_id: '',
                         total_pages: totalPages,
-                        published_data: null,
-                        published_document_total_pages: 1,
+                        // Preserve the existing published snapshot so a draft
+                        // save on a PUBLISHED slide does not wipe out the
+                        // last-published content. setEditorContent reads from
+                        // published_data whenever status === 'PUBLISHED'.
+                        published_data: slide?.document_slide?.published_data || null,
+                        published_document_total_pages:
+                            slide?.document_slide?.published_document_total_pages || 1,
                     },
                     status: status,
                     new_slide: false,

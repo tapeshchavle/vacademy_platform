@@ -21,6 +21,8 @@ import {
 } from "./payment-utils";
 import { EnrollmentSuccessDialog } from "./EnrollmentSuccessDialog";
 import { EnrollmentPendingDialog } from "./EnrollmentPendingDialog";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 // TypeScript declarations for Stripe
 declare global {
@@ -56,6 +58,11 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
     token,
     inviteCode,
   });
+
+  const courseTitleFallback = getTerminology(
+    ContentTerms.Course,
+    SystemTerms.Course
+  );
 
   const [step, setStep] = useState<'summary' | 'payment'>('summary');
   const [email, setEmail] = useState('');
@@ -580,7 +587,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
     <EnrollmentSuccessDialog
       open={showSuccessDialog}
       onOpenChange={setShowSuccessDialog}
-      courseTitle={enrollmentData?.name || "Course"}
+      courseTitle={enrollmentData?.name || courseTitleFallback}
       onExploreCourse={handleExploreCourse}
     />
 
@@ -588,7 +595,7 @@ export const SubscriptionPaymentDialog: React.FC<PaymentDialogProps> = ({
     <EnrollmentPendingDialog
       open={showPendingDialog}
       onOpenChange={setShowPendingDialog}
-      courseTitle={enrollmentData?.name || "Course"}
+      courseTitle={enrollmentData?.name || courseTitleFallback}
     />
   </>
   );

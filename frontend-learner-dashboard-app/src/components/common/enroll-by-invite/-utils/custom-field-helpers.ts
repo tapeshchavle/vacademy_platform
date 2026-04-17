@@ -7,7 +7,7 @@ export interface CustomField {
   id: string;
   fieldKey: string;
   fieldName: string;
-  fieldType: "text" | "number" | "dropdown";
+  fieldType: string;
   defaultValue: string | null;
   config: string;
   formOrder: number | null;
@@ -44,35 +44,116 @@ export enum FieldRenderType {
   EMAIL = "EMAIL",
   TEXT = "TEXT",
   DROPDOWN = "DROPDOWN",
+  NUMBER = "NUMBER",
+  URL = "URL",
+  DATE = "DATE",
+  TEXTAREA = "TEXTAREA",
+  CHECKBOX = "CHECKBOX",
+  RADIO = "RADIO",
+  FILE = "FILE",
 }
 
 /**
- * Determines the render type for a custom field based on its key and type
+ * Determines the render type for a custom field based on its key and type.
+ *
+ * Prioritises the explicit `fieldType` coming from the API (settings) — if
+ * the admin picked "date" in Settings we must render a date picker even if
+ * the field name happens to contain "phone". Only when the field type is a
+ * generic "text" do we fall back to keyword-based auto-detection (phone/
+ * email) for backward compatibility with older fields.
  */
 export const getFieldRenderType = (
   fieldKey: string,
   fieldType: string
 ): FieldRenderType => {
-  const lowerKey = fieldKey.toLowerCase();
+  const normalized = (fieldType || "").toLowerCase().trim();
 
-  // Check for dropdown
-  if (fieldType === "dropdown") {
-    return FieldRenderType.DROPDOWN;
+  // Direct mapping from API field type to render type (takes priority)
+  switch (normalized) {
+    case "dropdown":
+    case "select":
+      return FieldRenderType.DROPDOWN;
+    case "radio":
+      return FieldRenderType.RADIO;
+    case "number":
+      return FieldRenderType.NUMBER;
+    case "email":
+      return FieldRenderType.EMAIL;
+    case "url":
+      return FieldRenderType.URL;
+    case "phone":
+    case "tel":
+      return FieldRenderType.PHONE;
+    case "date":
+      return FieldRenderType.DATE;
+    case "textarea":
+      return FieldRenderType.TEXTAREA;
+    case "checkbox":
+      return FieldRenderType.CHECKBOX;
+    case "file":
+      return FieldRenderType.FILE;
   }
-  // Check for phone fields
+
+  // Fallback: auto-detect phone/email from field key for legacy generic-text fields
+  const lowerKey = (fieldKey || "").toLowerCase();
   const phoneKeywords = ["phone", "mobile", "contact", "telephone", "cell"];
   if (phoneKeywords.some((keyword) => lowerKey.includes(keyword))) {
     return FieldRenderType.PHONE;
   }
-
-  // Check for email fields
   const emailKeywords = ["email", "e-mail", "mail"];
   if (emailKeywords.some((keyword) => lowerKey.includes(keyword))) {
     return FieldRenderType.EMAIL;
   }
 
-  // Default to text
   return FieldRenderType.TEXT;
+};
+
+/**
+ * Full config shape stored in the custom_fields.config column as JSON.
+ * - Legacy dropdown-only format: bare array [{id,value,label}]
+ * - New object format: { options?, defaultValue?, allowedFileTypes?, maxSizeMB?, min?, max?, minDate?, maxDate? }
+ */
+export interface CustomFieldFullConfig {
+  options?: Array<{ id: number; value: string; label: string }>;
+  defaultValue?: string;
+  allowedFileTypes?: string[];
+  maxSizeMB?: number;
+  min?: number;
+  max?: number;
+  minDate?: string;
+  maxDate?: string;
+  maxLength?: number;
+}
+
+/**
+ * Parse the full config JSON (handles both legacy array and new object format)
+ */
+export const parseFieldConfig = (config?: string | null): CustomFieldFullConfig | undefined => {
+  if (!config) return undefined;
+  try {
+    const parsed = JSON.parse(config);
+    if (Array.isArray(parsed)) {
+      return { options: parsed };
+    }
+    if (parsed && typeof parsed === "object") {
+      return parsed as CustomFieldFullConfig;
+    }
+  } catch {
+    // ignore - may be a comma-separated fallback handled elsewhere
+  }
+  return undefined;
+};
+
+/**
+ * Extract the default value from a field's config JSON (or top-level defaultValue)
+ */
+export const getFieldDefaultValue = (
+  config?: string | null,
+  topLevelDefault?: string | null
+): string => {
+  if (topLevelDefault) return topLevelDefault;
+  const parsed = parseFieldConfig(config);
+  return parsed?.defaultValue ?? "";
 };
 
 /**
@@ -107,11 +188,19 @@ export const parseDropdownOptions = (
     // Parse JSON string
     const parsed = JSON.parse(config);
 
-    // Handle object case wrapping comma separated options (e.g. {coommaSepartedOptions: "A,B,C"})
+    // Handle object case wrapping options
     if (!Array.isArray(parsed) && typeof parsed === "object" && parsed !== null) {
-      // Check for known keys including the typo version seen in logs
-      const optionsString = parsed.coommaSepartedOptions || parsed.commaSeparatedOptions || parsed.options;
+      // New object-format config: {options: [{id,value,label}], defaultValue, ...}
+      if (Array.isArray(parsed.options)) {
+        return parsed.options.map((option: { id?: number; value: string; label?: string }, index: number) => ({
+          _id: option.id ?? index + 1,
+          value: option.value,
+          label: option.label ?? option.value,
+        }));
+      }
 
+      // Check for comma-separated wrapping (legacy) including the typo version seen in logs
+      const optionsString = parsed.coommaSepartedOptions || parsed.commaSeparatedOptions;
       if (typeof optionsString === "string") {
         return optionsString.split(",").map((option: string, index: number) => ({
           _id: index + 1,
@@ -192,16 +281,21 @@ export const transformCustomFieldsToFormValues = (
     const { custom_field } = field;
     const fieldKey = custom_field.fieldKey;
 
+    const fieldType = (custom_field.fieldType || "text").toLowerCase();
+    const initialValue =
+      custom_field.customFieldValue ||
+      getFieldDefaultValue(custom_field.config, custom_field.defaultValue);
+
     formValues[fieldKey] = {
       id: custom_field.id,
       name: custom_field.fieldName,
-      value: custom_field.customFieldValue || "",
+      value: initialValue,
       is_mandatory: custom_field.isMandatory ?? false,
-      type: custom_field.fieldType,
-      render_type: getFieldRenderType(fieldKey, custom_field.fieldType),
+      type: fieldType,
+      render_type: getFieldRenderType(fieldKey, fieldType),
       config: custom_field.config,
       comma_separated_options:
-        custom_field.fieldType === "dropdown"
+        fieldType === "dropdown" || fieldType === "radio"
           ? parseDropdownOptions(custom_field.config)
           : undefined,
     };
@@ -230,13 +324,32 @@ export const validateFieldValue = (
       break;
     }
     case FieldRenderType.PHONE: {
-      // Basic phone validation - can be adjusted based on requirements
       const phoneRegex = /^[+]?[\d\s()-]{10,}$/;
       if (!phoneRegex.test(value)) {
         return {
           isValid: false,
           error: "Please enter a valid phone number",
         };
+      }
+      break;
+    }
+    case FieldRenderType.URL: {
+      try {
+        new URL(value);
+      } catch {
+        return { isValid: false, error: "Please enter a valid URL" };
+      }
+      break;
+    }
+    case FieldRenderType.NUMBER: {
+      if (Number.isNaN(Number(value))) {
+        return { isValid: false, error: "Please enter a valid number" };
+      }
+      break;
+    }
+    case FieldRenderType.DATE: {
+      if (Number.isNaN(new Date(value).getTime())) {
+        return { isValid: false, error: "Please enter a valid date" };
       }
       break;
     }
@@ -266,6 +379,9 @@ export const getInputType = (
   renderType: FieldRenderType
 ): string => {
   if (renderType === FieldRenderType.EMAIL) return "email";
-  if (fieldType === "number") return "number";
+  if (renderType === FieldRenderType.URL) return "url";
+  if (renderType === FieldRenderType.NUMBER || fieldType === "number") return "number";
+  if (renderType === FieldRenderType.PHONE) return "tel";
+  if (renderType === FieldRenderType.DATE) return "date";
   return "text";
 };

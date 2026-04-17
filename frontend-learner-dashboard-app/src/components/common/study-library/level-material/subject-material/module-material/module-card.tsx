@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { ModuleDefaultImage } from "@/assets/svgs";
 import { CompletionStatusComponent } from "@/components/common/completion-status-component";
 import { toTitleCase } from "@/lib/utils";
+import { getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 export const ModuleCard = ({ module }: { module: ModulesWithChapters}) => {
 
@@ -75,7 +77,7 @@ export const ModuleCard = ({ module }: { module: ModulesWithChapters}) => {
                     <div className="flex flex-col gap-2">
                         <div className="flex gap-2 text-subtitle font-semibold">
                             <div className="text-primary-500">{module.chapters.length}</div>
-                            <div>Chapters</div>
+                            <div>{getTerminologyPlural(ContentTerms.Chapters, SystemTerms.Chapters)}</div>
                         </div>
 
                         <div className="flex items-center justify-between">

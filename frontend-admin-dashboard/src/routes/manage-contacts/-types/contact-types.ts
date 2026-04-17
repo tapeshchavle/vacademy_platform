@@ -91,6 +91,10 @@ export interface ContactUser {
     lead_score?: number | null;
     lead_tier?: string | null;
     lead_conversion_status?: string | null;
+    assigned_counselor_id?: string | null;
+    assigned_counselor_name?: string | null;
+    is_duplicate?: boolean | null;
+    primary_response_id?: string | null;
 }
 
 export interface ContactListResponse {

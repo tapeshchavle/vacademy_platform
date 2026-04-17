@@ -1,6 +1,8 @@
 import { getPublicUrlWithoutLogin } from "@/services/upload_file";
 import { CourseDetailsFormValues } from "../-components/course-details-schema";
 import { BatchForSessionType } from "@/types/institute-details/institute-details-interface";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 // Utility functions for YouTube URL handling
 export function isYouTubeUrl(url: string): boolean {
@@ -387,7 +389,8 @@ export function getBatchOptionsForSessionLevel(
   return matching.map((b) => {
     const name = b.name?.trim?.() || (b as { package_session_name?: string }).package_session_name?.trim?.();
     const isParent = b.is_parent === true;
-    const label = name || (isParent ? "Parent batch" : b.package_dto?.package_name || b.level?.level_name || "Batch");
+    const batchFallback = getTerminology(ContentTerms.Batch, SystemTerms.Batch);
+    const label = name || (isParent ? `Parent ${batchFallback.toLowerCase()}` : b.package_dto?.package_name || b.level?.level_name || batchFallback);
     return { id: b.id, label: isParent && !name ? `${label} (Parent)` : label, isParent };
   });
 }

@@ -202,7 +202,9 @@ public class DistinctUserAudienceService {
             if (leadProfile != null) {
                 builder.leadScore(leadProfile.getBestScore())
                        .leadTier(leadProfile.getLeadTier())
-                       .leadConversionStatus(leadProfile.getConversionStatus());
+                       .leadConversionStatus(leadProfile.getConversionStatus())
+                       .assignedCounselorId(leadProfile.getAssignedCounselorId())
+                       .assignedCounselorName(leadProfile.getAssignedCounselorName());
             }
 
             // Enrich with v2 data for institute users

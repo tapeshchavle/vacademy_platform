@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Video,
     Trash2,
@@ -24,6 +23,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface HistorySidebarProps {
     history: HistoryItem[];
@@ -33,6 +33,10 @@ interface HistorySidebarProps {
     onNewVideo: () => void;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
+    currentPage?: number;
+    totalPages?: number;
+    onPageChange?: (page: number) => void;
+    isLoadingHistory?: boolean;
 }
 
 export function HistorySidebar({
@@ -43,8 +47,11 @@ export function HistorySidebar({
     onNewVideo,
     isCollapsed,
     onToggleCollapse,
+    currentPage = 0,
+    totalPages = 1,
+    onPageChange,
+    isLoadingHistory,
 }: HistorySidebarProps) {
-
     const getStatusIcon = (status: HistoryItem['status']) => {
         switch (status) {
             case 'pending':
@@ -146,7 +153,11 @@ export function HistorySidebar({
 
             <ScrollArea className="flex-1">
                 <div className="space-y-1 p-2">
-                    {history.length === 0 ? (
+                    {isLoadingHistory ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                        </div>
+                    ) : history.length === 0 ? (
                         <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
                             <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-muted/50">
                                 <Video className="size-5 text-muted-foreground/50" />
@@ -235,6 +246,35 @@ export function HistorySidebar({
                     )}
                 </div>
             </ScrollArea>
+
+            {/* Pagination buttons */}
+            {onPageChange && totalPages > 1 && (
+                <div className="flex items-center justify-between border-t px-3 py-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        disabled={currentPage === 0 || isLoadingHistory}
+                        onClick={() => onPageChange(currentPage - 1)}
+                    >
+                        <ChevronLeft className="size-3.5" />
+                        Prev
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground">
+                        {currentPage + 1} / {totalPages}
+                    </span>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        disabled={currentPage >= totalPages - 1 || isLoadingHistory}
+                        onClick={() => onPageChange(currentPage + 1)}
+                    >
+                        Next
+                        <ChevronRight className="size-3.5" />
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, Fragment } from 'react';
+import { useState, useMemo, useCallback, useEffect, Fragment } from 'react';
 import {
     CheckCircle,
     XCircle,
@@ -19,8 +19,8 @@ import { toast } from 'sonner';
 import Papa from 'papaparse';
 import { MyButton } from '@/components/design-system/button';
 import { Badge } from '@/components/ui/badge';
-import type { LiveSessionReport } from '../-services/utils';
-import { adminMarkAttendance } from '../-services/utils';
+import type { LiveSessionReport, SessionCustomFieldValue } from '../-services/utils';
+import { adminMarkAttendance, getSessionCustomFieldValues } from '../-services/utils';
 
 interface EngagementData {
     chats?: number;
@@ -102,6 +102,72 @@ export function AttendanceMarkingTable({
     const [saving, setSaving] = useState(false);
     const [sortField, setSortField] = useState<SortField | null>(null);
     const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+    // Custom field values for participants (keyed by participantId)
+    const [cfData, setCfData] = useState<Record<string, SessionCustomFieldValue[]>>({});
+
+    useEffect(() => {
+        if (sessionId) {
+            getSessionCustomFieldValues(sessionId).then((data) => {
+                console.log('[AttendanceMarkingTable] Custom field data:', {
+                    sessionId,
+                    guestCount: Object.keys(data).length,
+                    sampleKeys: Object.keys(data).slice(0, 3),
+                    sampleData: Object.entries(data).slice(0, 1).map(([k, v]) => ({ guestId: k, fields: v.map(f => ({ name: f.fieldName, key: f.fieldKey, value: f.customFieldValue })) })),
+                });
+                setCfData(data);
+            });
+        }
+    }, [sessionId]);
+
+    // Extract unique custom field names (excluding name/email/phone which are already columns)
+    const customFieldColumns = useMemo(() => {
+        // Skip fields that are already shown as standard columns. Match by
+        // fieldName (case-insensitive exact match) — NOT by substring on
+        // fieldKey, because keys like "name_of_the_school_inst_..." would
+        // incorrectly match "name".
+        // Only skip fields already shown as standard columns in this table:
+        // Name (fullName) and Email. All other custom fields show as columns.
+        const SKIP_NAMES = ['full name', 'name', 'email'];
+        const fieldMap = new Map<string, string>(); // fieldKey → fieldName
+        Object.values(cfData).forEach((fields) => {
+            fields.forEach((f) => {
+                const nameLC = (f.fieldName || '').toLowerCase();
+                if (!SKIP_NAMES.includes(nameLC) && f.fieldName && !fieldMap.has(f.fieldKey)) {
+                    fieldMap.set(f.fieldKey, f.fieldName);
+                }
+            });
+        });
+        const cols = Array.from(fieldMap.entries()).map(([key, name]) => ({ key, name }));
+        console.log('[AttendanceMarkingTable] Custom field columns:', cols);
+        return cols;
+    }, [cfData]);
+
+    // Helper: get custom field value for a participant by email (guests) or studentId
+    const getCfValue = useCallback(
+        (student: LiveSessionReport, fieldKey: string): string => {
+            // Try matching by studentId first (for guests, studentId = guestId)
+            const byId = cfData[student.studentId];
+            if (byId) {
+                const match = byId.find((f) => f.fieldKey === fieldKey);
+                if (match?.customFieldValue) return match.customFieldValue;
+            }
+            // Fallback: try matching by email across all entries
+            for (const fields of Object.values(cfData)) {
+                if (fields.length > 0 && fields[0]?.guestId) {
+                    const emailField = fields.find(
+                        (f) => f.fieldKey?.toLowerCase().includes('email') && f.customFieldValue === student.email
+                    );
+                    if (emailField) {
+                        const match = fields.find((f) => f.fieldKey === fieldKey);
+                        if (match?.customFieldValue) return match.customFieldValue;
+                    }
+                }
+            }
+            return '-';
+        },
+        [cfData]
+    );
 
     const dirtyCount = Object.keys(statusOverrides).length;
 
@@ -246,7 +312,7 @@ export function AttendanceMarkingTable({
             const talkTimeMin = engagement?.talkTime ? Math.round(engagement.talkTime / 60) : '';
             const activePoints = computeActivePoints(item) ?? '';
 
-            return {
+            const row: Record<string, any> = {
                 '#': idx + 1,
                 'Name': item.fullName,
                 'Email': item.email || '',
@@ -261,6 +327,10 @@ export function AttendanceMarkingTable({
                 'Chats': engagement?.chats ?? '',
                 'Poll Votes': engagement?.pollVotes ?? '',
             };
+            customFieldColumns.forEach((cf) => {
+                row[cf.name] = getCfValue(item, cf.key);
+            });
+            return row;
         });
         const csv = Papa.unparse(csvData);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -276,7 +346,7 @@ export function AttendanceMarkingTable({
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         toast.success('Attendance CSV downloaded');
-    }, [sortedData, getStatus, sessionId, sessionTitle]);
+    }, [sortedData, getStatus, sessionId, sessionTitle, customFieldColumns, getCfValue]);
 
     const hasEngagementOrDuration = (student: LiveSessionReport) => {
         return student.providerTotalDurationMinutes || student.engagementData;
@@ -340,6 +410,9 @@ export function AttendanceMarkingTable({
                                 </button>
                             </th>
                             <th className="px-3 py-2">Email</th>
+                            {customFieldColumns.map((cf) => (
+                                <th key={cf.key} className="px-3 py-2">{cf.name}</th>
+                            ))}
                             <th className="px-3 py-2 w-[100px]">
                                 <button
                                     type="button"
@@ -412,6 +485,11 @@ export function AttendanceMarkingTable({
                                             </div>
                                         </td>
                                         <td className="px-3 py-2 text-gray-500">{student.email}</td>
+                                        {customFieldColumns.map((cf) => (
+                                            <td key={cf.key} className="px-3 py-2 text-gray-500">
+                                                {getCfValue(student, cf.key)}
+                                            </td>
+                                        ))}
                                         <td className="px-3 py-2 text-gray-600">
                                             {student.providerTotalDurationMinutes != null ? (
                                                 <span className="flex items-center gap-1">

@@ -138,6 +138,9 @@ export const CONTENT_TYPES = [
 
 export type VideoOrientation = 'landscape' | 'portrait';
 export type QualityTier = 'free' | 'standard' | 'premium' | 'ultra' | 'super_ultra';
+// Deprecated: the Director now picks theme/background/animation per-shot.
+// Type kept for reading historical metadata from past runs.
+export type VisualStyle = 'standard' | 'illustrated_svg' | 'product_showcase';
 
 export interface ReferenceFile {
     url: string;
@@ -161,6 +164,8 @@ export interface GenerateVideoRequest {
     video_id?: string; // Optional: auto-generated if not provided
     reference_files?: ReferenceFile[];
     orientation?: VideoOrientation;
+    visual_style?: VisualStyle;
+    target_stage?: VideoStage; // Stop at this stage (default: HTML). Use 'SCRIPT' for review mode.
 }
 
 export const QUALITY_TIERS: Array<{
@@ -353,6 +358,7 @@ export const DEFAULT_OPTIONS: Omit<GenerateVideoRequest, 'prompt'> = {
     model: '',
     quality_tier: 'ultra',
     orientation: 'landscape',
+    visual_style: 'standard',
 };
 
 export function generateVideoId(): string {
@@ -398,13 +404,15 @@ export function generateVideo(
     const controller = new AbortController();
     const contentType = request.content_type || 'VIDEO';
 
+    const { target_stage, ...requestBody } = request;
     const body = {
-        ...request,
+        ...requestBody,
         video_id: videoId,
         content_type: contentType,
     };
 
-    fetch(`${AI_SERVICE_BASE_URL}/external/video/v1/generate`, {
+    const targetStage = target_stage || 'HTML';
+    fetch(`${AI_SERVICE_BASE_URL}/external/video/v1/generate?target_stage=${encodeURIComponent(targetStage)}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -519,6 +527,124 @@ export async function getVideoUrls(videoId: string, apiKey: string): Promise<Vid
     }
 
     return response.json();
+}
+
+// ---------------------------------------------------------------------------
+// Resume generation (after script review)
+// ---------------------------------------------------------------------------
+
+export interface ResumeVideoRequest {
+    videoId: string;
+    targetStage?: string;
+    modifiedScript?: string;
+    /** Original generation options — forwarded so the pipeline uses the same settings */
+    options?: Omit<GenerateVideoRequest, 'prompt'>;
+}
+
+/**
+ * Resume a paused generation (e.g. after script review).
+ * Returns SSE stream identical to generateVideo().
+ */
+export function resumeVideo(
+    request: ResumeVideoRequest,
+    apiKey: string,
+    onProgress: (event: SSEEvent) => void,
+    onError: (error: Error) => void
+): { abort: () => void } {
+    const controller = new AbortController();
+
+    const opts = request.options;
+    const body: Record<string, unknown> = {
+        target_stage: request.targetStage || 'HTML',
+        // Forward original generation settings so the pipeline uses consistent params
+        voice_gender: opts?.voice_gender || 'female',
+        tts_provider: opts?.tts_provider || 'standard',
+        voice_id: opts?.voice_id || null,
+        captions_enabled: opts?.captions_enabled ?? true,
+        html_quality: opts?.html_quality || 'advanced',
+        target_audience: opts?.target_audience || 'General/Adult',
+        target_duration: opts?.target_duration || '2-3 minutes',
+        model: opts?.model || null,
+        sound_effects_enabled: true,
+    };
+    if (request.modifiedScript !== undefined) {
+        body.modified_script = request.modifiedScript;
+    }
+
+    fetch(
+        `${AI_SERVICE_BASE_URL}/external/video/v1/resume/${encodeURIComponent(request.videoId)}`,
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Institute-Key': apiKey,
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        }
+    )
+        .then(async (response) => {
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => response.statusText);
+                if (response.status === 402) {
+                    const err = new Error(
+                        (() => { try { return JSON.parse(errorText).detail; } catch { return errorText || 'Insufficient credits'; } })()
+                    );
+                    err.name = 'InsufficientCreditsError';
+                    throw err;
+                }
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error('No response body');
+
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            // eslint-disable-next-line no-constant-condition
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            let jsonStr = line.slice(6).trim();
+                            jsonStr = jsonStr
+                                .replace(/'/g, '"')
+                                .replace(/None/g, 'null')
+                                .replace(/True/g, 'true')
+                                .replace(/False/g, 'false');
+                            const data = JSON.parse(jsonStr) as SSEEvent;
+                            onProgress(data);
+                        } catch (e) {
+                            console.warn('SSE parse error:', e, 'Line:', line);
+                        }
+                    }
+                }
+            }
+        })
+        .catch((error) => {
+            if (error.name !== 'AbortError') {
+                onError(error);
+            }
+        });
+
+    return { abort: () => controller.abort() };
+}
+
+/**
+ * Fetch the raw script text from its S3 URL.
+ */
+export async function fetchScriptText(scriptUrl: string): Promise<string> {
+    const resp = await fetch(scriptUrl);
+    if (!resp.ok) throw new Error(`Failed to fetch script: ${resp.statusText}`);
+    return resp.text();
 }
 
 // ---------------------------------------------------------------------------
@@ -754,9 +880,9 @@ function mapRemoteStatus(status: string): HistoryItem['status'] {
     }
 }
 
-export async function getRemoteHistory(apiKey: string, limit: number = 20): Promise<HistoryItem[]> {
+export async function getRemoteHistory(apiKey: string, limit: number = 20, offset: number = 0): Promise<HistoryItem[]> {
     const response = await fetch(
-        `${AI_SERVICE_BASE_URL}/external/video/v1/history?limit=${limit}`,
+        `${AI_SERVICE_BASE_URL}/external/video/v1/history?limit=${limit}&offset=${offset}`,
         {
             headers: {
                 'X-Institute-Key': apiKey,
@@ -771,32 +897,42 @@ export async function getRemoteHistory(apiKey: string, limit: number = 20): Prom
 
     const data: RemoteHistoryItem[] = await response.json();
 
-    return data.map((item) => ({
-        id: item.id,
-        video_id: item.video_id,
-        prompt: item.prompt,
-        content_type: item.content_type,
-        status: mapRemoteStatus(item.status),
-        stage: item.current_stage,
-        created_at: item.created_at,
-        html_url: item.s3_urls.timeline,
-        audio_url: item.s3_urls.audio,
-        words_url: item.s3_urls.words,
-        // Reconstruct options as they aren't fully returned by the history API yet
-        options: {
+    return data.map((item) => {
+        // Pull persisted fields out of item.metadata when present.
+        // The pipeline stores visual_style, orientation, quality_tier here so history
+        // can reconstruct the original generation settings faithfully.
+        const meta = (item.metadata || {}) as Record<string, unknown>;
+        const metaVisualStyle = typeof meta.visual_style === 'string' ? (meta.visual_style as VisualStyle) : 'standard';
+        const metaOrientation = typeof meta.orientation === 'string' ? (meta.orientation as VideoOrientation) : 'landscape';
+        const metaQualityTier = typeof meta.quality_tier === 'string' ? (meta.quality_tier as QualityTier) : 'ultra';
+        return {
+            id: item.id,
+            video_id: item.video_id,
+            prompt: item.prompt,
             content_type: item.content_type,
-            language: item.language,
-            // Defaults for missing fields
-            voice_gender: 'female',
-            tts_provider: 'standard',
-            captions_enabled: true,
-            html_quality: 'advanced',
-            target_audience: 'General/Adult',
-            target_duration: '2-3 minutes',
-            model: '',
-            quality_tier: 'ultra',
-        },
-    }));
+            status: mapRemoteStatus(item.status),
+            stage: item.current_stage,
+            created_at: item.created_at,
+            html_url: item.s3_urls.timeline,
+            audio_url: item.s3_urls.audio,
+            words_url: item.s3_urls.words,
+            // Reconstruct options, preferring values from item.metadata over static defaults
+            options: {
+                content_type: item.content_type,
+                language: item.language,
+                voice_gender: 'female',
+                tts_provider: 'standard',
+                captions_enabled: true,
+                html_quality: 'advanced',
+                target_audience: 'General/Adult',
+                target_duration: '2-3 minutes',
+                model: '',
+                quality_tier: metaQualityTier,
+                orientation: metaOrientation,
+                visual_style: metaVisualStyle,
+            },
+        };
+    });
 }
 
 // ---------------------------------------------------------------------------

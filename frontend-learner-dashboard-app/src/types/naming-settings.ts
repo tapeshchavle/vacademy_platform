@@ -9,11 +9,13 @@ export enum ContentTerms {
   Chapters = "Chapter",
   Slides = "Slide",
   LiveSession = "LiveSession",
+  Batch = "Batch",
+  PopularTag = "PopularTag",
 }
 
 export enum RoleTerms {
   Admin = "Admin",
-  Teacher = "Instructor",
+  Teacher = "Teacher",
   CourseCreator = "CourseCreator",
   AssessmentCreator = "AssessmentCreator",
   Evaluator = "Evaluator",
@@ -27,7 +29,9 @@ export enum SystemTerms {
   Modules = "Module",
   Chapters = "Chapter",
   Slides = "Slide",
-  LiveSession = "Live Session",
+  LiveSession = "Live Class",
+  Batch = "Batch",
+  PopularTag = "Popular Tag",
   Admin = "Admin",
   Teacher = "Instructor",
   CourseCreator = "Course Creator",

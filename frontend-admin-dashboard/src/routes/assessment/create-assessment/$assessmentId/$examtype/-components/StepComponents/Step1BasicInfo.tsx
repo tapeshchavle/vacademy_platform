@@ -132,7 +132,7 @@ const TestCreationFields = ({ control, form, examType, instituteDetails }: any) 
                         <FormItem>
                             <FormControl>
                                 <SelectField
-                                    label="Subject"
+                                    label={getTerminology(ContentTerms.Subjects, SystemTerms.Subjects)}
                                     name="testCreation.subject"
                                     options={[]}
                                     control={control}

@@ -3,6 +3,8 @@ import { ModuleCard } from "./module-card"
 import { useSidebar } from "@/components/ui/sidebar"
 import { ModulesWithChapters } from "@/stores/study-library/use-modules-with-chapters-store";
 import { useEffect, useState } from "react";
+import { getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 interface ModulesProps {
     modules: ModulesWithChapters[] | null;
@@ -22,7 +24,7 @@ export const Modules = ({modules: initialModules }:ModulesProps) => {
         {!modules?.length && (
             <div className="flex w-full h-[70vh] flex-col items-center justify-center gap-8 rounded-lg">
                     <EmptyModulesImage />
-                    <div>No Modules have been added yet.</div>
+                    <div>No {getTerminologyPlural(ContentTerms.Modules, SystemTerms.Modules)} have been added yet.</div>
                 </div>
             )}
             <div className={`grid xs:grid-cols-1 md-tablets:grid-cols-2 ${open?"sm:grid-cols-1":"sm:grid-cols-2"} gap-6 w-full`}>

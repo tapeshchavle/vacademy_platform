@@ -336,10 +336,6 @@ export const handleLoginFlow = async (options: LoginFlowOptions): Promise<LoginF
                 redirectUrl = cachedBrandingOverride.afterLoginRoute;
             }
 
-            if (hasFacultyAssignedPermission(instituteId)) {
-                redirectUrl = '/study-library/courses';
-            }
-
             return {
                 success: true,
                 redirectUrl,
@@ -556,10 +552,6 @@ export const handleInstituteSelection = async (instituteId: string): Promise<Log
         const cached = getCachedInstituteBranding(instituteId);
         if (cached?.afterLoginRoute) {
             redirectUrl = cached.afterLoginRoute;
-        }
-
-        if (hasFacultyAssignedPermission(instituteId)) {
-            redirectUrl = '/study-library/courses';
         }
 
         // Preserve learner tab hint if user also has STUDENT role and route points to dashboard

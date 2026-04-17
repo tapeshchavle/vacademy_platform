@@ -47,6 +47,9 @@ export interface NewUserRow {
     parents_to_mother_email?: string;
     linked_institute_name?: string;
 
+    // Payment fields
+    payment_date?: string;
+
     // Institute custom fields
     custom_field_values?: CustomFieldValue[];
 }

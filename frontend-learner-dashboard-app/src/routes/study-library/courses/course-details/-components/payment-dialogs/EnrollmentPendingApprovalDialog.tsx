@@ -2,6 +2,8 @@ import React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Clock } from "lucide-react";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 interface EnrollmentPendingApprovalDialogProps {
   open: boolean;
@@ -12,7 +14,7 @@ interface EnrollmentPendingApprovalDialogProps {
 export const EnrollmentPendingApprovalDialog: React.FC<EnrollmentPendingApprovalDialogProps> = ({
   open,
   onOpenChange,
-  courseTitle = "Course",
+  courseTitle = getTerminology(ContentTerms.Course, SystemTerms.Course),
 }) => {
   const handleClose = () => {
     onOpenChange(false);

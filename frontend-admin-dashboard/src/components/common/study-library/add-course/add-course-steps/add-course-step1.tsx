@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import ImageCropperDialog from '@/components/design-system/image-cropper-dialog';
 import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
-import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { getTerminology, getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
 
 import { useInstituteDetailsStore } from '@/stores/students/students-list/useInstituteDetailsStore';
 import { CourseSettingsData } from '@/types/course-settings';
@@ -622,14 +622,18 @@ export const AddCourseStep1 = ({
                                 {courseSettings?.courseInformation?.popularTopicsEnabled && (
                                     <div className="space-y-2 pt-10">
                                         <Label className="text-base font-medium text-gray-900">
+                                            {getTerminologyPlural(
+                                                ContentTerms.PopularTag,
+                                                SystemTerms.PopularTag
+                                            )}
+                                        </Label>
+                                        <p className="text-sm text-gray-600">
+                                            Add tags to help categorize and find your{' '}
                                             {getTerminology(
                                                 ContentTerms.Course,
                                                 SystemTerms.Course
-                                            )}{' '}
-                                            Tags
-                                        </Label>
-                                        <p className="text-sm text-gray-600">
-                                            Add tags to help categorize and find your course easily
+                                            ).toLowerCase()}{' '}
+                                            easily
                                         </p>
                                         <div className="flex gap-2">
                                             <Input
