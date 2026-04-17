@@ -10,12 +10,10 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
-import { CalendarBlank } from "@phosphor-icons/react";
-import { format } from "date-fns";
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/style.css";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { getTokenFromCookie, getTokenDecodedData } from "@/lib/auth/sessionUtility";
 import { TokenKey } from "@/constants/auth/tokens";
@@ -58,7 +56,6 @@ export const CustomFieldRenderer = ({
   disabled = false,
   placeholder,
 }: CustomFieldRendererProps) => {
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
   const { uploadFile, uploadFilePublic, getPublicUrl, getPublicUrlWithoutLogin } = useFileUpload();
@@ -66,11 +63,16 @@ export const CustomFieldRenderer = ({
   // Normalise the render type
   const normalizedType = String(type).toUpperCase() as FieldRenderType;
 
-  // Resolve options: prefer explicit options prop, else parse from config
+  // Resolve options: prefer explicit options prop, else parse from config.
+  // Only parse for types that actually use options to avoid spurious
+  // "Empty or invalid config" console warnings for date/text/checkbox/etc.
+  const needsOptions =
+    normalizedType === FieldRenderType.DROPDOWN ||
+    normalizedType === FieldRenderType.RADIO;
   const resolvedOptions =
     options && options.length > 0
       ? options
-      : typeof config === "string"
+      : needsOptions && typeof config === "string"
         ? parseDropdownOptions(config)
         : undefined;
 
@@ -216,52 +218,37 @@ export const CustomFieldRenderer = ({
 
     case FieldRenderType.PHONE:
       return (
-        <MyInput
-          inputType="tel"
-          inputPlaceholder={placeholder || `Enter ${name}`}
-          input={value || ""}
-          onChangeFunction={(e) => handleChange(e.target.value)}
-          size="large"
-          className="w-full"
+        <PhoneInput
+          country="in"
+          value={value || ""}
+          onChange={(val) => {
+            const formatted = val.startsWith("+") ? val : `+${val}`;
+            handleChange(formatted);
+          }}
+          enableSearch={true}
           disabled={disabled}
-          required={required}
+          placeholder={placeholder || `Enter ${name}`}
+          inputStyle={{ width: "100%" }}
+          containerStyle={{ width: "100%" }}
         />
       );
 
-    case FieldRenderType.DATE: {
-      const parsedDate = value ? new Date(value) : undefined;
-      const isValidDate = parsedDate && !Number.isNaN(parsedDate.getTime());
+    case FieldRenderType.DATE:
+      // Using native date input because the learner app's Calendar component
+      // is a react-date-range *range* picker (mode="range" only), not a
+      // single-date picker. The native <input type="date"> gives a good UX
+      // on all modern browsers and avoids the component mismatch crash.
       return (
-        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              disabled={disabled}
-              className="flex w-full items-center gap-2 rounded-md border border-neutral-300 px-3 py-2 text-left text-sm hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <CalendarBlank size={16} className="text-neutral-500" />
-              {isValidDate ? (
-                format(parsedDate, "PPP")
-              ) : (
-                <span className="text-neutral-400">{placeholder || "Pick a date"}</span>
-              )}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={isValidDate ? parsedDate : undefined}
-              onSelect={(date) => {
-                if (date) {
-                  handleChange(date.toISOString().split("T")[0] ?? "");
-                }
-                setDatePickerOpen(false);
-              }}
-            />
-          </PopoverContent>
-        </Popover>
+        <input
+          type="date"
+          value={value || ""}
+          onChange={(e) => handleChange(e.target.value)}
+          disabled={disabled}
+          required={required}
+          placeholder={placeholder || "Pick a date"}
+          className="flex w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        />
       );
-    }
 
     case FieldRenderType.TEXTAREA:
       return (
