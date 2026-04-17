@@ -6,13 +6,11 @@ import {
 import { UserDetailsOpenTest } from "@/types/open-test";
 import { z } from "zod";
 
-// Parse a backend-issued timestamp into an epoch millis value.
-// Backend sometimes omits the trailing 'Z' on ISO strings; without a zone
-// marker modern browsers interpret the string as *local* time, so we force
-// UTC interpretation when no zone is present. Returns NaN on missing/invalid
-// input so the callers can branch cleanly.
 const parseBackendDate = (raw: string): number => {
-  if (!raw) return NaN;
+  // Backend may send timestamps with or without an explicit timezone.
+  // Without a zone marker, modern browsers parse the string as *local*
+  // time, which makes the countdown drift by the local UTC offset.
+  // Force UTC interpretation when no zone marker is present.
   const hasTimezone = /Z$|[+-]\d{2}:?\d{2}$/i.test(raw);
   const normalized = hasTimezone ? raw : `${raw.replace(" ", "T")}Z`;
   return new Date(normalized).getTime();
@@ -22,6 +20,7 @@ export const calculateTimeDifference = (
   serverTime: number,
   startDate: string
 ) => {
+  if (!startDate) return false;
   const startTime = parseBackendDate(startDate);
   if (isNaN(startTime)) return false;
 
@@ -31,6 +30,7 @@ export const calculateTimeDifference = (
 };
 
 export const calculateTimeLeft = (serverTime: number, startDate: string) => {
+  if (!startDate) return { hours: 0, minutes: 0, seconds: 0 };
   const startTime = parseBackendDate(startDate);
   if (isNaN(startTime)) return { hours: 0, minutes: 0, seconds: 0 };
 
