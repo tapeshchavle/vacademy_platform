@@ -165,7 +165,7 @@ public class WorkflowCatalogController {
         eventMeta.put("LIVE_SESSION_END", new String[]{"Live Session Ended", "Fires when a live session ends", "Live Session", "LIVE_SESSION"});
         eventMeta.put("LIVE_SESSION_FORM_SUBMISSION", new String[]{"Live Session Form Submission", "Fires when a learner submits a live session registration form", "Live Session", "LIVE_SESSION"});
         // Payment
-        eventMeta.put("PAYMENT_FAILED", new String[]{"Payment Failed", "Fires when a payment fails", "Payment", "PAYMENT"});
+        eventMeta.put("PAYMENT_FAILED", new String[]{"Payment Failed", "Fires when a payment fails for an enrollment invite", "Payment", "ENROLL_INVITE"});
         eventMeta.put("ABANDONED_CART", new String[]{"Abandoned Cart", "Fires when a user starts enrollment but doesn't complete payment", "Payment", "ENROLL_INVITE"});
         // Invites
         eventMeta.put("INVITE_CREATE", new String[]{"Invite Created", "Fires when a new enroll invite is created", "Invites", "ENROLL_INVITE"});
