@@ -9,6 +9,7 @@ import {
     reviewAdjustment,
 } from '@/services/manage-finances';
 import { StudentFeeDueDTO } from '@/types/manage-finances';
+import { cn } from '@/lib/utils';
 
 const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
@@ -31,8 +32,8 @@ export function AdjustmentApprovalsMain() {
         onSuccess: (_data, variables) => {
             toast.success(
                 variables.action === 'APPROVED'
-                    ? 'Concession approved'
-                    : 'Concession rejected'
+                    ? 'Adjustment approved'
+                    : 'Adjustment rejected'
             );
             queryClient.invalidateQueries({ queryKey: getPendingAdjustmentsQueryKey() });
         },
@@ -67,7 +68,7 @@ export function AdjustmentApprovalsMain() {
             <div className="rounded-xl border border-gray-200 bg-white p-12 text-center">
                 <p className="text-lg font-semibold text-gray-600">No pending approvals</p>
                 <p className="mt-2 text-sm text-gray-400">
-                    All concession requests have been reviewed.
+                    All adjustment requests have been reviewed.
                 </p>
             </div>
         );
@@ -89,10 +90,13 @@ export function AdjustmentApprovalsMain() {
                                 CPO / Plan
                             </th>
                             <th className="py-3 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                                Type
+                            </th>
+                            <th className="py-3 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                                 Expected
                             </th>
                             <th className="py-3 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                                Concession
+                                Amount
                             </th>
                             <th className="py-3 px-4 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                                 Reason
@@ -106,8 +110,18 @@ export function AdjustmentApprovalsMain() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-sm font-medium">
-                        {pending.map((item: StudentFeeDueDTO) => (
-                            <tr key={item.id} className="hover:bg-gray-50/60 transition-colors">
+                        {pending.map((item: StudentFeeDueDTO) => {
+                            const isPenalty = item.adjustment_type === 'PENALTY';
+                            return (
+                            <tr
+                                key={item.id}
+                                className={cn(
+                                    'transition-colors border-l-4',
+                                    isPenalty
+                                        ? 'border-l-red-400 hover:bg-red-50/40'
+                                        : 'border-l-emerald-400 hover:bg-emerald-50/40'
+                                )}
+                            >
                                 <td className="py-3 px-4 text-gray-800 font-semibold">
                                     {item.student_name || item.user_id}
                                 </td>
@@ -117,11 +131,29 @@ export function AdjustmentApprovalsMain() {
                                 <td className="py-3 px-4 text-gray-600">
                                     {item.cpo_name || '\u2014'}
                                 </td>
+                                <td className="py-3 px-4">
+                                    <span
+                                        className={cn(
+                                            'inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
+                                            isPenalty
+                                                ? 'bg-red-100 text-red-800'
+                                                : 'bg-emerald-100 text-emerald-800'
+                                        )}
+                                    >
+                                        {isPenalty ? 'Penalty' : 'Concession'}
+                                    </span>
+                                </td>
                                 <td className="py-3 px-4 text-gray-700">
                                     {formatCurrency(item.amount_expected)}
                                 </td>
-                                <td className="py-3 px-4 text-emerald-700 font-semibold">
-                                    -{formatCurrency(item.adjustment_amount)}
+                                <td
+                                    className={cn(
+                                        'py-3 px-4 font-semibold',
+                                        isPenalty ? 'text-red-700' : 'text-emerald-700'
+                                    )}
+                                >
+                                    {isPenalty ? '+' : '-'}
+                                    {formatCurrency(item.adjustment_amount)}
                                 </td>
                                 <td className="py-3 px-4 text-gray-500 max-w-[200px] truncate" title={item.adjustment_reason ?? ''}>
                                     {item.adjustment_reason || '\u2014'}
@@ -166,7 +198,8 @@ export function AdjustmentApprovalsMain() {
                                     </div>
                                 </td>
                             </tr>
-                        ))}
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
