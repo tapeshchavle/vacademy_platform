@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn, convertCapitalToTitleCase } from '@/lib/utils';
-import { convertCapitalToTitleCase } from '@/lib/utils';
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
 import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
