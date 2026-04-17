@@ -7,7 +7,9 @@ import React, { useEffect, useMemo, useRef, useCallback, type ChangeEvent, Suspe
 const YooptaEditorWrapper = React.lazy(() => import('./YooptaEditorWrapper').then(module => ({ default: module.YooptaEditorWrapper })));
 import '../excalidraw-z-index-fix.css';
 import { MyButton } from '@/components/design-system/button';
-const PDFViewer = React.lazy(() => import('./pdf-viewer'));
+const PDFViewer = React.lazy(() =>
+    import('./pdf-viewer').then((module) => ({ default: module.default }))
+);
 import { ActivityStatsSidebar } from './stats-dialog/activity-sidebar';
 import { useContentStore } from '@/routes/study-library/courses/course-details/subjects/modules/chapters/slides/-stores/chapter-sidebar-store';
 import { EmptySlideMaterial } from '@/assets/svgs';
@@ -40,7 +42,9 @@ import { handleUnpublishSlide } from './slide-operations/handleUnpublishSlide';
 import { updateHeading } from './slide-operations/updateSlideHeading';
 import { formatHTMLString, stripAwsQueryParamsFromUrls } from './slide-operations/formatHtmlString';
 import { handleConvertAndUpload } from './slide-operations/handleConvertUpload';
-const SlideEditor = React.lazy(() => import('./SlideEditor'));
+const SlideEditor = React.lazy(() =>
+    import('./SlideEditor').then((module) => ({ default: module.default }))
+);
 import type { JSX } from 'react/jsx-runtime';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
