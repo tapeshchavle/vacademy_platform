@@ -159,7 +159,7 @@ public interface CustomFieldRepository extends JpaRepository<CustomFields, Strin
    */
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT cf FROM CustomFields cf WHERE cf.fieldKey = :fieldKey AND cf.status = :status ORDER BY cf.createdAt DESC")
-  List<CustomFields> findByFieldKeyWithLock(
+  Optional<CustomFields> findByFieldKeyWithLock(
       @Param("fieldKey") String fieldKey,
       @Param("status") String status);
 

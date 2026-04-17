@@ -143,10 +143,10 @@ public class InstituteCustomFiledService {
     private CustomFields findOrCreateCustomFieldWithLock(String fieldKey, CustomFieldDTO cfDto) {
            // Returns a list (ordered by createdAt DESC) to tolerate historical
         // duplicates that share (field_key, status); take the most recent row.
-        List<CustomFields> existing = customFieldRepository.findByFieldKeyWithLock(fieldKey,
+        Optional<CustomFields> existing = customFieldRepository.findByFieldKeyWithLock(fieldKey,
                 StatusEnum.ACTIVE.name());
-        if (!existing.isEmpty()) {
-            return existing.get(0);
+        if (existing.isPresent()) {
+            return existing.get();
         }
         CustomFields newCF = new CustomFields(cfDto);
         newCF.setFieldKey(fieldKey);
