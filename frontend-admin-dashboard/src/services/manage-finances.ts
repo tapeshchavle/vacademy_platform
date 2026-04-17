@@ -81,15 +81,38 @@ export const fetchInstallmentDetails = async (
 
 // ─── Student Dues (Pay Installments) ───────────────────────────────────────
 
+export interface StudentDuesFilterRequest {
+    status?: string;
+    start_due_date?: string; // yyyy-MM-dd
+    end_due_date?: string; // yyyy-MM-dd
+    page?: number;
+    size?: number;
+    fetch_all?: boolean;
+}
+
+export interface StudentDuesPageResponse {
+    content: StudentFeeDueDTO[];
+    page_number: number;
+    page_size: number;
+    total_elements: number;
+    total_pages: number;
+    total_fee: number;
+    total_paid: number;
+    total_due: number;
+}
+
 export const getStudentDuesQueryKey = (userId: string) => ['STUDENT_DUES', userId];
 
-export const fetchStudentDues = async (userId: string): Promise<StudentFeeDueDTO[]> => {
+export const fetchStudentDues = async (
+    userId: string,
+    filter?: StudentDuesFilterRequest
+): Promise<StudentDuesPageResponse> => {
     const instituteId = getInstituteId();
     if (!instituteId) throw new Error('Institute ID not found');
 
-    const response = await authenticatedAxiosInstance.post<StudentFeeDueDTO[]>(
+    const response = await authenticatedAxiosInstance.post<StudentDuesPageResponse>(
         `${BASE_URL}/admin-core-service/v1/admin/student-fee/${userId}/dues`,
-        {},
+        filter ?? {},
         { params: { instituteId } }
     );
     return response.data;
