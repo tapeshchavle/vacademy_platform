@@ -69,6 +69,8 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
     private final AuthService authService;
     private final EnrollInviteRepository enrollInviteRepository;
     private final UserPlanRepository userPlanRepository;
+    private final vacademy.io.admin_core_service.features.live_session.service.AttendanceReportService attendanceReportService;
+    private final vacademy.io.admin_core_service.features.live_session.repository.LiveSessionLogsRepository liveSessionLogsRepository;
 
     @Override
     public Map<String, Object> execute(String prebuiltKey, Map<String, Object> params) {
@@ -109,6 +111,10 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
                 return fetchExpiringMemberships(params);
             case "fetch_audience_responses_filtered":
                 return fetchAudienceResponsesFiltered(params);
+            case "fetch_student_attendance_report":
+                return fetchStudentAttendanceReport(params);
+            case "fetch_batch_attendance_report":
+                return fetchBatchAttendanceReport(params);
             default:
                 log.warn("Unknown prebuilt query key: {}", prebuiltKey);
                 return Map.of("error", "Unknown query key: " + prebuiltKey);
@@ -1325,6 +1331,216 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
             return Map.of("leads", leads);
         } catch (Exception e) {
             log.error("Error in fetchAudienceResponsesFiltered", e);
+            return Map.of("error", e.getMessage());
+        }
+    }
+
+    /**
+     * Fetches attendance + engagement report for a single student in a batch.
+     * Returns: attendance percentage, session-wise attendance with engagement data.
+     * Params: userId, batchId, daysBack (optional, default 7)
+     */
+    private Map<String, Object> fetchStudentAttendanceReport(Map<String, Object> params) {
+        try {
+            String userId = (String) params.get("userId");
+            String batchId = (String) params.get("batchId");
+            if (userId == null || batchId == null) return Map.of("error", "userId and batchId are required");
+
+            int daysBack = 7;
+            Object daysParam = params.get("daysBack");
+            if (daysParam != null) daysBack = Integer.parseInt(String.valueOf(daysParam));
+
+            java.time.LocalDate end = java.time.LocalDate.now();
+            java.time.LocalDate start = end.minusDays(daysBack);
+
+            // Get student attendance report (attendance %, per-session breakdown)
+            var report = attendanceReportService.getStudentReport(userId, batchId, start, end);
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("userId", userId);
+            result.put("attendancePercentage", report.getAttendancePercentage());
+
+            // Build session list
+            List<Map<String, Object>> sessions = new ArrayList<>();
+            if (report.getSchedules() != null) {
+                for (var schedule : report.getSchedules()) {
+                    Map<String, Object> session = new LinkedHashMap<>();
+                    session.put("scheduleId", schedule.getScheduleId());
+                    session.put("sessionId", schedule.getSessionId());
+                    session.put("sessionTitle", schedule.getSessionTitle());
+                    session.put("meetingDate", schedule.getMeetingDate() != null ? schedule.getMeetingDate().toString() : null);
+                    session.put("attendanceStatus", schedule.getAttendanceStatus());
+                    sessions.add(session);
+                }
+            }
+            result.put("sessions", sessions);
+            result.put("totalSessions", sessions.size());
+            result.put("startDate", start.toString());
+            result.put("endDate", end.toString());
+
+            return Map.of("studentReport", result);
+        } catch (Exception e) {
+            log.error("Error in fetchStudentAttendanceReport", e);
+            return Map.of("error", e.getMessage());
+        }
+    }
+
+    /**
+     * Fetches attendance report for ALL students in a batch.
+     * Returns: list of students with attendance %, per-session breakdown, engagement data.
+     * Params: batchId, daysBack (optional, default 7)
+     */
+    /**
+     * Fetches attendance report for students in a batch (or ALL batches if batchId not provided).
+     * When batchId is null, fetches all active package sessions for the institute and
+     * generates a combined report across all batches.
+     */
+    private Map<String, Object> fetchBatchAttendanceReport(Map<String, Object> params) {
+        try {
+            String batchId = (String) params.get("batchId");
+            String instituteId = (String) params.get("instituteId");
+
+            int daysBack = 7;
+            Object daysParam = params.get("daysBack");
+            if (daysParam != null) daysBack = Integer.parseInt(String.valueOf(daysParam));
+
+            java.time.LocalDate end = java.time.LocalDate.now();
+            java.time.LocalDate start = end.minusDays(daysBack);
+
+            // If batchId provided, fetch for that batch only
+            // If not, fetch all active batches for the institute
+            List<String> batchIds = new ArrayList<>();
+            if (batchId != null && !batchId.isEmpty()) {
+                batchIds.add(batchId);
+            } else if (instituteId != null) {
+                // Fetch all active package sessions for this institute
+                List<vacademy.io.common.institute.entity.session.PackageSession> activeSessions =
+                    packageSessionRepository.findAll().stream()
+                        .filter(ps -> ps.getPackageEntity() != null
+                            && instituteId.equals(ps.getPackageEntity().getInstituteId())
+                            && "ACTIVE".equalsIgnoreCase(ps.getStatus()))
+                        .collect(Collectors.toList());
+                batchIds = activeSessions.stream()
+                    .map(vacademy.io.common.institute.entity.session.PackageSession::getId)
+                    .collect(Collectors.toList());
+                log.info("No batchId provided. Found {} active batches for institute {}", batchIds.size(), instituteId);
+            } else {
+                return Map.of("error", "Either batchId or instituteId is required");
+            }
+
+            // Aggregate reports across all batches — includes engagement/concentration data
+            List<Map<String, Object>> allStudents = new ArrayList<>();
+            for (String bid : batchIds) {
+                try {
+                    var studentReports = attendanceReportService.getGroupedAttendanceReport(bid, start, end);
+
+                    // Also fetch engagement data per student per session via AttendanceReportDTO
+                    // (which includes engagementData and providerTotalDurationMinutes)
+                    Map<String, Map<String, Map<String, Object>>> engagementByStudentSession = new HashMap<>();
+                    try {
+                        // Use the per-session query that returns engagement data
+                        List<vacademy.io.admin_core_service.features.live_session.dto.AttendanceReportProjection> rawData =
+                            liveSessionParticipantRepository.getAttendanceReportWithinDateRange(bid, start, end);
+                        for (var row : rawData) {
+                            String sid = row.getStudentId();
+                            String schedId = row.getScheduleId();
+                            engagementByStudentSession
+                                .computeIfAbsent(sid, k -> new HashMap<>())
+                                .put(schedId, new LinkedHashMap<>());
+                        }
+                    } catch (Exception ignored) {
+                        // Engagement data is best-effort
+                    }
+
+                    // Also fetch engagement from live_session_logs directly per student
+                    Map<String, List<Map<String, Object>>> engagementLogsByStudent = new HashMap<>();
+                    try {
+                        var logs = liveSessionLogsRepository.findByLogTypeAndUserSourceTypeAndCreatedAtBetween(
+                            "ATTENDANCE_RECORDED", "USER",
+                            java.sql.Timestamp.valueOf(start.atStartOfDay()),
+                            java.sql.Timestamp.valueOf(end.plusDays(1).atStartOfDay()));
+                        for (var logEntry : logs) {
+                            String userId = logEntry.getUserSourceId();
+                            Map<String, Object> logMap = new LinkedHashMap<>();
+                            logMap.put("sessionId", logEntry.getSessionId());
+                            logMap.put("scheduleId", logEntry.getScheduleId());
+                            logMap.put("engagementData", logEntry.getEngagementData());
+                            logMap.put("providerTotalDurationMinutes", logEntry.getProviderTotalDurationMinutes());
+                            logMap.put("statusType", logEntry.getStatusType());
+                            engagementLogsByStudent.computeIfAbsent(userId, k -> new ArrayList<>()).add(logMap);
+                        }
+                    } catch (Exception e) {
+                        log.warn("Could not fetch engagement logs: {}", e.getMessage());
+                    }
+
+                    for (var student : studentReports) {
+                        Map<String, Object> s = new LinkedHashMap<>();
+                        s.put("studentId", student.getStudentId());
+                        s.put("fullName", student.getFullName());
+                        s.put("email", student.getEmail());
+                        s.put("mobileNumber", student.getMobileNumber());
+                        s.put("enrollmentNumber", student.getInstituteEnrollmentNumber());
+                        s.put("attendancePercentage", student.getAttendancePercentage());
+                        s.put("batchId", bid);
+
+                        // Per-session attendance details
+                        List<Map<String, Object>> sessionDetails = new ArrayList<>();
+                        if (student.getSessions() != null) {
+                            for (var detail : student.getSessions()) {
+                                Map<String, Object> d = new LinkedHashMap<>();
+                                d.put("sessionId", detail.getSessionId());
+                                d.put("title", detail.getTitle());
+                                d.put("meetingDate", detail.getMeetingDate() != null ? detail.getMeetingDate().toString() : null);
+                                d.put("attendanceStatus", detail.getAttendanceStatus());
+                                d.put("attendanceDetails", detail.getAttendanceDetails());
+                                sessionDetails.add(d);
+                            }
+                        }
+                        s.put("sessions", sessionDetails);
+
+                        // Engagement/concentration data from logs
+                        List<Map<String, Object>> engagementLogs = engagementLogsByStudent.getOrDefault(student.getStudentId(), List.of());
+                        s.put("engagementLogs", engagementLogs);
+
+                        // Compute summary concentration metrics
+                        int totalDurationMinutes = 0;
+                        int totalChats = 0;
+                        int totalHandRaises = 0;
+                        for (var el : engagementLogs) {
+                            if (el.get("providerTotalDurationMinutes") != null) {
+                                totalDurationMinutes += (Integer) el.get("providerTotalDurationMinutes");
+                            }
+                            String engJson = (String) el.get("engagementData");
+                            if (engJson != null && !engJson.isEmpty()) {
+                                try {
+                                    var engNode = objectMapper.readTree(engJson);
+                                    totalChats += engNode.path("chats").asInt(0);
+                                    totalHandRaises += engNode.path("raisehand").asInt(0);
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                        s.put("totalDurationMinutes", totalDurationMinutes);
+                        s.put("totalChats", totalChats);
+                        s.put("totalHandRaises", totalHandRaises);
+                        s.put("sessionsAttended", engagementLogs.size());
+
+                        allStudents.add(s);
+                    }
+                } catch (Exception e) {
+                    log.warn("Error fetching attendance for batch {}: {}", bid, e.getMessage());
+                }
+            }
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("students", allStudents);
+            result.put("totalStudents", allStudents.size());
+            result.put("batchCount", batchIds.size());
+            result.put("startDate", start.toString());
+            result.put("endDate", end.toString());
+            if (batchId != null) result.put("batchId", batchId);
+            return result;
+        } catch (Exception e) {
+            log.error("Error in fetchBatchAttendanceReport", e);
             return Map.of("error", e.getMessage());
         }
     }

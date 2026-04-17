@@ -39,29 +39,27 @@ public class QuartzConfig {
                 .build();
     }
 
-    /**
-     * Define the workflow resume job.
-     * Resumes paused workflows (e.g., after long DELAY nodes) when their resume_at time arrives.
-     */
-    @Bean
-    public JobDetail workflowResumeJobDetail() {
-        return JobBuilder.newJob(WorkflowResumeJob.class)
-                .withIdentity("workflowResumeJob", "workflowGroup")
-                .withDescription("Job to resume paused workflows")
-                .storeDurably()
-                .build();
-    }
-
-    /**
-     * Define the trigger for workflow resume (runs every 2 minutes)
-     */
-    @Bean
-    public Trigger workflowResumeTrigger() {
-        return TriggerBuilder.newTrigger()
-                .forJob(workflowResumeJobDetail())
-                .withIdentity("workflowResumeTrigger", "workflowGroup")
-                .withDescription("Trigger for workflow resume job")
-                .withSchedule(CronScheduleBuilder.cronSchedule("0 0/2 * * * ?")) // Every 2 minutes
-                .build();
-    }
+    // TODO: Re-enable when persistent delay feature is needed
+    // /**
+    //  * Define the workflow resume job.
+    //  * Resumes paused workflows (e.g., after long DELAY nodes) when their resume_at time arrives.
+    //  */
+    // @Bean
+    // public JobDetail workflowResumeJobDetail() {
+    //     return JobBuilder.newJob(WorkflowResumeJob.class)
+    //             .withIdentity("workflowResumeJob", "workflowGroup")
+    //             .withDescription("Job to resume paused workflows")
+    //             .storeDurably()
+    //             .build();
+    // }
+    //
+    // @Bean
+    // public Trigger workflowResumeTrigger() {
+    //     return TriggerBuilder.newTrigger()
+    //             .forJob(workflowResumeJobDetail())
+    //             .withIdentity("workflowResumeTrigger", "workflowGroup")
+    //             .withDescription("Trigger for workflow resume job")
+    //             .withSchedule(CronScheduleBuilder.cronSchedule("0 0/2 * * * ?"))
+    //             .build();
+    // }
 }

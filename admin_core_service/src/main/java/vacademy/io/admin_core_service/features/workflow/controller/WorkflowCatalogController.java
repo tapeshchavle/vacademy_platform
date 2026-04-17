@@ -142,6 +142,22 @@ public class WorkflowCatalogController {
                 .category("CRM")
                 .requiredParams(List.of("instituteId"))
                 .optionalParams(List.of("audienceId", "daysAgo", "startDate", "endDate"))
+                .build(),
+            CatalogItemDTO.builder()
+                .key("fetch_student_attendance_report")
+                .label("Student Attendance & Engagement Report")
+                .description("Get attendance %, session-wise attendance, and concentration/engagement scores for a student in a batch")
+                .category("Live Session")
+                .requiredParams(List.of("userId", "batchId"))
+                .optionalParams(List.of("daysBack"))
+                .build(),
+            CatalogItemDTO.builder()
+                .key("fetch_batch_attendance_report")
+                .label("Batch Attendance Report (All Students)")
+                .description("Get attendance and engagement data for students — pass batchId for one batch, or leave empty for ALL batches in the institute")
+                .category("Live Session")
+                .requiredParams(List.of("instituteId"))
+                .optionalParams(List.of("batchId", "daysBack"))
                 .build()
         );
         return ResponseEntity.ok(keys);
