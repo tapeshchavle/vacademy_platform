@@ -226,6 +226,150 @@ async def get_job_status(job_id: str, x_render_key: str = Header("")):
     return RenderJobStatus(**j)
 
 
+# ---------------------------------------------------------------------------
+# Index Jobs — Video input indexing (stub for Step 1, real pipeline in Step 2)
+# ---------------------------------------------------------------------------
+
+index_jobs: Dict[str, dict] = {}
+
+
+class IndexJobRequest(BaseModel):
+    input_video_id: str = Field(..., description="AI Input Video record ID")
+    source_url: str = Field(..., description="S3 URL of the uploaded video")
+    mode: str = Field(..., description="'podcast' or 'demo'")
+    callback_url: Optional[str] = Field(None, description="Webhook URL on completion")
+
+
+class IndexJobResponse(BaseModel):
+    job_id: str
+    status: str
+    message: str = ""
+
+
+class IndexJobStatus(BaseModel):
+    job_id: str
+    input_video_id: str
+    status: str  # queued, running, completed, failed
+    progress: Optional[float] = None
+    output_urls: Optional[dict] = None
+    duration_seconds: Optional[float] = None
+    resolution: Optional[str] = None
+    error: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+async def _run_index_job_stub(job_id: str, request: IndexJobRequest):
+    """Stub: simulates indexing by sleeping, then returning empty outputs.
+
+    Step 2 will replace this with the real extraction pipeline
+    (faster-whisper, mediapipe, matting, etc.).
+    """
+    index_jobs[job_id]["status"] = "running"
+    index_jobs[job_id]["progress"] = 10
+    index_jobs[job_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    try:
+        # Simulate processing stages
+        for pct in (20, 40, 60, 80, 95):
+            await asyncio.sleep(1)
+            index_jobs[job_id]["progress"] = pct
+            index_jobs[job_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+        # Stub outputs — S3 keys that would be produced by the real pipeline
+        base_key = f"ai-input-videos/{request.input_video_id}"
+        output_urls = {
+            "context_json": f"https://vacademy-media-storage.s3.amazonaws.com/{base_key}/video_context.json",
+            "spatial_db": f"https://vacademy-media-storage.s3.amazonaws.com/{base_key}/video_spatial.sqlite",
+            "assets": {
+                "speaker_fg": f"https://vacademy-media-storage.s3.amazonaws.com/{base_key}/assets/speaker_fg.webm",
+            },
+        }
+
+        index_jobs[job_id]["status"] = "completed"
+        index_jobs[job_id]["progress"] = 100
+        index_jobs[job_id]["output_urls"] = output_urls
+        index_jobs[job_id]["duration_seconds"] = 30.0  # stub
+        index_jobs[job_id]["resolution"] = "1920x1080"  # stub
+        index_jobs[job_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+        logger.info(f"Index job {job_id} completed (stub)")
+
+        if request.callback_url:
+            await _send_callback(request.callback_url, {
+                "input_video_id": request.input_video_id,
+                "job_id": job_id,
+                "status": "completed",
+                "output_urls": output_urls,
+            })
+
+    except Exception as e:
+        index_jobs[job_id]["status"] = "failed"
+        index_jobs[job_id]["error"] = str(e)
+        index_jobs[job_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+        logger.error(f"Index job {job_id} failed: {e}")
+
+        if request.callback_url:
+            await _send_callback(request.callback_url, {
+                "input_video_id": request.input_video_id,
+                "job_id": job_id,
+                "status": "failed",
+                "error": str(e),
+            })
+
+
+@app.post("/index-jobs", response_model=IndexJobResponse)
+async def submit_index_job(
+    request: IndexJobRequest,
+    x_render_key: str = Header(""),
+):
+    _verify_key(x_render_key)
+
+    # Shared capacity check: render + index jobs compete for the same CPU
+    active_render = sum(1 for j in jobs.values() if j["status"] in ("queued", "running"))
+    active_index = sum(1 for j in index_jobs.values() if j["status"] in ("queued", "running"))
+    active_total = active_render + active_index
+    if active_total >= MAX_CONCURRENT_JOBS:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Server busy ({active_total}/{MAX_CONCURRENT_JOBS} jobs running)",
+        )
+
+    job_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+
+    index_jobs[job_id] = {
+        "job_id": job_id,
+        "input_video_id": request.input_video_id,
+        "status": "queued",
+        "progress": 0,
+        "output_urls": None,
+        "duration_seconds": None,
+        "resolution": None,
+        "error": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    asyncio.create_task(_run_index_job_stub(job_id, request))
+
+    return IndexJobResponse(job_id=job_id, status="queued", message="Index job submitted")
+
+
+@app.get("/index-jobs/{job_id}", response_model=IndexJobStatus)
+async def get_index_job_status(job_id: str, x_render_key: str = Header("")):
+    _verify_key(x_render_key)
+
+    if job_id not in index_jobs:
+        raise HTTPException(status_code=404, detail="Index job not found")
+
+    j = index_jobs[job_id]
+    return IndexJobStatus(**j)
+
+
+# ---------------------------------------------------------------------------
+# Startup
+# ---------------------------------------------------------------------------
+
 @app.on_event("startup")
 async def startup():
     logger.info(f"Render Worker started (max {MAX_CONCURRENT_JOBS} concurrent jobs)")
