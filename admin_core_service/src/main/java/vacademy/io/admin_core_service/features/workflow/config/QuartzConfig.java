@@ -5,6 +5,7 @@ import org.quartz.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import vacademy.io.admin_core_service.features.workflow.scheduler.WorkflowExecutionJob;
+import vacademy.io.admin_core_service.features.workflow.scheduler.WorkflowResumeJob;
 
 @Slf4j
 @Configuration
@@ -35,6 +36,32 @@ public class QuartzConfig {
                 .withIdentity("workflowExecutionTrigger", "workflowGroup")
                 .withDescription("Trigger for workflow execution job")
                 .withSchedule(CronScheduleBuilder.cronSchedule("0 0/15 * * * ?")) // Every 15 minutes
+                .build();
+    }
+
+    /**
+     * Define the workflow resume job.
+     * Resumes paused workflows (e.g., after long DELAY nodes) when their resume_at time arrives.
+     */
+    @Bean
+    public JobDetail workflowResumeJobDetail() {
+        return JobBuilder.newJob(WorkflowResumeJob.class)
+                .withIdentity("workflowResumeJob", "workflowGroup")
+                .withDescription("Job to resume paused workflows")
+                .storeDurably()
+                .build();
+    }
+
+    /**
+     * Define the trigger for workflow resume (runs every 2 minutes)
+     */
+    @Bean
+    public Trigger workflowResumeTrigger() {
+        return TriggerBuilder.newTrigger()
+                .forJob(workflowResumeJobDetail())
+                .withIdentity("workflowResumeTrigger", "workflowGroup")
+                .withDescription("Trigger for workflow resume job")
+                .withSchedule(CronScheduleBuilder.cronSchedule("0 0/2 * * * ?")) // Every 2 minutes
                 .build();
     }
 }

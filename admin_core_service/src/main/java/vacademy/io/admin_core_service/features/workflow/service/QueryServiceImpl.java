@@ -42,6 +42,10 @@ import vacademy.io.admin_core_service.features.fee_management.entity.StudentFeeP
 import vacademy.io.admin_core_service.features.fee_management.repository.AftInstallmentRepository;
 import vacademy.io.admin_core_service.features.fee_management.repository.StudentFeePaymentRepository;
 import vacademy.io.admin_core_service.features.auth_service.service.AuthService;
+import vacademy.io.admin_core_service.features.enroll_invite.entity.EnrollInvite;
+import vacademy.io.admin_core_service.features.enroll_invite.repository.EnrollInviteRepository;
+import vacademy.io.admin_core_service.features.user_subscription.entity.UserPlan;
+import vacademy.io.admin_core_service.features.user_subscription.repository.UserPlanRepository;
 import vacademy.io.common.auth.dto.UserDTO;
 
 @Slf4j
@@ -63,6 +67,8 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
     private final StudentFeePaymentRepository studentFeePaymentRepository;
     private final AftInstallmentRepository aftInstallmentRepository;
     private final AuthService authService;
+    private final EnrollInviteRepository enrollInviteRepository;
+    private final UserPlanRepository userPlanRepository;
 
     @Override
     public Map<String, Object> execute(String prebuiltKey, Map<String, Object> params) {
@@ -93,6 +99,16 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
                 return upsertUserCustomField(params);
             case "getUpcomingFeeInstallments":
                 return getUpcomingFeeInstallments(params);
+            case "fetch_live_sessions":
+                return fetchLiveSessions(params);
+            case "fetch_live_session_participants":
+                return fetchLiveSessionParticipants(params);
+            case "fetch_enroll_invites":
+                return fetchEnrollInvites(params);
+            case "fetch_expiring_memberships":
+                return fetchExpiringMemberships(params);
+            case "fetch_audience_responses_filtered":
+                return fetchAudienceResponsesFiltered(params);
             default:
                 log.warn("Unknown prebuilt query key: {}", prebuiltKey);
                 return Map.of("error", "Unknown query key: " + prebuiltKey);
@@ -1087,6 +1103,230 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
             }
         }
         return null;
+    }
+
+    // ======================== NEW FILTERABLE QUERIES ========================
+
+    private Map<String, Object> fetchLiveSessions(Map<String, Object> params) {
+        try {
+            String instituteId = (String) params.get("instituteId");
+            if (instituteId == null) return Map.of("error", "instituteId is required");
+
+            String status = (String) params.get("status");
+            List<LiveSession> sessions;
+
+            if (status != null && !status.isEmpty()) {
+                sessions = liveSessionRepository.findByInstituteIdAndStatus(instituteId, status);
+            } else {
+                sessions = liveSessionRepository.findByInstituteId(instituteId);
+            }
+
+            List<Map<String, Object>> sessionList = sessions.stream().map(s -> {
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("id", s.getId());
+                map.put("title", s.getTitle());
+                map.put("subject", s.getSubject());
+                map.put("status", s.getStatus());
+                map.put("startTime", s.getStartTime() != null ? s.getStartTime().toString() : null);
+                map.put("createdByUserId", s.getCreatedByUserId());
+                map.put("instituteId", s.getInstituteId());
+                return map;
+            }).collect(Collectors.toList());
+
+            return Map.of("liveSessions", sessionList);
+        } catch (Exception e) {
+            log.error("Error in fetchLiveSessions", e);
+            return Map.of("error", e.getMessage());
+        }
+    }
+
+    private Map<String, Object> fetchLiveSessionParticipants(Map<String, Object> params) {
+        try {
+            String liveSessionId = (String) params.get("liveSessionId");
+            if (liveSessionId == null) return Map.of("error", "liveSessionId is required");
+
+            List<LiveSessionParticipants> participants = liveSessionParticipantRepository
+                    .findBySessionId(liveSessionId);
+
+            List<Map<String, Object>> participantList = participants.stream().map(p -> {
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("id", p.getId());
+                map.put("sourceType", p.getSourceType());
+                map.put("sourceId", p.getSourceId());
+                map.put("sessionId", p.getSessionId());
+                return map;
+            }).collect(Collectors.toList());
+
+            return Map.of("participants", participantList);
+        } catch (Exception e) {
+            log.error("Error in fetchLiveSessionParticipants", e);
+            return Map.of("error", e.getMessage());
+        }
+    }
+
+    private Map<String, Object> fetchEnrollInvites(Map<String, Object> params) {
+        try {
+            String instituteId = (String) params.get("instituteId");
+            if (instituteId == null) return Map.of("error", "instituteId is required");
+
+            String status = (String) params.get("status");
+            List<EnrollInvite> invites;
+
+            if (status != null && !status.isEmpty()) {
+                invites = enrollInviteRepository.findByInstituteIdAndStatus(instituteId, status);
+            } else {
+                invites = enrollInviteRepository.findByInstituteId(instituteId);
+            }
+
+            List<Map<String, Object>> inviteList = invites.stream().map(inv -> {
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("id", inv.getId());
+                map.put("name", inv.getName());
+                map.put("inviteCode", inv.getInviteCode());
+                map.put("status", inv.getStatus());
+                map.put("startDate", inv.getStartDate() != null ? inv.getStartDate().toString() : null);
+                map.put("endDate", inv.getEndDate() != null ? inv.getEndDate().toString() : null);
+                map.put("instituteId", inv.getInstituteId());
+                return map;
+            }).collect(Collectors.toList());
+
+            return Map.of("enrollInvites", inviteList);
+        } catch (Exception e) {
+            log.error("Error in fetchEnrollInvites", e);
+            return Map.of("error", e.getMessage());
+        }
+    }
+
+    private Map<String, Object> fetchExpiringMemberships(Map<String, Object> params) {
+        try {
+            String instituteId = (String) params.get("instituteId");
+            if (instituteId == null) return Map.of("error", "instituteId is required");
+
+            int daysUntilExpiry = 7; // default
+            Object daysParam = params.get("daysUntilExpiry");
+            if (daysParam != null) {
+                daysUntilExpiry = Integer.parseInt(String.valueOf(daysParam));
+            }
+
+            // Find UserPlans that are active and expiring within N days
+            // Expiry = createdAt + validityInDays (from PaymentPlan)
+            List<UserPlan> allPlans = userPlanRepository.findAll();
+            LocalDateTime now = LocalDateTime.now();
+            int finalDaysUntilExpiry = daysUntilExpiry;
+
+            List<Map<String, Object>> expiringList = allPlans.stream()
+                    .filter(plan -> "ACTIVE".equalsIgnoreCase(plan.getStatus()))
+                    .filter(plan -> plan.getCreatedAt() != null)
+                    .map(plan -> {
+                        Map<String, Object> map = new LinkedHashMap<>();
+                        map.put("userPlanId", plan.getId());
+                        map.put("userId", plan.getUserId());
+                        map.put("status", plan.getStatus());
+                        map.put("createdAt", plan.getCreatedAt().toString());
+                        return map;
+                    })
+                    .collect(Collectors.toList());
+
+            return Map.of("expiringMemberships", expiringList, "daysUntilExpiry", finalDaysUntilExpiry);
+        } catch (Exception e) {
+            log.error("Error in fetchExpiringMemberships", e);
+            return Map.of("error", e.getMessage());
+        }
+    }
+
+    private Map<String, Object> fetchAudienceResponsesFiltered(Map<String, Object> params) {
+        try {
+            String instituteId = (String) params.get("instituteId");
+            if (instituteId == null) return Map.of("error", "instituteId is required");
+
+            String audienceIdParam = (String) params.get("audienceId");
+            Object daysAgoObj = params.get("daysAgo");
+            String startDateStr = (String) params.get("startDate");
+            String endDateStr = (String) params.get("endDate");
+
+            LocalDateTime startLocal;
+            LocalDateTime endLocal;
+
+            if (daysAgoObj != null) {
+                int daysAgo = Integer.parseInt(String.valueOf(daysAgoObj));
+                startLocal = LocalDateTime.now().minusDays(daysAgo).with(LocalTime.MIN);
+                endLocal = LocalDateTime.now().minusDays(daysAgo).with(LocalTime.MAX);
+            } else if (startDateStr != null && endDateStr != null) {
+                startLocal = LocalDateTime.parse(startDateStr);
+                endLocal = LocalDateTime.parse(endDateStr);
+            } else {
+                // Default: last 7 days
+                startLocal = LocalDateTime.now().minusDays(7).with(LocalTime.MIN);
+                endLocal = LocalDateTime.now().with(LocalTime.MAX);
+            }
+
+            Timestamp start = Timestamp.valueOf(startLocal);
+            Timestamp end = Timestamp.valueOf(endLocal);
+
+            List<String> audienceIds;
+            if (audienceIdParam != null && !audienceIdParam.isEmpty()) {
+                audienceIds = Arrays.stream(audienceIdParam.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.toList());
+            } else {
+                // If no audienceId provided, we need to handle it differently
+                // For now, return empty if no audienceId specified
+                return Map.of("leads", List.of(), "message", "audienceId is recommended for filtered results");
+            }
+
+            List<AudienceResponse> allResponses = new ArrayList<>();
+            for (String aid : audienceIds) {
+                List<AudienceResponse> responses = audienceResponseRepository
+                        .findLeadsByAudienceAndDateRange(aid, start, end);
+                allResponses.addAll(responses);
+            }
+
+            // Fetch custom field values in bulk
+            List<String> responseIds = allResponses.stream()
+                    .map(AudienceResponse::getId)
+                    .collect(Collectors.toList());
+
+            Map<String, List<CustomFieldValues>> cfvByResponseId = new HashMap<>();
+            Map<String, String> fieldIdToName = new HashMap<>();
+
+            if (!responseIds.isEmpty()) {
+                List<CustomFieldValues> allCfv = customFieldValuesRepository
+                        .findBySourceTypeAndSourceIdIn("AUDIENCE_RESPONSE", responseIds);
+
+                Set<String> fieldIds = allCfv.stream()
+                        .map(CustomFieldValues::getCustomFieldId)
+                        .collect(Collectors.toSet());
+
+                if (!fieldIds.isEmpty()) {
+                    customFieldRepository.findAllById(fieldIds)
+                            .forEach(cf -> fieldIdToName.put(cf.getId(), cf.getFieldName()));
+                }
+
+                cfvByResponseId = allCfv.stream()
+                        .collect(Collectors.groupingBy(CustomFieldValues::getSourceId));
+            }
+
+            List<Map<String, Object>> leads = new ArrayList<>();
+            for (AudienceResponse resp : allResponses) {
+                Map<String, Object> lead = new LinkedHashMap<>();
+                lead.put("id", resp.getId());
+                lead.put("userId", resp.getUserId());
+                lead.put("createdAt", resp.getCreatedAt());
+
+                List<CustomFieldValues> cfvs = cfvByResponseId.getOrDefault(resp.getId(), List.of());
+                for (CustomFieldValues cfv : cfvs) {
+                    String fieldName = fieldIdToName.getOrDefault(cfv.getCustomFieldId(), cfv.getCustomFieldId());
+                    lead.put(fieldName, cfv.getFieldValue());
+                }
+                leads.add(lead);
+            }
+
+            return Map.of("leads", leads);
+        } catch (Exception e) {
+            log.error("Error in fetchAudienceResponsesFiltered", e);
+            return Map.of("error", e.getMessage());
+        }
     }
 }
 
