@@ -75,14 +75,7 @@ public class StudentFeeAdjustmentService {
         bill.setAdjustmentAmount(amount);
         bill.setAdjustmentType(type.name());
         bill.setAdjustmentReason(reason);
-
-        if (type == AdjustmentType.PENALTY) {
-            // Penalty auto-approved
-            bill.setAdjustmentStatus(AdjustmentStatus.APPROVED.name());
-        } else {
-            // Concession needs approval
-            bill.setAdjustmentStatus(AdjustmentStatus.PENDING_FOR_APPROVAL.name());
-        }
+        bill.setAdjustmentStatus(AdjustmentStatus.PENDING_FOR_APPROVAL.name());
 
         StudentFeePayment saved = studentFeePaymentRepository.save(bill);
         log.info("Adjustment submitted: billId={}, userId={}, type={}, amount={}, status={}",
