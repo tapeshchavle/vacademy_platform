@@ -27,6 +27,7 @@ import { NodeConfigPanel } from './node-config-panel';
 import { TemplateGallery } from './template-gallery';
 import { NodeSuggestions } from './node-suggestions';
 import { WorkflowWizard } from './workflow-wizard';
+import { EventEntityPicker } from './event-entity-picker';
 
 const nodeTypes = { workflowNode: WorkflowCustomNode };
 
@@ -425,9 +426,10 @@ function SchedulePickerSection({ scheduleConfig, setScheduleConfig }: {
 // ═══════════════════════════════════════════════════
 // SETUP STEP — Shown before the canvas
 // ═══════════════════════════════════════════════════
-function WorkflowSetupStep({ onComplete, triggerEventsCatalog }: {
+function WorkflowSetupStep({ onComplete, triggerEventsCatalog, instituteId }: {
     onComplete: () => void;
     triggerEventsCatalog: Array<{ key: string; label: string; description: string; category: string; event_applied_type?: string }>;
+    instituteId: string;
 }) {
     const navigate = useNavigate();
     const {
@@ -437,17 +439,9 @@ function WorkflowSetupStep({ onComplete, triggerEventsCatalog }: {
         setScheduleConfig, setTriggerConfig,
     } = useWorkflowBuilderStore();
 
-    const addNode = useWorkflowBuilderStore((s) => s.addNode);
-    const updateNodeConfig = useWorkflowBuilderStore((s) => s.updateNodeConfig);
-
-    const canContinue =
-        workflowName.trim().length > 0 &&
-        (workflowType === 'SCHEDULED'
-            ? (scheduleConfig.scheduleType === 'CRON' ? scheduleConfig.cronExpression.trim().length > 0 : scheduleConfig.intervalMinutes > 0)
-            : triggerConfig.eventName.length > 0);
+    const [currentStep, setCurrentStep] = useState(1);
 
     const handleContinue = () => {
-        // For event-driven, auto-create a TRIGGER node on the canvas
         if (workflowType === 'EVENT_DRIVEN' && triggerConfig.eventName) {
             const store = useWorkflowBuilderStore.getState();
             const existingTrigger = store.nodes.find((n) => n.data.nodeType === 'TRIGGER');
@@ -464,9 +458,26 @@ function WorkflowSetupStep({ onComplete, triggerEventsCatalog }: {
 
     const groupedEvents = groupCatalogByCategory(triggerEventsCatalog);
 
+    // Step validation
+    const canGoToStep2 = workflowName.trim().length > 0;
+    const canGoToStep3 = canGoToStep2; // Step 2 is just selecting type, always valid
+    const canFinish =
+        canGoToStep2 &&
+        (workflowType === 'SCHEDULED'
+            ? (scheduleConfig.scheduleType === 'CRON' ? scheduleConfig.cronExpression.trim().length > 0 : scheduleConfig.intervalMinutes > 0)
+            : triggerConfig.eventName.length > 0);
+
+    const totalSteps = 3;
+
+    const STEPS = [
+        { num: 1, label: 'Name' },
+        { num: 2, label: 'Trigger Type' },
+        { num: 3, label: workflowType === 'EVENT_DRIVEN' ? 'Event Setup' : 'Schedule' },
+    ];
+
     return (
         <div className="flex h-[calc(100vh-64px)] flex-col bg-gray-50">
-            {/* Simple header */}
+            {/* Header */}
             <div className="flex items-center gap-3 border-b bg-white px-6 py-3">
                 <Button variant="ghost" size="sm" onClick={() => navigate({ to: '/workflow/list' })}>
                     <ArrowLeft size={16} />
@@ -474,187 +485,244 @@ function WorkflowSetupStep({ onComplete, triggerEventsCatalog }: {
                 <h1 className="text-lg font-semibold text-gray-800">Create New Workflow</h1>
             </div>
 
-            {/* Setup content */}
-            <div className="flex-1 overflow-y-auto">
-                <div className="mx-auto max-w-2xl py-8 px-4 space-y-8">
-
-                    {/* Step 1: Name */}
-                    <div className="rounded-xl border bg-white p-5 space-y-4">
-                        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Step 1 — Name your workflow</h2>
-                        <div>
-                            <Label className="text-xs font-medium text-gray-600">Workflow Name <span className="text-red-400">*</span></Label>
-                            <Input
-                                value={workflowName}
-                                onChange={(e) => setWorkflowName(e.target.value)}
-                                placeholder="e.g. Welcome Email after Enrollment"
-                                className="mt-1.5 h-11 text-base"
-                                autoFocus
-                            />
-                        </div>
-                        <div>
-                            <Label className="text-xs font-medium text-gray-600">Description <span className="text-gray-300">(optional)</span></Label>
-                            <textarea
-                                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-600"
-                                rows={2}
-                                value={workflowDescription}
-                                onChange={(e) => setWorkflowDescription(e.target.value)}
-                                placeholder="Briefly describe what this workflow does"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Step 2: Type selection */}
-                    <div className="space-y-3">
-                        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Step 2 — When should it run?</h2>
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* Event-Driven card */}
-                            <button
-                                className={`group relative rounded-xl border-2 p-5 text-left transition-all ${
-                                    workflowType === 'EVENT_DRIVEN'
-                                        ? 'border-primary-600 bg-primary-50 shadow-md ring-1 ring-primary-200'
-                                        : 'border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm'
-                                }`}
-                                onClick={() => setWorkflowType('EVENT_DRIVEN')}
-                            >
-                                <div className={`mb-3 inline-flex rounded-lg p-2.5 ${workflowType === 'EVENT_DRIVEN' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                                    <Lightning size={24} weight="fill" />
-                                </div>
-                                <h3 className={`text-sm font-semibold ${workflowType === 'EVENT_DRIVEN' ? 'text-primary-600' : 'text-gray-800'}`}>When something happens</h3>
-                                <p className={`mt-1 text-xs ${workflowType === 'EVENT_DRIVEN' ? 'text-primary-600' : 'text-gray-500'}`}>
-                                    Triggered by events like enrollment, form submission, payment, etc.
-                                </p>
-                                {workflowType === 'EVENT_DRIVEN' && (
-                                    <div className="absolute top-3 right-3">
-                                        <CheckCircle size={20} weight="fill" className="text-primary-600" />
-                                    </div>
-                                )}
-                            </button>
-
-                            {/* Scheduled card */}
-                            <button
-                                className={`group relative rounded-xl border-2 p-5 text-left transition-all ${
-                                    workflowType === 'SCHEDULED'
-                                        ? 'border-primary-600 bg-primary-50 shadow-md ring-1 ring-primary-200'
-                                        : 'border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm'
-                                }`}
-                                onClick={() => setWorkflowType('SCHEDULED')}
-                            >
-                                <div className={`mb-3 inline-flex rounded-lg p-2.5 ${workflowType === 'SCHEDULED' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                                    <CalendarBlank size={24} weight="fill" />
-                                </div>
-                                <h3 className={`text-sm font-semibold ${workflowType === 'SCHEDULED' ? 'text-primary-600' : 'text-gray-800'}`}>On a schedule</h3>
-                                <p className={`mt-1 text-xs ${workflowType === 'SCHEDULED' ? 'text-primary-600' : 'text-gray-500'}`}>
-                                    Runs at fixed intervals or specific times (daily, weekly, etc.)
-                                </p>
-                                {workflowType === 'SCHEDULED' && (
-                                    <div className="absolute top-3 right-3">
-                                        <CheckCircle size={20} weight="fill" className="text-primary-600" />
-                                    </div>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Step 3: Type-specific configuration */}
-                    {workflowType === 'EVENT_DRIVEN' && (
-                        <div className="space-y-4 rounded-xl border bg-white p-5">
-                            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Step 3 — Choose the trigger event</h2>
-
-                            {/* Grouped event selector */}
-                            <div>
-                                <Label className="text-xs font-medium text-gray-600">What event should start this workflow?</Label>
-                                <select
-                                    className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                                    value={triggerConfig.eventName}
-                                    onChange={(e) => {
-                                        const eventName = e.target.value;
-                                        const catalogItem = triggerEventsCatalog.find((c) => c.key === eventName);
-                                        const appliedType = catalogItem?.event_applied_type ?? '';
-                                        setTriggerConfig({ eventName, eventAppliedType: appliedType, eventId: undefined });
+            {/* Progress bar */}
+            <div className="border-b bg-white px-6 py-4">
+                <div className="mx-auto max-w-2xl">
+                    <div className="flex items-center justify-between">
+                        {STEPS.map((step, i) => (
+                            <div key={step.num} className="flex items-center gap-2 flex-1">
+                                <button
+                                    onClick={() => {
+                                        if (step.num === 1 || (step.num === 2 && canGoToStep2) || (step.num === 3 && canGoToStep3)) {
+                                            setCurrentStep(step.num);
+                                        }
                                     }}
+                                    className={`flex items-center gap-2 ${step.num <= currentStep ? 'cursor-pointer' : 'cursor-default'}`}
                                 >
-                                    <option value="">-- Select an event --</option>
-                                    {Object.entries(groupedEvents).map(([category, items]) => (
-                                        <optgroup key={category} label={category}>
-                                            {items.map((item) => (
-                                                <option key={item.key} value={item.key}>
-                                                    {item.label}
-                                                </option>
-                                            ))}
-                                        </optgroup>
-                                    ))}
-                                </select>
+                                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                                        currentStep === step.num
+                                            ? 'bg-primary-600 text-white shadow-md'
+                                            : currentStep > step.num
+                                                ? 'bg-green-500 text-white'
+                                                : 'bg-gray-200 text-gray-500'
+                                    }`}>
+                                        {currentStep > step.num ? <CheckCircle size={16} weight="bold" /> : step.num}
+                                    </div>
+                                    <span className={`text-xs font-medium hidden sm:block ${
+                                        currentStep === step.num ? 'text-primary-600' : currentStep > step.num ? 'text-green-600' : 'text-gray-400'
+                                    }`}>
+                                        {step.label}
+                                    </span>
+                                </button>
+                                {i < STEPS.length - 1 && (
+                                    <div className={`flex-1 h-0.5 mx-2 ${currentStep > step.num ? 'bg-green-400' : 'bg-gray-200'}`} />
+                                )}
                             </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
 
-                            {/* Show description of selected event */}
-                            {triggerConfig.eventName && (() => {
-                                const selected = triggerEventsCatalog.find((c) => c.key === triggerConfig.eventName);
-                                return selected ? (
-                                    <div className="rounded-lg bg-primary-50 px-4 py-3 text-xs text-primary-600">
-                                        {selected.description}
-                                    </div>
-                                ) : null;
-                            })()}
+            {/* Step content */}
+            <div className="flex-1 overflow-y-auto">
+                <div className="mx-auto max-w-2xl py-8 px-4">
 
-                            {/* Applies to badge + optional event ID */}
-                            {triggerConfig.eventAppliedType && (
-                                <div className="space-y-3 rounded-lg bg-gray-50 p-4">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-medium text-gray-500">Applies to:</span>
-                                        <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-700">
-                                            {triggerConfig.eventAppliedType.replace(/_/g, ' ')}
-                                        </span>
-                                    </div>
-
-                                    <div>
-                                        <Label className="text-xs font-medium text-gray-600">
-                                            Restrict to a specific {triggerConfig.eventAppliedType.replace(/_/g, ' ').toLowerCase()} (optional)
-                                        </Label>
-                                        <Input
-                                            value={triggerConfig.eventId ?? ''}
-                                            onChange={(e) => setTriggerConfig({ eventId: e.target.value || undefined })}
-                                            className="mt-1.5"
-                                            placeholder={`Leave empty to apply to all`}
-                                        />
-                                        <p className="mt-1 text-[10px] text-gray-400">
-                                            Leave empty and the workflow fires for every {triggerConfig.eventAppliedType.replace(/_/g, ' ').toLowerCase()} in your institute.
-                                            Enter a specific ID to restrict it.
-                                        </p>
-                                    </div>
+                    {/* ─── STEP 1: Name ─── */}
+                    {currentStep === 1 && (
+                        <div className="space-y-6">
+                            <div>
+                                <h2 className="text-xl font-semibold text-gray-800">What should we call this workflow?</h2>
+                                <p className="mt-1 text-sm text-gray-500">Give it a name that describes its purpose.</p>
+                            </div>
+                            <div className="rounded-xl border bg-white p-6 space-y-4">
+                                <div>
+                                    <Label className="text-sm font-medium text-gray-700">Workflow Name <span className="text-red-400">*</span></Label>
+                                    <Input
+                                        value={workflowName}
+                                        onChange={(e) => setWorkflowName(e.target.value)}
+                                        placeholder="e.g. Welcome Email after Enrollment"
+                                        className="mt-2 h-12 text-base"
+                                        autoFocus
+                                    />
                                 </div>
+                                <div>
+                                    <Label className="text-sm font-medium text-gray-700">Description <span className="text-gray-300 text-xs">(optional)</span></Label>
+                                    <textarea
+                                        className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm"
+                                        rows={2}
+                                        value={workflowDescription}
+                                        onChange={(e) => setWorkflowDescription(e.target.value)}
+                                        placeholder="Briefly describe what this workflow does"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex justify-end">
+                                <Button size="lg" onClick={() => setCurrentStep(2)} disabled={!canGoToStep2} className="gap-2 px-8">
+                                    Next: Choose Trigger Type
+                                    <ArrowLeft size={16} className="rotate-180" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ─── STEP 2: Type selection ─── */}
+                    {currentStep === 2 && (
+                        <div className="space-y-6">
+                            <div>
+                                <h2 className="text-xl font-semibold text-gray-800">When should this workflow run?</h2>
+                                <p className="mt-1 text-sm text-gray-500">Choose what starts the workflow — an event or a schedule.</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <button
+                                    className={`group relative rounded-xl border-2 p-6 text-left transition-all ${
+                                        workflowType === 'EVENT_DRIVEN'
+                                            ? 'border-primary-600 bg-primary-50 shadow-md ring-1 ring-primary-200'
+                                            : 'border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm'
+                                    }`}
+                                    onClick={() => setWorkflowType('EVENT_DRIVEN')}
+                                >
+                                    <div className={`mb-3 inline-flex rounded-lg p-3 ${workflowType === 'EVENT_DRIVEN' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                        <Lightning size={28} weight="fill" />
+                                    </div>
+                                    <h3 className={`text-base font-semibold ${workflowType === 'EVENT_DRIVEN' ? 'text-primary-600' : 'text-gray-800'}`}>When something happens</h3>
+                                    <p className={`mt-1.5 text-sm ${workflowType === 'EVENT_DRIVEN' ? 'text-primary-500' : 'text-gray-500'}`}>
+                                        Runs when a student enrolls, fills a form, payment fails, etc.
+                                    </p>
+                                    {workflowType === 'EVENT_DRIVEN' && (
+                                        <div className="absolute top-3 right-3"><CheckCircle size={22} weight="fill" className="text-primary-600" /></div>
+                                    )}
+                                </button>
+
+                                <button
+                                    className={`group relative rounded-xl border-2 p-6 text-left transition-all ${
+                                        workflowType === 'SCHEDULED'
+                                            ? 'border-primary-600 bg-primary-50 shadow-md ring-1 ring-primary-200'
+                                            : 'border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm'
+                                    }`}
+                                    onClick={() => setWorkflowType('SCHEDULED')}
+                                >
+                                    <div className={`mb-3 inline-flex rounded-lg p-3 ${workflowType === 'SCHEDULED' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                        <CalendarBlank size={28} weight="fill" />
+                                    </div>
+                                    <h3 className={`text-base font-semibold ${workflowType === 'SCHEDULED' ? 'text-primary-600' : 'text-gray-800'}`}>On a schedule</h3>
+                                    <p className={`mt-1.5 text-sm ${workflowType === 'SCHEDULED' ? 'text-primary-500' : 'text-gray-500'}`}>
+                                        Runs at fixed times — daily, weekly, monthly, or custom.
+                                    </p>
+                                    {workflowType === 'SCHEDULED' && (
+                                        <div className="absolute top-3 right-3"><CheckCircle size={22} weight="fill" className="text-primary-600" /></div>
+                                    )}
+                                </button>
+                            </div>
+                            <div className="flex justify-between">
+                                <Button variant="outline" size="lg" onClick={() => setCurrentStep(1)} className="gap-2">
+                                    <ArrowLeft size={16} /> Back
+                                </Button>
+                                <Button size="lg" onClick={() => setCurrentStep(3)} className="gap-2 px-8">
+                                    Next: {workflowType === 'EVENT_DRIVEN' ? 'Choose Event' : 'Set Schedule'}
+                                    <ArrowLeft size={16} className="rotate-180" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ─── STEP 3: Configuration ─── */}
+                    {currentStep === 3 && (
+                        <div className="space-y-6">
+                            {workflowType === 'EVENT_DRIVEN' ? (
+                                <>
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">Which event should trigger this workflow?</h2>
+                                        <p className="mt-1 text-sm text-gray-500">Pick the event, then optionally restrict it to a specific entity.</p>
+                                    </div>
+                                    <div className="rounded-xl border bg-white p-6 space-y-5">
+                                        {/* Event selector */}
+                                        <div>
+                                            <Label className="text-sm font-medium text-gray-700">Select Event <span className="text-red-400">*</span></Label>
+                                            <select
+                                                className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                                                value={triggerConfig.eventName}
+                                                onChange={(e) => {
+                                                    const eventName = e.target.value;
+                                                    const catalogItem = triggerEventsCatalog.find((c) => c.key === eventName);
+                                                    const appliedType = catalogItem?.event_applied_type ?? '';
+                                                    setTriggerConfig({ eventName, eventAppliedType: appliedType, eventId: undefined });
+                                                }}
+                                            >
+                                                <option value="">-- Select an event --</option>
+                                                {Object.entries(groupedEvents).map(([category, items]) => (
+                                                    <optgroup key={category} label={category}>
+                                                        {items.map((item) => (
+                                                            <option key={item.key} value={item.key}>{item.label}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Event description */}
+                                        {triggerConfig.eventName && (() => {
+                                            const selected = triggerEventsCatalog.find((c) => c.key === triggerConfig.eventName);
+                                            return selected ? (
+                                                <div className="rounded-lg bg-primary-50 border border-primary-100 px-4 py-3 text-sm text-primary-600">
+                                                    {selected.description}
+                                                </div>
+                                            ) : null;
+                                        })()}
+
+                                        {/* Entity picker — clearly separated */}
+                                        {triggerConfig.eventAppliedType && (
+                                            <div className="border-t pt-5 space-y-3">
+                                                <div>
+                                                    <h3 className="text-sm font-semibold text-gray-700">Scope (optional)</h3>
+                                                    <p className="mt-0.5 text-xs text-gray-400">
+                                                        Choose a specific {triggerConfig.eventAppliedType.replace(/_/g, ' ').toLowerCase()} or leave it as "All" to fire for every one.
+                                                    </p>
+                                                </div>
+                                                <EventEntityPicker
+                                                    eventAppliedType={triggerConfig.eventAppliedType}
+                                                    value={triggerConfig.eventId}
+                                                    onChange={(id) => setTriggerConfig({ eventId: id })}
+                                                    instituteId={instituteId}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Description */}
+                                        <div className="border-t pt-5">
+                                            <Label className="text-sm font-medium text-gray-700">Trigger description <span className="text-gray-300 text-xs">(optional)</span></Label>
+                                            <Input
+                                                value={triggerConfig.description}
+                                                onChange={(e) => setTriggerConfig({ description: e.target.value })}
+                                                className="mt-2"
+                                                placeholder="e.g. Send welcome email when new student enrolls"
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">Set up the schedule</h2>
+                                        <p className="mt-1 text-sm text-gray-500">Choose how often and when this workflow should run.</p>
+                                    </div>
+                                    <SchedulePickerSection
+                                        scheduleConfig={scheduleConfig}
+                                        setScheduleConfig={setScheduleConfig}
+                                    />
+                                </>
                             )}
 
-                            <div>
-                                <Label className="text-xs font-medium text-gray-600">Trigger description (optional)</Label>
-                                <Input
-                                    value={triggerConfig.description}
-                                    onChange={(e) => setTriggerConfig({ description: e.target.value })}
-                                    className="mt-1.5"
-                                    placeholder="e.g. Send welcome email when new student enrolls"
-                                />
+                            <div className="flex justify-between">
+                                <Button variant="outline" size="lg" onClick={() => setCurrentStep(2)} className="gap-2">
+                                    <ArrowLeft size={16} /> Back
+                                </Button>
+                                <Button size="lg" onClick={handleContinue} disabled={!canFinish} className="gap-2 px-8">
+                                    Continue to Builder
+                                    <ArrowLeft size={16} className="rotate-180" />
+                                </Button>
                             </div>
                         </div>
                     )}
-
-                    {workflowType === 'SCHEDULED' && (
-                        <SchedulePickerSection
-                            scheduleConfig={scheduleConfig}
-                            setScheduleConfig={setScheduleConfig}
-                        />
-                    )}
-
-                    {/* Continue button */}
-                    <div className="flex justify-end pt-2 pb-8">
-                        <Button
-                            size="lg"
-                            onClick={handleContinue}
-                            disabled={!canContinue}
-                            className="gap-2 px-8"
-                        >
-                            Continue to Builder
-                            <ArrowLeft size={16} className="rotate-180" />
-                        </Button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -1110,6 +1178,7 @@ function WorkflowBuilderInner() {
             <WorkflowSetupStep
                 onComplete={() => setSetupComplete(true)}
                 triggerEventsCatalog={triggerEventsCatalog}
+                instituteId={instituteId}
             />
         );
     }
