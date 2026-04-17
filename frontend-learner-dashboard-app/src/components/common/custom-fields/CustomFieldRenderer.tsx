@@ -61,7 +61,7 @@ export const CustomFieldRenderer = ({
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
-  const { uploadFile, getPublicUrl } = useFileUpload();
+  const { uploadFile, uploadFilePublic, getPublicUrl, getPublicUrlWithoutLogin } = useFileUpload();
 
   // Normalise the render type
   const normalizedType = String(type).toUpperCase() as FieldRenderType;
@@ -106,28 +106,46 @@ export const CustomFieldRenderer = ({
     }
 
     try {
+      setIsUploading(true);
+
+      // Detect whether the user is logged in to pick the right upload path.
+      // Public pages (live-class registration, audience-response) don't have
+      // an auth token, so we use the unauthenticated /media-service/public/*
+      // endpoints instead.
+      let token: string | null = null;
       let userId = "anonymous";
       try {
-        const token = getTokenFromCookie(TokenKey.accessToken);
+        token = getTokenFromCookie(TokenKey.accessToken);
         const decoded = token ? getTokenDecodedData(token) : null;
         if (decoded?.user) userId = decoded.user;
       } catch {
-        // ignore — fallback to anonymous
+        // no token — public context
       }
 
-      setIsUploading(true);
-      const fileId = await uploadFile({
-        file,
-        setIsUploading,
-        userId,
-        source: "CUSTOM_FIELD",
-        sourceId: "CUSTOM_FIELD_VALUE",
-        publicUrl: true,
-      });
+      let fileId: string | undefined;
+      if (token) {
+        // Authenticated path: signed-URL → S3 PUT → acknowledge
+        fileId = await uploadFile({
+          file,
+          setIsUploading,
+          userId,
+          source: "CUSTOM_FIELD",
+          sourceId: "CUSTOM_FIELD_VALUE",
+        });
+      } else {
+        // Public path: public signed-URL → S3 PUT (no acknowledge needed)
+        fileId = await uploadFilePublic({
+          file,
+          source: "CUSTOM_FIELD",
+          sourceId: "PUBLIC_UPLOAD",
+        });
+      }
 
       if (fileId) {
-        const publicUrl = await getPublicUrl(fileId);
-        const finalValue = publicUrl || fileId;
+        const url = token
+          ? await getPublicUrl(fileId)
+          : await getPublicUrlWithoutLogin(fileId);
+        const finalValue = url || fileId;
         setUploadedFileName(file.name);
         handleChange(finalValue);
       }
@@ -293,20 +311,25 @@ export const CustomFieldRenderer = ({
       );
 
     case FieldRenderType.RADIO:
+      // Wrapped in a div so that FormControl's Slot doesn't merge its
+      // id / aria-* props directly onto the Radix RadioGroup root, which
+      // breaks internal ID management and makes items unclickable.
       return (
-        <RadioGroup
-          value={value || ""}
-          onValueChange={handleChange}
-          disabled={disabled}
-          className="flex flex-col gap-2"
-        >
-          {(resolvedOptions || []).map((opt, idx) => (
-            <div key={opt._id ?? idx} className="flex items-center space-x-2">
-              <RadioGroupItem value={opt.value} id={`${name}-${idx}`} />
-              <Label htmlFor={`${name}-${idx}`}>{opt.label}</Label>
-            </div>
-          ))}
-        </RadioGroup>
+        <div>
+          <RadioGroup
+            value={value || ""}
+            onValueChange={handleChange}
+            disabled={disabled}
+            className="flex flex-col gap-2"
+          >
+            {(resolvedOptions || []).map((opt, idx) => (
+              <div key={opt._id ?? idx} className="flex items-center space-x-2">
+                <RadioGroupItem value={opt.value} id={`${name}-${idx}`} />
+                <Label htmlFor={`${name}-${idx}`}>{opt.label}</Label>
+              </div>
+            ))}
+          </RadioGroup>
+        </div>
       );
 
     case FieldRenderType.FILE: {
