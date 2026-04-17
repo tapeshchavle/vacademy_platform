@@ -13,6 +13,7 @@ import { z } from "zod";
 import {
   getOpenTestRegistrationDetails,
   handleGetParticipantsTest,
+  handleGetPublicInstituteBranding,
   handleGetStudentDetailsOfInstitute,
   handleGetUserId,
   handleRegisterOpenParticipant,
@@ -20,7 +21,7 @@ import {
 import { Route } from "..";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { convertToLocalDateTime } from "@/constants/helper";
-import { parseHtmlToString } from "@/lib/utils";
+import { parseHtmlToString, sanitizeHtml } from "@/lib/utils";
 import {
   calculateTimeDifference,
   calculateTimeLeft,
@@ -51,8 +52,6 @@ import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 import { useNavigate } from "@tanstack/react-router";
 import PhoneInputField from "@/components/design-system/phone-input-field";
 import { useInstituteDetails } from "../live-class/-hooks/useInstituteDetails";
-import axios from "axios";
-import { BASE_URL } from "@/constants/urls";
 import { useTheme } from "@/providers/theme/theme-provider";
 
 const case1 = (serverTime: number, startDate: string) => {
@@ -84,17 +83,56 @@ const AssessmentRegistrationForm = () => {
   const [userAlreadyRegistered, setUserAlreadyRegistered] = useState(false);
   const { code } = Route.useSearch();
   const { data: instituteDetails } = useInstituteDetails();
-
-  const branding: InstituteBranding = {
-    instituteId: instituteDetails?.id || null,
-    instituteName: instituteDetails?.institute_name || null,
-    instituteLogoFileId: instituteDetails?.institute_logo_file_id || null,
-    instituteThemeCode: null,
-    homeIconClickRoute: instituteDetails?.homeIconClickRoute ?? null,
-  };
+  const { setPrimaryColor } = useTheme();
   const { data, isLoading } = useSuspenseQuery(
     getOpenTestRegistrationDetails(code),
   );
+
+  // Fallback: when the domain-routing API fails (e.g. on pages.dev subdomains),
+  // Preferences has no InstituteDetails → useInstituteDetails() returns null.
+  // In that case, fetch the public branding payload directly using the
+  // institute_id that the assessment-page API already gave us.
+  const assessmentInstituteId = data?.institute_id ?? null;
+  const needsBrandingFallback = !instituteDetails && !!assessmentInstituteId;
+  const { data: fallbackBranding } = useQuery({
+    queryKey: ["public-institute-branding", assessmentInstituteId],
+    queryFn: () => handleGetPublicInstituteBranding(assessmentInstituteId!),
+    enabled: needsBrandingFallback,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const branding: InstituteBranding = {
+    instituteId:
+      instituteDetails?.id || fallbackBranding?.institute_id || null,
+    instituteName:
+      instituteDetails?.institute_name ||
+      fallbackBranding?.institute_name ||
+      null,
+    instituteLogoFileId:
+      instituteDetails?.institute_logo_file_id ||
+      fallbackBranding?.logo_file_id ||
+      null,
+    instituteThemeCode: fallbackBranding?.institute_theme_code ?? null,
+    homeIconClickRoute: instituteDetails?.homeIconClickRoute ?? null,
+  };
+
+  // Apply institute theme on the register page: default to Vacademy orange
+  // ("primary"), override with the institute_theme_code from whichever source
+  // returned it (local Preferences via useInstituteDetails, or the public
+  // branding fallback when domain-routing has failed).
+  useEffect(() => {
+    const themeCode =
+      (instituteDetails as unknown as { institute_theme_code?: string } | null)
+        ?.institute_theme_code ?? fallbackBranding?.institute_theme_code;
+    setPrimaryColor(
+      themeCode && themeCode.trim().length > 0 ? themeCode : "primary",
+    );
+  }, [
+    (instituteDetails as unknown as { institute_theme_code?: string } | null)
+      ?.institute_theme_code,
+    fallbackBranding?.institute_theme_code,
+    setPrimaryColor,
+  ]);
 
   const serverTime = useRef(
     new Date(Date.parse(data.server_time_in_gmt)).getTime(),
@@ -138,7 +176,7 @@ const AssessmentRegistrationForm = () => {
   const [timeLeft, setTimeLeft] = useState(
     calculateTimeLeft(
       serverTime.current,
-      convertToLocalDateTime(data.assessment_public_dto.bound_start_time),
+      data.assessment_public_dto.bound_start_time,
     ),
   );
 
@@ -146,9 +184,7 @@ const AssessmentRegistrationForm = () => {
     useState(
       calculateTimeLeft(
         serverTime.current,
-        convertToLocalDateTime(
-          data.assessment_public_dto.registration_open_date,
-        ),
+        data.assessment_public_dto.registration_open_date,
       ),
     );
 
@@ -156,9 +192,7 @@ const AssessmentRegistrationForm = () => {
     useState(
       calculateTimeLeft(
         serverTime.current,
-        convertToLocalDateTime(
-          data.assessment_public_dto.registration_close_date,
-        ),
+        data.assessment_public_dto.registration_close_date,
       ),
     );
 
@@ -345,7 +379,7 @@ const AssessmentRegistrationForm = () => {
       setTimeLeft(
         calculateTimeLeft(
           serverTime.current,
-          convertToLocalDateTime(data.assessment_public_dto.bound_start_time),
+          data.assessment_public_dto.bound_start_time,
         ),
       );
     }, 1000);
@@ -358,9 +392,7 @@ const AssessmentRegistrationForm = () => {
       setTimeLeftForRegistrationCase1(
         calculateTimeLeft(
           serverTime.current,
-          convertToLocalDateTime(
-            data.assessment_public_dto.registration_open_date,
-          ),
+          data.assessment_public_dto.registration_open_date,
         ),
       );
     }, 1000);
@@ -373,9 +405,7 @@ const AssessmentRegistrationForm = () => {
       setTimeLeftForRegistrationCase2(
         calculateTimeLeft(
           serverTime.current,
-          convertToLocalDateTime(
-            data.assessment_public_dto.registration_close_date,
-          ),
+          data.assessment_public_dto.registration_close_date,
         ),
       );
     }, 1000);
@@ -470,6 +500,46 @@ const AssessmentRegistrationForm = () => {
       />
     );
 
+  // Backend has explicitly marked this assessment as non-registrable.
+  // Common causes: the registration window has closed, the assessment
+  // has been unpublished, or the learner is outside the allowed audience.
+  // Render a clear "closed" screen instead of falling through to the
+  // email-check dialog flow. The private-assessment case has its own
+  // dedicated redirect handled elsewhere.
+  if (
+    data.can_register === false &&
+    data.error_message !== "Assessment is Private"
+  ) {
+    const isHardExpired = !calculateTimeDifference(
+      serverTime.current,
+      data.assessment_public_dto.bound_end_time,
+    );
+    return (
+      <AssessmentClosedExpiredComponent
+        isExpired={isHardExpired}
+        assessmentName={data.assessment_public_dto.assessment_name}
+      />
+    );
+  }
+
+  // The assessment window itself has ended (bound_end_time is in the past).
+  // Handles the case where the backend still returned can_register: true
+  // (usually because the assessment hasn't been flagged as closed yet)
+  // but the learner can no longer do anything useful.
+  if (
+    !calculateTimeDifference(
+      serverTime.current,
+      data.assessment_public_dto.bound_end_time,
+    )
+  ) {
+    return (
+      <AssessmentClosedExpiredComponent
+        isExpired={true}
+        assessmentName={data.assessment_public_dto.assessment_name}
+      />
+    );
+  }
+
   return (
     <>
       {case1Status && (
@@ -529,11 +599,14 @@ const AssessmentRegistrationForm = () => {
               {data.assessment_public_dto.about.content && (
                 <div className="flex flex-col">
                   <h1>About Assessment</h1>
-                  <span className="font-thin">
-                    {parseHtmlToString(
-                      data.assessment_public_dto.about.content,
-                    )}
-                  </span>
+                  <div
+                    className="font-thin [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-md [&_img]:h-auto"
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(
+                        data.assessment_public_dto.about.content,
+                      ),
+                    }}
+                  />
                 </div>
               )}
             </div>
@@ -633,11 +706,29 @@ const AssessmentRegistrationForm = () => {
                     <h1 className="font-medium text-neutral-800">
                       About Assessment
                     </h1>
-                    <span className="font-thin text-neutral-600">
-                      {parseHtmlToString(
-                        data.assessment_public_dto.about.content,
-                      )}
-                    </span>
+                    <div
+                      className="font-thin text-neutral-600 [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-md [&_img]:h-auto"
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeHtml(
+                          data.assessment_public_dto.about.content,
+                        ),
+                      }}
+                    />
+                  </div>
+                )}
+                {data.assessment_public_dto.instructions?.content && (
+                  <div className="flex flex-col bg-neutral-50 rounded-xl p-3 border border-neutral-100">
+                    <h1 className="font-medium text-neutral-800">
+                      Instructions
+                    </h1>
+                    <div
+                      className="font-thin text-neutral-600 [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-md [&_img]:h-auto"
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeHtml(
+                          data.assessment_public_dto.instructions.content,
+                        ),
+                      }}
+                    />
                   </div>
                 )}
               </div>
@@ -655,6 +746,17 @@ const AssessmentRegistrationForm = () => {
               <span className="text-sm text-neutral-500 mt-1">
                 Register for the assessment by completing the details below.
               </span>
+              {data.assessment_public_dto.registration_instructions?.content && (
+                <div
+                  className="registration-instructions-html mt-4 w-full rounded-xl border border-info-100 bg-info-50/50 px-3 py-2.5 text-sm text-info-700 leading-relaxed [&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-md [&_img]:h-auto"
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeHtml(
+                      data.assessment_public_dto.registration_instructions
+                        .content,
+                    ),
+                  }}
+                />
+              )}
               <FormProvider {...form}>
                 <form className="w-full flex flex-col gap-6 mt-5 sm:max-h-[70vh] sm:overflow-auto pr-1">
                   {Object.entries(form.getValues()).map(([key, value]) => {
@@ -739,11 +841,21 @@ const AssessmentRegistrationForm = () => {
                       layoutVariant="default"
                       className="w-full sm:w-auto"
                       onClick={form.handleSubmit(onSubmit, onInvalid)}
-                      disable={
-                        !form.getValues("phone_number").value ||
-                        !form.getValues("email").value ||
-                        !form.getValues("full_name").value
-                      }
+                      disable={(
+                        ["phone_number", "email", "full_name", "phone", "name"] as const
+                      ).some((key) => {
+                        // The dynamic schema is built from the admin-configured
+                        // custom_fields list. Only some of these keys will be
+                        // present depending on the assessment. Skip any key that
+                        // the form doesn't know about, and only block when a
+                        // present field is empty.
+                        const field = form.getValues(key as any) as
+                          | { value?: string; is_mandatory?: boolean }
+                          | undefined;
+                        if (field === undefined) return false;
+                        if (field.is_mandatory === false) return false;
+                        return !field.value;
+                      })}
                     >
                       Register
                     </MyButton>
