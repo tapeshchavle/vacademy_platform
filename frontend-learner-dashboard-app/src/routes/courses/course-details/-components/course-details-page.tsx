@@ -42,7 +42,7 @@ import {
     InstituteDetailsType,
 } from "@/types/institute-details/institute-details-interface";
 // CourseStructureResponse no longer needed - using single course fetch
-import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { getTerminology, getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
 import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 import { AuthModal } from "@/components/common/auth/modal/AuthModal";
 // import { getTokenFromStorage } from "@/lib/auth/sessionUtility";
@@ -774,7 +774,7 @@ export const CourseDetailsPage = () => {
                                                 }
                                             >
                                                 <SelectTrigger className="w-full sm:w-48">
-                                                    <SelectValue placeholder="Select Session" />
+                                                    <SelectValue placeholder={`Select ${getTerminology(ContentTerms.Session, SystemTerms.Session)}`} />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {sessionOptions.map(
@@ -807,7 +807,7 @@ export const CourseDetailsPage = () => {
                                     ) : levelOptions.length > 1 ? (
                                         <div className="flex flex-col gap-2 w-full sm:w-auto">
                                             <label className="text-sm font-medium">
-                                                Level
+                                                {getTerminology(ContentTerms.Level, SystemTerms.Level)}
                                             </label>
                                             <Select
                                                 value={selectedLevel}
@@ -817,7 +817,7 @@ export const CourseDetailsPage = () => {
                                                 disabled={!selectedSession}
                                             >
                                                 <SelectTrigger className="w-full sm:w-48">
-                                                    <SelectValue placeholder="Select Level" />
+                                                    <SelectValue placeholder={`Select ${getTerminology(ContentTerms.Level, SystemTerms.Level)}`} />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {levelOptions.map(
@@ -918,7 +918,7 @@ export const CourseDetailsPage = () => {
 
                                             {/* Total Duration */}
                                             <div className="flex items-center justify-between p-2 sm:p-2.5 bg-gray-50/80 rounded-lg">
-                                                <span className="text-xs font-medium text-gray-700">Course Time</span>
+                                                <span className="text-xs font-medium text-gray-700">{getTerminology(ContentTerms.Course, SystemTerms.Course)} Time</span>
                                                 <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                                                     {(() => {
                                                         // Priority 1: Backend read_time_in_minutes

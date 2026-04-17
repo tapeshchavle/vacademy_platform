@@ -58,6 +58,9 @@ interface SidebarPanelProps {
     isPartnershipLinkage?: boolean;
     mainInstituteLogoUrl?: string;
     mainInstituteName?: string;
+    hideInstituteName?: boolean;
+    logoWidthPx?: number | null;
+    logoHeightPx?: number | null;
 }
 
 export const SidebarPanel: React.FC<SidebarPanelProps> = ({
@@ -74,6 +77,9 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
     isPartnershipLinkage,
     mainInstituteLogoUrl,
     mainInstituteName,
+    hideInstituteName = false,
+    logoWidthPx = null,
+    logoHeightPx = null,
 }) => {
     const navigate = useNavigate();
     const router = useRouter();
@@ -124,16 +130,37 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                         onItemClick?.();
                     }}
                 >
-                    {instituteLogo && (
-                        <img
-                            src={instituteLogo}
-                            alt="logo"
-                            className="h-8 w-auto max-w-[36px] flex-shrink-0 object-contain"
-                        />
+                    {instituteLogo && (() => {
+                        const hasCustom = logoWidthPx != null || logoHeightPx != null;
+                        if (hasCustom) {
+                            return (
+                                <img
+                                    src={instituteLogo}
+                                    alt="logo"
+                                    className="flex-shrink-0 object-contain"
+                                    style={{
+                                        width: logoWidthPx ?? undefined,
+                                        height: logoHeightPx ?? undefined,
+                                    }}
+                                />
+                            );
+                        }
+                        return (
+                            <img
+                                src={instituteLogo}
+                                alt="logo"
+                                className="h-8 w-auto max-w-[36px] flex-shrink-0 object-contain"
+                            />
+                        );
+                    })()}
+                    {!hideInstituteName && (
+                        <span
+                            className="truncate text-sm font-semibold text-neutral-800"
+                            title={instituteName}
+                        >
+                            {instituteName}
+                        </span>
                     )}
-                    <span className="truncate text-sm font-semibold text-neutral-800" title={instituteName}>
-                        {instituteName}
-                    </span>
                 </div>
                 {isPartnershipLinkage && mainInstituteName && (
                     <div className="flex items-center gap-2 px-4 pb-3 pl-14 text-neutral-500">

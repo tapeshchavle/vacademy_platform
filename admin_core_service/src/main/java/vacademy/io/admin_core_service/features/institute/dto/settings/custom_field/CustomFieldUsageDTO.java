@@ -18,4 +18,6 @@ public class CustomFieldUsageDTO {
     private boolean isDefault;
     private long enrollInviteCount;
     private long audienceCount;
+    private long sessionCount;
+    private long assessmentCount;
 }

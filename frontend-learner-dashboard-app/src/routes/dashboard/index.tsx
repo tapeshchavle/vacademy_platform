@@ -51,7 +51,7 @@ import { SessionDetails } from "../study-library/live-class/-types/types";
 import { useMarkAttendance } from "../study-library/live-class/-hooks/useMarkAttendance";
 import { SessionStreamingServiceType } from "../register/live-class/-types/enum";
 import { toast } from "sonner";
-import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { getTerminology, getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
 import { ContentTerms, RoleTerms, SystemTerms } from "@/types/naming-settings";
 import { getStudentDisplaySettings } from "@/services/student-display-settings";
 import { useWeeklyAttendanceQuery } from "@/services/attendance/getWeeklyAttendance";
@@ -424,11 +424,12 @@ export function DashboardComponent() {
 
       {/* Render T&C Modal if ask_for_tnc is true */}
       {data?.ask_for_tnc && data?.tnc_url && (
-        <TncModal 
-          tncUrl={data.tnc_url} 
+        <TncModal
+          tncUrl={data.tnc_url}
+          prefillName={data.tnc_prefill_name ?? false}
           onAccepted={() => {
             setData(prev => prev ? { ...prev, ask_for_tnc: false } : prev);
-          }} 
+          }}
         />
       )}
 
@@ -986,7 +987,7 @@ export function DashboardComponent() {
                             />
                           </div>
                           <h3 className="font-semibold text-sm">
-                            No classes scheduled
+                            No {getTerminologyPlural(ContentTerms.LiveSession, SystemTerms.LiveSession).toLowerCase()} scheduled
                           </h3>
                           <p className="text-xs text-muted-foreground mt-1 mb-4">
                             Check back later for upcoming live classes

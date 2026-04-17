@@ -12,10 +12,20 @@ import {
     Copy,
     DotsSixVertical,
     DownloadSimple,
-    PencilSimple,
     Plus,
     TrashSimple,
+    Users,
+    Lock,
+    Globe,
+    LinkSimple,
+    QrCode,
+    ArrowRight,
+    Bell,
+    Student,
+    UsersFour,
 } from '@phosphor-icons/react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import QRCode from 'react-qr-code';
 import {
     copyToClipboard,
@@ -36,7 +46,6 @@ import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-q
 import { useInstituteQuery } from '@/services/student-list-section/getInstituteDetails';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { getAssessmentDetails, handlePostStep3Data } from '../../-services/assessment-services';
 import { DashboardLoader } from '@/components/core/dashboard-loader';
 import { toast } from 'sonner';
@@ -53,41 +62,14 @@ import { Step3ParticipantsListIndiviudalStudentInterface } from '@/types/assessm
 import { Sortable, SortableDragHandle, SortableItem } from '@/components/ui/sortable';
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
 import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
-import { getCustomFieldSettingsFromCache } from '@/services/custom-field-settings';
+import { fetchInstituteDefaultFields } from '@/services/custom-field-mappings';
+import { AddCustomFieldDialog as SharedAddCustomFieldDialog, DropdownOption } from '@/components/common/custom-fields/AddCustomFieldDialog';
+import { CustomFieldRenderer } from '@/components/common/custom-fields/CustomFieldRenderer';
 type TestAccessFormType = z.infer<typeof testAccessSchema>;
 
 function getInitialAssessmentCustomFields() {
-    // Custom Fields Revamp: read ALL institute defaults from cache
-    const settings = getCustomFieldSettingsFromCache();
-    const settingsFields = [
-        ...(settings?.fixedFields || []),
-        ...(settings?.customFields || []),
-        ...(settings?.instituteFields || []),
-    ];
-    const SEEDED_KEYS = ['full_name', 'email', 'phone_number'];
-
-    if (!settingsFields.length) {
-        return [
-            { id: '0', type: 'textfield', name: 'Full Name', oldKey: true, isRequired: true, key: 'full_name', order: 0 },
-            { id: '1', type: 'textfield', name: 'Email', oldKey: true, isRequired: true, key: 'email', order: 1 },
-            { id: '2', type: 'textfield', name: 'Phone Number', oldKey: true, isRequired: true, key: 'phone_number', order: 2 },
-        ];
-    }
-
-    return settingsFields.map((f, i) => {
-        const key = f.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-        const isSeeded = !f.canBeDeleted || SEEDED_KEYS.includes(key);
-        return {
-            id: String(i),
-            type: f.type === 'dropdown' ? 'dropdown' : 'textfield',
-            name: f.name,
-            oldKey: isSeeded,
-            isRequired: f.required || isSeeded,
-            key,
-            order: i,
-            ...(f.type === 'dropdown' && f.options ? { options: f.options.map((opt, oi) => ({ id: `${i}_opt_${oi}`, value: opt })) } : {}),
-        };
-    });
+    // Returns empty — the useEffect below will async-load from the live API.
+    return [];
 }
 
 const Step3AddingParticipants: React.FC<StepContentProps> = ({
@@ -102,16 +84,6 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
     const instituteId = getInstituteId();
     const storeDataStep3 = useTestAccessStore((state) => state);
     const { savedAssessmentId } = useSavedAssessmentStore();
-    const [selectedOptionValue, setSelectedOptionValue] = useState('textfield');
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [textFieldValue, setTextFieldValue] = useState('');
-    const [dropdownOptions, setDropdownOptions] = useState<
-        {
-            id: string;
-            value: string;
-            disabled: boolean;
-        }[]
-    >([]);
 
     const { data: instituteDetails } = useSuspenseQuery(useInstituteQuery());
     const { batches_for_sessions } = instituteDetails || {};
@@ -204,6 +176,47 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
         name: 'open_test.custom_fields',
     });
 
+    // Async-load institute defaults directly from the live backend endpoint.
+    useEffect(() => {
+        const loadFields = async () => {
+            if (!instituteId) return;
+            const defaults = await fetchInstituteDefaultFields(instituteId);
+            if (!defaults || defaults.length === 0) return;
+            const SEEDED_KEYS = ['full_name', 'email', 'phone_number'];
+            const fields = defaults.map((entry, i) => {
+                const cf = entry.custom_field;
+                const key = cf.fieldName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+                const isSeeded = SEEDED_KEYS.includes(key);
+                const result: any = {
+                    id: String(i),
+                    type: cf.fieldType === 'dropdown' ? 'dropdown' : 'textfield',
+                    name: cf.fieldName,
+                    oldKey: isSeeded,
+                    isRequired: cf.isMandatory || isSeeded,
+                    key,
+                    order: entry.individual_order ?? i,
+                };
+                if (cf.fieldType === 'dropdown' && cf.config) {
+                    try {
+                        const parsed = JSON.parse(cf.config);
+                        if (Array.isArray(parsed)) {
+                            result.options = parsed.map((opt: any, oi: number) => ({ id: `${i}_opt_${oi}`, value: opt.value || opt.label || opt }));
+                        } else if (parsed.coommaSepartedOptions) {
+                            result.options = parsed.coommaSepartedOptions.split(',').map((v: string, oi: number) => ({ id: `${i}_opt_${oi}`, value: v.trim() }));
+                        }
+                    } catch { /* ignore */ }
+                }
+                return result;
+            });
+            const currentValues = form.getValues();
+            form.reset({
+                ...currentValues,
+                open_test: { ...currentValues.open_test, custom_fields: fields },
+            });
+        };
+        loadFields();
+    }, []);
+
     const handleSubmitStep3Form = useMutation({
         mutationFn: ({
             oldFormData,
@@ -277,17 +290,6 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
         setValue('open_test.custom_fields', updatedFields);
     };
 
-    const handleAddDropdownOptions = () => {
-        setDropdownOptions((prevOptions) => [
-            ...prevOptions,
-            {
-                id: String(prevOptions.length),
-                value: `option ${prevOptions.length + 1}`,
-                disabled: true,
-            },
-        ]);
-    };
-
     const handleAddOpenFieldValues = (type: string, name: string, oldKey: boolean) => {
         // Add the new field to the array
         const updatedFields = [
@@ -314,10 +316,6 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                 order: index, // Update order of remaining fields
             }));
         setValue('open_test.custom_fields', updatedFields);
-    };
-
-    const handleDeleteOptionField = (id: string) => {
-        setDropdownOptions((prevFields) => prevFields.filter((field) => field.id !== id));
     };
 
     const handleAddGender = (type: string, name: string, oldKey: boolean) => {
@@ -358,46 +356,19 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
         setValue('open_test.custom_fields', updatedFields);
     };
 
-    // Function to close the dialog
-    const handleCloseDialog = (type: string, name: string, oldKey: boolean) => {
-        // Create the new field
+    const handleAddCustomField = (type: string, name: string, oldKey: boolean, options?: DropdownOption[]) => {
         const newField = {
-            id: String(customFields.length), // Use the current array length as the new ID
+            id: String(customFields.length),
             type,
             name,
             oldKey,
-            ...(type === 'dropdown' && { options: dropdownOptions }), // Include options if type is dropdown
+            ...(options && { options: options.map((opt) => ({ id: String(opt.id), value: opt.value, disabled: true })) }),
             isRequired: true,
             key: '',
             order: customFields.length,
         };
-
-        // Add the new field to the array
         const updatedFields = [...customFields, newField];
-
-        // Update the form state
         setValue('open_test.custom_fields', updatedFields);
-
-        // Reset dialog and temporary values
-        setIsDialogOpen(false);
-        setTextFieldValue('');
-        setDropdownOptions([]);
-    };
-
-    const handleValueChange = (id: string, newValue: string) => {
-        setDropdownOptions((prevOptions) =>
-            prevOptions.map((option) =>
-                option.id === id ? { ...option, value: newValue } : option
-            )
-        );
-    };
-
-    const handleEditClick = (id: string) => {
-        setDropdownOptions((prevOptions) =>
-            prevOptions.map((option) =>
-                option.id === id ? { ...option, disabled: !option.disabled } : option
-            )
-        );
     };
 
     // Function that explicitly updates the order property of all fields
@@ -560,28 +531,51 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
 
     return (
         <FormProvider {...form}>
-            <form>
-                <div className="m-0 flex items-center justify-between p-0">
-                    <div>
-                        <h1>Add Participants</h1>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            Define who can participate in this assessment. Add students from
-                            batches, individually, or via open registration.
-                        </p>
+            <form className="flex flex-col gap-6">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                        <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-400 text-white shadow-sm">
+                            <Users size={22} weight="bold" />
+                        </div>
+                        <div>
+                            <h1 className="text-h2-semibold tracking-tight">Add Participants</h1>
+                            <p className="mt-1 text-sm text-neutral-500">
+                                Define who can participate in this assessment. Add students from
+                                batches, individually, or via open registration.
+                            </p>
+                        </div>
                     </div>
                     <MyButton
                         type="button"
                         scale="large"
                         buttonType="primary"
+                        className="group gap-2 shadow-sm hover:shadow-md"
                         onClick={handleSubmit(onSubmit, onInvalid)}
                     >
                         {assessmentId !== 'defaultId' ? 'Update' : 'Next'}
+                        <ArrowRight
+                            size={18}
+                            weight="bold"
+                            className="transition-transform group-hover:translate-x-0.5"
+                        />
                     </MyButton>
                 </div>
-                <Separator className="my-4" />
-                <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-3" id="open-assessment">
-                        <h1>Participant Access Settings</h1>
+                <div className="flex flex-col gap-6">
+                    <Card className="border-neutral-200/80 shadow-sm" id="open-assessment">
+                        <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-4">
+                            <div className="flex size-9 items-center justify-center rounded-lg bg-primary-50 text-primary-500">
+                                <Lock size={18} weight="bold" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-subtitle font-semibold">
+                                    Participant Access Settings
+                                </CardTitle>
+                                <CardDescription>
+                                    Choose how learners gain access to this assessment.
+                                </CardDescription>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
                         <FormField
                             control={form.control}
                             name="closed_test" // Use the parent key to handle both fields
@@ -604,31 +598,54 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                                     ? 'CLOSE_TEST'
                                                     : 'OPEN_TEST'
                                             }
-                                            className="flex flex-col gap-3"
+                                            className="grid grid-cols-1 gap-3 md:grid-cols-2"
                                         >
                                             {getStepKey({
                                                 assessmentDetails,
                                                 currentStep,
                                                 key: 'closed_link',
                                             }) === 'REQUIRED' && (
-                                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                                    <FormControl>
-                                                        <RadioGroupItem value="CLOSE_TEST" />
-                                                    </FormControl>
-                                                    <FormLabel className="font-semibold">
-                                                        Closed Test:{' '}
-                                                        <span className="font-thin">
-                                                            {examType === 'SURVEY' ? 'Restrict the Survey to specific' : 'Restrict the Assessment to specific'}
-                                                            participants by assigning it to
-                                                            institute batches or selecting
-                                                            individual{' '}
-                                                            {getTerminology(
-                                                                RoleTerms.Learner,
-                                                                SystemTerms.Learner
-                                                            ).toLocaleLowerCase()}
-                                                            s.
-                                                        </span>
-                                                    </FormLabel>
+                                                <FormItem className="space-y-0">
+                                                    <label
+                                                        className={cn(
+                                                            'flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all hover:border-primary-300 hover:bg-primary-50/30',
+                                                            getValues('closed_test')
+                                                                ? 'border-primary-500 bg-primary-50/60 shadow-sm ring-1 ring-primary-200'
+                                                                : 'border-neutral-200'
+                                                        )}
+                                                    >
+                                                        <FormControl>
+                                                            <RadioGroupItem
+                                                                value="CLOSE_TEST"
+                                                                className="mt-1"
+                                                            />
+                                                        </FormControl>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <Lock
+                                                                    size={15}
+                                                                    weight="bold"
+                                                                    className="text-primary-500"
+                                                                />
+                                                                <FormLabel className="cursor-pointer text-sm font-semibold text-neutral-800">
+                                                                    Closed Test
+                                                                </FormLabel>
+                                                            </div>
+                                                            <p className="mt-1 text-xs text-neutral-500">
+                                                                {examType === 'SURVEY'
+                                                                    ? 'Restrict the survey'
+                                                                    : 'Restrict the assessment'}{' '}
+                                                                to specific participants by
+                                                                assigning it to institute batches
+                                                                or selecting individual{' '}
+                                                                {getTerminology(
+                                                                    RoleTerms.Learner,
+                                                                    SystemTerms.Learner
+                                                                ).toLocaleLowerCase()}
+                                                                s.
+                                                            </p>
+                                                        </div>
+                                                    </label>
                                                 </FormItem>
                                             )}
                                             {getStepKey({
@@ -636,23 +653,46 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                                 currentStep,
                                                 key: 'open_link',
                                             }) === 'REQUIRED' && (
-                                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                                    <FormControl>
-                                                        <RadioGroupItem value="OPEN_TEST" />
-                                                    </FormControl>
-                                                    <FormLabel className="font-semibold">
-                                                        Open Test:{' '}
-                                                        <span className="font-thin">
-                                                            Allow anyone to register for this
-                                                            {examType === 'SURVEY' ? 'Survey' : 'Assessment'} via a shared link. Institute
-                                                            {getTerminology(
-                                                                RoleTerms.Learner,
-                                                                SystemTerms.Learner
-                                                            ).toLocaleLowerCase()}
-                                                            s can also be pre-registered by
-                                                            selecting batches or individuals.
-                                                        </span>
-                                                    </FormLabel>
+                                                <FormItem className="space-y-0">
+                                                    <label
+                                                        className={cn(
+                                                            'flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all hover:border-primary-300 hover:bg-primary-50/30',
+                                                            watch('open_test.checked')
+                                                                ? 'border-primary-500 bg-primary-50/60 shadow-sm ring-1 ring-primary-200'
+                                                                : 'border-neutral-200'
+                                                        )}
+                                                    >
+                                                        <FormControl>
+                                                            <RadioGroupItem
+                                                                value="OPEN_TEST"
+                                                                className="mt-1"
+                                                            />
+                                                        </FormControl>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <Globe
+                                                                    size={15}
+                                                                    weight="bold"
+                                                                    className="text-primary-500"
+                                                                />
+                                                                <FormLabel className="cursor-pointer text-sm font-semibold text-neutral-800">
+                                                                    Open Test
+                                                                </FormLabel>
+                                                            </div>
+                                                            <p className="mt-1 text-xs text-neutral-500">
+                                                                Allow anyone to register for this{' '}
+                                                                {examType === 'SURVEY'
+                                                                    ? 'survey'
+                                                                    : 'assessment'}{' '}
+                                                                via a shared link. Institute{' '}
+                                                                {getTerminology(
+                                                                    RoleTerms.Learner,
+                                                                    SystemTerms.Learner
+                                                                ).toLocaleLowerCase()}
+                                                                s can also be pre-registered.
+                                                            </p>
+                                                        </div>
+                                                    </label>
                                                 </FormItem>
                                             )}
                                         </RadioGroup>
@@ -660,7 +700,8 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                 </FormItem>
                             )}
                         />
-                    </div>
+                        </CardContent>
+                    </Card>
                     {watch('open_test.checked') && (
                         <>
                             <div className="mt-2 flex flex-col gap-4">
@@ -904,8 +945,8 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                                 <Plus size={32} /> Add School/College
                                             </MyButton>
                                         )}
-                                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                            <DialogTrigger>
+                                        <SharedAddCustomFieldDialog
+                                            trigger={
                                                 <MyButton
                                                     type="button"
                                                     scale="medium"
@@ -913,183 +954,10 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                                 >
                                                     <Plus size={32} /> Add Custom Field
                                                 </MyButton>
-                                            </DialogTrigger>
-                                            <DialogContent className="!w-[500px] p-0">
-                                                <h1 className="rounded-lg bg-primary-50 p-4 text-primary-500">
-                                                    Add Custom Field
-                                                </h1>
-                                                <div className="flex flex-col gap-4 px-4">
-                                                    <h1>
-                                                        Select the type of custom field you want to
-                                                        add:
-                                                    </h1>
-                                                    <RadioGroup
-                                                        defaultValue={selectedOptionValue}
-                                                        onValueChange={(value) =>
-                                                            setSelectedOptionValue(value)
-                                                        }
-                                                        className="flex items-center gap-6"
-                                                    >
-                                                        <div className="flex items-center space-x-2">
-                                                            <RadioGroupItem
-                                                                value="textfield"
-                                                                id="option-one"
-                                                            />
-                                                            <Label htmlFor="option-one">
-                                                                Text Field
-                                                            </Label>
-                                                        </div>
-                                                        <div className="flex items-center space-x-2">
-                                                            <RadioGroupItem
-                                                                value="dropdown"
-                                                                id="option-two"
-                                                            />
-                                                            <Label htmlFor="option-two">
-                                                                Dropdown
-                                                            </Label>
-                                                        </div>
-                                                    </RadioGroup>
-                                                    {selectedOptionValue === 'textfield' ? (
-                                                        <div className="flex flex-col gap-1">
-                                                            <h1>
-                                                                Text Field Name
-                                                                <span className="text-subtitle text-danger-600">
-                                                                    *
-                                                                </span>
-                                                            </h1>
-                                                            <MyInput
-                                                                inputType="text"
-                                                                inputPlaceholder="Type Here"
-                                                                input={textFieldValue}
-                                                                onChangeFunction={(e) =>
-                                                                    setTextFieldValue(
-                                                                        e.target.value
-                                                                    )
-                                                                }
-                                                                size="large"
-                                                                className="w-full"
-                                                            />
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex flex-col gap-1">
-                                                            <h1>
-                                                                Dropdown Name
-                                                                <span className="text-subtitle text-danger-600">
-                                                                    *
-                                                                </span>
-                                                            </h1>
-                                                            <MyInput
-                                                                inputType="text"
-                                                                inputPlaceholder="Type Here"
-                                                                input={textFieldValue}
-                                                                onChangeFunction={(e) =>
-                                                                    setTextFieldValue(
-                                                                        e.target.value
-                                                                    )
-                                                                }
-                                                                size="large"
-                                                                className="w-full"
-                                                            />
-                                                            <h1 className="mt-4">
-                                                                Dropdown Options
-                                                            </h1>
-                                                            <div className="flex flex-col gap-4">
-                                                                {dropdownOptions.map((option) => {
-                                                                    return (
-                                                                        <div
-                                                                            className="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-neutral-50 px-4 py-1"
-                                                                            key={option.id} // Use unique identifier
-                                                                        >
-                                                                            <MyInput
-                                                                                inputType="text"
-                                                                                inputPlaceholder={
-                                                                                    option.value
-                                                                                }
-                                                                                input={option.value}
-                                                                                onChangeFunction={(
-                                                                                    e
-                                                                                ) =>
-                                                                                    handleValueChange(
-                                                                                        option.id,
-                                                                                        e.target
-                                                                                            .value
-                                                                                    )
-                                                                                }
-                                                                                size="large"
-                                                                                disabled={
-                                                                                    option.disabled
-                                                                                }
-                                                                                className="border-none pl-0"
-                                                                            />
-                                                                            <div className="flex items-center gap-6">
-                                                                                <MyButton
-                                                                                    type="button"
-                                                                                    scale="medium"
-                                                                                    buttonType="secondary"
-                                                                                    className="h-6 min-w-6 !rounded-sm px-1"
-                                                                                    onClick={() =>
-                                                                                        handleEditClick(
-                                                                                            option.id
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    <PencilSimple
-                                                                                        size={32}
-                                                                                    />
-                                                                                </MyButton>
-                                                                                {dropdownOptions.length >
-                                                                                    1 && (
-                                                                                    <MyButton
-                                                                                        type="button"
-                                                                                        scale="medium"
-                                                                                        buttonType="secondary"
-                                                                                        onClick={() =>
-                                                                                            handleDeleteOptionField(
-                                                                                                option.id
-                                                                                            )
-                                                                                        }
-                                                                                        className="h-6 min-w-6 !rounded-sm px-1"
-                                                                                    >
-                                                                                        <TrashSimple className="!size-4 text-danger-500" />
-                                                                                    </MyButton>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                            <MyButton
-                                                                type="button"
-                                                                scale="small"
-                                                                buttonType="secondary"
-                                                                className="mt-2 w-20 min-w-4 border-none font-thin !text-primary-500"
-                                                                onClick={handleAddDropdownOptions}
-                                                            >
-                                                                <Plus size={18} />
-                                                                Add
-                                                            </MyButton>
-                                                        </div>
-                                                    )}
-                                                    <div className="mb-6 flex justify-center">
-                                                        <MyButton
-                                                            type="button"
-                                                            scale="medium"
-                                                            buttonType="primary"
-                                                            className="mt-4 w-fit"
-                                                            onClick={() =>
-                                                                handleCloseDialog(
-                                                                    selectedOptionValue,
-                                                                    textFieldValue,
-                                                                    false
-                                                                )
-                                                            }
-                                                        >
-                                                            Done
-                                                        </MyButton>
-                                                    </div>
-                                                </div>
-                                            </DialogContent>
-                                        </Dialog>
+                                            }
+                                            onAddField={handleAddCustomField}
+                                            existingFieldNames={customFieldsArray.map((f) => f.name)}
+                                        />
                                     </div>
                                     <Dialog>
                                         <DialogTrigger className="flex justify-start">
@@ -1110,58 +978,29 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                                 {customFields?.map((testInputFields, idx) => {
                                                     return (
                                                         <div
-                                                            className="flex flex-col items-start gap-4"
+                                                            className="flex w-full flex-col items-start gap-[0.4rem]"
                                                             key={idx}
                                                         >
-                                                            {testInputFields.type === 'dropdown' ? (
-                                                                <SelectField
-                                                                    label={testInputFields.name}
-                                                                    labelStyle="font-normal"
-                                                                    name={testInputFields.name}
-                                                                    options={
-                                                                        testInputFields?.options?.map(
-                                                                            (option, index) => ({
-                                                                                value: option.value,
-                                                                                label: option.value,
-                                                                                _id: index,
-                                                                            })
-                                                                        ) || []
-                                                                    }
-                                                                    control={form.control}
-                                                                    className="w-full font-thin"
-                                                                    required={
-                                                                        testInputFields.isRequired
-                                                                            ? true
-                                                                            : false
-                                                                    }
-                                                                />
-                                                            ) : (
-                                                                <div className="flex w-full flex-col gap-[0.4rem]">
-                                                                    <h1 className="text-sm">
-                                                                        {testInputFields.name}
-                                                                        {testInputFields.isRequired && (
-                                                                            <span className="text-subtitle text-danger-600">
-                                                                                *
-                                                                            </span>
-                                                                        )}
-                                                                    </h1>
-                                                                    <MyInput
-                                                                        inputType="text"
-                                                                        inputPlaceholder={
-                                                                            testInputFields.name
-                                                                        }
-                                                                        input=""
-                                                                        onChangeFunction={() => {}}
-                                                                        error={
-                                                                            form.formState.errors
-                                                                                .join_link?.message
-                                                                        }
-                                                                        size="large"
-                                                                        disabled
-                                                                        className="!min-w-full"
-                                                                    />
-                                                                </div>
-                                                            )}
+                                                            <h1 className="text-sm">
+                                                                {testInputFields.name}
+                                                                {testInputFields.isRequired && (
+                                                                    <span className="text-subtitle text-danger-600">
+                                                                        *
+                                                                    </span>
+                                                                )}
+                                                            </h1>
+                                                            <CustomFieldRenderer
+                                                                type={testInputFields.type}
+                                                                name={testInputFields.name}
+                                                                value=""
+                                                                disabled={true}
+                                                                options={testInputFields.options?.map(
+                                                                    (o) => o.value
+                                                                )}
+                                                                required={
+                                                                    testInputFields.isRequired
+                                                                }
+                                                            />
                                                         </div>
                                                     );
                                                 })}
@@ -1205,17 +1044,34 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                             {String(form.formState.errors.select_batch.batch_details.message)}
                         </div>
                     )}
-                    <Separator className="my-4" />
-                    <div className="flex items-center justify-between" id="join-link-qr-code">
-                        <div className="flex flex-col gap-2">
-                            <h1>Join Link</h1>
-                            <div className="flex items-center gap-8">
-                                <div className="flex items-center gap-4">
+                    <Card
+                        className="border-neutral-200/80 shadow-sm"
+                        id="join-link-qr-code"
+                    >
+                        <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-4">
+                            <div className="flex size-9 items-center justify-center rounded-lg bg-info-50 text-info-600">
+                                <LinkSimple size={18} weight="bold" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-subtitle font-semibold">
+                                    Share Access
+                                </CardTitle>
+                                <CardDescription>
+                                    Share a join link or QR code with participants.
+                                </CardDescription>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-start gap-6 md:flex-row md:items-center md:justify-between">
+                            <div className="flex flex-1 flex-col gap-2">
+                                <label className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                                    Join Link
+                                </label>
+                                <div className="flex items-center gap-2">
                                     <FormField
                                         control={control}
                                         name="join_link"
                                         render={({ field: { ...field } }) => (
-                                            <FormItem>
+                                            <FormItem className="flex-1">
                                                 <FormControl>
                                                     <MyInput
                                                         inputType="text"
@@ -1227,56 +1083,57 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                                         }
                                                         size="large"
                                                         {...field}
+                                                        className="w-full"
                                                     />
                                                 </FormControl>
                                             </FormItem>
                                         )}
                                     />
-                                    <MyButton
+                                    <button
                                         type="button"
-                                        scale="small"
-                                        buttonType="secondary"
-                                        className="h-10 min-w-10"
                                         onClick={() => copyToClipboard(getValues('join_link'))}
+                                        className="flex size-10 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 transition-all hover:border-primary-400 hover:bg-primary-50/30 hover:text-primary-600"
+                                        aria-label="Copy join link"
                                     >
-                                        <Copy size={32} />
-                                    </MyButton>
+                                        <Copy size={18} weight="bold" />
+                                    </button>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <h1>QR Code</h1>
-                            <div className="flex items-center gap-8">
-                                <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex flex-col items-center gap-1">
+                                    <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-neutral-500">
+                                        <QrCode size={12} weight="bold" />
+                                        QR Code
+                                    </div>
                                     <FormField
                                         control={control}
                                         name="join_link"
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormControl>
-                                                    <QRCode
-                                                        value={field.value ?? ''}
-                                                        className="size-16"
-                                                        id="qr-code-svg"
-                                                    />
+                                                    <div className="rounded-lg border border-neutral-200 bg-white p-2 shadow-sm">
+                                                        <QRCode
+                                                            value={field.value ?? ''}
+                                                            className="size-20"
+                                                            id="qr-code-svg"
+                                                        />
+                                                    </div>
                                                 </FormControl>
                                             </FormItem>
                                         )}
                                     />
-                                    <MyButton
-                                        type="button"
-                                        scale="small"
-                                        buttonType="secondary"
-                                        className="h-10 min-w-10"
-                                        onClick={() => handleDownloadQRCode('qr-code-svg')}
-                                    >
-                                        <DownloadSimple size={32} />
-                                    </MyButton>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDownloadQRCode('qr-code-svg')}
+                                    className="flex size-10 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 transition-all hover:border-primary-400 hover:bg-primary-50/30 hover:text-primary-600"
+                                    aria-label="Download QR code"
+                                >
+                                    <DownloadSimple size={18} weight="bold" />
+                                </button>
                             </div>
-                        </div>
-                    </div>
-                    <Separator className="my-4" />
+                        </CardContent>
+                    </Card>
                     {/* will be added later
                     <FormField
                         control={form.control}
@@ -1293,31 +1150,52 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                             </FormItem>
                         )}
                     /> */}
-                    <div className="flex w-3/4 justify-between" id="notify-via-email">
+                    <Card className="border-neutral-200/80 shadow-sm" id="notify-via-email">
+                        <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-4">
+                            <div className="flex size-9 items-center justify-center rounded-lg bg-warning-50 text-warning-600">
+                                <Bell size={18} weight="bold" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-subtitle font-semibold">
+                                    Email Notifications
+                                </CardTitle>
+                                <CardDescription>
+                                    Choose which events trigger automatic email alerts.
+                                </CardDescription>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         {getStepKey({
                             assessmentDetails,
                             currentStep,
                             key: 'notify_participants',
                         }) === 'REQUIRED' && (
-                            <div className="flex flex-col gap-4">
-                                <h1>Notify Participants via Email:</h1>
+                            <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-neutral-50/40 p-4">
+                                <div className="flex items-center gap-2 pb-1">
+                                    <div className="flex size-7 items-center justify-center rounded-md bg-primary-100 text-primary-600">
+                                        <Student size={15} weight="bold" />
+                                    </div>
+                                    <h3 className="text-sm font-semibold text-neutral-800">
+                                        Notify Participants
+                                    </h3>
+                                </div>
                                 <FormField
                                     control={control}
                                     name={`notify_student.when_assessment_created`}
                                     render={({ field }) => (
-                                        <FormItem className="flex items-end gap-2">
+                                        <FormItem className="flex items-center gap-2.5 space-y-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-white">
                                             <FormControl>
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    className={`size-5 rounded-sm border-2 shadow-none ${
+                                                    className={`size-4 rounded-sm border-2 shadow-none ${
                                                         field.value
-                                                            ? 'border-none bg-primary-500 text-white' // Blue background and red tick when checked
-                                                            : '' // Default styles when unchecked
+                                                            ? 'border-none bg-primary-500 text-white'
+                                                            : ''
                                                     }`}
                                                 />
                                             </FormControl>
-                                            <FormLabel className="!mb-[3px] font-thin">
+                                            <FormLabel className="!mt-0 cursor-pointer text-sm font-normal text-neutral-700">
                                                 {examType === 'SURVEY' ? 'When Survey is created' : 'When Assessment is created'}
                                             </FormLabel>
                                         </FormItem>
@@ -1327,19 +1205,19 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                     control={control}
                                     name={`notify_student.before_assessment_goes_live.checked`}
                                     render={({ field }) => (
-                                        <FormItem className="flex items-end gap-2">
+                                        <FormItem className="flex items-center gap-2.5 space-y-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-white">
                                             <FormControl>
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    className={`size-5 rounded-sm border-2 shadow-none ${
+                                                    className={`size-4 rounded-sm border-2 shadow-none ${
                                                         field.value
-                                                            ? 'border-none bg-primary-500 text-white' // Blue background and red tick when checked
-                                                            : '' // Default styles when unchecked
+                                                            ? 'border-none bg-primary-500 text-white'
+                                                            : ''
                                                     }`}
                                                 />
                                             </FormControl>
-                                            <FormLabel className="!mb-[3px] font-thin">
+                                            <FormLabel className="!mt-0 cursor-pointer text-sm font-normal text-neutral-700">
                                                 {examType === 'SURVEY' ? 'Before Survey goes live' : 'Before Assessment goes live'}
                                             </FormLabel>
                                         </FormItem>
@@ -1357,26 +1235,26 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                         }))}
                                         control={form.control}
                                         required
-                                        className="w-56 font-thin"
+                                        className="ml-2 w-full max-w-[220px] font-normal"
                                     />
                                 )}
                                 <FormField
                                     control={control}
                                     name={`notify_student.when_assessment_live`}
                                     render={({ field }) => (
-                                        <FormItem className="flex items-end gap-2">
+                                        <FormItem className="flex items-center gap-2.5 space-y-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-white">
                                             <FormControl>
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    className={`size-5 rounded-sm border-2 shadow-none ${
+                                                    className={`size-4 rounded-sm border-2 shadow-none ${
                                                         field.value
-                                                            ? 'border-none bg-primary-500 text-white' // Blue background and red tick when checked
-                                                            : '' // Default styles when unchecked
+                                                            ? 'border-none bg-primary-500 text-white'
+                                                            : ''
                                                     }`}
                                                 />
                                             </FormControl>
-                                            <FormLabel className="!mb-[3px] font-thin">
+                                            <FormLabel className="!mt-0 cursor-pointer text-sm font-normal text-neutral-700">
                                                 {examType === 'SURVEY' ? 'When Survey goes live' : 'When Assessment goes live'}
                                             </FormLabel>
                                         </FormItem>
@@ -1386,19 +1264,19 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                     control={control}
                                     name={`notify_student.when_assessment_report_generated`}
                                     render={({ field }) => (
-                                        <FormItem className="flex items-end gap-2">
+                                        <FormItem className="flex items-center gap-2.5 space-y-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-white">
                                             <FormControl>
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    className={`size-5 rounded-sm border-2 shadow-none ${
+                                                    className={`size-4 rounded-sm border-2 shadow-none ${
                                                         field.value
-                                                            ? 'border-none bg-primary-500 text-white' // Blue background and red tick when checked
-                                                            : '' // Default styles when unchecked
+                                                            ? 'border-none bg-primary-500 text-white'
+                                                            : ''
                                                     }`}
                                                 />
                                             </FormControl>
-                                            <FormLabel className="!mb-[3px] font-thin">
+                                            <FormLabel className="!mt-0 cursor-pointer text-sm font-normal text-neutral-700">
                                                 {examType === 'SURVEY' ? 'When survey reports are generated' : 'When assessment reports are generated'}
                                             </FormLabel>
                                         </FormItem>
@@ -1406,31 +1284,39 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                 />
                             </div>
                         )}
-                        {/* Notify Participants via Email */}
                         {(examType === 'SURVEY' || getStepKey({
                             assessmentDetails,
                             currentStep,
                             key: "notify_parents",
                         }) === "REQUIRED") && (
-                            <div className="flex flex-col gap-4">
-                                <h1>{examType === 'SURVEY' ? 'Notify Participants via Email:' : 'Notify Parents via Email:'}</h1>
+                            <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-neutral-50/40 p-4">
+                                <div className="flex items-center gap-2 pb-1">
+                                    <div className="flex size-7 items-center justify-center rounded-md bg-info-100 text-info-600">
+                                        <UsersFour size={15} weight="bold" />
+                                    </div>
+                                    <h3 className="text-sm font-semibold text-neutral-800">
+                                        {examType === 'SURVEY'
+                                            ? 'Notify Participants'
+                                            : 'Notify Parents'}
+                                    </h3>
+                                </div>
                                 <FormField
                                     control={control}
                                     name={`notify_parent.when_assessment_created`}
                                     render={({ field }) => (
-                                        <FormItem className="flex items-end gap-2">
+                                        <FormItem className="flex items-center gap-2.5 space-y-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-white">
                                             <FormControl>
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    className={`size-5 rounded-sm border-2 shadow-none ${
+                                                    className={`size-4 rounded-sm border-2 shadow-none ${
                                                         field.value
-                                                            ? "border-none bg-primary-500 text-white" // Blue background and red tick when checked
-                                                            : "" // Default styles when unchecked
+                                                            ? 'border-none bg-primary-500 text-white'
+                                                            : ''
                                                     }`}
                                                 />
                                             </FormControl>
-                                            <FormLabel className="!mb-[3px] font-thin">
+                                            <FormLabel className="!mt-0 cursor-pointer text-sm font-normal text-neutral-700">
                                                 {examType === 'SURVEY' ? 'When Survey is created' : 'When Assessment is created'}
                                             </FormLabel>
                                         </FormItem>
@@ -1440,19 +1326,19 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                     control={control}
                                     name={`notify_parent.before_assessment_goes_live.checked`}
                                     render={({ field }) => (
-                                        <FormItem className="flex items-end gap-2">
+                                        <FormItem className="flex items-center gap-2.5 space-y-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-white">
                                             <FormControl>
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    className={`size-5 rounded-sm border-2 shadow-none ${
+                                                    className={`size-4 rounded-sm border-2 shadow-none ${
                                                         field.value
-                                                            ? "border-none bg-primary-500 text-white" // Blue background and red tick when checked
-                                                            : "" // Default styles when unchecked
+                                                            ? 'border-none bg-primary-500 text-white'
+                                                            : ''
                                                     }`}
                                                 />
                                             </FormControl>
-                                            <FormLabel className="!mb-[3px] font-thin">
+                                            <FormLabel className="!mt-0 cursor-pointer text-sm font-normal text-neutral-700">
                                                 {examType === 'SURVEY' ? 'Before Survey goes live' : 'Before Assessment goes live'}
                                             </FormLabel>
                                         </FormItem>
@@ -1470,26 +1356,26 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                         }))}
                                         control={form.control}
                                         required
-                                        className="w-56 font-thin"
+                                        className="ml-2 w-full max-w-[220px] font-normal"
                                     />
                                 )}
                                 <FormField
                                     control={control}
                                     name={`notify_parent.when_assessment_live`}
                                     render={({ field }) => (
-                                        <FormItem className="flex items-end gap-2">
+                                        <FormItem className="flex items-center gap-2.5 space-y-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-white">
                                             <FormControl>
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    className={`size-5 rounded-sm border-2 shadow-none ${
+                                                    className={`size-4 rounded-sm border-2 shadow-none ${
                                                         field.value
-                                                            ? "border-none bg-primary-500 text-white" // Blue background and red tick when checked
-                                                            : "" // Default styles when unchecked
+                                                            ? 'border-none bg-primary-500 text-white'
+                                                            : ''
                                                     }`}
                                                 />
                                             </FormControl>
-                                            <FormLabel className="!mb-[3px] font-thin">
+                                            <FormLabel className="!mt-0 cursor-pointer text-sm font-normal text-neutral-700">
                                                 {examType === 'SURVEY' ? 'When Survey goes live' : 'When Assessment goes live'}
                                             </FormLabel>
                                         </FormItem>
@@ -1499,19 +1385,19 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                     control={control}
                                     name={`notify_parent.when_student_appears`}
                                     render={({ field }) => (
-                                        <FormItem className="flex items-end gap-2">
+                                        <FormItem className="flex items-center gap-2.5 space-y-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-white">
                                             <FormControl>
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    className={`size-5 rounded-sm border-2 shadow-none ${
+                                                    className={`size-4 rounded-sm border-2 shadow-none ${
                                                         field.value
-                                                            ? "border-none bg-primary-500 text-white" // Blue background and red tick when checked
-                                                            : "" // Default styles when unchecked
+                                                            ? 'border-none bg-primary-500 text-white'
+                                                            : ''
                                                     }`}
                                                 />
                                             </FormControl>
-                                            <FormLabel className="!mb-[3px] font-thin">
+                                            <FormLabel className="!mt-0 cursor-pointer text-sm font-normal text-neutral-700">
                                                 {examType === 'SURVEY' ? 'When students appears for the Survey' : 'When students appears for the Assessment'}
                                             </FormLabel>
                                         </FormItem>
@@ -1521,19 +1407,19 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                     control={control}
                                     name={`notify_parent.when_student_finishes_test`}
                                     render={({ field }) => (
-                                        <FormItem className="flex items-end gap-2">
+                                        <FormItem className="flex items-center gap-2.5 space-y-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-white">
                                             <FormControl>
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    className={`size-5 rounded-sm border-2 shadow-none ${
+                                                    className={`size-4 rounded-sm border-2 shadow-none ${
                                                         field.value
-                                                            ? "border-none bg-primary-500 text-white" // Blue background and red tick when checked
-                                                            : "" // Default styles when unchecked
+                                                            ? 'border-none bg-primary-500 text-white'
+                                                            : ''
                                                     }`}
                                                 />
                                             </FormControl>
-                                            <FormLabel className="!mb-[3px] font-thin">
+                                            <FormLabel className="!mt-0 cursor-pointer text-sm font-normal text-neutral-700">
                                                 {examType === 'SURVEY' ? 'When students finishes the Survey' : 'When students finishes the Assessment'}
                                             </FormLabel>
                                         </FormItem>
@@ -1543,19 +1429,19 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                     control={control}
                                     name={`notify_parent.when_assessment_report_generated`}
                                     render={({ field }) => (
-                                        <FormItem className="flex items-end gap-2">
+                                        <FormItem className="flex items-center gap-2.5 space-y-0 rounded-lg px-2 py-1.5 transition-colors hover:bg-white">
                                             <FormControl>
                                                 <Checkbox
                                                     checked={field.value}
                                                     onCheckedChange={field.onChange}
-                                                    className={`size-5 rounded-sm border-2 shadow-none ${
+                                                    className={`size-4 rounded-sm border-2 shadow-none ${
                                                         field.value
-                                                            ? "border-none bg-primary-500 text-white" // Blue background and red tick when checked
-                                                            : "" // Default styles when unchecked
+                                                            ? 'border-none bg-primary-500 text-white'
+                                                            : ''
                                                     }`}
                                                 />
                                             </FormControl>
-                                            <FormLabel className="!mb-[3px] font-thin">
+                                            <FormLabel className="!mt-0 cursor-pointer text-sm font-normal text-neutral-700">
                                                 {examType === 'SURVEY' ? 'When survey reports are generated' : 'When assessment reports are generated'}
                                             </FormLabel>
                                         </FormItem>
@@ -1563,7 +1449,8 @@ const Step3AddingParticipants: React.FC<StepContentProps> = ({
                                 />
                             </div>
                         )}
-                    </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </form>
         </FormProvider>

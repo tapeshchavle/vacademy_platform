@@ -11,8 +11,8 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
-import { ContentTerms, SystemTerms } from "@/types/naming-settings";
+import { getTerminology, getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, RoleTerms, SystemTerms } from "@/types/naming-settings";
 import { CourseDetailsRatingsComponent } from "./course-details-ratings-page";
 import {
   formatTotalCourseDuration,
@@ -227,7 +227,7 @@ export const CourseSidebar = ({
               </div>
             ) : !slideCountQuery.error ? (
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground font-medium">Course Time</span>
+                <span className="text-muted-foreground font-medium">{getTerminology(ContentTerms.Course, SystemTerms.Course)} Time</span>
                 <span className="font-semibold">{totalDuration}</span>
               </div>
             ) : null}
@@ -266,7 +266,7 @@ export const CourseSidebar = ({
                   <div className="flex items-center justify-between text-sm group/item">
                     <div className="flex items-center gap-2 text-muted-foreground group-hover/item:text-foreground transition-colors">
                       <ChalkboardTeacher size={16} className="text-orange-500" weight="duotone" />
-                      <span>Instructors</span>
+                      <span>{getTerminologyPlural(RoleTerms.Teacher, SystemTerms.Teacher)}</span>
                     </div>
                     <span className="font-semibold">{instructorsCount}</span>
                   </div>
@@ -323,7 +323,7 @@ export const CourseSidebar = ({
                 )}>
                   <TrendUp size={18} className="text-green-600 dark:text-green-400" weight="duotone" />
                 </div>
-                <CardTitle className="text-base font-bold">Course Progress</CardTitle>
+                <CardTitle className="text-base font-bold">{getTerminology(ContentTerms.Course, SystemTerms.Course)} Progress</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">

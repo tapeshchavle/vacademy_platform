@@ -10,6 +10,8 @@ import { getCourseNameById } from '@/utils/helpers/study-library-helpers.ts/get-
 import { useInstituteDetailsStore } from '@/stores/students/students-list/useInstituteDetailsStore';
 import { useStudyLibraryStore } from '@/stores/study-library/use-study-library-store';
 import { SubjectMaterial } from './-components/subject-material';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 interface LevelSearchParams {
     courseId: string;
     levelId: string;
@@ -59,7 +61,7 @@ function RouteComponent() {
                     id: level.id,
                 };
             })}
-            sideBarData={{ title: 'Levels', listIconText: 'L', searchParam: 'levelId' }}
+            sideBarData={{ title: getTerminologyPlural(ContentTerms.Level, SystemTerms.Level), listIconText: 'L', searchParam: 'levelId' }}
         >
             <InitStudyLibraryProvider courseId={courseId}>
                 <SubjectMaterial />

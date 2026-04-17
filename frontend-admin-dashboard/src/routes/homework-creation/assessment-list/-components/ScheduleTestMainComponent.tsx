@@ -29,7 +29,7 @@ import { useRefetchStoreAssessment } from '../-global-store/refetch-store';
 import { Route } from '..';
 import { useNavigate } from '@tanstack/react-router';
 import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
-import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { getTerminology, getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
 
 export interface SelectedQuestionPaperFilters {
     name: string | { id: string; name: string }[];
@@ -471,7 +471,7 @@ export const ScheduleTestMainComponent = () => {
                     <div className="my-6 flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <ScheduleTestFilters
-                                label="Batches"
+                                label={getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}
                                 data={BatchesFilterData}
                                 selectedItems={selectedQuestionPaperFilters['batch_ids'] || []}
                                 onSelectionChange={(items) =>

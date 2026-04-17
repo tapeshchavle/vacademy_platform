@@ -94,6 +94,41 @@ export const softDeleteCustomFieldMappings = async (
  * handles insert / reactivate / soft-delete in one transaction so this is
  * the only call needed on save.
  */
+/**
+ * Fetch all DEFAULT_CUSTOM_FIELD mappings for an institute. This is the
+ * live data from the DB — NOT the stale settings JSON blob. Use this to
+ * populate feature pickers (Invite, Live Session, Campaign, Assessment)
+ * so that newly-added DEFAULT fields from Settings always appear.
+ */
+export interface InstituteDefaultField {
+    id: string;
+    custom_field: {
+        id: string;
+        fieldKey: string;
+        fieldName: string;
+        fieldType: string;
+        config: string | null;
+        isMandatory: boolean;
+        isFilter: boolean;
+        isSortable: boolean;
+        isHidden: boolean | null;
+        formOrder: number | null;
+    };
+    individual_order: number | null;
+    is_mandatory: boolean | null;
+    status: string;
+}
+
+export const fetchInstituteDefaultFields = async (
+    instituteId: string
+): Promise<InstituteDefaultField[]> => {
+    const response = await authenticatedAxiosInstance.get<InstituteDefaultField[]>(
+        BASE,
+        { params: { instituteId } }
+    );
+    return Array.isArray(response?.data) ? response.data : [];
+};
+
 export const syncFeatureCustomFields = async (
     instituteId: string,
     type: CustomFieldFeatureType,

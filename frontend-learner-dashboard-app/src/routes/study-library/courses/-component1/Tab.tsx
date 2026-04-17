@@ -1,15 +1,18 @@
 // src/routes/study-library/-component/Tab.tsx
 import { Link, useRouterState } from '@tanstack/react-router';
 import React from 'react';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/types/naming-settings';
 
-const tabs = [
-  { name: 'All Courses', path: '/study-library/courses' },
+const getTabs = () => [
+  { name: `All ${getTerminologyPlural(ContentTerms.Course, SystemTerms.Course)}`, path: '/study-library/courses' },
   { name: 'In Progress', path: '/study-library/courses' },
   { name: 'Completed', path: '/study-library/courses' },
 ];
 
 const Tab: React.FC = () => {
   const location = useRouterState({ select: (state) => state.location });
+  const tabs = getTabs();
 
   return (
     <div className="flex items-center p-4 h-14 border-b border-gray-300">

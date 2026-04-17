@@ -11,6 +11,8 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { ArrowSquareOut } from '@phosphor-icons/react';
 import { useStudentSidebar } from '@/routes/manage-students/students-list/-context/selected-student-sidebar-context';
 import { StatusChips } from '@/components/design-system/chips';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 interface CustomTableMeta {
     onSort?: (columnId: string, direction: string) => void;
@@ -79,7 +81,7 @@ export const assessmentStatusStudentAttemptedColumnsInternal: ColumnDef<StudentT
     },
     {
         accessorKey: 'package_session_id',
-        header: 'Batch',
+        header: getTerminology(ContentTerms.Batch, SystemTerms.Batch),
     },
     {
         accessorKey: 'attempt_date',
@@ -465,7 +467,7 @@ export const assessmentStatusStudentQuestionResponseInternal: ColumnDef<StudentT
     },
     {
         accessorKey: 'package_session_id',
-        header: 'Batch',
+        header: getTerminology(ContentTerms.Batch, SystemTerms.Batch),
     },
     {
         accessorKey: 'institute_enrollment_id',
@@ -543,7 +545,7 @@ export const studentInternalOrCloseQuestionWise: ColumnDef<StudentTable>[] = [
     },
     {
         accessorKey: 'package_session_id',
-        header: 'Batch',
+        header: getTerminology(ContentTerms.Batch, SystemTerms.Batch),
     },
     {
         accessorKey: 'registration_id',
@@ -613,7 +615,7 @@ export const step3ParticipantsListColumn: ColumnDef<StudentTable>[] = [
     },
     {
         accessorKey: 'package_session_id',
-        header: 'Batch',
+        header: getTerminology(ContentTerms.Batch, SystemTerms.Batch),
     },
     {
         accessorKey: 'institute_enrollment_id',

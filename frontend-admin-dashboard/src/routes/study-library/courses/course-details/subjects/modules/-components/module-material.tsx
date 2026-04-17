@@ -21,6 +21,8 @@ import {
 import { useStudyLibraryStore } from '@/stores/study-library/use-study-library-store';
 import { MyDropdown } from '@/components/common/students/enroll-manually/dropdownForPackageItems';
 import { useInstituteDetailsStore } from '@/stores/students/students-list/useInstituteDetailsStore';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 export const ModuleMaterial = () => {
     const router = useRouter();
@@ -158,7 +160,7 @@ export const ModuleMaterial = () => {
                 <MyDropdown
                     currentValue={currentSession ?? undefined}
                     dropdownList={sessionList}
-                    placeholder="Select Session"
+                    placeholder={`Select ${getTerminology(ContentTerms.Session, SystemTerms.Session)}`}
                     handleChange={handleSessionChange}
                 />
             </div>

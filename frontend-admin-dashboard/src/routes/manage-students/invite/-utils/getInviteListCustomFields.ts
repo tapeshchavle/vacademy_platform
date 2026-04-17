@@ -1,11 +1,12 @@
-import { getCustomFieldSettings } from '@/services/custom-field-settings';
+import { fetchInstituteDefaultFields } from '@/services/custom-field-mappings';
+import { getInstituteId } from '@/constants/helper';
 
 /**
  * Interface for invite form custom field
  */
 export interface InviteFormCustomField {
     id: string; // Form-level ID (can be numeric string or UUID)
-    type: 'text' | 'dropdown' | 'number';
+    type: string;
     name: string;
     oldKey: boolean;
     isRequired: boolean;
@@ -19,14 +20,10 @@ export interface InviteFormCustomField {
 /**
  * Map custom field types to invite form field types
  */
-const mapFieldType = (type: string): 'text' | 'dropdown' | 'number' => {
-    if (type === 'dropdown' || type === 'select') {
-        return 'dropdown';
-    }
-    if (type === 'number') {
-        return 'number';
-    }
-    return 'text';
+const mapFieldType = (type: string): string => {
+    if (type === 'select') return 'dropdown';
+    if (type === 'textfield') return 'text';
+    return type || 'text';
 };
 
 /**
@@ -56,12 +53,13 @@ const generateKeyFromName = (name: string): string => {
  * (type=ENROLL_INVITE, typeId=<inviteId>) instead of calling this function.
  */
 /**
- * Sync variant — returns fallback defaults for initial form mount.
- * The async variant (below) should be called immediately after to fetch
- * fresh data from the API and update the form.
+ * Sync variant — returns an empty array. The async variant (below) fetches
+ * fresh data from the API and populates the form via useEffect. Returning
+ * empty here prevents the fallback defaults (which have no _id) from being
+ * submitted to the backend and creating duplicate custom_fields rows.
  */
 export const getInviteListCustomFields = (): InviteFormCustomField[] => {
-    return getDefaultInviteFields();
+    return [];
 };
 
 /**
@@ -115,54 +113,66 @@ function isSeededField(field: { name: string; id: string; canBeDeleted?: boolean
     return SEEDED_FIELD_KEYS.includes(key);
 }
 
-function transformSettingsField(field: any, index: number): InviteFormCustomField {
-    const fieldType = mapFieldType((field.type as string) || 'text');
-    const seeded = isSeededField(field);
-    const transformed: InviteFormCustomField = {
-        id: String(index),
-        type: fieldType,
-        name: field.name,
-        // Seeded fields (Full Name, Email, Phone Number) are non-deletable
-        // but their required status can be toggled. Admin-created defaults
-        // are fully deletable from the invite.
-        oldKey: seeded,
-        isRequired: field.required || seeded,
-        key: generateKeyFromName(field.name),
-        order: field.order ?? index,
-        _id: field.id,
-        status: 'ACTIVE',
-    };
-    if (fieldType === 'dropdown' && 'options' in field && field.options && field.options.length > 0) {
-        transformed.options = field.options.map((option: string, optIndex: number) => ({
-            id: `${index}_option_${optIndex}`,
-            value: option,
-            disabled: true,
-        }));
-    }
-    return transformed;
-}
-
 /**
- * Async variant that always fetches fresh from the API. Called via useEffect
- * in the invite dialog to replace the initial fallback defaults with the
- * full institute catalog.
+ * Async variant that fetches DEFAULT_CUSTOM_FIELD mappings directly from
+ * the live backend endpoint (GET /common/custom-fields?instituteId=...).
+ * This bypasses the stale settings JSON blob entirely, so newly-added
+ * DEFAULT fields from Settings always appear immediately.
  */
 export const getInviteListCustomFieldsAsync = async (): Promise<InviteFormCustomField[]> => {
     try {
-        const settings = await getCustomFieldSettings(true);
-        if (!settings) return getDefaultInviteFields();
+        const instituteId = getInstituteId();
+        if (!instituteId) return getDefaultInviteFields();
 
-        const all = [
-            ...(settings.fixedFields || []),
-            ...(settings.customFields || []),
-            ...(settings.instituteFields || []),
-        ];
-        if (all.length === 0) return getDefaultInviteFields();
+        const defaults = await fetchInstituteDefaultFields(instituteId);
+        if (!defaults || defaults.length === 0) return getDefaultInviteFields();
 
-        return all
-            .map((field, index) => transformSettingsField(field, index))
+        console.log('[getInviteListCustomFieldsAsync] Fetched', defaults.length, 'default fields from API');
+        return defaults
+            .map((entry, index): InviteFormCustomField => {
+                const cf = entry.custom_field;
+                const fieldType = mapFieldType(cf.fieldType || 'text');
+                const key = generateKeyFromName(cf.fieldName);
+                const seeded = isSeededField({ name: cf.fieldName, id: cf.id });
+
+                const transformed: InviteFormCustomField = {
+                    id: String(index),
+                    type: fieldType,
+                    name: cf.fieldName,
+                    oldKey: seeded,
+                    isRequired: cf.isMandatory || seeded,
+                    key,
+                    order: entry.individual_order ?? cf.formOrder ?? index,
+                    _id: cf.id,
+                    status: 'ACTIVE',
+                };
+
+                if ((fieldType === 'dropdown' || fieldType === 'radio') && cf.config) {
+                    try {
+                        const parsed = JSON.parse(cf.config);
+                        if (Array.isArray(parsed)) {
+                            transformed.options = parsed.map((opt: any, oi: number) => ({
+                                id: `${index}_opt_${oi}`,
+                                value: opt.value || opt.label || opt,
+                                disabled: true,
+                            }));
+                        } else if (parsed.coommaSepartedOptions) {
+                            transformed.options = parsed.coommaSepartedOptions
+                                .split(',')
+                                .map((v: string, oi: number) => ({
+                                    id: `${index}_opt_${oi}`,
+                                    value: v.trim(),
+                                    disabled: true,
+                                }));
+                        }
+                    } catch { /* ignore parse errors */ }
+                }
+
+                return transformed;
+            })
             .sort((a, b) => a.order - b.order);
-    } catch {
+    } catch (err) {
+        console.error('[getInviteListCustomFieldsAsync] API call failed, using fallback defaults:', err);
         return getDefaultInviteFields();
     }
 };

@@ -185,6 +185,27 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                 <!-- D3.js (data visualizations, charts) -->
                 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 
+                <!-- Anime.js v3 — SVG morphing, stagger grids, spring physics -->
+                <!-- Frame-seeking: create animations with autoplay:false, register via window._animeR({instance, startMs}) -->
+                <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+                <script>
+                    // Anime.js frame-seek registry.
+                    // LLM code registers seekable animations with: window._animeR({instance: anime({autoplay:false,...}), startMs:500})
+                    // The renderer calls window._animeSeek(t_seconds) every frame alongside gsap.globalTimeline.totalTime(t).
+                    window._animeTimelines = [];
+                    window._animeR = function(entry) { window._animeTimelines.push(entry); };
+                    window._animeSeek = function(tSec) {
+                        var tMs = tSec * 1000;
+                        window._animeTimelines.forEach(function(e) {
+                            if (!e || !e.instance || typeof e.instance.seek !== 'function') return;
+                            var elapsed = tMs - (e.startMs || 0);
+                            if (elapsed >= 0) {
+                                e.instance.seek(Math.min(elapsed, e.instance.duration || 0));
+                            }
+                        });
+                    };
+                </script>
+
                 <!-- Iconify (Web Component — 275k+ icons) -->
                 <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
 
@@ -1186,6 +1207,49 @@ def _prepare_page(page, width: int, height: int, background_color: str = "#000")
                                     : window.d3.selectAll(s);
                                 return proxy;
                             })() : undefined;
+
+                            // ── Scoped Anime.js proxy — resolves selectors inside this shadow root ──
+                            // LLM uses: anime({targets: '#el', ...}) → scoped to shadow DOM
+                            // LLM registers seekable timelines with: _animeR({instance: anime({autoplay:false,...}), startMs:500})
+                            const anime = window.anime ? (function() {
+                                const resolveTargets = (targets) => {
+                                    if (typeof targets === 'string') {
+                                        return Array.from(scope.querySelectorAll(targets));
+                                    }
+                                    return targets;
+                                };
+                                return function(opts) {
+                                    const resolved = Object.assign({}, opts);
+                                    if (opts.targets) resolved.targets = resolveTargets(opts.targets);
+                                    const instance = window.anime(resolved);
+                                    return instance;
+                                };
+                            })() : function(o) { return { seek: function(){}, duration: 0 }; };
+                            // Copy static methods (stagger, timeline, set, etc.)
+                            if (window.anime) {
+                                anime.stagger = window.anime.stagger.bind(window.anime);
+                                anime.timeline = function(opts) {
+                                    // timeline() needs its own target resolution on .add()
+                                    const tl = window.anime.timeline(opts);
+                                    const origAdd = tl.add.bind(tl);
+                                    tl.add = function(o, offset) {
+                                        const r = Object.assign({}, o);
+                                        if (o.targets && typeof o.targets === 'string') {
+                                            r.targets = Array.from(scope.querySelectorAll(o.targets));
+                                        }
+                                        return origAdd(r, offset);
+                                    };
+                                    return tl;
+                                };
+                                anime.set = window.anime.set ? window.anime.set.bind(window.anime) : undefined;
+                                anime.remove = window.anime.remove ? window.anime.remove.bind(window.anime) : undefined;
+                                anime.get = window.anime.get ? window.anime.get.bind(window.anime) : undefined;
+                                anime.random = window.anime.random ? window.anime.random.bind(window.anime) : undefined;
+                                anime.running = window.anime.running;
+                                anime.easings = window.anime.easings;
+                            }
+                            // _animeR: register a seekable Anime.js instance with its shot-relative start time
+                            const _animeR = function(entry) { if (window._animeR) window._animeR(entry); };
 
                             // ── Shadow-DOM-aware helpers (called from rewritten LLM code) ──
                             // The LLM source is rewritten before injection so that:
@@ -2296,6 +2360,8 @@ def render_video_from_json(
                 if (window.__updateCaption) window.__updateCaption(state.caption || null);
                 // 5. Sync GSAP
                 try { gsap.globalTimeline.totalTime(state.t); } catch(e) {}
+                // 5b. Sync Anime.js registered timelines
+                try { if (window._animeSeek) window._animeSeek(state.t); } catch(e) {}
                 // 6. Seek stock videos (skip entirely if none exist)
                 if (state.seekVideos) {
                     const allHosts = document.querySelectorAll('[id^="snippet-"], [id^="segment-"], [id^="shot-"]');

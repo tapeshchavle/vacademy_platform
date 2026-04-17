@@ -9,6 +9,8 @@ import { CollegeStudentsDashboardLogo } from '@/svgs';
 import { Helmet } from 'react-helmet';
 import { LayoutContainer } from './-components/layout-container/layout-container';
 import useLocalStorage from './-hooks/useLocalStorage';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 export const Route = createLazyFileRoute('/evaluator-ai/')({
   component: () => (
@@ -81,7 +83,7 @@ export function EvaluationDashboard() {
                     }
                   >
                     <div className="flex items-center gap-1">
-                      <span>Students</span>
+                      <span>{getTerminologyPlural(RoleTerms.Learner, SystemTerms.Learner)}</span>
                       <ArrowSquareOut />
                     </div>
                     <span className="text-primary-500">

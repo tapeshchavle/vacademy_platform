@@ -47,7 +47,7 @@ export default function LearningCenterWidget({
         },
         {
             icon: Folder,
-            title: 'Batch Management',
+            title: `${getTerminology(ContentTerms.Batch, SystemTerms.Batch)} Management`,
             description: 'Organize students into batches',
             action: handleManageBatches,
         },

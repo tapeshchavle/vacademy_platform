@@ -9,6 +9,7 @@ import {
     GET_CROSS_STAGE_TIMELINE,
     CREATE_TIMELINE_EVENT,
 } from '@/constants/urls';
+import { AssignCounselorToLeadDialog } from '@/components/shared/assign-counselor-to-lead-dialog';
 import { getCurrentInstituteId } from '@/lib/auth/instituteUtils';
 import { LeadScoreBadge } from '@/components/shared/lead-score-badge';
 import { MyButton } from '@/components/design-system/button';
@@ -53,6 +54,8 @@ interface UserLeadProfile {
     last_activity_at: string | null;
     last_calculated_at: string | null;
     created_at: string | null;
+    assigned_counselor_id: string | null;
+    assigned_counselor_name: string | null;
 }
 
 interface AudienceMembership {
@@ -641,6 +644,7 @@ interface StudentLeadProfileProps {
 export function StudentLeadProfile({ userId }: StudentLeadProfileProps) {
     const instituteId = getCurrentInstituteId() ?? '';
     const queryClient = useQueryClient();
+    const [showAssignCounselor, setShowAssignCounselor] = useState(false);
 
     const queryKey = ['user-lead-profile', userId, instituteId];
 
@@ -849,6 +853,46 @@ export function StudentLeadProfile({ userId }: StudentLeadProfileProps) {
                     </p>
                 )}
             </div>
+
+            {/* ── Assigned Counselor ── */}
+            <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3">
+                <p className="mb-1.5 text-xs text-muted-foreground">Assigned Counselor</p>
+                {profile.assigned_counselor_name ? (
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="flex size-7 items-center justify-center rounded-full bg-primary-100 text-primary-700 text-xs font-semibold">
+                                {profile.assigned_counselor_name[0]?.toUpperCase()}
+                            </div>
+                            <span className="text-sm font-medium text-neutral-800">
+                                {profile.assigned_counselor_name}
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => setShowAssignCounselor(true)}
+                            className="text-[11px] text-neutral-400 hover:text-primary-600"
+                        >
+                            Reassign
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={() => setShowAssignCounselor(true)}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-neutral-200 py-2 text-xs text-neutral-500 hover:border-primary-300 hover:text-primary-600"
+                    >
+                        + Assign a Counselor
+                    </button>
+                )}
+            </div>
+
+            {showAssignCounselor && (
+                <AssignCounselorToLeadDialog
+                    open={showAssignCounselor}
+                    onOpenChange={setShowAssignCounselor}
+                    userId={userId}
+                    invalidateKeys={[queryKey]}
+                    onSuccess={() => queryClient.invalidateQueries({ queryKey })}
+                />
+            )}
 
             {/* ── Linked Campaigns ── */}
             <AudienceListSection userId={userId} />

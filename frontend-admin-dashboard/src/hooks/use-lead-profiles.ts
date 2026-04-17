@@ -17,6 +17,8 @@ export interface LeadProfileSummary {
     best_score: number;
     lead_tier: string | null;
     conversion_status: string;
+    assigned_counselor_id?: string | null;
+    assigned_counselor_name?: string | null;
 }
 
 async function fetchBatchProfiles(userIds: string[]): Promise<Record<string, LeadProfileSummary>> {

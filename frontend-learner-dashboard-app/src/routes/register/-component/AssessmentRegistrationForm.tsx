@@ -1,5 +1,4 @@
 import { MyButton } from "@/components/design-system/button";
-import { MyInput } from "@/components/design-system/input";
 import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -26,6 +25,7 @@ import { z } from "zod";
 import {
   getOpenTestRegistrationDetails,
   handleGetParticipantsTest,
+  handleGetPublicInstituteBranding,
   handleGetStudentDetailsOfInstitute,
   handleGetUserId,
   handleRegisterOpenParticipant,
@@ -33,19 +33,24 @@ import {
 import { Route } from "..";
 import { DashboardLoader } from "@/components/core/dashboard-loader";
 import { convertToLocalDateTime } from "@/constants/helper";
-import { parseHtmlToString } from "@/lib/utils";
+import { parseHtmlToString, sanitizeHtml } from "@/lib/utils";
 import {
   calculateTimeDifference,
   calculateTimeLeft,
   getDynamicSchema,
   getOpenRegistrationUserDetailsByEmail,
 } from "../-utils/helper";
-import SelectField from "@/components/design-system/select-field";
 import {
   AssessmentCustomFieldOpenRegistration,
   DynamicSchemaData,
   ParticipantsDataInterface,
 } from "@/types/assessment-open-registration";
+import { CustomFieldRenderer } from "@/components/common/custom-fields/CustomFieldRenderer";
+import {
+  FieldRenderType,
+  getFieldRenderType,
+} from "@/components/common/enroll-by-invite/-utils/custom-field-helpers";
+import { capitalise } from "@/utils/custom-field";
 import CheckEmailStatusAlertDialog from "./CheckEmailStatusAlertDialog";
 import AssessmentClosedExpiredComponent from "./AssessmentClosedExpiredComponent";
 import {
@@ -59,8 +64,6 @@ import AssessmentRegistrationCompleted from "./AssessmentRegistrationCompleted";
 import { useNavigate } from "@tanstack/react-router";
 import PhoneInputField from "@/components/design-system/phone-input-field";
 import { useInstituteDetails } from "../live-class/-hooks/useInstituteDetails";
-import axios from "axios";
-import { BASE_URL } from "@/constants/urls";
 import { useTheme } from "@/providers/theme/theme-provider";
 
 const MetaChip = ({
@@ -169,11 +172,55 @@ const AssessmentRegistrationForm = () => {
     instituteName: instituteDetails?.institute_name || null,
     instituteLogoFileId: instituteDetails?.institute_logo_file_id || null,
     instituteThemeCode: instituteDetails?.institute_theme_code ?? null,
-    homeIconClickRoute: instituteDetails?.homeIconClickRoute ?? null,
-  };
   const { data, isLoading } = useSuspenseQuery(
     getOpenTestRegistrationDetails(code),
   );
+
+  // Fallback: when the domain-routing API fails (e.g. on pages.dev subdomains),
+  // Preferences has no InstituteDetails → useInstituteDetails() returns null.
+  // In that case, fetch the public branding payload directly using the
+  // institute_id that the assessment-page API already gave us.
+  const assessmentInstituteId = data?.institute_id ?? null;
+  const needsBrandingFallback = !instituteDetails && !!assessmentInstituteId;
+  const { data: fallbackBranding } = useQuery({
+    queryKey: ["public-institute-branding", assessmentInstituteId],
+    queryFn: () => handleGetPublicInstituteBranding(assessmentInstituteId!),
+    enabled: needsBrandingFallback,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const branding: InstituteBranding = {
+    instituteId:
+      instituteDetails?.id || fallbackBranding?.institute_id || null,
+    instituteName:
+      instituteDetails?.institute_name ||
+      fallbackBranding?.institute_name ||
+      null,
+    instituteLogoFileId:
+      instituteDetails?.institute_logo_file_id ||
+      fallbackBranding?.logo_file_id ||
+      null,
+    instituteThemeCode: fallbackBranding?.institute_theme_code ?? null,
+    homeIconClickRoute: instituteDetails?.homeIconClickRoute ?? null,
+  };
+
+  // Apply institute theme on the register page: default to Vacademy orange
+  // ("primary"), override with the institute_theme_code from whichever source
+  // returned it (local Preferences via useInstituteDetails, or the public
+  // branding fallback when domain-routing has failed).
+  useEffect(() => {
+    const themeCode =
+      (instituteDetails as unknown as { institute_theme_code?: string } | null)
+        ?.institute_theme_code ?? fallbackBranding?.institute_theme_code;
+    setPrimaryColor(
+      themeCode && themeCode.trim().length > 0 ? themeCode : "primary",
+    );
+  }, [
+    (instituteDetails as unknown as { institute_theme_code?: string } | null)
+      ?.institute_theme_code,
+    fallbackBranding?.institute_theme_code,
+    setPrimaryColor,
+  ]);
 
   const serverTime = useRef(
     new Date(Date.parse(data.server_time_in_gmt)).getTime(),
@@ -541,6 +588,46 @@ const AssessmentRegistrationForm = () => {
       />
     );
 
+  // Backend has explicitly marked this assessment as non-registrable.
+  // Common causes: the registration window has closed, the assessment
+  // has been unpublished, or the learner is outside the allowed audience.
+  // Render a clear "closed" screen instead of falling through to the
+  // email-check dialog flow. The private-assessment case has its own
+  // dedicated redirect handled elsewhere.
+  if (
+    data.can_register === false &&
+    data.error_message !== "Assessment is Private"
+  ) {
+    const isHardExpired = !calculateTimeDifference(
+      serverTime.current,
+      data.assessment_public_dto.bound_end_time,
+    );
+    return (
+      <AssessmentClosedExpiredComponent
+        isExpired={isHardExpired}
+        assessmentName={data.assessment_public_dto.assessment_name}
+      />
+    );
+  }
+
+  // The assessment window itself has ended (bound_end_time is in the past).
+  // Handles the case where the backend still returned can_register: true
+  // (usually because the assessment hasn't been flagged as closed yet)
+  // but the learner can no longer do anything useful.
+  if (
+    !calculateTimeDifference(
+      serverTime.current,
+      data.assessment_public_dto.bound_end_time,
+    )
+  ) {
+    return (
+      <AssessmentClosedExpiredComponent
+        isExpired={true}
+        assessmentName={data.assessment_public_dto.assessment_name}
+      />
+    );
+  }
+
   return (
     <>
       {case1Status && (
@@ -893,69 +980,80 @@ const AssessmentRegistrationForm = () => {
               )}
               <FormProvider {...form}>
                 <form className="w-full flex flex-col gap-6 mt-5 sm:max-h-[70vh] sm:overflow-auto pr-1">
-                  {Object.entries(form.getValues()).map(([key, value]) =>
-                    key === "phone_number" ? (
-                      <FormField
-                        control={form.control}
-                        name={`${key}.value`}
-                        render={() => (
-                          <FormItem>
-                            <FormControl>
-                              <PhoneInputField
-                                label="Phone Number"
-                                placeholder="123 456 7890"
-                                name={`${key}.value`}
-                                control={form.control}
-                                country="in"
-                                required
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    ) : (
+                  {Object.entries(form.getValues()).map(([key, value]) => {
+                    if (key === "phone_number") {
+                      return (
+                        <FormField
+                          key={key}
+                          control={form.control}
+                          name={`${key}.value`}
+                          render={() => (
+                            <FormItem>
+                              <FormControl>
+                                <PhoneInputField
+                                  label="Phone Number"
+                                  placeholder="123 456 7890"
+                                  name={`${key}.value`}
+                                  control={form.control}
+                                  country="in"
+                                  required
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      );
+                    }
+
+                    const field = (data.assessment_custom_fields || []).find(
+                      (f: AssessmentCustomFieldOpenRegistration) =>
+                        f.field_key === key,
+                    );
+                    const renderType = getFieldRenderType(
+                      key,
+                      value.type || field?.field_type || "text",
+                    );
+                    const fieldConfig =
+                      (value as { config?: string | object }).config ||
+                      field?.config;
+
+                    return (
                       <FormField
                         key={key}
                         control={form.control}
                         name={`${key}.value`}
-                        render={({ field }) => (
+                        render={({ field: formField }) => (
                           <FormItem>
-                            <FormControl>
-                              {value.type === "dropdown" ? (
-                                <SelectField
-                                  label={value.name}
-                                  name={`${key}.value`}
-                                  options={
-                                    value.comma_separated_options?.map(
-                                      (option: string, index: number) => ({
-                                        value: option,
-                                        label: option,
-                                        _id: index,
-                                      }),
-                                    ) || []
-                                  }
-                                  control={form.control}
+                            <div className="flex flex-col gap-1">
+                              <label className="text-subtitle font-regular">
+                                {capitalise(value.name)}
+                                {value.is_mandatory && (
+                                  <span className="text-danger-600"> *</span>
+                                )}
+                              </label>
+                              <FormControl>
+                                <CustomFieldRenderer
+                                  type={renderType as FieldRenderType}
+                                  name={value.name}
+                                  value={formField.value || ""}
+                                  onChange={(val) => formField.onChange(val)}
+                                  config={fieldConfig}
+                                  options={value.comma_separated_options?.map(
+                                    (option: string, index: number) => ({
+                                      value: option,
+                                      label: option,
+                                      _id: index,
+                                    }),
+                                  )}
                                   required={value.is_mandatory}
-                                  className="!w-full"
                                 />
-                              ) : (
-                                <MyInput
-                                  inputType="text"
-                                  inputPlaceholder={value.name}
-                                  input={field.value}
-                                  onChangeFunction={field.onChange}
-                                  required={value.is_mandatory}
-                                  size="large"
-                                  label={value.name}
-                                  className="!max-w-full !w-full"
-                                />
-                              )}
-                            </FormControl>
+                              </FormControl>
+                            </div>
                           </FormItem>
                         )}
                       />
-                    ),
-                  )}
+                    );
+                  })}
                   <div className="flex items-center justify-center flex-col gap-3 border-t border-neutral-100 pt-2">
                     <MyButton
                       type="button"

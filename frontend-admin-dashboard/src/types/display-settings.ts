@@ -118,6 +118,7 @@ export interface StudentSideViewSettings {
     enquiryTab: boolean;
     applicationTab: boolean;
     leadTab: boolean;
+    fullHistoryTab?: boolean;
 }
 
 export interface LearnerManagementSettings {

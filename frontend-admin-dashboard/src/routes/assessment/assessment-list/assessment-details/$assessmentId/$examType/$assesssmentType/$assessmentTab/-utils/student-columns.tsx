@@ -13,6 +13,8 @@ import { useStudentSidebar } from '@/routes/manage-students/students-list/-conte
 import { StatusChips } from '@/components/design-system/chips';
 import { useRef } from 'react';
 import { useSidebar } from '@/components/ui/sidebar';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 interface CustomTableMeta {
     onSort?: (columnId: string, direction: string) => void;
@@ -123,7 +125,7 @@ export const assessmentStatusStudentAttemptedColumnsInternal: ColumnDef<StudentT
     },
     {
         accessorKey: 'package_session_id',
-        header: 'Batch',
+        header: getTerminology(ContentTerms.Batch, SystemTerms.Batch),
         cell: ({ row }) => <CreateClickableCell row={row} columnId="package_session_id" />,
     },
     {
@@ -554,7 +556,7 @@ export const assessmentStatusStudentQuestionResponseInternal: ColumnDef<StudentT
     },
     {
         accessorKey: 'package_session_id',
-        header: 'Batch',
+        header: getTerminology(ContentTerms.Batch, SystemTerms.Batch),
     },
     {
         accessorKey: 'institute_enrollment_id',
@@ -632,7 +634,7 @@ export const studentInternalOrCloseQuestionWise: ColumnDef<StudentTable>[] = [
     },
     {
         accessorKey: 'package_session_id',
-        header: 'Batch',
+        header: getTerminology(ContentTerms.Batch, SystemTerms.Batch),
     },
     {
         accessorKey: 'registration_id',
@@ -702,7 +704,7 @@ export const step3ParticipantsListColumn: ColumnDef<StudentTable>[] = [
     },
     {
         accessorKey: 'package_session_id',
-        header: 'Batch',
+        header: getTerminology(ContentTerms.Batch, SystemTerms.Batch),
     },
     {
         accessorKey: 'institute_enrollment_id',

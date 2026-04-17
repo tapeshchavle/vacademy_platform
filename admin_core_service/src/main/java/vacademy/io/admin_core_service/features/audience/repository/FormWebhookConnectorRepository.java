@@ -31,9 +31,29 @@ public interface FormWebhookConnectorRepository extends JpaRepository<FormWebhoo
     
     /**
      * Find all connectors for a specific institute
-     * 
+     *
      * @param instituteId Institute ID
      * @return List of connectors
      */
     java.util.List<FormWebhookConnector> findByInstituteIdAndIsActiveTrue(String instituteId);
+
+    /**
+     * Find connector by platform form ID and vendor — used for ad platform webhooks.
+     * Meta sends form_id in webhook payload; Google sends campaign_id as google_key context.
+     */
+    java.util.Optional<FormWebhookConnector> findByPlatformFormIdAndVendorAndIsActiveTrue(
+            String platformFormId, String vendor);
+
+    /**
+     * Find all active connectors for a given vendor where tokens are expiring soon.
+     * Used by MetaTokenRefreshJob to proactively refresh tokens.
+     */
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT c FROM FormWebhookConnector c WHERE c.vendor = :vendor " +
+        "AND c.isActive = true AND c.connectionStatus = 'ACTIVE' " +
+        "AND c.oauthTokenExpiresAt IS NOT NULL " +
+        "AND c.oauthTokenExpiresAt < :expiryThreshold")
+    java.util.List<FormWebhookConnector> findExpiringTokenConnectors(
+            @org.springframework.data.repository.query.Param("vendor") String vendor,
+            @org.springframework.data.repository.query.Param("expiryThreshold") java.time.LocalDateTime expiryThreshold);
 }

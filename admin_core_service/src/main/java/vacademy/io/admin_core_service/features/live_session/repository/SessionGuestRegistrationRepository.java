@@ -86,10 +86,12 @@ public interface SessionGuestRegistrationRepository extends JpaRepository<Sessio
             JOIN institute_custom_fields icf
                 ON icf.type = 'SESSION'
                 AND icf.type_id = ls.id
+                AND icf.status = 'ACTIVE'
             JOIN custom_fields cf
                 ON cf.id = icf.custom_field_id
             LEFT JOIN custom_field_values cfv
                 ON cfv.custom_field_id = cf.id
+                AND cfv.source_id = sgr.id
             WHERE sgr.session_id = :sessionId
             """, nativeQuery = true)
     List<GuestSessionCustomFieldDTO> findGuestCustomFieldsBySessionId(@Param("sessionId") String sessionId);

@@ -12,6 +12,8 @@ import { exportToSvg } from '@excalidraw/excalidraw';
 import { GripVertical, Presentation, Trash2, ImageOff, AlertTriangle } from 'lucide-react';
 import { ExportIcon, ImportIcon } from './Icons';
 import { SlideTypeSheet } from '../slides/slideTypeSheet';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import type {
     Slide as AppSlide,
     ExcalidrawSlideData,
@@ -255,7 +257,7 @@ const SlideList = ({
                 </div>
                 <Separator className="my-3 bg-gray-200" />
                 <div className="mb-2 flex items-center justify-between px-1">
-                    <h2 className="text-base font-semibold text-gray-700">Slides</h2>
+                    <h2 className="text-base font-semibold text-gray-700">{getTerminologyPlural(ContentTerms.Slides, SystemTerms.Slides)}</h2>
                     <div className="flex gap-1">
                         <button
                             className="rounded p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"

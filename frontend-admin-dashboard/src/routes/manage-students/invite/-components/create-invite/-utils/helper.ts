@@ -250,7 +250,7 @@ export function ReTransformCustomFields(inviteDetails: IndividualInviteLinkDetai
 
         return {
             id: field.id,
-            type: field.type,
+            type: field.custom_field.fieldType || 'text',
             name: field.custom_field.fieldName,
             oldKey: isSeeded,
             isRequired: field.custom_field.isMandatory || isSeeded,

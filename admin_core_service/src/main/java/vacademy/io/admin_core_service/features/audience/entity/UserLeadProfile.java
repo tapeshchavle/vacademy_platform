@@ -87,6 +87,14 @@ public class UserLeadProfile {
     @Column(name = "created_at", insertable = false, updatable = false)
     private Timestamp createdAt;
 
+    /** Auth user ID of the assigned counselor (nullable). */
+    @Column(name = "assigned_counselor_id")
+    private String assignedCounselorId;
+
+    /** Cached display name of the assigned counselor (nullable). */
+    @Column(name = "assigned_counselor_name")
+    private String assignedCounselorName;
+
     @Column(name = "updated_at")
     private Timestamp updatedAt;
 

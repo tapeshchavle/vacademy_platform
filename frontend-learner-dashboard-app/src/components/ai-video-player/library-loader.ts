@@ -12,6 +12,7 @@ const LIBRARY_CONFIG: Record<ContentType, string[]> = {
   VIDEO: [
     'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js',
+    'https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js',
     'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js',
     'https://unpkg.com/rough-notation/lib/rough-notation.iife.js',
     'https://cdn.jsdelivr.net/npm/vivus@0.4.6/dist/vivus.min.js',

@@ -390,7 +390,10 @@ public class LearnerReportService {
         } else if (studentIndex < TOP_RANKS_COUNT + SURROUNDING_WINDOW) {
             // Student is close to top, no gap needed — show from top to student+3
             int end = Math.min(studentIndex + SURROUNDING_WINDOW + 1, fullLeaderboard.size());
-            surroundingRanks = fullLeaderboard.subList(TOP_RANKS_COUNT, end)
+            // Clamp start so it never exceeds end (handles leaderboards smaller than TOP_RANKS_COUNT,
+            // e.g. when only the current student has submitted so far — size=1)
+            int start = Math.min(TOP_RANKS_COUNT, end);
+            surroundingRanks = fullLeaderboard.subList(start, end)
                     .stream().collect(Collectors.toList());
             hasGap = false;
         } else {

@@ -14,6 +14,7 @@ import { getContactColumns } from './contacts-table-columns';
 import EmptyStudentListImage from '@/assets/svgs/empty-students-image.svg';
 import { useNavHeadingStore } from '@/stores/layout-container/useNavHeadingStore';
 import { useLeadSettings } from '@/hooks/use-lead-settings';
+import { AssignCounselorToLeadDialog } from '@/components/shared/assign-counselor-to-lead-dialog';
 
 export const ContactsListSection = () => {
     const { setNavHeading } = useNavHeadingStore();
@@ -24,7 +25,12 @@ export const ContactsListSection = () => {
     const tableRef = useRef<HTMLDivElement>(null);
 
     const leadSettings = useLeadSettings();
-    const showLeadScore = leadSettings.enabled && leadSettings.showScoreInContactsTable;
+    // Don't render lead UI while settings are loading (defaults have enabled:true which would flash)
+    const leadReady = !leadSettings.isLoading && leadSettings.enabled;
+    const showLeadScore = leadReady && leadSettings.showScoreInContactsTable;
+    const showCounselor = leadReady;
+
+    const [assignDialog, setAssignDialog] = useState<{ userId: string; userName: string } | null>(null);
 
     useEffect(() => {
         setNavHeading(<h1 className="text-lg">Contacts</h1>);
@@ -49,9 +55,6 @@ export const ContactsListSection = () => {
             }
         };
 
-        const sidebarElement = document.querySelector('[data-radix-collection-item]'); // Radix sidebar?
-        // Actually StudentListSection attaches mousedown to document.
-        // Let's replicate if we want exactly same behavior.
         document.addEventListener('mousedown', handleClickOutside);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
@@ -72,11 +75,26 @@ export const ContactsListSection = () => {
 
     if (error) return <RootErrorComponent />;
 
-    // Columns
-    const columns = getContactColumns(handleSort, showLeadScore);
+    // Columns — counsellor assign callback only when lead system is active
+    const columns = getContactColumns(
+        handleSort,
+        showLeadScore,
+        showCounselor ? (userId, userName) => setAssignDialog({ userId, userName }) : undefined,
+        showCounselor
+    );
 
     return (
         <ErrorBoundary>
+            {leadReady && assignDialog && (
+                <AssignCounselorToLeadDialog
+                    open={!!assignDialog}
+                    onOpenChange={(open) => {
+                        if (!open) setAssignDialog(null);
+                    }}
+                    userId={assignDialog.userId}
+                    userName={assignDialog.userName}
+                />
+            )}
             <StudentSidebarProvider>
                 <section className="animate-fadeIn flex max-w-full flex-col gap-3 overflow-visible">
                     <ContactFilters filters={filters} />

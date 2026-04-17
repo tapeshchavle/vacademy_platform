@@ -240,6 +240,54 @@ class PexelsService:
         logger.info(f"[Pexels] No suitable video (min {min_duration}s) for: {query[:50]}")
         return None
 
+    def search_video_candidates(
+        self,
+        query: str,
+        orientation: str = "landscape",
+        per_page: int = 6,
+        min_duration: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """Return up to `per_page` usable video candidates (not just the first).
+
+        Shape per candidate: {id, url, image, duration, photographer, alt, pexels_url}.
+        Callers can rank or dedupe them before picking one. Used by super_ultra
+        tier's LLM-ranked stock video selection.
+        """
+        if not self.is_available:
+            return []
+
+        params = {
+            "query": query,
+            "orientation": orientation,
+            "per_page": min(per_page, 80),
+            "size": "medium",
+        }
+        data = self._request(self.VIDEOS_URL, params)
+        if not data:
+            return []
+
+        videos = data.get("videos", [])
+        candidates: List[Dict[str, Any]] = []
+        for video in videos:
+            duration = video.get("duration", 0)
+            if duration < min_duration:
+                continue
+            hd_file = self._pick_video_file(video.get("video_files", []), preferred_quality="hd")
+            if not hd_file:
+                continue
+            candidates.append({
+                "id": video.get("id"),
+                "url": hd_file["link"],
+                "image": video.get("image", ""),
+                "duration": duration,
+                "photographer": video.get("user", {}).get("name", ""),
+                "pexels_url": video.get("url", ""),
+                # Pexels doesn't always include `alt`; synthesize a simple label from
+                # width/height if missing so the ranker has something to work with.
+                "alt": video.get("alt") or f"{video.get('width','?')}x{video.get('height','?')} clip",
+            })
+        return candidates
+
     @staticmethod
     def _pick_video_file(
         video_files: List[Dict], preferred_quality: str = "hd"

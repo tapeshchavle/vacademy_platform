@@ -6,6 +6,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { truncateString } from "@/lib/reusable/truncateString";
 import { useNavHeadingStore } from "@/stores/layout-container/useNavHeadingStore";
 import { toTitleCase } from "@/lib/utils";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 import { CaretLeft, BookOpen, GraduationCap, CaretRight } from "@phosphor-icons/react";
 import { SlideMaterial } from "@/components/common/study-library/level-material/subject-material/module-material/chapter-material/slide-material/slide-material";
 import {
@@ -627,7 +629,7 @@ function Slides() {
             <p className="text-[10px] text-gray-400 font-medium tracking-wide uppercase mt-0.5">
               {levelName && levelName.toLowerCase() !== "default"
                 ? toTitleCase(levelName)
-                : "Course Material"}
+                : `${getTerminology(ContentTerms.Course, SystemTerms.Course)} Material`}
             </p>
           </div>
         </div>
@@ -644,7 +646,7 @@ function Slides() {
                 onClick={handleSubjectRoute}
                 className="hover:text-primary-600 hover:underline transition-colors truncate max-w-[80px] sm:max-w-[100px]"
               >
-                {toTitleCase(subjectName || "Subject")}
+                {toTitleCase(subjectName || getTerminology(ContentTerms.Subjects, SystemTerms.Subjects))}
               </button>
               <ChevronRightIcon className="w-3 h-3 text-gray-300 flex-shrink-0" />
 
@@ -653,13 +655,13 @@ function Slides() {
                 onClick={handleModuleRoute}
                 className="hover:text-primary-600 hover:underline transition-colors truncate max-w-[80px] sm:max-w-[100px]"
               >
-                {toTitleCase(moduleName || "Module")}
+                {toTitleCase(moduleName || getTerminology(ContentTerms.Modules, SystemTerms.Modules))}
               </button>
               <ChevronRightIcon className="w-3 h-3 text-gray-300 flex-shrink-0" />
 
               {/* Chapter (Active) */}
               <span className="text-gray-900 font-semibold truncate max-w-[100px] sm:max-w-[120px]">
-                {toTitleCase(chapterName || "Chapter")}
+                {toTitleCase(chapterName || getTerminology(ContentTerms.Chapters, SystemTerms.Chapters))}
               </span>
             </div>
 
@@ -678,16 +680,16 @@ function Slides() {
                       onClick={handleSubjectRoute}
                       className="text-left px-2 py-1.5 hover:bg-gray-50 rounded"
                     >
-                      {toTitleCase(subjectName || "Subject")}
+                      {toTitleCase(subjectName || getTerminology(ContentTerms.Subjects, SystemTerms.Subjects))}
                     </button>
                     <button
                       onClick={handleModuleRoute}
                       className="text-left px-2 py-1.5 hover:bg-gray-50 rounded"
                     >
-                      {toTitleCase(moduleName || "Module")}
+                      {toTitleCase(moduleName || getTerminology(ContentTerms.Modules, SystemTerms.Modules))}
                     </button>
                     <span className="px-2 py-1.5 font-semibold bg-gray-50 rounded text-primary-700">
-                      {toTitleCase(chapterName || "Chapter")}
+                      {toTitleCase(chapterName || getTerminology(ContentTerms.Chapters, SystemTerms.Chapters))}
                     </span>
                   </div>
                 </PopoverContent>
@@ -854,18 +856,18 @@ function Slides() {
                         className="px-2 py-1 rounded-md bg-gray-50 hover:bg-gray-100 text-gray-700 truncate"
                         onClick={handleSubjectRoute}
                       >
-                        {toTitleCase(subjectName || "Subject")}
+                        {toTitleCase(subjectName || getTerminology(ContentTerms.Subjects, SystemTerms.Subjects))}
                       </button>
                       <ChevronRightIcon className="w-3 h-3 text-gray-400" />
                       <button
                         className="px-2 py-1 rounded-md bg-gray-50 hover:bg-gray-100 text-gray-700 truncate"
                         onClick={handleModuleRoute}
                       >
-                        {toTitleCase(moduleName || "Module")}
+                        {toTitleCase(moduleName || getTerminology(ContentTerms.Modules, SystemTerms.Modules))}
                       </button>
                       <ChevronRightIcon className="w-3 h-3 text-gray-400" />
                       <span className="px-2 py-1 rounded-md bg-primary-50 text-primary-700 font-semibold truncate">
-                        {toTitleCase(chapterName || "Chapter")}
+                        {toTitleCase(chapterName || getTerminology(ContentTerms.Chapters, SystemTerms.Chapters))}
                       </span>
                     </div>
                   </div>

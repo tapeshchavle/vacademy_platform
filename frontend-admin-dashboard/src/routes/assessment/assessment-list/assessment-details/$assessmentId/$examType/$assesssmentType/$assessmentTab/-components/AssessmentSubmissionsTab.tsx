@@ -13,6 +13,8 @@ import {
 } from '../-utils/helper';
 import { Route } from '..';
 import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
+import { getTerminologyPlural } from '@/components/common/layout-container/sidebar/utils';
+import { ContentTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 import { getInstituteId } from '@/constants/helper';
 import {
     getAdminParticipants,
@@ -1033,7 +1035,7 @@ const AssessmentSubmissionsTab = ({ type }: { type: string }) => {
                             clearSearch={clearSearch}
                         />
                         <ScheduleTestFilters
-                            label="Batches"
+                            label={getTerminologyPlural(ContentTerms.Batch, SystemTerms.Batch)}
                             data={BatchesFilterData}
                             selectedItems={selectedFilter['batches'] || []}
                             onSelectionChange={(items) => handleFilterChange('batches', items)}
@@ -1156,15 +1158,20 @@ const AssessmentSubmissionsTab = ({ type }: { type: string }) => {
                                 onRowSelectionChange={handleRowSelectionChange}
                                 currentPage={page}
                             />
-                            {type === 'PRIVATE' ? (
+                            {selectedParticipantsTab === 'external' ? (
+                                // External participants registered via the public form
+                                // — show the form answers and custom-field responses.
+                                <OpenStudentSidebar />
+                            ) : (
+                                // Internal participants (whether the assessment is
+                                // PRIVATE or PUBLIC) get the full student profile
+                                // sheet, same as the students list.
                                 <StudentSidebar
                                     selectedTab={selectedTab}
                                     examType={examType}
                                     selectedStudent={selectedStudent}
                                     isSubmissionTab={true}
                                 />
-                            ) : (
-                                <OpenStudentSidebar />
                             )}
                         </SidebarProvider>
                     </TabsContent>

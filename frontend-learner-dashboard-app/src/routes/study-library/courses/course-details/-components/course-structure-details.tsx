@@ -57,7 +57,7 @@ import { CourseDetailsFormValues } from "./course-details-schema";
 import { getSubjectDetails } from "@/routes/courses/course-details/-utils/helper";
 import { getPublicUrlWithoutLogin } from "@/services/upload_file";
 import { useRouter } from "@tanstack/react-router";
-import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { getTerminology, getTerminologyPlural } from "@/components/common/layout-container/sidebar/utils";
 import { ContentTerms, RoleTerms, SystemTerms } from "@/types/naming-settings";
 import { Preferences } from "@capacitor/preferences";
 // import { CODE_CIRCLE_INSTITUTE_ID } from "@/constants/urls";
@@ -1455,7 +1455,7 @@ export const CourseStructureDetails = ({
                                               ) {
                                                 return (
                                                   <div className="text-xs px-2 py-1 text-neutral-400 italic bg-neutral-50/50 rounded">
-                                                    No Slides
+                                                    No {getTerminologyPlural(ContentTerms.Slides, SystemTerms.Slides)}
                                                   </div>
                                                 );
                                               }
@@ -1760,7 +1760,7 @@ export const CourseStructureDetails = ({
                                     if (status === "loaded" && filtered.length === 0) {
                                       return (
                                         <div className="text-xs px-2 py-1 text-neutral-400 italic bg-neutral-50/50 rounded">
-                                          No Slides
+                                          No {getTerminologyPlural(ContentTerms.Slides, SystemTerms.Slides)}
                                         </div>
                                       );
                                     }
@@ -2001,7 +2001,7 @@ export const CourseStructureDetails = ({
                                             ) {
                                               return (
                                                 <div className="text-xs px-2 py-1 text-neutral-400 italic bg-neutral-50/50 rounded">
-                                                  No Slides
+                                                  No {getTerminologyPlural(ContentTerms.Slides, SystemTerms.Slides)}
                                                 </div>
                                               );
                                             }
@@ -2674,7 +2674,7 @@ export const CourseStructureDetails = ({
                                 variant="secondary"
                                 className="bg-neutral-100 text-neutral-500 font-normal hover:bg-neutral-200 text-xs"
                               >
-                                {getSlideTypeDisplay(sl) || "Slide"}
+                                {getSlideTypeDisplay(sl) || getTerminology(ContentTerms.Slides, SystemTerms.Slides)}
                               </Badge>
 
                               {isSlideLocked && <LockedBadge size="sm" />}
@@ -3110,7 +3110,7 @@ export const CourseStructureDetails = ({
           packageSessionId={packageSessionId}
           instituteId={instituteId || ""}
           token={authToken}
-          courseTitle={courseData?.courseData?.title ?? "Course"}
+          courseTitle={courseData?.courseData?.title ?? getTerminology(ContentTerms.Course, SystemTerms.Course)}
           inviteCode="default"
           mode="slide-access"
           isUserEnrolled={isEnrolledInCourse} // Pass enrollment status

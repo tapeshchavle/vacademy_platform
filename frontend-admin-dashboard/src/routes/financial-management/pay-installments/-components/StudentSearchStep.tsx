@@ -13,6 +13,8 @@ import {
 } from '@/types/manage-finances';
 import { fetchManageFinancesLogs, getManageFinancesQueryKey } from '@/services/manage-finances';
 import { useInstituteDetailsStore } from '@/stores/students/students-list/useInstituteDetailsStore';
+import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
+import { RoleTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -112,7 +114,7 @@ export function StudentSearchStep({ onSelectStudent }: StudentSearchStepProps) {
         () => [
             {
                 id: 'student',
-                header: 'Student',
+                header: getTerminology(RoleTerms.Learner, SystemTerms.Learner),
                 accessorFn: (row) => row.student_name || '',
                 cell: ({ row }) => {
                     const r = row.original;

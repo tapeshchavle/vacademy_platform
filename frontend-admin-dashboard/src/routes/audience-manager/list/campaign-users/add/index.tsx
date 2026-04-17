@@ -6,14 +6,17 @@ import { Helmet } from 'react-helmet';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { submitAudienceLead, SubmitLeadRequest } from '../../-services/submit-audience-lead';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { getTerminology } from '@/components/common/layout-container/sidebar/utils';
 import { OtherTerms, SystemTerms } from '@/routes/settings/-components/NamingSettings';
+import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
+import { BASE_URL } from '@/constants/urls';
+import { useInstituteDetailsStore } from '@/stores/students/students-list/useInstituteDetailsStore';
+import { CustomFieldRenderer } from '@/components/common/custom-fields/CustomFieldRenderer';
 
 const addResponseSearchSchema = z.object({
     campaignId: z.string().min(1, 'Campaign ID is required'),
@@ -34,6 +37,12 @@ interface CustomFieldConfig {
     isMandatory: boolean;
     defaultValue?: string;
     formOrder: number;
+    config?: string;
+    options?: string[];
+    fileConfig?: {
+        allowedFileTypes?: string[];
+        maxSizeMB?: number;
+    };
 }
 
 export function AddResponsePage() {
@@ -45,50 +54,98 @@ export function AddResponsePage() {
 
     // Form state
     const [formValues, setFormValues] = useState<Record<string, string>>({});
+    const { instituteDetails } = useInstituteDetailsStore();
+    const instituteId = instituteDetails?.id;
 
     useEffect(() => {
         setNavHeading('Add Response');
     }, [setNavHeading]);
 
-    // Parse custom fields from JSON
-    const customFields = useMemo<CustomFieldConfig[]>(() => {
-        if (!search.customFields) return [];
-        try {
-            const parsed = JSON.parse(search.customFields);
-            if (!Array.isArray(parsed)) return [];
+    // Fetch custom fields from backend if not in URL params
+    const { data: fetchedFields } = useQuery({
+        queryKey: ['campaign-custom-fields', search.campaignId, instituteId],
+        queryFn: async () => {
+            if (!instituteId || !search.campaignId) return [];
+            const response = await authenticatedAxiosInstance.get(
+                `${BASE_URL}/admin-core-service/common/custom-fields/feature-fields`,
+                { params: { instituteId, type: 'AUDIENCE_FORM', typeId: search.campaignId } }
+            );
+            return Array.isArray(response?.data) ? response.data : [];
+        },
+        enabled: !search.customFields && !!instituteId && !!search.campaignId,
+        staleTime: 60000,
+    });
 
-            return parsed
-                .map((field: any) => {
-                    const customField = field.custom_field || field;
-                    return {
-                        id: customField.id || field.id,
-                        fieldName:
-                            customField.fieldName ||
-                            customField.field_name ||
-                            field.field_name ||
-                            '',
-                        fieldKey:
-                            customField.fieldKey || customField.field_key || field.field_key || '',
-                        fieldType:
-                            customField.fieldType ||
-                            customField.field_type ||
-                            field.field_type ||
-                            'TEXT',
-                        isMandatory: customField.isMandatory ?? field.isMandatory ?? true,
-                        defaultValue: customField.defaultValue || field.defaultValue || '',
-                        formOrder: customField.formOrder || field.formOrder || 0,
-                    };
-                })
-                .filter((f: CustomFieldConfig) => f.id && f.fieldName)
-                .sort(
-                    (a: CustomFieldConfig, b: CustomFieldConfig) =>
-                        (a.formOrder || 0) - (b.formOrder || 0)
-                );
-        } catch (error) {
-            console.error('Error parsing custom fields:', error);
-            return [];
+    const parseFields = (raw: any[]): CustomFieldConfig[] => {
+        return raw
+            .map((field: any) => {
+                const customField = field.custom_field || field;
+                const configStr =
+                    customField.config || field.config || '';
+
+                let options: string[] | undefined;
+                let fileConfig: { allowedFileTypes?: string[]; maxSizeMB?: number } | undefined;
+                let defaultFromConfig: string | undefined;
+
+                if (configStr) {
+                    try {
+                        const parsed = JSON.parse(configStr);
+                        if (Array.isArray(parsed)) {
+                            options = parsed.map((opt: any) =>
+                                typeof opt === 'string' ? opt : opt.value || opt.label || ''
+                            );
+                        } else if (typeof parsed === 'object' && parsed !== null) {
+                            if (Array.isArray(parsed.allowedFileTypes) || parsed.maxSizeMB) {
+                                fileConfig = {
+                                    allowedFileTypes: parsed.allowedFileTypes,
+                                    maxSizeMB: parsed.maxSizeMB,
+                                };
+                            }
+                            if (parsed.defaultValue !== undefined) {
+                                defaultFromConfig = String(parsed.defaultValue);
+                            }
+                        }
+                    } catch {
+                        // ignore parse errors
+                    }
+                }
+
+                return {
+                    id: customField.id || field.id,
+                    fieldName:
+                        customField.fieldName || customField.field_name || field.field_name || '',
+                    fieldKey:
+                        customField.fieldKey || customField.field_key || field.field_key || '',
+                    fieldType:
+                        customField.fieldType || customField.field_type || field.field_type || 'TEXT',
+                    isMandatory: customField.isMandatory ?? field.isMandatory ?? true,
+                    defaultValue:
+                        customField.defaultValue || field.defaultValue || defaultFromConfig || '',
+                    formOrder: customField.formOrder || field.formOrder || 0,
+                    config: configStr,
+                    options,
+                    fileConfig,
+                };
+            })
+            .filter((f: CustomFieldConfig) => f.id && f.fieldName)
+            .sort((a, b) => (a.formOrder || 0) - (b.formOrder || 0));
+    };
+
+    // Parse custom fields from URL params OR from API fetch
+    const customFields = useMemo<CustomFieldConfig[]>(() => {
+        if (search.customFields) {
+            try {
+                const parsed = JSON.parse(search.customFields);
+                if (Array.isArray(parsed)) return parseFields(parsed);
+            } catch (error) {
+                console.error('Error parsing custom fields:', error);
+            }
         }
-    }, [search.customFields]);
+        if (fetchedFields && fetchedFields.length > 0) {
+            return parseFields(fetchedFields);
+        }
+        return [];
+    }, [search.customFields, fetchedFields]);
 
     // Initialize form values with default values
     useEffect(() => {
@@ -240,20 +297,11 @@ export function AddResponsePage() {
         }
     };
 
-    const getInputType = (fieldType: string): string => {
-        switch (fieldType.toUpperCase()) {
-            case 'EMAIL':
-                return 'email';
-            case 'NUMBER':
-                return 'number';
-            case 'DATE':
-                return 'date';
-            case 'PHONE':
-            case 'TEL':
-                return 'tel';
-            default:
-                return 'text';
-        }
+    const normalizeFieldType = (fieldType: string): string => {
+        const normalized = (fieldType || 'text').toLowerCase();
+        if (normalized === 'tel') return 'phone';
+        if (normalized === 'textfield') return 'text';
+        return normalized;
     };
 
     return (
@@ -307,16 +355,15 @@ export function AddResponsePage() {
                                                 <span className="text-red-500">*</span>
                                             )}
                                         </Label>
-                                        <Input
-                                            id={field.id}
-                                            type={getInputType(field.fieldType)}
+                                        <CustomFieldRenderer
+                                            type={normalizeFieldType(field.fieldType)}
+                                            name={field.fieldName}
                                             value={formValues[field.id] || ''}
-                                            onChange={(e) =>
-                                                handleInputChange(field.id, e.target.value)
-                                            }
-                                            placeholder={`Enter ${field.fieldName.toLowerCase()}`}
+                                            onChange={(val) => handleInputChange(field.id, val)}
+                                            options={field.options}
                                             required={field.isMandatory}
                                             disabled={isSubmitting}
+                                            config={field.fileConfig}
                                         />
                                     </div>
                                 ))}

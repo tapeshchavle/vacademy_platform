@@ -22,6 +22,8 @@ export const Route = createFileRoute("/live-class-guest/embed/")({
 
 
 import { ENABLE_LIVE_CLASS_SAFETY_MODAL } from "@/constants/feature-flags";
+import { getTerminology } from "@/components/common/layout-container/sidebar/utils";
+import { ContentTerms, SystemTerms } from "@/types/naming-settings";
 
 function GuestEmbedComponent() {
   const { sessionId } = Route.useSearch();
@@ -245,7 +247,7 @@ function GuestEmbedComponent() {
       <div className="flex flex-col h-full">
         <div className="flex justify-between items-center p-4">
           <h1 className="text-2xl font-bold">
-            {sessionDetails?.title || "Session"}
+            {sessionDetails?.title || getTerminology(ContentTerms.LiveSession, SystemTerms.LiveSession)}
           </h1>
           <div className="bg-red-600 text-white px-2 py-1 rounded text-sm animate-pulse">
             Live

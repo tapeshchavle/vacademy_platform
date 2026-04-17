@@ -54,4 +54,6 @@ public class UserWithCustomFieldsDTO {
     private Integer leadScore;
     private String leadTier;
     private String leadConversionStatus;
+    private String assignedCounselorId;
+    private String assignedCounselorName;
 }

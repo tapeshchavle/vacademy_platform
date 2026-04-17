@@ -135,7 +135,7 @@ const NOTE_ACTION_TYPES = [
 
 // ─── Timeline Event Item ─────────────────────────────────────────────────────
 
-const TimelineEventItem = ({ event }: { event: TimelineEvent }) => {
+export const TimelineEventItem = ({ event }: { event: TimelineEvent }) => {
     const config = getActionConfig(event.action_type);
     const [isTextExpanded, setIsTextExpanded] = useState(false);
 

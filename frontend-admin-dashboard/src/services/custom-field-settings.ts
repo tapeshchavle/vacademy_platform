@@ -10,11 +10,54 @@ const CUSTOM_FIELD_SETTINGS_KEY = 'CUSTOM_FIELD_SETTING';
 const LOCALSTORAGE_KEY = 'custom-field-settings-cache';
 const CACHE_EXPIRY_HOURS = 24; // Cache expires after 24 hours
 
+export const CUSTOM_FIELD_TYPES = [
+    { value: 'text', label: 'Text Field' },
+    { value: 'dropdown', label: 'Dropdown' },
+    { value: 'number', label: 'Number' },
+    { value: 'email', label: 'Email' },
+    { value: 'url', label: 'URL' },
+    { value: 'date', label: 'Date' },
+    { value: 'phone', label: 'Phone Number' },
+    { value: 'textarea', label: 'Text Area (Multiline)' },
+    { value: 'checkbox', label: 'Checkbox (Yes/No)' },
+    { value: 'radio', label: 'Radio Buttons' },
+    { value: 'file', label: 'File Upload' },
+] as const;
+
+export type CustomFieldType =
+    | 'text'
+    | 'dropdown'
+    | 'number'
+    | 'email'
+    | 'url'
+    | 'date'
+    | 'phone'
+    | 'textarea'
+    | 'checkbox'
+    | 'radio'
+    | 'file';
+
 // Config JSON structure for dropdown options
 export interface DropdownOptionConfig {
     id: number;
     value: string;
     label: string;
+}
+
+// Full config structure stored in the `config` column as JSON.
+// For dropdown/radio, we historically stored a bare array of DropdownOptionConfig.
+// For other types we use this object form with optional extras.
+export interface CustomFieldFullConfig {
+    options?: DropdownOptionConfig[];
+    defaultValue?: string;
+    min?: number;
+    max?: number;
+    minDate?: string;
+    maxDate?: string;
+    maxLength?: number;
+    countryCode?: string;
+    allowedFileTypes?: string[];
+    maxSizeMB?: number;
 }
 
 // API Response Types (what we get from GET_INSITITUTE_SETTINGS)
@@ -24,7 +67,7 @@ export interface ApiCustomField {
     instituteId: string;
     groupName: string | null;
     fieldName: string;
-    fieldType: 'text' | 'number' | 'dropdown';
+    fieldType: CustomFieldType;
     individualOrder: number;
     groupInternalOrder: number | null;
     canBeDeleted: boolean;
@@ -32,7 +75,7 @@ export interface ApiCustomField {
     canBeRenamed: boolean;
     locations: string[];
     status: string;
-    config?: string; // JSON string for dropdown options: [{id: number, value: string, label: string}]
+    config?: string; // JSON string for type-specific config (dropdown/radio options, default values, etc.)
 }
 
 export interface ApiGroupField {
@@ -41,7 +84,7 @@ export interface ApiGroupField {
     instituteId: string;
     groupName: string;
     fieldName: string;
-    fieldType: string;
+    fieldType: CustomFieldType;
     individualOrder: number;
     groupInternalOrder: number;
     canBeDeleted: boolean;
@@ -88,6 +131,8 @@ export interface ApiCustomFieldUsageItem {
     };
     enroll_invite_count: number;
     audience_count: number;
+    session_count: number;
+    assessment_count: number;
     default?: boolean;
 }
 
@@ -125,6 +170,8 @@ export interface SystemField {
 export interface CustomFieldUsage {
     enrollInviteCount: number;
     audienceCount: number;
+    sessionCount: number;
+    assessmentCount: number;
     isDefault: boolean;
 }
 
@@ -152,8 +199,10 @@ export interface FieldVisibility {
 export interface CustomField {
     id: string; // uuid
     name: string;
-    type: 'text' | 'dropdown' | 'number';
-    options?: string[]; // for dropdown
+    type: CustomFieldType;
+    options?: string[]; // for dropdown/radio
+    defaultValue?: string;
+    fieldConfig?: CustomFieldFullConfig; // type-specific extras (min/max, allowedFileTypes, etc.)
     required: boolean;
     visibility: FieldVisibility;
     order: number;
@@ -167,8 +216,10 @@ export interface CustomField {
 // Type for creating new custom fields (without ID - backend will assign)
 export interface NewCustomField {
     name: string;
-    type: 'text' | 'dropdown' | 'number';
+    type: CustomFieldType;
     options?: string[];
+    defaultValue?: string;
+    fieldConfig?: CustomFieldFullConfig;
     visibility: FieldVisibility;
     required: boolean;
     order?: number;
@@ -177,8 +228,10 @@ export interface NewCustomField {
 export interface FixedField {
     id: string; // customFieldId from API
     name: string;
-    type: 'text' | 'dropdown' | 'number';
+    type: CustomFieldType;
     options?: string[];
+    defaultValue?: string;
+    fieldConfig?: CustomFieldFullConfig;
     visibility: FieldVisibility;
     required: boolean;
     canBeDeleted: boolean;
@@ -199,8 +252,10 @@ export interface FieldGroup {
 export interface GroupField {
     id: string; // customFieldId from API
     name: string;
-    type: 'text' | 'dropdown' | 'number';
+    type: CustomFieldType;
     options?: string[];
+    defaultValue?: string;
+    fieldConfig?: CustomFieldFullConfig;
     visibility: FieldVisibility;
     required: boolean;
     canBeDeleted: boolean;
@@ -214,7 +269,7 @@ export interface GroupField {
 // Type for creating new group fields (without ID - backend will assign)
 export interface NewGroupField {
     name: string;
-    type: 'text' | 'dropdown' | 'number';
+    type: CustomFieldType;
     options?: string[];
     visibility: FieldVisibility;
     required: boolean;
@@ -276,8 +331,11 @@ export const optionsToConfigJson = (options?: string[]): string | undefined => {
 
 /**
  * Convert config JSON string (API format) to options array (UI format)
- * @param configJson - JSON string from API with format: [{id: number, value: string, label: string}]
- * @returns Array of option strings for the UI
+ * Handles two legacy formats:
+ *   1. Bare array: [{id, value, label}] — the original dropdown-options-only format
+ *   2. Object with `options`: {options: [...], defaultValue, ...} — new richer format
+ * @param configJson - JSON string from API
+ * @returns Array of option strings for the UI, or undefined
  */
 export const configJsonToOptions = (configJson?: string): string[] | undefined => {
     if (!configJson) {
@@ -285,12 +343,82 @@ export const configJsonToOptions = (configJson?: string): string[] | undefined =
     }
 
     try {
-        const config: DropdownOptionConfig[] = JSON.parse(configJson);
-        return config.map((item) => item.value);
+        const parsed = JSON.parse(configJson);
+        if (Array.isArray(parsed)) {
+            return (parsed as DropdownOptionConfig[]).map((item) => item.value);
+        }
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.options)) {
+            return (parsed.options as DropdownOptionConfig[]).map((item) => item.value);
+        }
+        return undefined;
     } catch (error) {
         console.error('❌ [DEBUG] Error parsing config JSON:', error);
         return undefined;
     }
+};
+
+/**
+ * Parse the full config object from a config JSON string.
+ * For legacy bare-array format, returns `{options}` only.
+ * For object format, returns all top-level keys.
+ */
+export const configJsonToFullConfig = (configJson?: string): CustomFieldFullConfig | undefined => {
+    if (!configJson) return undefined;
+    try {
+        const parsed = JSON.parse(configJson);
+        if (Array.isArray(parsed)) {
+            return { options: parsed as DropdownOptionConfig[] };
+        }
+        if (parsed && typeof parsed === 'object') {
+            return parsed as CustomFieldFullConfig;
+        }
+    } catch (error) {
+        console.error('❌ [DEBUG] Error parsing full config JSON:', error);
+    }
+    return undefined;
+};
+
+/**
+ * Build the config JSON string for the API from UI state.
+ * - If only `options` are present (no extras), returns the legacy bare-array format
+ *   for backward compatibility with existing dropdown consumers.
+ * - Otherwise, returns an object with `options`, `defaultValue`, and any extras.
+ */
+export const buildConfigJson = (
+    options?: string[],
+    defaultValue?: string,
+    extras?: Partial<CustomFieldFullConfig>
+): string | undefined => {
+    const hasOptions = options && options.length > 0;
+    const hasDefault = defaultValue !== undefined && defaultValue !== '';
+    const hasExtras = extras && Object.keys(extras).some((k) => (extras as any)[k] !== undefined);
+
+    if (!hasOptions && !hasDefault && !hasExtras) {
+        return undefined;
+    }
+
+    if (hasOptions && !hasDefault && !hasExtras) {
+        // Legacy bare-array format for dropdown-only fields
+        const optionsConfig: DropdownOptionConfig[] = options!.map((opt, i) => ({
+            id: i + 1,
+            value: opt,
+            label: opt,
+        }));
+        return JSON.stringify(optionsConfig);
+    }
+
+    const fullConfig: CustomFieldFullConfig = { ...(extras || {}) };
+    if (hasOptions) {
+        fullConfig.options = options!.map((opt, i) => ({
+            id: i + 1,
+            value: opt,
+            label: opt,
+        }));
+    }
+    if (hasDefault) {
+        fullConfig.defaultValue = defaultValue;
+    }
+    return JSON.stringify(fullConfig);
 };
 
 /**
@@ -475,10 +603,14 @@ const mapVisibilityToLocations = (visibility: FieldVisibility): string[] => {
  * Convert API field to UI fixed field
  */
 const mapApiFieldToFixedField = (apiField: ApiCustomField): FixedField => {
+    const fullConfig = configJsonToFullConfig(apiField.config);
     return {
         id: apiField.customFieldId,
         name: apiField.fieldName,
-        type: apiField.fieldType as 'text' | 'dropdown' | 'number',
+        type: apiField.fieldType as CustomFieldType,
+        options: configJsonToOptions(apiField.config),
+        defaultValue: fullConfig?.defaultValue,
+        fieldConfig: fullConfig,
         visibility: mapLocationsToVisibility(apiField.locations),
         required: true, // System fields are typically required
         canBeDeleted: apiField.canBeDeleted,
@@ -493,11 +625,14 @@ const mapApiFieldToFixedField = (apiField: ApiCustomField): FixedField => {
  * Convert API field to UI custom field
  */
 const mapApiFieldToCustomField = (apiField: ApiCustomField): CustomField => {
+    const fullConfig = configJsonToFullConfig(apiField.config);
     return {
         id: apiField.customFieldId,
         name: apiField.fieldName,
-        type: apiField.fieldType as 'text' | 'dropdown' | 'number',
+        type: apiField.fieldType as CustomFieldType,
         options: configJsonToOptions(apiField.config), // Convert config JSON to options array
+        defaultValue: fullConfig?.defaultValue,
+        fieldConfig: fullConfig,
         visibility: mapLocationsToVisibility(apiField.locations),
         required: false, // Will be determined by compulsoryCustomFields
         canBeDeleted: apiField.canBeDeleted,
@@ -514,11 +649,14 @@ const mapApiFieldToCustomField = (apiField: ApiCustomField): CustomField => {
 const mapApiGroupFieldToGroupField = (
     apiGroupField: ApiGroupField | ApiCustomField
 ): GroupField => {
+    const fullConfig = configJsonToFullConfig(apiGroupField.config);
     return {
         id: apiGroupField.customFieldId,
         name: apiGroupField.fieldName,
-        type: apiGroupField.fieldType as 'text' | 'dropdown' | 'number',
+        type: apiGroupField.fieldType as CustomFieldType,
         options: configJsonToOptions(apiGroupField.config), // Convert config JSON to options array
+        defaultValue: fullConfig?.defaultValue,
+        fieldConfig: fullConfig,
         visibility: mapLocationsToVisibility(apiGroupField.locations),
         required: false, // Will be determined by compulsoryCustomFields
         canBeDeleted: apiGroupField.canBeDeleted,
@@ -698,6 +836,17 @@ export const setOriginalApiData = (apiData: ApiCustomFieldResponse['data']['data
     originalApiData = apiData;
 };
 
+const extractConfigExtras = (
+    fieldConfig?: CustomFieldFullConfig
+): Partial<CustomFieldFullConfig> | undefined => {
+    if (!fieldConfig) return undefined;
+    const { options, defaultValue, ...rest } = fieldConfig;
+    // options + defaultValue are merged separately by buildConfigJson
+    void options;
+    void defaultValue;
+    return Object.keys(rest).length > 0 ? rest : undefined;
+};
+
 /**
  * Convert UI field back to API field, preserving original API structure
  */
@@ -705,8 +854,18 @@ const preserveApiField = (
     uiField: CustomField | FixedField,
     originalApiField: ApiCustomField
 ): ApiCustomField => {
-    const configJson =
-        'options' in uiField ? optionsToConfigJson(uiField.options) : originalApiField.config;
+    const hasOptions = 'options' in uiField && uiField.options;
+    const configJson = hasOptions
+        ? buildConfigJson(
+              uiField.options,
+              uiField.defaultValue,
+              extractConfigExtras(uiField.fieldConfig)
+          )
+        : buildConfigJson(
+              undefined,
+              uiField.defaultValue,
+              extractConfigExtras(uiField.fieldConfig)
+          ) ?? originalApiField.config;
 
     return {
         ...originalApiField, // Preserve all original API data
@@ -732,7 +891,11 @@ const preserveApiGroupField = (
         groupInternalOrder: uiField.groupInternalOrder, // Update group order if changed
         groupName: uiField.groupName || originalApiField.groupName, // Update groupName
         locations: mapVisibilityToLocations(uiField.visibility), // Update visibility
-        config: optionsToConfigJson(uiField.options), // Convert options to config JSON
+        config: buildConfigJson(
+            uiField.options,
+            uiField.defaultValue,
+            extractConfigExtras(uiField.fieldConfig)
+        ),
     };
 };
 
@@ -756,7 +919,11 @@ const createNewApiField = (
         canBeRenamed: true,
         locations: mapVisibilityToLocations(customField.visibility),
         status: 'ACTIVE',
-        config: optionsToConfigJson(customField.options), // Convert options to config JSON
+        config: buildConfigJson(
+            customField.options,
+            customField.defaultValue,
+            extractConfigExtras(customField.fieldConfig)
+        ),
     };
 };
 
@@ -781,7 +948,11 @@ const createNewApiGroupField = (
         canBeRenamed: true,
         locations: mapVisibilityToLocations(groupField.visibility),
         status: 'ACTIVE',
-        config: optionsToConfigJson(groupField.options), // Convert options to config JSON
+        config: buildConfigJson(
+            groupField.options,
+            groupField.defaultValue,
+            extractConfigExtras(groupField.fieldConfig)
+        ),
     };
 };
 
@@ -846,7 +1017,11 @@ const mapUIToApiRequestFresh = (
             canBeRenamed: instituteField.canBeRenamed,
             locations: mapVisibilityToLocations(instituteField.visibility),
             status: 'ACTIVE',
-            config: optionsToConfigJson(instituteField.options), // Convert options to config JSON
+            config: buildConfigJson(
+                instituteField.options,
+                instituteField.defaultValue,
+                extractConfigExtras(instituteField.fieldConfig)
+            ),
         };
         currentCustomFieldsAndGroups.push(apiField);
 
@@ -858,8 +1033,8 @@ const mapUIToApiRequestFresh = (
         }
     });
 
-    // Process custom fields
-    uiData.customFields.forEach((customField) => {
+    // Process custom fields — skip feature-scoped fields (canBeEdited=false)
+    uiData.customFields.filter((f) => f.canBeEdited !== false).forEach((customField) => {
         const apiField: ApiCustomField = {
             id: '', // Backend will assign
             customFieldId: isTempField(customField) ? '' : customField.id, // Empty for new fields
@@ -874,7 +1049,11 @@ const mapUIToApiRequestFresh = (
             canBeRenamed: customField.canBeRenamed,
             locations: mapVisibilityToLocations(customField.visibility),
             status: 'ACTIVE',
-            config: optionsToConfigJson(customField.options), // Convert options to config JSON
+            config: buildConfigJson(
+                customField.options,
+                customField.defaultValue,
+                extractConfigExtras(customField.fieldConfig)
+            ),
         };
         currentCustomFieldsAndGroups.push(apiField);
 
@@ -1036,8 +1215,10 @@ const mapUIToApiRequest = (uiData: CustomFieldSettingsData): ApiCustomFieldReque
         }
     });
 
-    // Process custom fields
-    uiData.customFields.forEach((customField) => {
+    // Process custom fields — skip feature-scoped fields (canBeEdited=false)
+    // that were merged from the usage response for display only. Saving them
+    // here would create a spurious DEFAULT_CUSTOM_FIELD mapping.
+    uiData.customFields.filter((f) => f.canBeEdited !== false).forEach((customField) => {
         if (isTempField(customField)) {
             // New field - create new API structure without ID
             const newApiField = createNewApiField(customField, instituteId) as ApiCustomField;
@@ -1268,125 +1449,82 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
         if (settingsResponse.data && settingsResponse.data.data) {
             const apiData = settingsResponse.data.data.data;
 
-            // Merge usage data into apiData
+            // Build currentCustomFieldsAndGroups entirely from the usage
+            // response (the live DB). The blob's list is stale and often
+            // contains duplicates from old saves. We keep the blob's OTHER
+            // data (fixedFieldRenameDtos, customFieldLocations, etc.) but
+            // replace the field list with the authoritative usage data.
             if (usageResponse.data && Array.isArray(usageResponse.data)) {
-                const existingFieldIds = new Set<string>();
+                const freshFields: ApiCustomField[] = [];
+                const freshAllCustomFields: string[] = [];
+                const freshCustomFieldsNames: string[] = [];
+                const freshCompulsoryCustomFields: string[] = [];
+                const freshFixedCustomFields: string[] = [];
+                const seenNames = new Set<string>();
 
-                // Track existing fields from currentCustomFieldsAndGroups
+                // Build a lookup from the blob for fields that have extra
+                // settings (locations, groupName, order, canBe* flags).
+                const blobFieldMap = new Map<string, ApiCustomField>();
                 if (Array.isArray(apiData.currentCustomFieldsAndGroups)) {
-                    apiData.currentCustomFieldsAndGroups.forEach((f) =>
-                        existingFieldIds.add(f.customFieldId)
-                    );
+                    apiData.currentCustomFieldsAndGroups.forEach((f) => {
+                        if (f.customFieldId) blobFieldMap.set(f.customFieldId, f);
+                    });
                 }
-
-                // Track existing fields from customGroup
-                if (apiData.customGroup) {
-                    Object.values(apiData.customGroup).forEach((f) =>
-                        existingFieldIds.add(f.customFieldId)
-                    );
-                }
-
-                // Track fixed fields to avoid duplicates
-                if (Array.isArray(apiData.fixedCustomFields)) {
-                    apiData.fixedCustomFields.forEach((id) => existingFieldIds.add(id));
-                }
+                const blobFixedSet = new Set<string>(apiData.fixedCustomFields || []);
+                const blobCompulsorySet = new Set<string>(apiData.compulsoryCustomFields || []);
 
                 usageResponse.data.forEach((usageItem) => {
                     const fieldId = usageItem.custom_field.id;
                     if (!fieldId) return;
 
-                    // Only merge fields that have a DEFAULT_CUSTOM_FIELD
-                    // mapping. Feature-scoped fields (ENROLL_INVITE,
-                    // AUDIENCE_FORM, SESSION, ASSESSMENT) must NOT leak into
-                    // the settings blob — otherwise saving from Settings
-                    // would create a spurious DEFAULT mapping for them.
-                    if (!usageItem.default) return;
+                    // Deduplicate by name (case-insensitive)
+                    const nameLower = (usageItem.custom_field.fieldName || '').toLowerCase();
+                    if (seenNames.has(nameLower)) return;
+                    seenNames.add(nameLower);
 
-                    if (!existingFieldIds.has(fieldId)) {
+                    // If the blob has this field, inherit its UI settings
+                    const blobEntry = blobFieldMap.get(fieldId);
 
-                        // Construct a default ApiCustomField
-                        // We default to 'text' if type is unknown or missing, though usageItem should have it
-                        const newField: ApiCustomField = {
-                            id: '', // Backend internal ID (different from customFieldId usually, but here likely unused or generated)
-                            customFieldId: fieldId,
-                            instituteId: usageItem.custom_field.instituteId || instituteId,
-                            groupName: null,
-                            fieldName: usageItem.custom_field.fieldName,
-                            fieldType:
-                                (usageItem.custom_field.fieldType as
-                                    | 'text'
-                                    | 'number'
-                                    | 'dropdown') || 'text',
-                            individualOrder: 999, // Append to end
-                            groupInternalOrder: null,
-                            canBeDeleted: true,
-                            canBeEdited: true, // Assuming editable
-                            canBeRenamed: true,
-                            locations: [], // Default to no visibility until configured
-                            status: usageItem.custom_field.status || 'ACTIVE',
-                            config: usageItem.custom_field.config,
-                        };
+                    const field: ApiCustomField = {
+                        id: blobEntry?.id || '',
+                        customFieldId: fieldId,
+                        instituteId: usageItem.custom_field.instituteId || instituteId,
+                        groupName: blobEntry?.groupName || null,
+                        fieldName: usageItem.custom_field.fieldName,
+                        fieldType: (usageItem.custom_field.fieldType as CustomFieldType) || 'text',
+                        individualOrder: blobEntry?.individualOrder ?? 999,
+                        groupInternalOrder: blobEntry?.groupInternalOrder ?? null,
+                        canBeDeleted: blobEntry?.canBeDeleted ?? true,
+                        canBeEdited: usageItem.default ? (blobEntry?.canBeEdited ?? true) : false,
+                        canBeRenamed: usageItem.default ? (blobEntry?.canBeRenamed ?? true) : false,
+                        locations: blobEntry?.locations || [],
+                        status: usageItem.custom_field.status || 'ACTIVE',
+                        config: usageItem.custom_field.config,
+                    };
 
-                        // Add to currentCustomFieldsAndGroups
-                        if (!apiData.currentCustomFieldsAndGroups) {
-                            apiData.currentCustomFieldsAndGroups = [];
+                    freshFields.push(field);
+
+                    if (usageItem.default) {
+                        freshAllCustomFields.push(fieldId);
+                        freshCustomFieldsNames.push(field.fieldName);
+                        if (blobFixedSet.has(fieldId)) {
+                            freshFixedCustomFields.push(fieldId);
                         }
-                        apiData.currentCustomFieldsAndGroups.push(newField);
-
-                        // Add to allCustomFields
-                        if (!apiData.allCustomFields) {
-                            apiData.allCustomFields = [];
+                        if (blobCompulsorySet.has(fieldId)) {
+                            freshCompulsoryCustomFields.push(fieldId);
                         }
-                        apiData.allCustomFields.push(fieldId);
-
-                        // Add to customFieldsNames
-                        if (!apiData.customFieldsNames) {
-                            apiData.customFieldsNames = [];
-                        }
-                        apiData.customFieldsNames.push(newField.fieldName);
-
-                        // Add to existing IDs set to prevent double adding if logic changes
-                        existingFieldIds.add(fieldId);
                     }
                 });
-            }
 
-            // Filter the blob to only include fields that have at least one
-            // ACTIVE mapping of ANY type (DEFAULT, ENROLL_INVITE, etc.).
-            // This removes fields that were fully soft-deleted. Feature-scoped
-            // fields are kept for display (with usage counts) but will NOT
-            // be saved as DEFAULT — the merge guard above (`!usageItem.default`)
-            // and the backend's own logic handle that.
-            if (usageResponse.data && Array.isArray(usageResponse.data) && Array.isArray(apiData.currentCustomFieldsAndGroups)) {
-                const activeFieldIds = new Set<string>(
-                    usageResponse.data
-                        .filter((item) => item.custom_field?.id)
-                        .map((item) => item.custom_field.id)
-                );
-                apiData.currentCustomFieldsAndGroups = apiData.currentCustomFieldsAndGroups
-                    .filter((f) => activeFieldIds.has(f.customFieldId));
-
-                if (Array.isArray(apiData.allCustomFields)) {
-                    apiData.allCustomFields = apiData.allCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
-                }
-                if (Array.isArray(apiData.fixedCustomFields)) {
-                    apiData.fixedCustomFields = apiData.fixedCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
-                }
-                if (Array.isArray(apiData.compulsoryCustomFields)) {
-                    apiData.compulsoryCustomFields = apiData.compulsoryCustomFields
-                        .filter((id: string) => activeFieldIds.has(id));
-                }
+                apiData.currentCustomFieldsAndGroups = freshFields;
+                apiData.allCustomFields = freshAllCustomFields;
+                apiData.customFieldsNames = freshCustomFieldsNames;
+                apiData.fixedCustomFields = freshFixedCustomFields;
+                apiData.compulsoryCustomFields = freshCompulsoryCustomFields;
             }
 
             // Store original API data for preservation during save operations
             setOriginalApiData(apiData);
-
-            // Check if the data has the expected structure
-            if (!settingsResponse.data.data.data?.allCustomFields) {
-                console.warn('🚨 [DEBUG] API response missing allCustomFields - using empty array');
-            }
 
             settings = mapApiResponseToUI(settingsResponse.data);
 
@@ -1398,6 +1536,8 @@ const fetchCustomFieldSettingsFromAPI = async (): Promise<CustomFieldSettingsDat
                         usageMap.set(item.custom_field.id, {
                             enrollInviteCount: item.enroll_invite_count,
                             audienceCount: item.audience_count,
+                            sessionCount: item.session_count ?? 0,
+                            assessmentCount: item.assessment_count ?? 0,
                             isDefault: item.default ?? false,
                         });
                     }
@@ -1654,13 +1794,13 @@ export const importCustomFieldSettings = (jsonString: string): CustomFieldSettin
  */
 export const createNewCustomField = (
     name: string,
-    type: 'text' | 'dropdown' | 'number',
+    type: CustomFieldType,
     options?: string[]
 ): NewCustomField => {
     return {
         name,
         type,
-        options: type === 'dropdown' ? options || [] : undefined,
+        options: type === 'dropdown' || type === 'radio' ? options || [] : undefined,
         visibility: {
             learnersList: false,
             learnerEnrollment: false,
@@ -1688,14 +1828,18 @@ export const createNewFieldGroup = (name: string): Omit<FieldGroup, 'id'> => {
  */
 export const createTempCustomField = (
     name: string,
-    type: 'text' | 'dropdown' | 'number',
-    options?: string[]
+    type: CustomFieldType,
+    options?: string[],
+    defaultValue?: string,
+    fieldConfig?: CustomFieldFullConfig
 ): CustomField => {
     return {
         id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Temporary ID
         name,
         type,
-        options: type === 'dropdown' ? options || [] : undefined,
+        options: type === 'dropdown' || type === 'radio' ? options || [] : undefined,
+        defaultValue,
+        fieldConfig,
         visibility: {
             learnersList: false,
             learnerEnrollment: false,
@@ -1737,7 +1881,7 @@ export const tempFieldToNewField = (field: CustomField): NewCustomField => {
  */
 export const createCustomFieldWorkflow = async (
     name: string,
-    type: 'text' | 'dropdown' | 'number',
+    type: CustomFieldType,
     options?: string[]
 ): Promise<CustomField> => {
     // Step 1: Create new field data (no ID)

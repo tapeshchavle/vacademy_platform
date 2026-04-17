@@ -4,17 +4,71 @@
 >
 > Read this if you are: an admin user who needs to understand the product, a PM scoping changes to custom fields, a QA writing test cases, or an engineer triaging custom-field bugs.
 
-> ### ⚠ Custom Fields Revamp (2026-04) — bug status update
+> ### ⚠ Custom Fields Revamp (2026-04) — Final State (2026-04-14)
 >
-> The custom fields system has been revamped. The bug list below is annotated with whether each item is **fixed**, **partially fixed**, **still open**, or **superseded** by the revamp. The revamp made the following structural changes:
+> The custom fields system has been revamped through multiple iterations. This section reflects the final working state.
 >
-> - **Visibility shrunk to 3 admin-side locations** (Learner's List, Learner's Enrollment, Learner Profile). Per-feature locations (Invite, Audience, Live Class, Assessment, Enquiry, Campaign) were removed.
-> - **Per-feature pickers** are the source of truth for which fields appear on each invite/audience/session/assessment instance. Each create/edit dialog seeds itself from the institute defaults, the admin un/ticks, and the new unified `syncFeatureCustomFields` backend service handles insert/reactivate/soft-delete in one transaction.
-> - **`institute_custom_fields.is_mandatory`** added — required state can vary per (institute, field, type, type_id).
-> - **`CustomFieldTypeEnum.ASSESSMENT`** added; `SESSION` continues to be used for live class.
-> - **No data cleanup** runs on deploy. The handful of production institutes with historical garbage are cleaned individually using the procedure in [CUSTOM_FIELDS_PROD_CLEANUP.md](CUSTOM_FIELDS_PROD_CLEANUP.md).
+> ### What the admin sees now
 >
-> Bug-by-bug status is shown in §4 below.
+> **Settings → Custom Fields:**
+> - 3 visibility checkboxes per field: Learner's List, Learner's Enrollment, Learner Profile
+> - 3 seeded fields (Full Name, Email, Phone Number) with "DEFAULT" badge — non-deletable, required toggle works
+> - Admin-created defaults with "DEFAULT" badge — fully editable, deletable via cascade-delete dialog
+> - Feature-scoped fields (from invites, sessions, etc.) with "FEATURE" badge — read-only, shown with usage counts (Invites, Audience, Sessions, Assessments)
+> - Cascade-delete dialog: shows every mapping across all features with parent entity name, admin selects which to soft-delete
+> - Saving from Settings only creates/updates `DEFAULT_CUSTOM_FIELD` mappings — feature-scoped fields are excluded from save
+>
+> **Enroll Invite create/edit:**
+> - Opens with all institute defaults pre-loaded from live API (`GET /common/custom-fields`)
+> - Full Name, Email, Phone Number are non-deletable; required toggle works
+> - Admin can add ad-hoc fields — these create `ENROLL_INVITE` mappings only (NOT defaults)
+> - Edit mode loads saved fields from the invite's `ENROLL_INVITE` mappings
+> - Backend uses `syncFeatureCustomFields` for reactivation-safe upsert/delete
+>
+> **Audience / Campaign create/edit:**
+> - Same pattern as invite — async loads from live API, seeded fields non-deletable
+> - Dialog width increased to `max-w-3xl` with overflow handling for long URLs
+> - Deleted fields filtered out before submission (fixes 5-instead-of-4 bug)
+> - "Add Response" page fetches custom fields from `/feature-fields` API when URL params are empty
+>
+> **Live Session Step 2:**
+> - Loads defaults from live API asynchronously
+> - Full Name, Email, Phone Number non-deletable
+> - Custom field keys now include `_inst_<instituteId>` via `CustomFieldKeyGenerator`
+> - Attendance table shows dynamic custom field columns for guest registrations
+> - CSV export includes custom field values
+>
+> **Assessment Step 3:**
+> - Loads defaults from live API asynchronously
+> - Full Name, Email, Phone Number non-deletable
+>
+> ### Structural changes
+>
+> - **Visibility shrunk to 3 admin-side locations.** Per-feature locations removed.
+> - **Feature pickers load from live DB** (`GET /common/custom-fields`), NOT the stale settings JSON blob.
+> - **Settings field list built from usage response**, NOT the blob. Deduplication by field name prevents ghost entries.
+> - **`institute_custom_fields.is_mandatory`** (V198 migration) — per-context required state.
+> - **`CustomFieldTypeEnum.ASSESSMENT`** added; `SESSION` continues for live class.
+> - **Usage counts** include Sessions and Assessments (backend `CustomFieldUsageDTO` + frontend display).
+> - **`syncFeatureCustomFields`** — unified backend sync with robust `wantedFieldIds` built from DTOs + key-generator lookup.
+> - **No data cleanup on deploy.** See [CUSTOM_FIELDS_PROD_CLEANUP.md](CUSTOM_FIELDS_PROD_CLEANUP.md).
+>
+> ### Key bugs fixed during revamp
+>
+> | Bug | Status |
+> |-----|--------|
+> | Duplicate `custom_fields` rows created for seeded fields | Fixed — sync function returns `[]`, async `useEffect` loads real data with `_id` |
+> | Settings showing DELETED fields | Fixed — field list built from live usage response, not stale blob |
+> | Feature-scoped fields leaking into DEFAULT on save | Fixed — `canBeEdited: false` + save-path filter |
+> | Invite dialog not loading new DEFAULT fields | Fixed — `fetchInstituteDefaultFields` bypasses blob entirely |
+> | `ReTransformCustomFields` using mapping type instead of field type | Fixed — uses `custom_field.fieldType` |
+> | Audience saving 5 rows instead of 4 | Fixed — `status: 'DELETED'` fields filtered before submission |
+> | Live session `saveNewCustomField` writing `instituteId: ""` | Fixed — passes `session.getInstituteId()` |
+> | Live session field key missing `_inst_` suffix | Fixed — uses `CustomFieldKeyGenerator` |
+> | Payment date off-by-one in bulk CSV | Fixed — sends `YYYY-MM-DD` date-only string |
+> | Student list not showing custom field values | Fixed — JOIN matches `STUDENT_SESSION_MAPPING` + `USER` source types |
+>
+> Bug-by-bug status for the original bug list is shown in §4 below.
 
 ---
 

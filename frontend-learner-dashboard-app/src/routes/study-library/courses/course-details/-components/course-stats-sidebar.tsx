@@ -123,7 +123,7 @@ export const CourseStatsSidebar = ({
             {/* Only total time shown, per-type stats hidden by design */}
             <div className="flex items-center justify-between p-2.5 bg-gray-50/80 rounded-lg">
               <span className="text-xs font-medium text-gray-700">
-                Course Time
+                {getTerminology(ContentTerms.Course, SystemTerms.Course)} Time
               </span>
               <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md shadow-sm">
                 {totalDuration}
