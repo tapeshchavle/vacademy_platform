@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
-import { authenticatedAxiosInstance } from '@/lib/auth/axiosInstance';
-import { INSTITUTE_ID } from '@/constants/api';
+import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
 
 const BASE_URL = import.meta.env.VITE_BACKEND_API_URL;
 
