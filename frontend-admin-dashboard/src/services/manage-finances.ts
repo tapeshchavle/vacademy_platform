@@ -105,6 +105,9 @@ export interface ReceiptLineItem {
     amount_paid: number;
     balance: number;
     status: string;
+    adjustment_type?: string | null;
+    adjustment_amount?: number | null;
+    adjustment_status?: string | null;
 }
 
 export interface AllocatePaymentResponse {
@@ -117,6 +120,8 @@ export interface AllocatePaymentResponse {
     line_items?: ReceiptLineItem[];
     total_expected?: number;
     total_paid?: number;
+    total_concession?: number;
+    total_penalty?: number;
     balance_due?: number;
     amount_paid_now?: number;
 }
