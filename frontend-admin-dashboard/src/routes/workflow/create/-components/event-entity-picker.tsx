@@ -3,13 +3,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import authenticatedAxiosInstance from '@/lib/auth/axiosInstance';
+import {
+    AUDIENCE_CAMPAIGNS_LIST,
+    GET_LIVE_SESSIONS,
+    GET_INVITE_LIST,
+} from '@/constants/urls';
 
-const BASE_URL = import.meta.env.VITE_BACKEND_API_URL;
-
-/**
- * Smart entity picker that loads the right dropdown based on event_applied_type.
- * Replaces the raw text input for "Event ID" in the workflow trigger setup.
- */
 interface EventEntityPickerProps {
     eventAppliedType: string;
     value: string | undefined;
@@ -23,91 +22,80 @@ interface EntityOption {
     subtitle?: string;
 }
 
-// Fetch package sessions (batches) for the institute
-async function fetchPackageSessions(instituteId: string): Promise<EntityOption[]> {
-    const response = await authenticatedAxiosInstance.post(
-        `${BASE_URL}/admin-core-service/v1/admin/package/session/list?pageNo=0&pageSize=100`,
-        { institute_id: instituteId, statuses: ['ACTIVE'] }
-    );
-    const content = response.data?.content ?? response.data ?? [];
-    return Array.isArray(content)
-        ? content.map((item: Record<string, string>) => ({
-            id: item.id ?? item.package_session_id ?? '',
-            label: item.package_name ?? item.name ?? item.id ?? 'Unknown',
-            subtitle: item.level_name ? `${item.level_name} / ${item.session_name ?? ''}` : undefined,
-        }))
-        : [];
-}
-
-// Fetch audiences/campaigns for the institute
 async function fetchAudiences(instituteId: string): Promise<EntityOption[]> {
-    const response = await authenticatedAxiosInstance.post(
-        `${BASE_URL}/admin-core-service/v1/audience-manager/campaigns/list`,
-        { institute_id: instituteId, page: 0, size: 100, status: ['ACTIVE', 'INACTIVE'] }
-    );
-    const content = response.data?.content ?? response.data ?? [];
-    return Array.isArray(content)
-        ? content.map((item: Record<string, string>) => ({
+    try {
+        const response = await authenticatedAxiosInstance.post(AUDIENCE_CAMPAIGNS_LIST, {
+            institute_id: instituteId,
+            page: 0,
+            size: 100,
+        });
+        const content = response.data?.content ?? response.data ?? [];
+        if (!Array.isArray(content)) return [];
+        return content.map((item: Record<string, string>) => ({
             id: item.campaign_id ?? item.id ?? '',
             label: item.campaign_name ?? item.name ?? item.id ?? 'Unknown',
             subtitle: item.campaign_type ?? undefined,
-        }))
-        : [];
+        }));
+    } catch {
+        return [];
+    }
 }
 
-// Fetch live sessions for the institute
 async function fetchLiveSessions(instituteId: string): Promise<EntityOption[]> {
-    const response = await authenticatedAxiosInstance.get(
-        `${BASE_URL}/admin-core-service/v1/live-session/sessions/upcoming?instituteId=${instituteId}`
-    );
-    const data = response.data ?? [];
-    const sessions: EntityOption[] = [];
-    // API may return grouped by date or flat list
-    if (Array.isArray(data)) {
+    try {
+        const response = await authenticatedAxiosInstance.get(GET_LIVE_SESSIONS, {
+            params: { instituteId },
+        });
+        const data = response.data ?? [];
+        if (!Array.isArray(data)) return [];
+        const sessions: EntityOption[] = [];
         for (const item of data) {
             if (item.sessions && Array.isArray(item.sessions)) {
                 for (const s of item.sessions) {
                     sessions.push({
-                        id: s.session_id ?? s.sessionId ?? s.id ?? '',
+                        id: s.sessionId ?? s.session_id ?? s.id ?? '',
                         label: s.title ?? 'Untitled Session',
                         subtitle: s.subject ?? undefined,
                     });
                 }
             } else {
                 sessions.push({
-                    id: item.session_id ?? item.sessionId ?? item.id ?? '',
+                    id: item.sessionId ?? item.session_id ?? item.id ?? '',
                     label: item.title ?? 'Untitled Session',
                     subtitle: item.subject ?? undefined,
                 });
             }
         }
+        return sessions;
+    } catch {
+        return [];
     }
-    return sessions;
 }
 
-// Fetch enroll invites for the institute
 async function fetchEnrollInvites(instituteId: string): Promise<EntityOption[]> {
-    const response = await authenticatedAxiosInstance.post(
-        `${BASE_URL}/admin-core-service/v1/admin/enroll-invite/list?pageNo=0&pageSize=100`,
-        { institute_id: instituteId, statuses: ['ACTIVE'] }
-    );
-    const content = response.data?.content ?? response.data ?? [];
-    return Array.isArray(content)
-        ? content.map((item: Record<string, string>) => ({
+    try {
+        const response = await authenticatedAxiosInstance.post(GET_INVITE_LIST, {
+            institute_id: instituteId,
+            page_no: 0,
+            page_size: 100,
+        });
+        const content = response.data?.content ?? response.data ?? [];
+        if (!Array.isArray(content)) return [];
+        return content.map((item: Record<string, string>) => ({
             id: item.id ?? '',
-            label: item.name ?? item.invite_code ?? item.id ?? 'Unknown',
-            subtitle: item.invite_code ? `Code: ${item.invite_code}` : undefined,
-        }))
-        : [];
+            label: item.name ?? item.inviteCode ?? item.id ?? 'Unknown',
+            subtitle: item.inviteCode ? `Code: ${item.inviteCode}` : undefined,
+        }));
+    } catch {
+        return [];
+    }
 }
 
 function useEntityOptions(eventAppliedType: string, instituteId: string) {
     return useQuery({
         queryKey: ['workflow-entity-picker', eventAppliedType, instituteId],
-        queryFn: async () => {
+        queryFn: async (): Promise<EntityOption[]> => {
             switch (eventAppliedType) {
-                case 'PACKAGE_SESSION':
-                    return fetchPackageSessions(instituteId);
                 case 'AUDIENCE':
                     return fetchAudiences(instituteId);
                 case 'LIVE_SESSION':
@@ -119,7 +107,8 @@ function useEntityOptions(eventAppliedType: string, instituteId: string) {
             }
         },
         staleTime: 5 * 60 * 1000,
-        enabled: !!instituteId && !!eventAppliedType && eventAppliedType !== 'INSTITUTE' && eventAppliedType !== 'ASSESSMENT',
+        enabled: !!instituteId && ['AUDIENCE', 'LIVE_SESSION', 'ENROLL_INVITE'].includes(eventAppliedType),
+        retry: false,
     });
 }
 
@@ -136,11 +125,12 @@ const TYPE_LABELS: Record<string, string> = {
 
 export function EventEntityPicker({ eventAppliedType, value, onChange, instituteId }: EventEntityPickerProps) {
     const [showManual, setShowManual] = useState(false);
-    const { data: options = [], isLoading } = useEntityOptions(eventAppliedType, instituteId);
+    const hasDropdownSupport = ['AUDIENCE', 'LIVE_SESSION', 'ENROLL_INVITE'].includes(eventAppliedType);
+    const { data: options = [], isLoading, isError } = useEntityOptions(eventAppliedType, instituteId);
 
     const typeLabel = TYPE_LABELS[eventAppliedType] ?? eventAppliedType.replace(/_/g, ' ').toLowerCase();
 
-    // For INSTITUTE and ASSESSMENT — no entity picker (institute-wide or cross-service)
+    // For INSTITUTE — no entity picker needed
     if (eventAppliedType === 'INSTITUTE') {
         return (
             <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
@@ -149,23 +139,41 @@ export function EventEntityPicker({ eventAppliedType, value, onChange, institute
         );
     }
 
-    if (eventAppliedType === 'ASSESSMENT') {
+    // For types without dropdown support (PACKAGE_SESSION, ASSESSMENT, USER_PLAN, PAYMENT) — manual input
+    if (!hasDropdownSupport || showManual || isError) {
         return (
             <div className="space-y-2">
-                <Label className="text-xs font-medium text-gray-600">Assessment ID (optional)</Label>
+                <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium text-gray-600">
+                        Restrict to a specific {typeLabel} (optional)
+                    </Label>
+                    {hasDropdownSupport && !isError && (
+                        <button
+                            type="button"
+                            className="text-[10px] text-primary-500 hover:underline"
+                            onClick={() => setShowManual(false)}
+                        >
+                            Pick from list
+                        </button>
+                    )}
+                </div>
                 <Input
                     value={value ?? ''}
                     onChange={(e) => onChange(e.target.value || undefined)}
                     className="text-sm"
-                    placeholder="Leave empty to apply to all assessments"
+                    placeholder={`Enter ${typeLabel} ID or leave empty for all`}
                 />
                 <p className="text-[10px] text-gray-400">
-                    Assessments are managed in a separate service. Enter the assessment ID manually, or leave empty for all.
+                    {value
+                        ? `This workflow will only fire for this specific ${typeLabel}.`
+                        : `Leave empty and the workflow fires for every ${typeLabel} in your institute.`
+                    }
                 </p>
             </div>
         );
     }
 
+    // Dropdown mode for supported types
     return (
         <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -173,38 +181,30 @@ export function EventEntityPicker({ eventAppliedType, value, onChange, institute
                     Restrict to a specific {typeLabel} (optional)
                 </Label>
                 <button
+                    type="button"
                     className="text-[10px] text-primary-500 hover:underline"
-                    onClick={() => setShowManual(!showManual)}
+                    onClick={() => setShowManual(true)}
                 >
-                    {showManual ? 'Pick from list' : 'Enter ID manually'}
+                    Enter ID manually
                 </button>
             </div>
 
-            {showManual ? (
-                <Input
-                    value={value ?? ''}
-                    onChange={(e) => onChange(e.target.value || undefined)}
-                    className="text-sm font-mono"
-                    placeholder="Paste entity ID here"
-                />
-            ) : (
-                <select
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                    value={value ?? ''}
-                    onChange={(e) => onChange(e.target.value || undefined)}
-                >
-                    <option value="">All {typeLabel}s (no restriction)</option>
-                    {isLoading && <option disabled>Loading...</option>}
-                    {options.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                            {opt.label}{opt.subtitle ? ` — ${opt.subtitle}` : ''}
-                        </option>
-                    ))}
-                    {!isLoading && options.length === 0 && (
-                        <option disabled>No {typeLabel}s found</option>
-                    )}
-                </select>
-            )}
+            <select
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm"
+                value={value ?? ''}
+                onChange={(e) => onChange(e.target.value || undefined)}
+            >
+                <option value="">All {typeLabel}s (no restriction)</option>
+                {isLoading && <option disabled>Loading...</option>}
+                {options.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                        {opt.label}{opt.subtitle ? ` — ${opt.subtitle}` : ''}
+                    </option>
+                ))}
+                {!isLoading && options.length === 0 && (
+                    <option disabled>No {typeLabel}s found</option>
+                )}
+            </select>
 
             <p className="text-[10px] text-gray-400">
                 {value
