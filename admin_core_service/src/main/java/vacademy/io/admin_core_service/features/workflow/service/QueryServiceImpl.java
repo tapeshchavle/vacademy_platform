@@ -71,6 +71,7 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
     private final UserPlanRepository userPlanRepository;
     private final vacademy.io.admin_core_service.features.live_session.service.AttendanceReportService attendanceReportService;
     private final vacademy.io.admin_core_service.features.live_session.repository.LiveSessionLogsRepository liveSessionLogsRepository;
+    private final vacademy.io.admin_core_service.features.packages.repository.PackageSessionRepository packageSessionRepository;
 
     @Override
     public Map<String, Object> execute(String prebuiltKey, Map<String, Object> params) {
@@ -1284,7 +1285,7 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
             List<AudienceResponse> allResponses = new ArrayList<>();
             for (String aid : audienceIds) {
                 List<AudienceResponse> responses = audienceResponseRepository
-                        .findLeadsByAudienceAndDateRange(aid, start, end);
+                        .findLeadsByAudienceAndDateRange(instituteId, aid, start, end);
                 allResponses.addAll(responses);
             }
 
@@ -1323,7 +1324,7 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
                 List<CustomFieldValues> cfvs = cfvByResponseId.getOrDefault(resp.getId(), List.of());
                 for (CustomFieldValues cfv : cfvs) {
                     String fieldName = fieldIdToName.getOrDefault(cfv.getCustomFieldId(), cfv.getCustomFieldId());
-                    lead.put(fieldName, cfv.getFieldValue());
+                    lead.put(fieldName, cfv.getValue());
                 }
                 leads.add(lead);
             }

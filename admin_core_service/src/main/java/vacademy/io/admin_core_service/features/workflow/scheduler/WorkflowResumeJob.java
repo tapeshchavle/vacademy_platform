@@ -14,6 +14,8 @@ import vacademy.io.admin_core_service.features.workflow.repository.WorkflowExecu
 import vacademy.io.admin_core_service.features.workflow.service.WorkflowEngineService;
 import vacademy.io.common.logging.SentryLogger;
 
+import vacademy.io.admin_core_service.features.workflow.enums.WorkflowExecutionStatus;
+
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -93,14 +95,14 @@ public class WorkflowResumeJob implements Job {
         resumeContext.put("__resumed_at_node", state.getPausedAtNodeId());
 
         // Update execution status back to PROCESSING
-        execution.setStatus("PROCESSING");
+        execution.setStatus(WorkflowExecutionStatus.PROCESSING);
         executionRepository.save(execution);
 
         try {
             Map<String, Object> result = workflowEngineService.run(
                     execution.getWorkflow().getId(), resumeContext);
 
-            execution.setStatus("COMPLETED");
+            execution.setStatus(WorkflowExecutionStatus.COMPLETED);
             execution.setCompletedAt(Instant.now());
             executionRepository.save(execution);
 
@@ -108,7 +110,7 @@ public class WorkflowResumeJob implements Job {
 
         } catch (Exception e) {
             log.error("Failed to execute resumed workflow {}", state.getExecutionId(), e);
-            execution.setStatus("FAILED");
+            execution.setStatus(WorkflowExecutionStatus.FAILED);
             execution.setErrorMessage("Resume failed: " + e.getMessage());
             execution.setCompletedAt(Instant.now());
             executionRepository.save(execution);
