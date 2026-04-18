@@ -71,7 +71,6 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
     private final UserPlanRepository userPlanRepository;
     private final vacademy.io.admin_core_service.features.live_session.service.AttendanceReportService attendanceReportService;
     private final vacademy.io.admin_core_service.features.live_session.repository.LiveSessionLogsRepository liveSessionLogsRepository;
-    private final vacademy.io.admin_core_service.features.packages.repository.PackageSessionRepository packageSessionRepository;
 
     @Override
     public Map<String, Object> execute(String prebuiltKey, Map<String, Object> params) {
@@ -1414,15 +1413,14 @@ public class QueryServiceImpl implements QueryNodeHandler.QueryService {
             if (batchId != null && !batchId.isEmpty()) {
                 batchIds.add(batchId);
             } else if (instituteId != null) {
-                // Fetch all active package sessions for this institute
-                List<vacademy.io.common.institute.entity.session.PackageSession> activeSessions =
-                    packageSessionRepository.findAll().stream()
-                        .filter(ps -> ps.getPackageEntity() != null
-                            && instituteId.equals(ps.getPackageEntity().getInstituteId())
-                            && "ACTIVE".equalsIgnoreCase(ps.getStatus()))
-                        .collect(Collectors.toList());
-                batchIds = activeSessions.stream()
-                    .map(vacademy.io.common.institute.entity.session.PackageSession::getId)
+                // Fetch all active package session IDs for this institute via SSIGM
+                batchIds = ssigmRepo.findAll().stream()
+                    .filter(m -> m.getInstitute() != null
+                        && instituteId.equals(m.getInstitute().getId())
+                        && "ACTIVE".equalsIgnoreCase(m.getStatus())
+                        && m.getPackageSession() != null)
+                    .map(m -> m.getPackageSession().getId())
+                    .distinct()
                     .collect(Collectors.toList());
                 log.info("No batchId provided. Found {} active batches for institute {}", batchIds.size(), instituteId);
             } else {
