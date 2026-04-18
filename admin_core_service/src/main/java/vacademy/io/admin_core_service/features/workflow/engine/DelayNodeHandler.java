@@ -100,7 +100,7 @@ public class DelayNodeHandler implements NodeHandler {
 
                 // Mark the execution as PAUSED
                 executionRepository.findById(executionId).ifPresent(execution -> {
-                    execution.setStatus("PAUSED");
+                    execution.setStatus(vacademy.io.admin_core_service.features.workflow.enums.WorkflowExecutionStatus.PAUSED);
                     executionRepository.save(execution);
                 });
 
